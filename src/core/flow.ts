@@ -50,6 +50,7 @@ async function startWorld(isNew: boolean) {
     story.onEnterZone(z);
   };
   mountHud(hudHandlers());
+  (await import('../ui/coach')).installCoach();
   const p = game.save.player;
   if (isNew) {
     showHud(false);
