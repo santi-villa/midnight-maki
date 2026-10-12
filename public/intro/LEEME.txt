@@ -1,7 +1,11 @@
-Imágenes opcionales para la intro (reemplazan a las dibujadas por el juego):
-  1.jpg  ciudad de noche con lluvia
-  2.jpg  la carta debajo de la puerta
-  3.jpg  el tren junto al mar
-  4.jpg  la llegada a Villa Nori
-Formato recomendado: 1920x1080 (horizontal 16:9), .jpg, .png o .webp.
-Fondo del menú principal: public/title-bg.jpg (horizontal) y opcional public/title-bg-vertical.jpg (vertical 9:16).
+Ilustraciones de la introducción. El juego las busca en este orden: 1.jpg, 1.png, 1.webp.
+  1  Sofi en su habitación
+  2  La carta bajo la puerta
+  3  Sofi lee la carta
+  4  Sofi prepara la valija
+  5  Sofi viaja en tren
+  6  Sofi llega a Villa Nori
+  7  Sofi frente a Midnight Maki
+
+Si falta un número, la intro muestra el nombre del archivo en lugar de inventar otra imagen.
+Los sonidos están en public/audio/intro/ y se registran en src/story/introSounds.ts.

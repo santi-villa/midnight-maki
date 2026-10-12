@@ -98,7 +98,6 @@ test('title: with a save, Continuar loads it into the world', async ({ page }) =
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
-  await page.getByText('Tocá para continuar').click();
   await advance(page);
   await page.evaluate(() => { const w = (window as any).mmDebug.world; w.player.walkTo(w.zone.grid, 5, 6); });
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world?.zoneId), { timeout: 15_000 }).toBe('restaurant');
