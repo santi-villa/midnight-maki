@@ -20,14 +20,14 @@ Solo `opacity` / `transform` sobre unos 30 elementos: brillo de faroles y ventan
 - Mientras la imagen está, la escena Phaser del menú viejo se duerme (no dibuja). Si la imagen no carga, vuelve a verse esa escena con el logo anterior.
 
 ## Música
-- Soporte para canción propia: poné el archivo en **`src/music/`** (o `public/music/menu.mp3`). Se usa en loop con fundido de entrada y se apaga suave al empezar la partida.
-- Sin archivo se usa la música generada de siempre (`audio.play('title')`). No se eliminó nada del sistema de audio.
-- La canción de `E:\Juegos\Otros\Claude\Juego Sofi Stardew\src\music\` está en tu PC; no la puedo leer desde acá. Copiala a `src/music/` del repo (hay un `LEEME.txt`).
+- Canciones propias en **`src/music/`**; el nombre del archivo elige la escena: `main-menu-music.mp3` → menú, `introduction-music.mp3` → intro de la historia, `kitchen-minigame-music.mp3` → minijuego de cocina.
+- Se reproducen en streaming (sin decodificar todo en memoria), en loop, con entrada suave, directo al volumen de música del juego (respeta el ajuste Música).
+- Las escenas sin archivo, o si un archivo falla, siguen con la música generada. No se eliminó nada del sistema de audio.
 
 ## Resultados de las pruebas
 - `tsc --noEmit`: sin errores.
 - `npm test` (Vitest): 89/89.
 - `npm run build`: OK.
 - `e2e/title.spec.ts` (nuevo): 5/5 — solo ilustración + mensaje primero; el primer toque desbloquea audio y muestra el menú; botones de ≥44 px y dentro de pantalla en 390×844, 360×740, 844×390 y 1280×720 (la imagen nunca se sale); movimiento reducido apaga animaciones; panel de cargar (código inválido, créditos, opciones); Continuar carga la partida guardada.
-- Prueba manual con un archivo de audio de prueba en `src/music/`: se decodifica y suena en loop (luego se borró).
+- Prueba con las tres canciones reales: menú, intro y cocina arrancan, y al pasar a otra escena vuelve la música generada.
 - `e2e/newgame.spec.ts`: ya fallaba antes de este trabajo en `master-mgsshv` (cambio de la cocina de otra persona: el paso «Servir todo» ya no existe como lo espera el test). No es del menú.

@@ -121,7 +121,7 @@ export async function playIntro() {
   await fade(true, 10);
   openBook();
   audio.ambience('rain');
-  audio.play('emotional');
+  audio.play('intro');
   await fade(false, 500);
   await page(1, 'city', [
     'En una ciudad grande y gris, {name} trabajaba hasta tarde todas las noches.',

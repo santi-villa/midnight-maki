@@ -5,7 +5,7 @@
 import { settings } from '../core/settings';
 import { bus } from '../core/events';
 
-type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'none';
+type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
 
 interface TrackDef {
   bpm: number;
@@ -40,6 +40,7 @@ const TRACKS: Record<Exclude<Track, 'none'>, TrackDef> = {
   mystery: { bpm: 60, scale: MINOR_PENTA, root: 57, chords: [[0, 3, 7], [-4, 0, 3], [1, 5, 8], [-1, 2, 7]], lead: 'bell', density: 0.2, bass: true, swing: 0 },
   stars: { bpm: 58, scale: PENTA, root: 64, chords: [[0, 4, 7, 11], [9, 12, 16, 19], [5, 9, 12, 16], [7, 11, 14, 18]], lead: 'bell', density: 0.3, bass: false, swing: 0 },
   festival: { bpm: 100, scale: PENTA, root: 62, chords: [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]], lead: 'flute', density: 0.6, bass: true, swing: 0.15 },
+  intro: { bpm: 60, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [-7, -3, 0, 4], [-5, -1, 2, 7]], lead: 'piano', density: 0.25, bass: true, swing: 0 },
   emotional: { bpm: 60, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [-7, -3, 0, 4], [-5, -1, 2, 7]], lead: 'piano', density: 0.25, bass: true, swing: 0 },
 };
 
@@ -58,9 +59,10 @@ const MELODIES: Partial<Record<Exclude<Track, 'none'>, string>> = {
   mystery:    '0 - - - 2 - 1 - | 0 - - - . . . . | 3 - - 2 1 - 0 - | 1 - - - . . . . ',
   stars:      '4 - - - 5 - - - | 6 - 5 - 4 - - . | 3 - - - 4 - 2 - | 1 - - - - - - . ',
   festival:   '0 2 4 2 0 2 4 5 | 4 - 2 - 0 - . . | 1 3 4 3 1 3 4 6 | 5 - 4 - 2 - . . ',
+  intro:      '2 - - 3 4 - - . | 3 - 2 - 1 - - . | 0 - - 1 2 - - . | 1 - - - - - - . ',
   emotional:  '2 - - 3 4 - - . | 3 - 2 - 1 - - . | 0 - - 1 2 - - . | 1 - - - - - - . ',
 };
-const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { title: true, town: true, restaurant: true, restaurant_night: true, kitchen: true, home: true, garden: true, stars: true, emotional: true, beach: true };
+const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { title: true, town: true, restaurant: true, restaurant_night: true, kitchen: true, home: true, garden: true, stars: true, emotional: true, intro: true, beach: true };
 
 function parseMelody(src: string): (number | null | '-')[] {
   return src.replace(/\|/g, ' ').trim().split(/\s+/).map((t) => (t === '.' ? null : t === '-' ? '-' : Number(t)));
@@ -69,16 +71,18 @@ function parseMelody(src: string): (number | null | '-')[] {
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 /**
- * Optional custom menu song. Drop an audio file into `src/music/` (any name; one containing "menu", "title",
- * "principal" or "main" wins) or `public/music/menu.mp3|ogg|m4a`. Without a file the generative tune is used.
+ * Optional custom songs. Drop audio files into `src/music/`; the file name picks the scene:
+ *   menu / title / principal -> main menu, intro -> story intro, kitchen / cocina -> cooking minigame.
+ * Scenes without a file keep the generated music.
  */
 const MUSIC_FILES = import.meta.glob('../music/*.{mp3,ogg,m4a,wav,webm,opus}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const SONG_MATCH: Partial<Record<Track, RegExp>> = { title: /menu|title|principal/i, intro: /intro/i, kitchen: /kitchen|cocina/i };
 
-function menuSongURLs(): string[] {
-  const entries = Object.entries(MUSIC_FILES);
-  const pick = entries.find(([name]) => /menu|title|principal|main/i.test(name)) ?? entries[0];
-  const base = import.meta.env.BASE_URL;
-  return [...(pick ? [pick[1]] : []), base + 'music/menu.mp3', base + 'music/menu.ogg', base + 'music/menu.m4a'];
+function songURL(track: Track): string | null {
+  const re = SONG_MATCH[track];
+  if (!re) return null;
+  const hit = Object.entries(MUSIC_FILES).find(([name]) => re.test(name.split('/').pop() ?? ''));
+  return hit ? hit[1] : null;
 }
 
 class AudioEngine {
@@ -98,76 +102,54 @@ class AudioEngine {
   private pendingTrack: Track = 'none';
   private lastSfx: Record<string, number> = {};
 
-  private custom: AudioBufferSourceNode | null = null;
-  private customGain: GainNode | null = null;
-  private menuBytes: Promise<ArrayBuffer | null> | null = null;
-  private menuBuffer: AudioBuffer | null = null;
+  private badSongs = new Set<Track>();
+  private custom: { track: Track; el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode } | null = null;
 
-  /** Starts downloading the custom menu song (if any) without needing audio to be unlocked yet. */
-  prefetchMenu() {
-    if (this.menuBytes) return;
-    this.menuBytes = (async () => {
-      for (const url of menuSongURLs()) {
-        try {
-          const r = await fetch(url);
-          const type = r.headers.get('content-type') ?? '';
-          if (r.ok && !type.includes('text/html')) return await r.arrayBuffer();
-        } catch {
-          /* try the next candidate */
-        }
-      }
-      return null;
-    })();
+  /** Streams the custom song for a track (no big decode in memory). Returns false when there is none. */
+  private startCustom(track: Track): boolean {
+    const c = this.ctx;
+    const url = songURL(track);
+    if (!c || !url || this.badSongs.has(track)) return false;
+    const el = new Audio();
+    el.src = url;
+    el.loop = true;
+    el.preload = 'auto';
+    const node = c.createMediaElementSource(el);
+    const gain = c.createGain();
+    const t = c.currentTime;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(Math.max(0.0001, settings.music * 0.5), t + 1.5);
+    node.connect(gain).connect(this.master); // straight to the master: no lo-fi filter on a finished song
+    const me = { track, el, node, gain };
+    this.custom = me;
+    const fallback = () => {
+      if (this.custom !== me) return;
+      this.badSongs.add(track);
+      this.stopCustom(true);
+      this.current = 'none'; // unreadable file: bring the generated tune back
+      this.play(track);
+    };
+    el.addEventListener('error', fallback, { once: true });
+    el.play().catch(fallback);
+    return true;
   }
 
-  /** Plays the menu song: the custom file if present, else the generative 'title' tune. Needs a user gesture before. */
-  async playMenu() {
-    this.prefetchMenu();
-    this.play('title');
+  private stopCustom(now = false) {
     const c = this.ctx;
-    if (!c) return;
-    try {
-      if (!this.menuBuffer) {
-        const bytes = await this.menuBytes!;
-        if (!bytes) return;
-        this.menuBuffer = await c.decodeAudioData(bytes.slice(0));
-      }
-    } catch {
-      return; // unreadable file: keep the generative tune
-    }
-    if (this.current !== 'title' || this.custom) return;
-    this.play('none'); // silence the generative tune; the song takes over
-    const src = c.createBufferSource();
-    src.buffer = this.menuBuffer;
-    src.loop = true;
-    const g = c.createGain();
-    g.gain.setValueAtTime(0.0001, c.currentTime);
-    g.gain.linearRampToValueAtTime(1.6, c.currentTime + 1.6);
-    src.connect(g).connect(this.music);
-    src.start();
-    this.custom = src;
-    this.customGain = g;
-    this.current = 'title';
-    this.pendingTrack = 'title';
-  }
-
-  private stopCustom() {
-    const c = this.ctx;
-    if (!this.custom || !c) return;
-    const src = this.custom;
-    const g = this.customGain;
+    const cur = this.custom;
+    if (!cur || !c) return;
     this.custom = null;
-    this.customGain = null;
-    if (g) {
-      g.gain.cancelScheduledValues(c.currentTime);
-      g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), c.currentTime);
-      g.gain.linearRampToValueAtTime(0.0001, c.currentTime + 0.5);
-    }
-    try {
-      src.stop(c.currentTime + 0.55);
-    } catch {
-      /* already stopped */
-    }
+    const done = () => {
+      cur.el.pause();
+      cur.el.removeAttribute('src');
+      cur.node.disconnect();
+      cur.gain.disconnect();
+    };
+    if (now) return done();
+    cur.gain.gain.cancelScheduledValues(c.currentTime);
+    cur.gain.gain.setValueAtTime(Math.max(0.0001, cur.gain.gain.value), c.currentTime);
+    cur.gain.gain.linearRampToValueAtTime(0.0001, c.currentTime + 0.5);
+    window.setTimeout(done, 600);
   }
 
   /** must be called from a user gesture */
@@ -226,6 +208,7 @@ class AudioEngine {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.music.gain.setTargetAtTime(settings.music * 0.35, t, 0.1);
+    this.custom?.gain.gain.setTargetAtTime(Math.max(0.0001, settings.music * 0.5), t, 0.1);
     this.sfx.gain.setTargetAtTime(settings.sfx * 0.5, t, 0.05);
     this.amb.gain.setTargetAtTime(settings.ambience * 0.35, t, 0.2);
   }
@@ -236,13 +219,13 @@ class AudioEngine {
 
   play(track: Track) {
     this.pendingTrack = track;
-    if (this.custom && (track !== 'title')) this.stopCustom();
-    if (this.custom && track === 'title') return;
+    if (this.custom && this.custom.track !== track) this.stopCustom();
     if (!this.ctx || track === this.current) return;
     this.current = track;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     if (track === 'none') return;
+    if (this.startCustom(track)) return;
     this.step = 0;
     this.nextTime = this.ctx.currentTime + 0.3;
     this.timer = window.setInterval(() => this.schedule(), 100);

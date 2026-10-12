@@ -47,7 +47,6 @@ export async function showTitle(phaser: Phaser.Game) {
     window.removeEventListener('keydown', onKey);
     root.remove();
   };
-  audio.prefetchMenu();
 
   // ---- actions (same behaviour as before; only the presentation changed)
   const doContinue = async () => {
@@ -186,7 +185,7 @@ export async function showTitle(phaser: Phaser.Game) {
     if (revealed) return;
     revealed = true;
     audio.unlock(); // browsers only allow audio after a gesture
-    void audio.playMenu();
+    audio.play('title');
     root.classList.add('open');
     // buttons ignore taps until the fade-in is under way, so the tap that opened the menu cannot press one
     window.setTimeout(() => {
