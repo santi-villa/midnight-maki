@@ -100,10 +100,10 @@ function favoriteOf(customer: string): string | null {
   return fav[customer] ?? null;
 }
 
-export function makeOrder(r: () => number = Math.random): Omit<Order, 'uid'> | null {
+/** A dish for one customer who is already sitting. Does not pick a random guest. */
+export function orderForCustomer(customer: string, r: () => number = Math.random): Omit<Order, 'uid'> | null {
   const recipes = availableRecipes();
-  if (!recipes.length) return null;
-  const customer = pickCustomer(r);
+  if (!recipes.length || !customer) return null;
   let recipe = recipes[Math.floor(r() * recipes.length)];
   const fav = favoriteOf(customer);
   if (fav && game.save.recipesKnown.includes(fav) && r() < 0.6) recipe = RECIPES_BY_ID[fav];
@@ -116,16 +116,21 @@ export function makeOrder(r: () => number = Math.random): Omit<Order, 'uid'> | n
   return { recipe: recipe.id, customer, reward: Math.round(recipe.price * variance) };
 }
 
+export function makeOrder(r: () => number = Math.random): Omit<Order, 'uid'> | null {
+  const customer = pickCustomer(r);
+  return orderForCustomer(customer, r);
+}
+
+/**
+ * Story orders stay on the counter. Regular orders are written when a seated
+ * party is asked, so a new day only clears the ones nobody finished.
+ */
 export function refreshOrders(newDay: boolean) {
+  if (!newDay) return;
   const s = game.save;
-  if (newDay) s.orders = s.orders.filter((o) => o.special); // regular orders refresh daily, story ones stay
-  let guard = 0;
-  while (s.orders.filter((o) => !o.special).length < maxOrders() && guard++ < 10) {
-    const o = makeOrder();
-    if (!o) break;
-    if (s.orders.some((x) => x.recipe === o.recipe && x.customer === o.customer)) continue;
-    game.addOrder(o);
-  }
+  const next = s.orders.filter((o) => o.special);
+  if (next.length === s.orders.length) return;
+  s.orders = next;
   game.touch('orders');
 }
 
@@ -140,21 +145,28 @@ export interface ServeResult {
   gift: string | null;
 }
 
+export interface ServeOptions {
+  /** Keep the tip out of the wallet. The table holds it until the player picks it up. */
+  holdTip?: boolean;
+  rng?: () => number;
+}
+
 /** Deliver a cooked dish for an order. quality: 0 ok, 1 good, 2 perfect. Idempotent per order uid. */
-export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0): ServeResult | null {
+export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, opts?: ServeOptions): ServeResult | null {
   const s = game.save;
   const idx = s.orders.findIndex((o) => o.uid === uid);
   if (idx < 0) return null;
   const o = s.orders[idx];
   s.orders.splice(idx, 1);
   const r = RECIPES_BY_ID[o.recipe];
+  const roll = opts?.rng ?? Math.random;
   let coins = Math.round(o.reward * (1 + BALANCE.qualityBonus[quality] + tipBonus())) + variantBonus;
   // happy customers sometimes leave a tip, and a perfect dish may earn a little present
-  const tip = quality >= 1 && Math.random() < (quality === 2 ? 0.55 : 0.25) ? Math.round(o.reward * (0.1 + Math.random() * 0.2)) : 0;
-  coins += tip;
+  const tip = quality >= 1 && roll() < (quality === 2 ? 0.55 : 0.25) ? Math.round(o.reward * (0.1 + roll() * 0.2)) : 0;
+  if (!opts?.holdTip) coins += tip;
   game.addCoins(coins, 'serve');
   const gc = GENERIC_CUSTOMERS.find((c) => c.id === o.customer);
-  const gift = quality === 2 && gc?.gift && Math.random() < 0.35 ? gc.gift : null;
+  const gift = quality === 2 && gc?.gift && roll() < 0.35 ? gc.gift : null;
   if (gift) game.addItem(gift, 1, 'tip');
   const firstTime = !s.recipesCooked[o.recipe];
   s.recipesCooked[o.recipe] = (s.recipesCooked[o.recipe] ?? 0) + 1;

@@ -8,7 +8,7 @@ import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
-import type { Dir } from '../core/types';
+import type { Appearance, Dir } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
 import { ZONES } from '../data/zones';
@@ -20,6 +20,9 @@ import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
 import { currentQuestTarget } from '../quests/quests';
+import { customerAsk } from '../restaurant/orders';
+import { collectTipAt, deliverTo, guestViews, pumpService, syncRestaurantHours, takeOrderAt, type GuestView, type PaidMeal } from '../restaurant/service';
+import type { FurnPiece, PartyPhase } from '../restaurant/floor';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture } from './textures';
@@ -51,6 +54,11 @@ export class WorldScene extends Phaser.Scene {
   private npcKey = '';
   private shopKey = '';
   private lifeTick = 0;
+  private floorTick = 0;
+  private hoursTick = 0;
+  private busOff: Array<() => void> = [];
+  private mealBusy = false;
+  private mealQueue: PaidMeal[] = [];
   extras = new Map<string, Actor>(); // cutscene-only actors
   joy = { x: 0, y: 0 };
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -86,6 +94,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
+    this.releaseBus();
     this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ENTER') as any;
     this.input.keyboard!.on('keydown', (e: KeyboardEvent) => {
       if ((e.key === 'e' || e.key === 'E' || e.key === ' ' || e.key === 'Enter') && this.canAct()) this.tryInteract();
@@ -104,17 +113,20 @@ export class WorldScene extends Phaser.Scene {
     this.scale.on('resize', () => this.layout());
     this.dark = this.add.renderTexture(0, 0, 8, 8).setOrigin(0, 0).setDepth(200000).setBlendMode(Phaser.BlendModes.MULTIPLY);
     this.lightStamp = this.make.image({ key: lightTexture(this) }, false);
-    bus.on('time:changed', () => this.onPeriodChange());
-    bus.on('decor:changed', () => this.refreshFurniture());
-    bus.on('coins:changed', ({ delta }) => {
-      if (delta > 0 && this.sys.isActive()) this.floatText('+' + delta + ' ●');
-    });
-    bus.on('state:changed', ({ reason }) => {
-      if (this.zoneId === 'restaurant' && (reason === 'serve' || reason === 'orders' || reason === 'order')) this.spawnCustomers();
-    });
-    bus.on('appearance:changed', () => this.refreshLooks());
-    bus.on('settings:changed', () => this.enterLowFx());
-    bus.on('settings:changed', () => this.setupAmbient());
+    this.busOff.push(
+      bus.on('time:changed', () => this.onPeriodChange()),
+      bus.on('decor:changed', () => this.refreshFurniture()),
+      bus.on('coins:changed', ({ delta }) => {
+        if (delta > 0 && this.sys.isActive()) this.floatText('+' + delta + ' ●');
+      }),
+      bus.on('state:changed', () => {
+        if (this.zoneId === 'restaurant') this.syncGuests();
+      }),
+      bus.on('appearance:changed', () => this.refreshLooks()),
+      bus.on('settings:changed', () => this.enterLowFx()),
+      bus.on('settings:changed', () => this.setupAmbient()),
+    );
+    this.events.once('shutdown', () => this.releaseBus());
     this.questPin = this.add.image(0, 0, questMarkerTexture(this)).setOrigin(0.5, 1).setDepth(150000).setVisible(false);
     this.layout();
   }
@@ -193,8 +205,7 @@ export class WorldScene extends Phaser.Scene {
     this.gatherSprites = [];
     for (const b of this.bugs) b.sprite.destroy();
     this.bugs = [];
-    for (const c of this.customers) c.destroy();
-    this.customers = [];
+    this.clearGuests();
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
     this.layer?.destroy();
@@ -282,7 +293,7 @@ export class WorldScene extends Phaser.Scene {
     this.applyBounds();
     this.setupAmbient();
     this.spawnBugs();
-    this.spawnCustomers();
+    this.syncGuests();
     this.spawnCritters();
   }
 
@@ -342,7 +353,7 @@ export class WorldScene extends Phaser.Scene {
     // floors/walls may have changed (room styles)
     for (let y = 0; y < fresh.def.h; y++) for (let x = 0; x < fresh.def.w; x++) this.layer?.putTileAt(fresh.tiles[y][x], x, y);
     this.placeFurnitureSprites();
-    this.spawnCustomers();
+    this.syncGuests();
   }
 
   furnSpriteByUid(uid: number) {
@@ -482,33 +493,187 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  private customers: Actor[] = [];
-  /** generic customers sit at dining chairs, one per pending regular order */
-  spawnCustomers() {
-    for (const c of this.customers) c.destroy();
-    this.customers = [];
-    if (this.zoneId !== 'restaurant' || !game.has('intro_done')) return;
-    const seats = this.zone.furniture.filter((f) => f.room === 'dining' && f.def.sit && f.def.kind !== 'bench');
-    const orders = game.save.orders.filter((o) => !o.special && o.customer.startsWith('c_'));
-    const species = ['human', 'cat', 'fox', 'bunny', 'dog', 'bear', 'otter', 'squirrel'] as const;
-    const tops = ['top_tee_cream', 'top_tee_sage', 'top_stripes_navy', 'top_sweater_rose', 'top_cardigan_moss', 'top_kimono_indigo', 'top_winter_coat'];
-    const hair = ['#2a2230', '#5b3a2e', '#d8a05a', '#b2585e', '#d8d2c8'];
-    orders.slice(0, seats.length).forEach((o, i) => {
-      const seat = seats[i];
-      const h = o.uid * 2654435761;
-      const sp = species[h % species.length];
-      const look = {
-        species: sp, skin: sp === 'human' ? ['#f2cfb3', '#c98e66', '#e3b48e'][h % 3] : ['#d8874f', '#a8734d', '#8d8a93', '#f3e6c8', '#e0c08a'][h % 5],
-        hairStyle: sp === 'human' ? h % 6 : 6, hairColor: hair[h % hair.length], eyes: h % 5, eyeColor: '#2a2230',
-        top: tops[h % tops.length], bottom: ['bot_jeans', 'bot_pants_brown', 'bot_skirt_plaid'][h % 3], shoes: 'sh_sneakers', head: '', face: '', extra: '', bag: '',
-      };
-      const a = new Actor(this, o.customer, lookTexture(this, look as any), seat.f.x, seat.f.y);
-      a.face(seat.f.rot === 2 ? 'up' : seat.f.rot === 1 ? 'right' : seat.f.rot === 3 ? 'left' : 'down');
-      a.y -= 3;
-      a.sync();
-      a.sprite.setDepth(a.y + 6);
-      this.customers.push(a);
+  private releaseBus() {
+    for (const off of this.busOff) off();
+    this.busOff = [];
+  }
+
+  private guests = new Map<string, { actor: Actor; phase: PartyPhase }>();
+
+  private clearGuests() {
+    for (const g of this.guests.values()) g.actor.destroy();
+    this.guests.clear();
+  }
+
+  private diningPieces(): FurnPiece[] {
+    if (!this.zone) return [];
+    return this.zone.furniture.filter((fi) => fi.room === 'dining').map((fi) => ({
+      uid: fi.f.uid,
+      id: fi.f.id,
+      kind: fi.def.kind,
+      x: fi.f.x,
+      y: fi.f.y,
+      w: fi.def.w,
+      h: fi.def.h,
+      rot: fi.f.rot,
+      sit: fi.def.sit,
+    }));
+  }
+
+  /** One step of the dining room: arrivals, patience, eating and payment. Sprites follow the phase. */
+  private pumpFloor(dt: number) {
+    if (this.zoneId !== 'restaurant' || !game.has('intro_done') || !this.zone) return;
+    if (this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
+    this.floorTick += dt;
+    if (this.floorTick < 1) return;
+    const step = Math.min(1.25, this.floorTick);
+    this.floorTick = 0;
+    const { paid, notice } = pumpService(step, this.diningPieces());
+    if (notice) this.note(notice);
+    this.syncGuests();
+    for (const meal of paid) this.enqueueMeal(meal);
+  }
+
+  /** Closing still announces outside the restaurant. The door check itself is cheap. */
+  private pollHours(dt: number) {
+    if (clock.paused || this.transitioning || !game.loaded) return;
+    this.hoursTick += dt;
+    if (this.hoursTick < 1) return;
+    this.hoursTick = 0;
+    const present = this.zoneId === 'restaurant' && !!this.zone && !this.decorMode && !this.inputLocked;
+    const notice = syncRestaurantHours(present);
+    if (notice) this.note(notice);
+  }
+
+  private enqueueMeal(meal: PaidMeal) {
+    this.mealQueue.push(meal);
+    void this.drainMeals();
+  }
+
+  private async drainMeals() {
+    if (this.mealBusy) return;
+    this.mealBusy = true;
+    try {
+      while (this.mealQueue.length) {
+        const meal = this.mealQueue.shift()!;
+        const { presentPaidMeal } = await import('../restaurant/kitchen');
+        await presentPaidMeal(meal);
+      }
+    } finally {
+      this.mealBusy = false;
+    }
+  }
+
+  /** Match sprites to the parties already in the room. One actor per chair, not one per order. */
+  private syncGuests() {
+    if (!this.zone || this.zoneId !== 'restaurant' || !game.has('intro_done')) {
+      this.clearGuests();
+      return;
+    }
+    const views = guestViews();
+    const live = new Set<string>();
+    views.forEach((g, gi) => {
+      const n = g.seats.length || g.size;
+      for (let i = 0; i < n; i++) {
+        const key = `${g.id}:${i}`;
+        live.add(key);
+        const seat = g.seats[i];
+        let body = this.guests.get(key);
+        if (!body) {
+          body = this.createGuest(g, i, gi, seat);
+          this.guests.set(key, body);
+          continue;
+        }
+        if (body.phase === g.phase) continue;
+        this.moveGuest(body.actor, g, i, gi, seat);
+        body.phase = g.phase;
+      }
     });
+    for (const [key, body] of this.guests) {
+      if (live.has(key)) continue;
+      body.actor.destroy();
+      this.guests.delete(key);
+    }
+  }
+
+  private createGuest(g: GuestView, i: number, gi: number, seat?: { x: number; y: number; rot: number }) {
+    const sitting = !!seat && (g.phase === 'seated' || g.phase === 'waiting_order' || g.phase === 'waiting_food' || g.phase === 'eating' || g.phase === 'paying');
+    const tile = sitting ? [seat!.x, seat!.y] as [number, number] : this.guestTile(g.phase === 'queued' ? 'line' : g.phase === 'reception' ? 'host' : 'door', gi + i);
+    const actor = new Actor(this, g.customerId, lookTexture(this, guestLook(g.id, i)), tile[0], tile[1]);
+    actor.speed = 40;
+    if (sitting && seat) this.poseGuest(actor, seat, g.phase === 'eating' || g.phase === 'paying' ? 'eat' : 'sit');
+    else if (g.phase === 'leaving' && seat) {
+      this.poseGuest(actor, seat, 'idle');
+      const door = this.guestTile('door', i);
+      this.walkGuest(actor, door[0], door[1]);
+    } else if (g.phase === 'walking' && seat) this.walkGuest(actor, seat.x, seat.y);
+    else {
+      const goal = g.phase === 'outside' ? this.guestTile('host', gi + i) : this.guestGoal(g, i, gi, seat);
+      this.walkGuest(actor, goal[0], goal[1]);
+    }
+    return { actor, phase: g.phase };
+  }
+
+  private moveGuest(actor: Actor, g: GuestView, i: number, gi: number, seat?: { x: number; y: number; rot: number }) {
+    if ((g.phase === 'seated' || g.phase === 'waiting_order' || g.phase === 'waiting_food') && seat) {
+      this.poseGuest(actor, seat, 'sit');
+      if (g.phase === 'waiting_order' && i === 0) {
+        const ask = customerAsk(g.customerId, guestHash(g.id));
+        if (ask) actor.emote(ask.length > 36 ? ask.slice(0, 34) + '…' : ask, 2.6);
+      }
+      return;
+    }
+    if ((g.phase === 'eating' || g.phase === 'paying') && seat) {
+      if (actor.tx !== seat.x || actor.ty !== seat.y) this.poseGuest(actor, seat, 'eat');
+      else actor.setAct('eat');
+      return;
+    }
+    if (g.phase === 'leaving') {
+      actor.setAct('idle');
+      const door = this.guestTile('door', i);
+      this.walkGuest(actor, door[0], door[1]);
+      return;
+    }
+    if (g.phase === 'walking' && seat) {
+      actor.setAct('idle');
+      this.walkGuest(actor, seat.x, seat.y);
+      return;
+    }
+    if (g.phase === 'reception' || g.phase === 'queued') {
+      actor.setAct('idle');
+      const goal = this.guestGoal(g, i, gi, seat);
+      this.walkGuest(actor, goal[0], goal[1]);
+    }
+  }
+
+  private guestGoal(g: GuestView, i: number, gi: number, seat?: { x: number; y: number }): [number, number] {
+    if (seat && (g.phase === 'walking' || g.phase === 'leaving')) return g.phase === 'leaving' ? this.guestTile('door', i) : [seat.x, seat.y];
+    if (g.phase === 'reception') return this.guestTile('host', gi + i);
+    if (g.phase === 'queued') return this.guestTile('line', gi + i);
+    return this.guestTile('door', gi + i);
+  }
+
+  /** Door, host stand and queue. A blocked tile steps to the nearest free one. */
+  private guestTile(kind: 'door' | 'host' | 'line', index: number): [number, number] {
+    const spots = kind === 'door' ? [[8, 12], [9, 12]] : kind === 'host' ? [[8, 6], [7, 6], [9, 6], [6, 6]] : [[8, 11], [9, 11], [10, 11], [7, 11], [8, 10], [9, 10]];
+    const spot = spots[Math.abs(index) % spots.length];
+    const tx = spot[0];
+    const ty = spot[1];
+    if (!this.zone.grid.isSolid(tx, ty)) return [tx, ty];
+    return this.zone.grid.nearestWalkable(tx, ty) ?? [tx, ty];
+  }
+
+  private poseGuest(actor: Actor, seat: { x: number; y: number; rot: number }, act: Act) {
+    actor.stop();
+    actor.teleport(seat.x, seat.y);
+    actor.y -= 3;
+    actor.face(seat.rot === 2 ? 'up' : seat.rot === 1 ? 'right' : seat.rot === 3 ? 'left' : 'down');
+    actor.setAct(act);
+    actor.sync();
+  }
+
+  private walkGuest(actor: Actor, tx: number, ty: number) {
+    if (!actor.walkTo(this.zone.grid, tx, ty)) actor.teleport(tx, ty);
   }
 
   removeGather(spot: GatherSpot) {
@@ -900,7 +1065,32 @@ export class WorldScene extends Phaser.Scene {
       void import('../decoration/editor').then((m) => m.startDecor());
       return;
     }
+    if (intent.type === 'takeOrder') {
+      this.note(takeOrderAt(intent.tableId));
+      this.syncGuests();
+      this.contextKey = '';
+      return;
+    }
+    if (intent.type === 'cookOrder') {
+      void import('../restaurant/kitchen').then((m) => m.cookOrder(intent.uid));
+      return;
+    }
+    if (intent.type === 'deliver') {
+      this.note(deliverTo(intent.tableId));
+      this.syncGuests();
+      this.contextKey = '';
+      return;
+    }
+    if (intent.type === 'tip') {
+      this.note(collectTipAt(intent.tableId));
+      this.contextKey = '';
+      return;
+    }
     void import('../restaurant/kitchen').then((m) => m.openOrders());
+  }
+
+  private note(text: string) {
+    void import('../ui/dom').then(({ toast }) => toast(text));
   }
 
   private async offerGift(id: string) {
@@ -995,10 +1185,12 @@ export class WorldScene extends Phaser.Scene {
     const dt = Math.min(0.05, dms / 1000);
     if (!this.player || !this.zone) return;
     if (!this.transitioning) clock.tick(dt);
+    this.pollHours(dt);
     this.updatePlayer(dt);
     for (const [, n] of this.npcs) this.updateNpc(n, dt);
     for (const e of this.extras.values()) e.update(dt);
-    for (const c of this.customers) c.update(dt);
+    this.pumpFloor(dt);
+    for (const g of this.guests.values()) g.actor.update(dt);
     this.updateCritters(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
@@ -1658,4 +1850,34 @@ export class WorldScene extends Phaser.Scene {
     const [id, n] = raccoons[Math.floor(Math.random() * raccoons.length)];
     import('../story/quirks').then(({ runQuirk }) => runQuirk(id, n.actor, this));
   }
+}
+
+function guestHash(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/** A visitor look, stable for the party so a couple doesn't change clothes mid-meal. */
+function guestLook(id: string, n: number): Appearance {
+  const h = guestHash(id + ':' + n);
+  const species = ['human', 'cat', 'fox', 'bunny', 'dog', 'bear', 'otter', 'squirrel'] as const;
+  const sp = species[h % species.length];
+  const hair = ['#2a2230', '#5b3a2e', '#d8a05a', '#b2585e', '#d8d2c8'];
+  const tops = ['top_tee_cream', 'top_tee_sage', 'top_stripes_navy', 'top_sweater_rose', 'top_cardigan_moss', 'top_kimono_indigo', 'top_winter_coat'];
+  return {
+    species: sp,
+    skin: sp === 'human' ? ['#f2cfb3', '#c98e66', '#e3b48e'][h % 3] : ['#d8874f', '#a8734d', '#8d8a93', '#f3e6c8', '#e0c08a'][h % 5],
+    hairStyle: sp === 'human' ? h % 6 : 6,
+    hairColor: hair[h % hair.length],
+    eyes: h % 5,
+    eyeColor: '#2a2230',
+    top: tops[h % tops.length],
+    bottom: ['bot_jeans', 'bot_pants_brown', 'bot_skirt_plaid'][h % 3],
+    shoes: 'sh_sneakers',
+    head: '',
+    face: '',
+    extra: '',
+    bag: '',
+  };
 }

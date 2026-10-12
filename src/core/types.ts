@@ -35,6 +35,8 @@ export interface Order {
   customer: string;   // npc id or generic customer id
   reward: number;
   special?: string;   // marks story/quest orders
+  /** Set once the dish is cooked and still needs to be carried to the table. */
+  plate?: { quality: 0 | 1 | 2; variantBonus?: number; variant?: string };
 }
 
 export interface QuestState {
