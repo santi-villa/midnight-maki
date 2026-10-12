@@ -68,6 +68,19 @@ function parseMelody(src: string): (number | null | '-')[] {
 
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
+/**
+ * Optional custom menu song. Drop an audio file into `src/music/` (any name; one containing "menu", "title",
+ * "principal" or "main" wins) or `public/music/menu.mp3|ogg|m4a`. Without a file the generative tune is used.
+ */
+const MUSIC_FILES = import.meta.glob('../music/*.{mp3,ogg,m4a,wav,webm,opus}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+
+function menuSongURLs(): string[] {
+  const entries = Object.entries(MUSIC_FILES);
+  const pick = entries.find(([name]) => /menu|title|principal|main/i.test(name)) ?? entries[0];
+  const base = import.meta.env.BASE_URL;
+  return [...(pick ? [pick[1]] : []), base + 'music/menu.mp3', base + 'music/menu.ogg', base + 'music/menu.m4a'];
+}
+
 class AudioEngine {
   ctx: AudioContext | null = null;
   private music!: GainNode;
@@ -84,6 +97,78 @@ class AudioEngine {
   private noiseBuf: AudioBuffer | null = null;
   private pendingTrack: Track = 'none';
   private lastSfx: Record<string, number> = {};
+
+  private custom: AudioBufferSourceNode | null = null;
+  private customGain: GainNode | null = null;
+  private menuBytes: Promise<ArrayBuffer | null> | null = null;
+  private menuBuffer: AudioBuffer | null = null;
+
+  /** Starts downloading the custom menu song (if any) without needing audio to be unlocked yet. */
+  prefetchMenu() {
+    if (this.menuBytes) return;
+    this.menuBytes = (async () => {
+      for (const url of menuSongURLs()) {
+        try {
+          const r = await fetch(url);
+          const type = r.headers.get('content-type') ?? '';
+          if (r.ok && !type.includes('text/html')) return await r.arrayBuffer();
+        } catch {
+          /* try the next candidate */
+        }
+      }
+      return null;
+    })();
+  }
+
+  /** Plays the menu song: the custom file if present, else the generative 'title' tune. Needs a user gesture before. */
+  async playMenu() {
+    this.prefetchMenu();
+    this.play('title');
+    const c = this.ctx;
+    if (!c) return;
+    try {
+      if (!this.menuBuffer) {
+        const bytes = await this.menuBytes!;
+        if (!bytes) return;
+        this.menuBuffer = await c.decodeAudioData(bytes.slice(0));
+      }
+    } catch {
+      return; // unreadable file: keep the generative tune
+    }
+    if (this.current !== 'title' || this.custom) return;
+    this.play('none'); // silence the generative tune; the song takes over
+    const src = c.createBufferSource();
+    src.buffer = this.menuBuffer;
+    src.loop = true;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, c.currentTime);
+    g.gain.linearRampToValueAtTime(1.6, c.currentTime + 1.6);
+    src.connect(g).connect(this.music);
+    src.start();
+    this.custom = src;
+    this.customGain = g;
+    this.current = 'title';
+    this.pendingTrack = 'title';
+  }
+
+  private stopCustom() {
+    const c = this.ctx;
+    if (!this.custom || !c) return;
+    const src = this.custom;
+    const g = this.customGain;
+    this.custom = null;
+    this.customGain = null;
+    if (g) {
+      g.gain.cancelScheduledValues(c.currentTime);
+      g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), c.currentTime);
+      g.gain.linearRampToValueAtTime(0.0001, c.currentTime + 0.5);
+    }
+    try {
+      src.stop(c.currentTime + 0.55);
+    } catch {
+      /* already stopped */
+    }
+  }
 
   /** must be called from a user gesture */
   unlock() {
@@ -151,6 +236,8 @@ class AudioEngine {
 
   play(track: Track) {
     this.pendingTrack = track;
+    if (this.custom && (track !== 'title')) this.stopCustom();
+    if (this.custom && track === 'title') return;
     if (!this.ctx || track === this.current) return;
     this.current = track;
     if (this.timer) clearInterval(this.timer);
