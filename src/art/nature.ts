@@ -104,10 +104,12 @@ const COBBLE_LAYOUTS: [number, number, number, number][][] = [
   [[0, 0, 5, 6], [5, 0, 6, 5], [11, 0, 5, 5], [0, 6, 7, 5], [7, 5, 5, 6], [12, 5, 4, 6], [0, 11, 4, 5], [4, 11, 7, 5], [11, 11, 5, 5]],
   [[0, 0, 7, 4], [7, 0, 4, 6], [11, 0, 5, 5], [0, 4, 5, 6], [5, 6, 6, 5], [11, 5, 5, 6], [0, 10, 5, 6], [5, 11, 6, 5], [11, 11, 5, 5]],
 ];
-export const paverTile = (variant = 0): TileDraw => (c, x, y, r) => {
-  px(c, x, y, '#c9bba6', 16, 16);
+const WARM = ['#c9bba6', '#e8ddcb', '#e0d3be', '#eee5d6', '#dacbb4'];
+export const GREY_STONE = ['#8f8a96', '#c6c2cc', '#bab5c1', '#d1cdd6', '#b0abb8'];
+export const paverTile = (variant = 0, pal: string[] = WARM): TileDraw => (c, x, y, r) => {
+  px(c, x, y, pal[0], 16, 16);
   for (const [sx, sy, w, h] of COBBLE_LAYOUTS[variant % COBBLE_LAYOUTS.length]) {
-    const tone = ['#e8ddcb', '#e0d3be', '#eee5d6', '#dacbb4'][Math.floor(r() * 4)];
+    const tone = pal[1 + Math.floor(r() * 4)];
     const cx = x + sx + (w - 1) / 2;
     const cy = y + sy + (h - 1) / 2;
     ellipse(c, cx, cy, (w - 1.2) / 2, (h - 1.2) / 2, shade(tone, -0.07));

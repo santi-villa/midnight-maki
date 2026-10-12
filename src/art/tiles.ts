@@ -1,7 +1,7 @@
 /** Procedural 16x16 tileset. Each tile key maps to an index in the generated sheet. */
 import { PAL } from './palette';
-import { bank, bridgeTile, brightGrass, brightWater, darkGrassBright, flowerBedBright, fringe, pathTile, paverTile, sandTile, shoreTile, soilTile } from './nature';
-import { barFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWall, izakayaWindow, tatamiMat } from './izakaya';
+import { bank, bridgeTile, brightGrass, brightWater, darkGrassBright, flowerBedBright, fringe, GREY_STONE, pathTile, paverTile, sandTile, shoreTile, soilTile } from './nature';
+import { barFloor, plankFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWall, izakayaWindow, tatamiMat } from './izakaya';
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
 
 export const TS = 16;
@@ -40,21 +40,6 @@ function carpet(base: string, dot: string): TileDraw {
   };
 }
 
-function stonePath(base: string, dark: string, light: string): TileDraw {
-  return (c, x, y, r) => {
-    px(c, x, y, dark, 16, 16);
-    const stones = [[0, 0, 7, 6], [8, 0, 8, 5], [0, 7, 5, 9], [6, 6, 10, 5], [6, 12, 10, 4]];
-    for (const [sx, sy, w, h] of stones) {
-      px(c, x + sx + 1, y + sy + 1, base, w - 1, h - 1);
-      px(c, x + sx + 1, y + sy + 1, light, w - 2, 1);
-      px(c, x + sx + 1, y + sy + 1, light, 1, h - 2);
-      // each stone is a little rounded: shaded bottom and right side
-      px(c, x + sx + 1, y + sy + h - 1, shade(base, -0.22), w - 1, 1);
-      px(c, x + sx + w - 1, y + sy + 2, shade(base, -0.14), 1, h - 3);
-    }
-    speckle(c, x, y, r, [shade(base, -0.1)], 4);
-  };
-}
 
 function dirt(): TileDraw {
   return (c, x, y, r) => {
@@ -102,6 +87,21 @@ function wallFace(base: string, accent: string, pattern: 'plain' | 'stripes' | '
   };
 }
 
+/** Upper part of a two-tile wall: pattern, crown moulding on top and a soft shadow under it. */
+function wallUpper(base: string, accent: string, pattern: Parameters<typeof wallFace>[2]): TileDraw {
+  return (c, x, y, r) => {
+    wallFace(base, accent, pattern)(c, x, y, r);
+    // repaint the lower band (no wainscot up here)
+    px(c, x, y + 11, base, 16, 5);
+    if (pattern === 'stripes') for (let i = 0; i < 16; i += 4) px(c, x + i, y + 11, accent, 2, 5);
+    if (pattern === 'wood') for (let i = 0; i < 16; i += 5) px(c, x + i, y + 11, shade(base, -0.15), 1, 5);
+    // crown moulding
+    px(c, x, y, PAL.woodD, 16, 3);
+    px(c, x, y, PAL.woodL, 16, 1);
+    px(c, x, y + 3, shade(base, -0.18), 16, 1);
+  };
+}
+
 function windowTile(base: string, night: boolean): TileDraw {
   return (c, x, y, r) => {
     wallFace(base, base, 'plain')(c, x, y, r);
@@ -129,14 +129,6 @@ function voidTile(): TileDraw {
   return (c, x, y) => px(c, x, y, '#1a1626', 16, 16);
 }
 
-function stationFloor(): TileDraw {
-  return (c, x, y, r) => {
-    px(c, x, y, '#8d8790', 16, 16);
-    px(c, x, y, '#7a7480', 16, 1);
-    px(c, x, y, '#7a7480', 1, 16);
-    speckle(c, x, y, r, ['#9a949c', '#7f7984'], 12);
-  };
-}
 
 function rail(): TileDraw {
   return (c, x, y, r) => {
@@ -149,8 +141,8 @@ function rail(): TileDraw {
 
 // ---------------------------------------------------------------- room styles (decor)
 export const FLOOR_STYLES: Record<string, { name: string; draw: TileDraw; price: number }> = {
-  wood: { name: 'Madera cálida', draw: plank(PAL.woodL, PAL.wood), price: 0 },
-  darkwood: { name: 'Madera oscura', draw: plank('#6e4a38', '#563626'), price: 150 },
+  wood: { name: 'Madera cálida', draw: plankFloor('#b98252', '#7e4f31'), price: 0 },
+  darkwood: { name: 'Madera oscura', draw: plankFloor('#7a5038', '#4e3426'), price: 150 },
   tatami: { name: 'Tatami', draw: tatamiMat, price: 200 },
   izakaya: { name: 'Tablones de izakaya', draw: izakayaFloor, price: 180 },
   checker: { name: 'Damero crema', draw: checker('#efe3c8', '#d2c3a2'), price: 150 },
@@ -158,7 +150,7 @@ export const FLOOR_STYLES: Record<string, { name: string; draw: TileDraw; price:
   lavcarpet: { name: 'Alfombra lavanda', draw: carpet('#b7a8d6', '#cfc3e6'), price: 220 },
   moss: { name: 'Alfombra musgo', draw: carpet('#8fa77f', '#a7bd96'), price: 220 },
   night: { name: 'Alfombra noche', draw: carpet('#3b4470', '#f2c66d'), price: 260 },
-  stone: { name: 'Piedra de río', draw: stonePath(PAL.stoneL, PAL.stoneD, '#d8d2c8'), price: 200 },
+  stone: { name: 'Piedra de río', draw: paverTile(1, GREY_STONE), price: 200 },
 };
 
 export const WALL_STYLES: Record<string, { name: string; base: string; accent: string; pattern: Parameters<typeof wallFace>[2]; price: number }> = {
@@ -194,17 +186,19 @@ add('soilwet', false, soilTile(true));
 // transparent edge overlays (grass creeping over paths, grassy banks over water); index = mask 1..15
 for (let m = 1; m < 16; m++) add('fr' + m, false, fringe(m));
 for (let m = 1; m < 16; m++) add('bk' + m, false, bank(m));
-add('station', false, stationFloor());
+add('station', false, paverTile(2, GREY_STONE));
 add('rail', false, rail());
 add('kitchen', false, barFloor);
 for (const [k, f] of Object.entries(FLOOR_STYLES)) add('floor_' + k, false, f.draw);
 for (const [k, w] of Object.entries(WALL_STYLES)) {
   add('walltop_' + k, true, wallTop(w.base));
   add('wall_' + k, true, wallFace(w.base, w.accent, w.pattern));
+  add('upper_' + k, true, wallUpper(w.base, w.accent, w.pattern));
   add('window_' + k, true, windowTile(w.base, false));
   add('windowN_' + k, true, windowTile(w.base, true));
 }
 add('walltop_stone', true, wallTop('#8d8790'));
+add('upper_stone', true, wallUpper('#a59f9a', '#8d8790', 'plain'));
 // the restaurant's own walls (not sold as a decor style)
 add('walltop_izakaya', true, izakayaTop);
 add('upper_izakaya', true, izakayaUpper);
