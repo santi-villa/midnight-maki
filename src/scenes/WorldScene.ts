@@ -15,8 +15,9 @@ import { ZONES, type DoorDef, type InteractDef } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { charactersIn } from '../systems/npcs';
 import { clock } from '../systems/time';
+import { nextDoor, questTarget } from '../world/guide';
 import { buildZone, condOk, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture } from './textures';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture } from './textures';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 
@@ -849,6 +850,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateAtmosphere(dt);
     this.dust(dt);
     this.quirks(dt);
+    this.updateGuide(dt);
     // interaction availability
     const canShow = this.canAct() && !this.player.path.length;
     this.target = canShow ? this.findTarget() : null;
@@ -1194,6 +1196,62 @@ export class WorldScene extends Phaser.Scene {
     }
     for (; i < this.glowPool.length; i++) this.glowPool[i].setVisible(false);
   }
+  // ------------------------------------------------------------------ objective guide
+  private guideArrow: Phaser.GameObjects.Image | null = null;
+  private guideMark: Phaser.GameObjects.Image | null = null;
+  private guideT = 0;
+  private guideGoal: { x: number; y: number; npc?: string } | null = null;
+
+  private updateGuide(dt: number) {
+    if (!this.guideArrow) {
+      this.guideArrow = this.add.image(0, 0, guideTexture(this, 'arrow')).setDepth(250000).setVisible(false).setScale(1.5);
+      this.guideMark = this.add.image(0, 0, guideTexture(this, 'mark')).setDepth(250000).setVisible(false);
+    }
+    this.guideT -= dt;
+    if (this.guideT <= 0) {
+      this.guideT = 0.5;
+      this.guideGoal = null;
+      const t = settings.guide !== false && !this.inputLocked ? questTarget() : null;
+      if (t) {
+        if (t.zone === this.zoneId || (t.zone === 'home' && this.zoneId === 'home')) {
+          if (t.npc) this.guideGoal = { x: 0, y: 0, npc: t.npc };
+          else if (t.x != null && t.y != null) this.guideGoal = { x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 };
+        } else {
+          const d = nextDoor(this.zoneId, t.zone);
+          if (d) this.guideGoal = { x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2 };
+        }
+      }
+    }
+    const arrow = this.guideArrow!;
+    const mark = this.guideMark!;
+    let goal = this.guideGoal;
+    if (goal?.npc) {
+      const n = this.npcs.get(goal.npc);
+      goal = n ? { x: n.actor.x, y: n.actor.y - 30 } : null;
+    }
+    if (!goal) {
+      arrow.setVisible(false);
+      mark.setVisible(false);
+      return;
+    }
+    const now = performance.now() / 1000;
+    const px0 = this.player.x;
+    const py0 = this.player.y - 12;
+    const dx = goal.x - px0;
+    const dy = goal.y - py0;
+    const dist = Math.hypot(dx, dy);
+    const view = this.cameras.main.worldView;
+    const onScreen = goal.x > view.x + 8 && goal.x < view.right - 8 && goal.y > view.y + 8 && goal.y < view.bottom - 8;
+    mark.setVisible(onScreen).setPosition(goal.x, goal.y - 10 + Math.sin(now * 4) * 2);
+    const show = dist > 34;
+    arrow.setVisible(show);
+    if (show) {
+      const a = Math.atan2(dy, dx);
+      const r = 24 + Math.sin(now * 5) * 2;
+      arrow.setPosition(px0 + Math.cos(a) * r, py0 + Math.sin(a) * r).setRotation(a).setAlpha(0.95);
+    }
+  }
+
   private quirks(dt: number) {
     this.quirkT -= dt;
     if (this.quirkT > 0 || this.inputLocked || settings.reduceMotion) return;

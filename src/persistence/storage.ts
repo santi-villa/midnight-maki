@@ -166,6 +166,7 @@ export const DEFAULT_SETTINGS: Settings = {
   textSpeed: 45,
   reduceMotion: false,
   joystick: true,
+  guide: true,
   cookMode: 'relaxed',
   settingsVersion: 2,
 };

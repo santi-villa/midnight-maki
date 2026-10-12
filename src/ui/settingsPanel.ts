@@ -11,7 +11,7 @@ export function openSettings(inGame: boolean) {
       h('label', null, label),
       h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(settings[key]), oninput: (e: Event) => updateSettings({ [key]: +(e.target as HTMLInputElement).value } as any) }),
     );
-  const toggle = (label: string, key: 'reduceMotion' | 'joystick', hint: string) => {
+  const toggle = (label: string, key: 'reduceMotion' | 'joystick' | 'guide', hint: string) => {
     const b = h('button', { class: 'btn small ' + (settings[key] ? 'sage' : ''), onclick: () => { updateSettings({ [key]: !settings[key] } as any); b.className = 'btn small ' + (settings[key] ? 'sage' : ''); b.textContent = settings[key] ? 'Sí' : 'No'; } }, settings[key] ? 'Sí' : 'No');
     return h('div', { class: 'opt-row' }, h('div', null, h('b', null, label), h('div', { class: 'hint' }, hint)), b);
   };
@@ -52,6 +52,7 @@ export function openSettings(inGame: boolean) {
     choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Desafío']], () => settings.cookMode, (v) => updateSettings({ cookMode: v })),
     toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
     toggle('Joystick virtual', 'joystick', 'Además de tocar el suelo para caminar.'),
+    toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),
     inGame
       ? h(
           'div',
