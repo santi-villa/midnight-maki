@@ -31,6 +31,7 @@ if (zone !== 'none') {
   }
 }
 await page.waitForTimeout(1500);
+if (process.env.SETTINGS) { await page.evaluate(() => import('/src/ui/settingsPanel.ts').then((m) => m.openSettings(true))); await page.waitForTimeout(600); await page.locator('.panel-body').evaluate((e) => e.scrollTo(0, e.scrollHeight)); await page.waitForTimeout(300); }
 if (process.env.CLICK) { await page.getByRole('button', { name: process.env.CLICK }).first().click().catch((e) => console.log('click', e.message)); await page.waitForTimeout(700); }
 await page.screenshot({ path: out });
 await browser.close();

@@ -1,6 +1,6 @@
 import { settings, updateSettings } from '../core/settings';
 import { game } from '../core/state';
-import { exportSave, importSaveFile, saveGame } from '../persistence/storage';
+import { exportSave, importSaveFile, saveCode, saveFromCode, saveGame, shareSave } from '../persistence/storage';
 import { h, panel, toast } from './dom';
 
 export function openSettings(inGame: boolean) {
@@ -38,6 +38,20 @@ export function openSettings(inGame: boolean) {
       toast(err?.message ?? 'No se pudo importar.');
     }
   });
+  const codeBox = h('textarea', { rows: '3', placeholder: 'Pegá acá el código (empieza con MM1:)', style: { display: 'none', width: '100%', fontSize: '.75em', userSelect: 'text', WebkitUserSelect: 'text' } }) as HTMLTextAreaElement;
+  const restoreBtn = h('button', {
+    class: 'btn small rose', style: { display: 'none' }, onclick: async () => {
+      try {
+        const s = saveFromCode(codeBox.value);
+        game.load(s);
+        await saveGame('import');
+        toast('Partida restaurada. Recargando…');
+        setTimeout(() => location.reload(), 800);
+      } catch (err: any) {
+        toast(err?.message ?? 'No se pudo leer el código.');
+      }
+    },
+  }, 'Restaurar desde el código');
   const body = h(
     'div',
     { class: 'col' },
@@ -58,8 +72,19 @@ export function openSettings(inGame: boolean) {
           'div',
           { class: 'col' },
           h('h3', null, 'Partida'),
-          h('p', { class: 'hint' }, 'El juego guarda solo. Podés exportar tu partida para pasarla a otro dispositivo.'),
-          h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: () => { saveGame('manual').then(() => toast('Partida guardada.')); } }, 'Guardar ahora'), h('button', { class: 'btn small', onclick: () => exportSave() }, 'Exportar'), h('button', { class: 'btn small', onclick: () => imp.click() }, 'Importar'), imp),
+          h('p', { class: 'hint' }, 'El juego guarda solo en este celu. Hacé una copia de vez en cuando por si se borran los datos del navegador o cambiás de teléfono.'),
+          h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: () => { saveGame('manual').then(() => toast('Partida guardada.')); } }, 'Guardar ahora')),
+          h('h3', null, 'Copia de seguridad'),
+          h('div', { class: 'row', style: { flexWrap: 'wrap' } },
+            h('button', { class: 'btn small primary', onclick: async () => { await saveGame('manual'); const r = await shareSave(); if (r === 'shared') toast('¡Copia enviada!'); else if (r === 'downloaded') toast('Se descargó el archivo de tu partida.'); } }, 'Compartir copia'),
+            h('button', { class: 'btn small', onclick: () => exportSave() }, 'Descargar archivo'),
+            h('button', { class: 'btn small', onclick: () => imp.click() }, 'Abrir archivo'),
+            imp),
+          h('div', { class: 'row', style: { flexWrap: 'wrap' } },
+            h('button', { class: 'btn small', onclick: async () => { await saveGame('manual'); const code = saveCode(); try { await navigator.clipboard.writeText(code); toast('Código copiado. Pegalo en tus notas o en un chat.'); } catch { codeBox.value = code; codeBox.style.display = ''; codeBox.select(); toast('Copiá el código de la caja.'); } } }, 'Copiar código'),
+            h('button', { class: 'btn small', onclick: () => { codeBox.value = ''; codeBox.style.display = ''; codeBox.focus(); restoreBtn.style.display = ''; } }, 'Pegar código')),
+          codeBox,
+          restoreBtn,
         )
       : null,
   );
