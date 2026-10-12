@@ -16,6 +16,10 @@ interface TrackDef {
   density: number;        // 0..1 notes per eighth
   bass: boolean;
   swing: number;
+  /** composed 4-bar theme: 32 eighths, scale-degree numbers (7 = octave up), '-' holds, '.' rests */
+  melody?: string;
+  /** gentle chord-tone arpeggio on the off-beats */
+  arp?: boolean;
 }
 
 const PENTA = [0, 2, 4, 7, 9];
@@ -37,6 +41,28 @@ const TRACKS: Record<Exclude<Track, 'none'>, TrackDef> = {
   festival: { bpm: 100, scale: PENTA, root: 62, chords: [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]], lead: 'flute', density: 0.6, bass: true, swing: 0.15 },
   emotional: { bpm: 60, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [-7, -3, 0, 4], [-5, -1, 2, 7]], lead: 'piano', density: 0.25, bass: true, swing: 0 },
 };
+
+/** Composed themes (degrees index the track scale; values >= 5 wrap to the next octave). */
+const MELODIES: Partial<Record<Exclude<Track, 'none'>, string>> = {
+  title:      '4 - 3 - 2 - 1 2 | 3 - - - . . 2 1 | 0 - 1 - 2 - 4 3 | 2 - - - - - . . ',
+  town:       '0 2 4 2 3 - 2 1 | 2 - 0 - . 1 2 3 | 4 - 5 4 3 2 1 2 | 0 - - - . . . . ',
+  restaurant: '2 - 4 - 5 4 2 - | 3 - 2 1 0 - . . | 1 2 3 - 4 - 3 2 | 1 - - - 0 - . . ',
+  restaurant_night: '4 - - 3 2 - - . | 3 - - 2 1 - . . | 0 - 2 - 3 - 4 - | 2 - - - - - . . ',
+  home:       '0 - 2 - 4 - - . | 3 - 2 - 1 - - . | 2 - 1 - 0 - 2 - | 1 - - - - - . . ',
+  forest:     '0 - - 1 2 - - . | 3 - 2 - 1 - . . | 0 - 1 - 2 - 4 - | 3 - - - 2 - . . ',
+  beach:      '2 3 4 - 4 3 2 - | 1 2 3 - . . . . | 4 5 6 - 5 4 3 - | 2 - - - . . . . ',
+  garden:     '4 - 2 - 3 - 1 - | 2 - 0 - . . . . | 1 - 2 - 3 - 4 - | 5 - - - . . . . ',
+  market:     '0 1 2 4 2 1 0 - | 2 3 4 - 3 2 1 - | 0 1 2 4 5 4 2 - | 1 - 0 - . . . . ',
+  mystery:    '0 - - - 2 - 1 - | 0 - - - . . . . | 3 - - 2 1 - 0 - | 1 - - - . . . . ',
+  stars:      '4 - - - 5 - - - | 6 - 5 - 4 - - . | 3 - - - 4 - 2 - | 1 - - - - - - . ',
+  festival:   '0 2 4 2 0 2 4 5 | 4 - 2 - 0 - . . | 1 3 4 3 1 3 4 6 | 5 - 4 - 2 - . . ',
+  emotional:  '2 - - 3 4 - - . | 3 - 2 - 1 - - . | 0 - - 1 2 - - . | 1 - - - - - - . ',
+};
+const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { title: true, town: true, restaurant: true, restaurant_night: true, home: true, garden: true, stars: true, emotional: true, beach: true };
+
+function parseMelody(src: string): (number | null | '-')[] {
+  return src.replace(/\|/g, ' ').trim().split(/\s+/).map((t) => (t === '.' ? null : t === '-' ? '-' : Number(t)));
+}
 
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -80,6 +106,22 @@ class AudioEngine {
     lp.type = 'lowpass';
     lp.frequency.value = 3200;
     this.music.connect(lp).connect(this.master);
+    // small room reverb (generated impulse) for warmth
+    try {
+      const len = Math.floor(c.sampleRate * 1.8);
+      const ir = c.createBuffer(2, len, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = ir.getChannelData(ch);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      }
+      const conv = c.createConvolver();
+      conv.buffer = ir;
+      const wet = c.createGain();
+      wet.gain.value = 0.28;
+      lp.connect(conv).connect(wet).connect(this.master);
+    } catch {
+      /* no convolver: dry only */
+    }
     this.sfx.connect(this.master);
     this.amb.connect(this.master);
     this.applyVolumes();
@@ -130,10 +172,33 @@ class AudioEngine {
         if (def.bass) this.note(def.root + chord[0] - 24, t, eighth * 3, 'bass', 0.12);
       }
       if (def.bass && inBar === 4) this.note(def.root + chord[0] - 24 + (this.rng() < 0.5 ? 7 : 0), t, eighth * 3, 'bass', 0.09);
-      if (this.rng() < def.density && inBar !== 7) {
+      const melody = MELODIES[this.current as Exclude<Track, 'none'>];
+      if (melody) {
+        const mel = parseMelody(melody);
+        const pass = Math.floor(this.step / mel.length);
+        const i = this.step % mel.length;
+        const tok = mel[i];
+        if (typeof tok === 'number') {
+          let len = 1;
+          while (mel[(i + len) % mel.length] === '-' && len < 8) len++;
+          const n = def.scale.length;
+          const deg = def.scale[((tok % n) + n) % n] + Math.floor(tok / n) * 12;
+          // every other pass the theme rises an octave on its last half, for variety
+          const lift = pass % 2 === 1 && i >= mel.length / 2 ? 12 : 0;
+          this.note(def.root + deg + lift, t, eighth * len * 0.95, def.lead, 0.1);
+        } else if (tok === null && pass % 2 === 1 && this.rng() < def.density * 0.5) {
+          // gentle improvised fill in the rests of the second pass
+          const deg = def.scale[Math.floor(this.rng() * def.scale.length)];
+          this.note(def.root + deg + 12, t, eighth * 1.4, def.lead, 0.05);
+        }
+      } else if (this.rng() < def.density && inBar !== 7) {
         const deg = def.scale[Math.floor(this.rng() * def.scale.length)];
         const oct = this.rng() < 0.3 ? 12 : 0;
         this.note(def.root + deg + oct, t, eighth * (this.rng() < 0.3 ? 3 : 1.6), def.lead, 0.09);
+      }
+      if (ARP[this.current as Exclude<Track, 'none'>] && inBar % 2 === 1) {
+        const tone = chord[Math.floor(inBar / 2) % chord.length];
+        this.note(def.root + tone - 12, t, eighth * 1.2, 'pluck', 0.035);
       }
       // brushed hat for lo-fi feel
       if (def.bass && inBar % 2 === 0 && this.noiseBuf) this.hat(t, inBar === 4 ? 0.025 : 0.012);
