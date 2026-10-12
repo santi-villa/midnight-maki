@@ -78,6 +78,10 @@ test('new game → restaurant → cook first sushi → progress persists', async
   for (let i = 0; i < 3; i++) await swipe(W / 2, matY + 90, W / 2, matY + 20);
   for (const f of [0.2, 0.4, 0.6, 0.8]) await swipe(W * f, matY + 10, W * f, matY + 90);
   await page.getByRole('button', { name: 'Servir todo' }).click();
+  // the plated dish is shown first; a tap serves it
+  await expect(page.locator('.plate-show')).toBeVisible({ timeout: 10_000 });
+  if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+  await page.locator('.plate-show').click();
   await advance(page);
 
   const state = await page.evaluate(() => {

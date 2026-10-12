@@ -1,14 +1,15 @@
 /** Restaurant UI: order board, kitchen station, free cooking, experiments, upgrades. */
-import { iconElement } from '../art/icons';
+import { iconCanvas, iconElement } from '../art/icons';
+import { ctx2d, makeCanvas } from '../art/pixel';
 import { audio } from '../audio/audio';
 import { game } from '../core/state';
 import { ITEMS_BY_ID } from '../data/items';
 import { EXPERIMENTS, RECIPES, RECIPES_BY_ID, type RecipeDef } from '../data/recipes';
 import { BALANCE } from '../core/balance';
-import { add, h, panel, toast } from '../ui/dom';
+import { add, h, panel, toast, uiRoot } from '../ui/dom';
 import { registerAction } from '../systems/actions';
 import { cook } from './cooking';
-import { canCook, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
+import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { UPGRADES, buyUpgrade } from './upgrades';
 import { runScene, say } from '../dialogue/dialogue';
 
@@ -82,6 +83,7 @@ export function openOrders() {
           h('div', { class: 'row', style: { justifyContent: 'space-between' } },
             h('div', { class: 'row' }, iconElement(r.icon), h('div', null, h('b', null, r.name), h('div', { class: 'hint' }, special || `Para: ${customerName(o.customer)}`))),
             h('span', { class: 'coin' }, `${o.reward} ●`)),
+          !special && customerAsk(o.customer, o.uid) ? h('div', { class: 'order-ask' }, `“${customerAsk(o.customer, o.uid)}”`) : null,
           ingList(r),
           h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
             !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) render(); else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
@@ -125,14 +127,19 @@ async function startOrder(uid: number) {
 
 async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof serveOrder>>, quality: number, who: string, customer: string, variant?: string) {
   const generic = GENERIC_CUSTOMERS.find((c) => c.id === customer);
+  await showPlate(r, quality);
   await runScene('serve', async () => {
     if (out.firstTime) {
       audio.sfxPlay('sparkle');
       await say('narr', `¡Primera vez que preparás ${r.name}! Quedó anotado en tus colecciones.`);
     }
-    if (generic) await say('?' + generic.name, generic.line);
+    if (generic) await say('?' + generic.name, generic.react?.[quality] ?? generic.line);
     else if (customer !== 'c_odd') await say(customer, ['Mmm... está rico. Gracias.', '¡Qué rico! Muy bien hecho.', '¡Perfecto! Volvería todos los días.'][quality], quality === 2 ? 'happy' : 'neutral');
-    await say('narr', `${who === 'Cliente' ? '' : who + ' pagó '}${out.coins} monedas${variant ? ` (variante ${variant})` : ''}. +${out.xp} experiencia.`);
+    await say('narr', `${who === 'Cliente' ? '' : who + ' pagó '}${out.coins} monedas${out.tip ? ` (¡con ${out.tip} de propina!)` : ''}${variant ? ` (variante ${variant})` : ''}. +${out.xp} experiencia.`);
+    if (out.gift) {
+      audio.sfxPlay('pickup');
+      await say('narr', `Además te dejó un regalito: ${ITEMS_BY_ID[out.gift]?.name ?? out.gift}.`);
+    }
     if (out.levelUp) {
       audio.sfxPlay('success');
       await say('spicy', `¡Midnight Maki subió a nivel ${out.levelUp}! ¡Somos famosos! Bueno, un poquito.`, 'happy');
@@ -140,6 +147,54 @@ async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof 
     }
   });
   if ((game.save.stats.spicyServed ?? 0) >= 5) game.setFlag('many_spicy');
+}
+
+/** Plated dish showcase: the finished sushi on a wooden board with 1-3 stars. Tap to continue. */
+function showPlate(r: RecipeDef, quality: number): Promise<void> {
+  return new Promise((resolve) => {
+    const S = 6;
+    const cv = makeCanvas(48, 30);
+    const g = ctx2d(cv);
+    // wooden geta board + white plate
+    g.fillStyle = '#2b1d17';
+    g.fillRect(2, 18, 44, 9);
+    g.fillStyle = '#c48d5e';
+    g.fillRect(3, 18, 42, 7);
+    g.fillStyle = '#e2b585';
+    g.fillRect(3, 18, 42, 1);
+    g.fillStyle = '#7a4c30';
+    g.fillRect(6, 25, 4, 3);
+    g.fillRect(38, 25, 4, 3);
+    g.fillStyle = 'rgba(0,0,0,.18)';
+    g.beginPath();
+    g.ellipse(24, 19, 15, 4, 0, 0, Math.PI * 2);
+    g.fill();
+    // three servings of the dish
+    const ic = iconCanvas(r.icon);
+    g.imageSmoothingEnabled = false;
+    for (const x of [8, 16, 24]) g.drawImage(ic, x, 4, 16, 16);
+    // garnish: ginger and wasabi
+    g.fillStyle = '#f4a6b0';
+    g.fillRect(38, 15, 4, 3);
+    g.fillStyle = '#8fbf5f';
+    g.fillRect(41, 14, 3, 3);
+    cv.style.width = cv.width * S + 'px';
+    cv.style.height = cv.height * S + 'px';
+    cv.style.maxWidth = '86vw';
+    cv.style.height = 'auto';
+    const stars = h('div', { class: 'plate-stars' }, ...[0, 1, 2].map((i) => h('span', { class: i <= quality ? 'on' : '' }, '★')));
+    const words = ['¡Listo para servir!', '¡Muy bien hecho!', '¡Perfecto!'][quality];
+    const wrap = h('div', { class: 'plate-show' }, h('div', { class: 'plate-card' }, h('div', { class: 'plate-name' }, r.name), cv, stars, h('div', { class: 'plate-words' }, words), h('div', { class: 'hint' }, 'Tocá para servir')));
+    wrap.addEventListener('pointerup', () => {
+      wrap.classList.add('out');
+      setTimeout(() => {
+        wrap.remove();
+        resolve();
+      }, 250);
+    });
+    audio.sfxPlay(quality === 2 ? 'success' : 'sparkle');
+    uiRoot().append(wrap);
+  });
 }
 
 // ------------------------------------------------------------------ kitchen station
