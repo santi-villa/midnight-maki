@@ -5,7 +5,7 @@ import type { Grid } from '../world/grid';
 
 export const TILE = 16;
 
-export type Act = 'idle' | 'sleep' | 'cook' | 'read' | 'sit' | 'play' | 'work' | 'fish' | 'paint' | 'stars' | 'happy' | 'surprised';
+export type Act = 'idle' | 'sleep' | 'cook' | 'read' | 'sit' | 'play' | 'work' | 'fish' | 'paint' | 'stars' | 'happy' | 'surprised' | 'wave';
 
 const WALK_FRAMES: Record<Dir, readonly number[]> = { down: FRAMES.down, up: FRAMES.up, left: FRAMES.left, right: FRAMES.right };
 
@@ -197,11 +197,18 @@ export class Actor {
           frame = FRAMES.surprised;
           break;
         case 'cook':
-          frame = this.dir === 'up' ? FRAMES.up[0] : FRAMES.down[0];
-          this.bob = Math.sin(this.actT * 6) > 0 ? 1 : 0;
+        case 'work':
+          frame = this.dir === 'up' ? FRAMES.up[Math.floor(this.actT * 3) % 2 ? 0 : 1] : FRAMES.cook[Math.floor(this.actT * 3) % 2];
           break;
         case 'read':
-          frame = this.dir === 'left' ? FRAMES.left[0] : this.dir === 'right' ? FRAMES.right[0] : FRAMES.down[0];
+          frame = this.dir === 'up' ? FRAMES.up[0] : FRAMES.read;
+          this.bob = Math.sin(this.actT * 1.4) > 0.9 ? 1 : 0;
+          break;
+        case 'sit':
+          frame = FRAMES.sit;
+          break;
+        case 'wave':
+          frame = FRAMES.wave[Math.floor(this.actT * 4) % 2];
           break;
         case 'play':
           frame = WALK_FRAMES[this.dir][0];

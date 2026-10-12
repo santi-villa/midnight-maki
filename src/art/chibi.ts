@@ -14,7 +14,8 @@ export const CH = 30;
 
 export type ChibiExpr = 'neutral' | 'blink' | 'happy' | 'surprised' | 'sad' | 'smug' | 'sleep';
 export type ChibiLegs = 'idle' | 'a' | 'b';
-export interface ChibiPose { dir: Dir; legs: ChibiLegs; expr: ChibiExpr; bob?: number; }
+export type ChibiArms = 'cook1' | 'cook2' | 'wave1' | 'wave2' | 'read';
+export interface ChibiPose { dir: Dir; legs: ChibiLegs; expr: ChibiExpr; bob?: number; arms?: ChibiArms; sit?: boolean; }
 
 const INK = '#2b2231';
 const EYE = '#2a2230';
@@ -432,10 +433,18 @@ function bodyLayer(c: Ctx, a: Appearance, pose: ChibiPose, fur: string) {
     shoe(c, fx + sw, G.feetY, shoes?.kind, shoeCol, fur, true);
   } else {
     const ly = (k: number) => (step === 0 ? 0 : (step > 0) === (k === 0) ? -1 : 0);
-    px(c, 7, G.legTop + ly(0), legCol, 2, 4);
-    px(c, 11, G.legTop + ly(1), legCol, 2, 4);
-    shoe(c, 6, G.feetY + ly(0), shoes?.kind, shoeCol, fur, false);
-    shoe(c, 11, G.feetY + ly(1), shoes?.kind, shoeCol, fur, false);
+    if (pose.sit) {
+      // seated: short legs pointing at the viewer, soles showing
+      px(c, 7, G.legTop, legCol, 2, 2);
+      px(c, 11, G.legTop, legCol, 2, 2);
+      px(c, 6, G.legTop + 2, shoeCol, 3, 2);
+      px(c, 11, G.legTop + 2, shoeCol, 3, 2);
+    } else {
+      px(c, 7, G.legTop + ly(0), legCol, 2, 4);
+      px(c, 11, G.legTop + ly(1), legCol, 2, 4);
+      shoe(c, 6, G.feetY + ly(0), shoes?.kind, shoeCol, fur, false);
+      shoe(c, 11, G.feetY + ly(1), shoes?.kind, shoeCol, fur, false);
+    }
   }
 
   // torso
@@ -592,10 +601,48 @@ function armLayer(c: Ctx, a: Appearance, pose: ChibiPose, fur: string) {
     if (top?.kind === 'kimono') px(c, x - (x < CX ? 1 : 0), bt + 3 + dy, top.c1, 3, 3);
     ellipse(c, x + 0.5, bt + 6.5 + dy, 1.2, 1.2, fur);
   };
+  const raised = (x: number, lift: number) => {
+    // arm up next to the head (waving)
+    px(c, x, bt - 3 - lift, sleeve, 2, 5);
+    ellipse(c, x + 0.5, bt - 4 - lift, 1.3, 1.3, fur);
+  };
+  const front = (dy: number) => {
+    // both forearms in front of the tummy
+    px(c, 5, bt + 2 + dy, sleeve, 3, 3);
+    px(c, 12, bt + 2 + dy, sleeve, 3, 3);
+    ellipse(c, 8.5, bt + 4 + dy, 1.2, 1.2, fur);
+    ellipse(c, 11.5, bt + 4 + dy, 1.2, 1.2, fur);
+  };
   if (side) arm(Math.round(CX - 0.5) + swing, 0);
+  else if (pose.arms === 'wave1' || pose.arms === 'wave2') {
+    arm(3, 0);
+    raised(15, pose.arms === 'wave1' ? 0 : 1);
+  } else if (pose.arms === 'cook1' || pose.arms === 'cook2' || pose.arms === 'read') front(pose.arms === 'cook2' ? 1 : 0);
   else {
     arm(3, swing);
     arm(15, -swing);
+  }
+}
+
+/** Things held in the hands, drawn over everything (bowl and chopsticks, or an open book). */
+function propLayer(c: Ctx, pose: ChibiPose) {
+  const bt = G.bodyTop + (pose.bob ?? 0);
+  if (pose.arms === 'cook1' || pose.arms === 'cook2') {
+    const dy = pose.arms === 'cook2' ? 1 : 0;
+    px(c, 6, bt + 5 + dy, '#f6f1e6', 8, 1);
+    px(c, 7, bt + 6 + dy, '#d9675f', 6, 2);
+    px(c, 7, bt + 6 + dy, '#e88a80', 6, 1);
+    // chopsticks stirring
+    const tip = pose.arms === 'cook1' ? 10 : 9;
+    px(c, tip, bt + 1 + dy, '#a8714a', 1, 5);
+    px(c, tip + 1, bt + 1 + dy, '#a8714a', 1, 5);
+  } else if (pose.arms === 'read') {
+    px(c, 6, bt + 2, '#3b4470', 8, 6);
+    px(c, 7, bt + 3, '#f6f1e6', 3, 4);
+    px(c, 10, bt + 3, '#f6f1e6', 3, 4);
+    px(c, 10, bt + 2, '#2b2231', 1, 6);
+    px(c, 8, bt + 4, '#b9b2c4', 2, 1);
+    px(c, 11, bt + 5, '#b9b2c4', 2, 1);
   }
 }
 
@@ -642,7 +689,14 @@ export function drawChibi(ctx: Ctx, ox: number, oy: number, a: Appearance, pose:
       ellipse(c, CX, G.headY - 4, 7, 2.5, head.c1);
     }
   };
+  if (pose.arms === 'cook1' || pose.arms === 'cook2' || pose.arms === 'read') layers.push((c) => propLayer(c, pose));
   let canvas = stack(layers, decorate);
+  if (pose.sit) {
+    // sink the whole figure so the short legs rest on the seat line
+    const m = makeCanvas(CW, CH);
+    ctx2d(m).drawImage(canvas, 0, 2);
+    canvas = m;
+  }
   if (pose.dir === 'left') {
     const m = makeCanvas(CW, CH);
     const g = ctx2d(m);

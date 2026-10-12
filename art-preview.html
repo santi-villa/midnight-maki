@@ -12,7 +12,7 @@ for (const [id, b] of Object.entries(builds)) {
   const { canvas } = buildRaccoonSheet(CHAR_BY_ID[id].appearance, b);
   const c = document.createElement('canvas');
   const list = (new URLSearchParams(location.search).get('f') ?? '0,3,6,9,13,14,15,18').split(',').map(Number);
-  const fw = canvas.width / 24;
+  const fw = canvas.width / 30;
   c.width = fw * list.length * S; c.height = canvas.height * S;
   const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
   list.forEach((f, i) => g.drawImage(canvas, f * fw, 0, fw, canvas.height, i * fw * S, 0, fw * S, canvas.height * S));
