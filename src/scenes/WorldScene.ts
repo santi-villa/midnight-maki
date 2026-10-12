@@ -11,27 +11,24 @@ import { game } from '../core/state';
 import type { Dir } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
-import { ZONES, type DoorDef, type InteractDef } from '../data/zones';
+import { ZONES } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
-import { charactersIn, stopFor } from '../systems/npcs';
+import { charactersIn, shopGate, stopFor } from '../systems/npcs';
+import { arrivalTile, cameFrom, pace, phaseOf, shopButtonLabel, shopSignText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
 import { currentQuestTarget } from '../quests/quests';
-import { buildZone, condOk, doorLeadingTo, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
+import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
+import { buildZone, condOk, doorLeadingTo, roomAt, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture } from './textures';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 
-export type Target =
-  | { kind: 'npc'; id: string; label: string }
-  | { kind: 'interact'; def: InteractDef; label: string }
-  | { kind: 'door'; def: DoorDef; label: string }
-  | { kind: 'gather'; spot: GatherSpot; label: string }
-  | { kind: 'bug'; idx: number; label: string };
+export type { Target };
 
-interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; }
+interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; }
 interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
@@ -50,6 +47,10 @@ export class WorldScene extends Phaser.Scene {
   private occluders: Occluder[] = [];
   player!: Actor;
   npcs = new Map<string, NpcState>();
+  private shopSigns: Phaser.GameObjects.Text[] = [];
+  private npcKey = '';
+  private shopKey = '';
+  private lifeTick = 0;
   extras = new Map<string, Actor>(); // cutscene-only actors
   joy = { x: 0, y: 0 };
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -64,7 +65,8 @@ export class WorldScene extends Phaser.Scene {
   private gatherSprites: { spot: GatherSpot; img: Phaser.GameObjects.Image }[] = [];
   private bugs: Bug[] = [];
   target: Target | null = null;
-  private lastLabel: string | null = '';
+  contextOffer: ContextOffer = idleOffer(null);
+  private contextKey = '';
   inputLocked = 0; // cutscenes
   onInteract: (t: Target) => void = () => {};
   onEnterZone: (id: string) => void = () => {};
@@ -165,6 +167,9 @@ export class WorldScene extends Phaser.Scene {
     p.y = ty;
     p.dir = dir;
     this.spawnNpcs(false);
+    this.npcKey = this.npcStamp();
+    this.shopKey = this.shopStamp();
+    this.refreshShopSigns();
     this.playZoneAudio();
     if (withFade) await fade(false, 220);
     this.transitioning = false;
@@ -174,6 +179,8 @@ export class WorldScene extends Phaser.Scene {
 
   private clearZone() {
     this.questPin?.setVisible(false);
+    for (const s of this.shopSigns) s.destroy();
+    this.shopSigns = [];
     for (const o of this.objs) o.destroy();
     this.objs = [];
     for (const f of this.furnSprites) f.destroy();
@@ -548,7 +555,7 @@ export class WorldScene extends Phaser.Scene {
     const present = charactersIn(this.zoneId, clock.period);
     const keep = new Set(present.map((p) => p.id));
     for (const [id, n] of this.npcs) {
-      if (keep.has(id)) continue;
+      if (keep.has(id) || n.leaving) continue;
       if (animate) this.npcLeave(id, n);
       else {
         n.actor.destroy();
@@ -558,35 +565,58 @@ export class WorldScene extends Phaser.Scene {
     for (const { id, stop } of present) {
       const existing = this.npcs.get(id);
       if (existing && !existing.leaving) {
+        const same = existing.anchor[0] === stop.x && existing.anchor[1] === stop.y;
         existing.anchor = [stop.x, stop.y];
         existing.wander = stop.wander ?? 0;
         existing.act = stop.act;
-        existing.actor.setAct('idle');
-        existing.actor.walkTo(this.zone.grid, stop.x, stop.y, () => existing.act && existing.actor.setAct(existing.act));
+        // a cutscene parked this actor; remember the new spot and don't drag them
+        if (existing.t > 80) continue;
+        if (!same) this.walkNpc(existing, stop.x, stop.y);
+        else if (!existing.actor.path.length && stop.act && existing.actor.act !== stop.act) existing.actor.setAct(stop.act);
         continue;
       }
+      if (existing?.leaving) continue;
       let sx = stop.x;
       let sy = stop.y;
       if (animate) {
-        const door = this.nearestDoor(stop.x, stop.y);
-        if (door) [sx, sy] = door;
+        const who = CHAR_BY_ID[id];
+        const from = who ? cameFrom(who, clock.period) : '';
+        const arrived = from && from !== this.zoneId ? arrivalTile(this.zoneId, from) : null;
+        const gate = arrived ?? this.nearestDoor(stop.x, stop.y);
+        if (gate) {
+          sx = Array.isArray(gate) ? gate[0] : gate.x;
+          sy = Array.isArray(gate) ? gate[1] : gate.y;
+        }
       }
       if (this.zone.grid.isSolid(sx, sy)) {
         const n = this.zone.grid.nearestWalkable(sx, sy);
         if (n) [sx, sy] = n;
       }
       const actor = new Actor(this, id, charTexture(this, id), sx, sy);
-      actor.speed = CHAR_BY_ID[id]?.raccoon ? 46 : 40;
-      const st: NpcState = { actor, anchor: [stop.x, stop.y], wander: stop.wander ?? 0, act: stop.act, t: Math.random() * 3 };
+      actor.speed = (CHAR_BY_ID[id]?.raccoon ? 46 : 40) * pace(id);
+      const st: NpcState = { actor, anchor: [stop.x, stop.y], wander: stop.wander ?? 0, act: stop.act, t: 1 + Math.random() * 4 };
       this.npcs.set(id, st);
-      if (animate) actor.walkTo(this.zone.grid, stop.x, stop.y, () => st.act && actor.setAct(st.act));
+      if (animate) this.walkNpc(st, stop.x, stop.y);
       else if (stop.act) actor.setAct(stop.act);
     }
   }
 
+  /** Walk on the grid. If the spot can't be reached, stay put instead of popping through a wall. */
+  private walkNpc(n: NpcState, tx: number, ty: number) {
+    const a = n.actor;
+    a.setAct('idle');
+    const arrive = () => {
+      if (n.act) a.setAct(n.act);
+    };
+    if (a.walkTo(this.zone.grid, tx, ty, arrive)) return;
+    if (n.act) a.setAct(n.act);
+  }
+
   private npcLeave(id: string, n: NpcState) {
     n.leaving = true;
-    const door = this.nearestDoor(n.actor.tx, n.actor.ty);
+    const dest = stopFor(id, clock.period)?.zone ?? CHAR_BY_ID[id]?.routine[clock.period]?.zone;
+    const aimed = dest && dest !== this.zoneId ? doorLeadingTo(this.zoneId, dest) : null;
+    const door = aimed ? [aimed.x, aimed.y] as [number, number] : this.nearestDoor(n.actor.tx, n.actor.ty);
     n.actor.setAct('idle');
     const gone = () => {
       n.actor.destroy();
@@ -655,6 +685,9 @@ export class WorldScene extends Phaser.Scene {
     const fresh = buildZone(this.zoneId, night);
     for (let y = 0; y < fresh.def.h; y++) for (let x = 0; x < fresh.def.w; x++) if (fresh.def.ground[y][x] === 'V') this.layer?.putTileAt(fresh.tiles[y][x], x, y);
     this.spawnNpcs(true);
+    this.npcKey = this.npcStamp();
+    this.shopKey = this.shopStamp();
+    this.refreshShopSigns();
     this.playZoneAudio();
     this.setupAmbient();
     this.placeGather();
@@ -845,70 +878,115 @@ export class WorldScene extends Phaser.Scene {
   }
 
   tryInteract() {
-    if (this.target) this.doInteract(this.target);
+    const primary = this.contextOffer.primary;
+    if (primary) this.perform(primary);
+  }
+
+  /** Run one contextual action. Keyboard uses the primary; the HUD may pass any of them. */
+  perform(action: ContextAction) {
+    if (!this.canAct()) return;
+    this.player.stop();
+    const intent = action.intent;
+    if (intent.type === 'target') {
+      this.doInteract(intent.target);
+      return;
+    }
+    if (intent.type === 'gift') {
+      this.greet(intent.npcId);
+      void this.offerGift(intent.npcId);
+      return;
+    }
+    if (intent.type === 'decorate') {
+      void import('../decoration/editor').then((m) => m.startDecor());
+      return;
+    }
+    void import('../restaurant/kitchen').then((m) => m.openOrders());
+  }
+
+  private async offerGift(id: string) {
+    const { pickGift, giveGift } = await import('../dialogue/talk');
+    const item = await pickGift();
+    if (item) await giveGift(id, item);
+  }
+
+  private greet(id: string) {
+    const a = this.npc(id);
+    if (!a) return;
+    a.faceTowards(this.player.x, this.player.y);
+    this.player.faceTowards(a.x, a.y);
+    const st = this.npcs.get(id);
+    if (!st) return;
+    st.actor.stop();
+    st.t = 6;
+    if (st.actor.act === 'sleep') st.actor.setAct('idle');
   }
 
   private doInteract(t: Target) {
     if (!this.canAct()) return;
     this.player.stop();
-    if (t.kind === 'npc') {
-      const a = this.npc(t.id);
-      if (a) {
-        a.faceTowards(this.player.x, this.player.y);
-        this.player.faceTowards(a.x, a.y);
-        const st = this.npcs.get(t.id);
-        if (st) {
-          st.actor.stop();
-          st.t = 6;
-          if (st.actor.act === 'sleep') st.actor.setAct('idle');
-        }
-      }
-    }
+    if (t.kind === 'npc') this.greet(t.id);
     this.onInteract(t);
   }
 
-  private findTarget(): Target | null {
+  private sense() {
     const p = this.player;
-    let best: Target | null = null;
-    let bestScore = Infinity;
-    const facing: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-    const [fx, fy] = facing[p.dir];
-    const consider = (t: Target, x: number, y: number, maxD: number) => {
-      const d = Math.hypot(x - p.x, y - p.y);
-      if (d > maxD) return;
-      const dot = ((x - p.x) * fx + (y - p.y) * fy) / (d || 1);
-      const score = d - dot * 8;
-      if (score < bestScore) {
-        bestScore = score;
-        best = t;
-      }
+    return {
+      zoneId: this.zoneId,
+      px: p.x,
+      py: p.y,
+      dir: p.dir,
+      room: roomAt(this.zone.def, p.tx, p.ty) ?? null,
+      npcs: [...this.npcs.entries()].filter(([, n]) => !n.leaving).map(([id, n]) => ({
+        id,
+        name: CHAR_BY_ID[id]?.name ?? id,
+        x: n.actor.x,
+        y: n.actor.y - 4,
+      })),
+      interacts: this.zone.def.interact.filter((i) => condOk(i.cond)).map((i) => {
+        if (!i.action.startsWith('shop:')) return i;
+        const label = shopButtonLabel(shopGate(i.action.slice(5)), i.label);
+        return label === i.label ? i : { ...i, label };
+      }),
+      doors: this.zone.def.doors,
+      gathers: this.gatherSprites.map((g) => ({
+        x: g.spot.x * TILE + 8,
+        y: g.spot.y * TILE + 10,
+        label: 'Recoger ' + (ITEMS_BY_ID[g.spot.item]?.name ?? ''),
+        spot: g.spot,
+      })),
+      bugs: this.bugs.map((b, idx) => ({
+        idx,
+        x: b.sprite.x,
+        y: b.sprite.y + 8,
+        label: 'Atrapar ' + (ITEMS_BY_ID[b.item]?.name ?? ''),
+      })),
+      furniture: this.zone.furniture.map((fi) => ({
+        uid: fi.f.uid,
+        id: fi.f.id,
+        kind: fi.def.kind,
+        name: fi.def.name,
+        room: fi.room,
+        x: fi.f.x,
+        y: fi.f.y,
+        w: fi.def.w,
+        h: fi.def.h,
+        sit: fi.def.sit,
+      })),
     };
-    for (const [id, n] of this.npcs) {
-      if (n.leaving) continue;
-      const name = CHAR_BY_ID[id]?.name ?? id;
-      consider({ kind: 'npc', id, label: 'Hablar con ' + name }, n.actor.x, n.actor.y - 4, 22);
-    }
-    for (const i of this.zone.def.interact) {
-      if (!condOk(i.cond)) continue;
-      consider({ kind: 'interact', def: i, label: i.label }, i.x * TILE + 8, i.y * TILE + 10, 20);
-    }
-    for (const fi of this.zone.furniture) {
-      const k = fi.def.kind;
-      let action = '';
-      let label = '';
-      if ((k === 'bed' || k === 'futon') && fi.room === 'room_player') [action, label] = ['bed', 'Dormir'];
-      else if (k === 'aquarium') [action, label] = ['aquarium', 'Mirar el acuario'];
-      else if (k === 'piano') [action, label] = ['piano', 'Tocar el piano'];
-      else if (k === 'radio') [action, label] = ['radio', 'Encender la radio'];
-      else if (k === 'telescope') [action, label] = ['telescope', 'Mirar las estrellas'];
-      if (!action) continue;
-      const def = { id: 'f' + fi.f.uid, x: fi.f.x, y: fi.f.y, label, action };
-      consider({ kind: 'interact', def, label }, fi.f.x * TILE + (fi.def.w * TILE) / 2, fi.f.y * TILE + 10, 22);
-    }
-    for (const d of this.zone.def.doors) if (!d.walk) consider({ kind: 'door', def: d, label: d.label ?? 'Puerta' }, d.x * TILE + 8, d.y * TILE + 10, 20);
-    for (const g of this.gatherSprites) consider({ kind: 'gather', spot: g.spot, label: 'Recoger ' + (ITEMS_BY_ID[g.spot.item]?.name ?? '') }, g.spot.x * TILE + 8, g.spot.y * TILE + 10, 18);
-    this.bugs.forEach((b, idx) => consider({ kind: 'bug', idx, label: 'Atrapar ' + (ITEMS_BY_ID[b.item]?.name ?? '') }, b.sprite.x, b.sprite.y + 8, 24));
-    return best;
+  }
+
+  private refreshContext() {
+    const room = this.player && this.zone ? roomAt(this.zone.def, this.player.tx, this.player.ty) ?? null : null;
+    const offer = this.player && this.zone && this.canAct() && !this.player.path.length
+      ? resolveContext(this.sense())
+      : idleOffer(isPlayerRoom(room) ? room!.name : null);
+    const key = offerKey(offer);
+    if (key === this.contextKey) return;
+    this.contextKey = key;
+    this.contextOffer = offer;
+    const primary = offer.primary;
+    this.target = primary && primary.intent.type === 'target' ? primary.intent.target : null;
+    bus.emit('interact:available', { label: primary?.label ?? null, kind: primary?.icon });
   }
 
   // ------------------------------------------------------------------ main loop
@@ -931,14 +1009,8 @@ export class WorldScene extends Phaser.Scene {
     this.dust(dt);
     this.quirks(dt);
     this.updateGuide(dt);
-    // interaction availability
-    const canShow = this.canAct() && !this.player.path.length;
-    this.target = canShow ? this.findTarget() : null;
-    const label = this.target ? this.target.label : null;
-    if (label !== this.lastLabel) {
-      this.lastLabel = label;
-      bus.emit('interact:available', { label, kind: this.target?.kind });
-    }
+    this.syncLife(dt);
+    this.refreshContext();
   }
 
   /** Footstep sound for the surface Sofi is walking on. */
@@ -1147,14 +1219,15 @@ export class WorldScene extends Phaser.Scene {
   private updateNpc(n: NpcState, dt: number) {
     const a = n.actor;
     a.update(dt);
-    if (n.leaving || this.inputLocked) return;
+    if (n.leaving || this.inputLocked || n.t > 80) return;
     if (a.path.length) return;
+    const held = n.act === 'sleep' || n.act === 'eat' || n.act === 'drink' || n.act === 'read' || n.act === 'sit' || n.act === 'fish' || n.act === 'stars' || n.act === 'paint' || n.act === 'cook';
     // villagers turn to look at you when you walk close by
     const near = Math.hypot(a.x - this.player.x, a.y - this.player.y) < 30;
-    if ((a.act === 'idle' || a.act === 'work' || a.act === 'play') && near) a.faceTowards(this.player.x, this.player.y);
+    if (!held && (a.act === 'idle' || a.act === 'work' || a.act === 'play' || a.act === 'look' || a.act === 'clean') && near) a.faceTowards(this.player.x, this.player.y);
     // a friendly wave the first time you come close (then not again for a while)
     const now = this.time.now;
-    if (near && a.act !== 'sleep' && a.act !== 'wave' && now - (n.wavedAt ?? -1e9) > 45000 && a.dir === 'down') {
+    if (!held && near && a.act !== 'sleep' && a.act !== 'wave' && a.act !== 'talk' && now - (n.wavedAt ?? -1e9) > 45000 && a.dir === 'down') {
       n.wavedAt = now;
       const back = a.act;
       a.setAct('wave');
@@ -1162,23 +1235,112 @@ export class WorldScene extends Phaser.Scene {
     }
     n.t -= dt;
     if (n.t > 0) return;
-    n.t = 4 + Math.random() * 6;
+    if (held) {
+      if (n.act && a.act !== n.act) a.setAct(n.act);
+      n.t = 5 + Math.random() * 4;
+      return;
+    }
+    if (n.act === 'talk') {
+      const pal = this.nearestPal(n);
+      if (pal) {
+        a.faceTowards(pal.actor.x, pal.actor.y);
+        pal.actor.faceTowards(a.x, a.y);
+        a.setAct('talk');
+        if (pal.act !== 'sleep' && pal.act !== 'cook' && pal.act !== 'fish') pal.actor.setAct('talk');
+        if (!a.bubble) a.emote('...', 2);
+        n.t = 6 + Math.random() * 4;
+        pal.t = Math.max(pal.t, 4);
+        return;
+      }
+      a.setAct('look');
+      n.t = 3 + Math.random() * 3;
+      return;
+    }
+    n.t = 7 + Math.random() * 8;
     const [ax, ay] = n.anchor;
-    if (n.wander > 0 && Math.random() < 0.7) {
+    if (n.wander > 0 && Math.random() < 0.55) {
       for (let k = 0; k < 6; k++) {
         const tx = ax + Math.round((Math.random() * 2 - 1) * n.wander);
         const ty = ay + Math.round((Math.random() * 2 - 1) * n.wander);
+        if (n.last && tx === n.last[0] && ty === n.last[1]) continue;
         if (this.zone.grid.isSolid(tx, ty)) continue;
         if (tx === this.player.tx && ty === this.player.ty) continue;
+        if (tx === a.tx && ty === a.ty) continue;
+        n.last = [a.tx, a.ty];
         a.setAct('idle');
-        a.walkTo(this.zone.grid, tx, ty, () => {
-          if (n.act && n.act !== 'sleep') a.setAct(n.act);
-        });
-        break;
+        if (a.walkTo(this.zone.grid, tx, ty, () => n.act && n.act !== 'sleep' && a.setAct(n.act))) return;
       }
     } else if (a.tx !== ax || a.ty !== ay) {
-      a.walkTo(this.zone.grid, ax, ay, () => n.act && a.setAct(n.act));
+      this.walkNpc(n, ax, ay);
     } else if (n.act && a.act !== n.act) a.setAct(n.act);
+    else if (Math.random() < 0.4) a.face((['up', 'down', 'left', 'right'] as const)[Math.floor(Math.random() * 4)]);
+  }
+
+  /** Someone close enough to talk to, and not in the middle of a job. Checked only when a timer expires. */
+  private nearestPal(n: NpcState): NpcState | null {
+    let best: NpcState | null = null;
+    let bd = 48;
+    for (const o of this.npcs.values()) {
+      if (o === n || o.leaving || o.t > 80) continue;
+      if (o.actor.path.length || o.act === 'sleep' || o.act === 'cook' || o.act === 'fish' || o.act === 'eat' || o.act === 'drink' || o.act === 'read' || o.act === 'stars') continue;
+      const d = Math.hypot(o.actor.x - n.actor.x, o.actor.y - n.actor.y);
+      if (d < bd) {
+        bd = d;
+        best = o;
+      }
+    }
+    return best;
+  }
+
+  private npcStamp() {
+    return `${clock.period}:${phaseOf(game.save.time.minutes)}:${game.flag('weather') ?? ''}:${game.flag('festival_today') ?? ''}`;
+  }
+
+  private shopStamp() {
+    return ['taro', 'yuki', 'bento', 'sumi', 'nami', 'shells'].map((id) => shopGate(id).phase).join('');
+  }
+
+  /** Phase changes a few times per period. Off screen, nothing here runs. */
+  private syncLife(dt: number) {
+    if (this.transitioning || this.inputLocked || this.decorMode) return;
+    this.lifeTick -= dt;
+    if (this.lifeTick > 0) return;
+    this.lifeTick = 1.25;
+    const npc = this.npcStamp();
+    const shops = this.shopStamp();
+    const npcChanged = npc !== this.npcKey;
+    if (npcChanged) {
+      this.npcKey = npc;
+      this.spawnNpcs(true);
+    }
+    if (shops !== this.shopKey || npcChanged) {
+      this.shopKey = shops;
+      this.refreshShopSigns();
+    }
+  }
+
+  private refreshShopSigns() {
+    for (const s of this.shopSigns) s.destroy();
+    this.shopSigns = [];
+    if (!this.zone) return;
+    for (const spot of signSpots(this.zoneId)) {
+      const status = shopGate(spot.shopId);
+      const text = shopSignText(status);
+      if (!text) continue;
+      const x = spot.x * TILE + TILE / 2;
+      const y = spot.y * TILE + TILE - 2;
+      const color = status.phase === 'open' ? '#2f6b3a' : status.phase === 'closed' ? '#8a3030' : '#8a5a20';
+      const sign = this.add.text(x, y, text, {
+        fontFamily: 'Pixelify Sans, sans-serif',
+        fontSize: '16px',
+        color,
+        backgroundColor: '#f6ecd6',
+        align: 'center',
+        padding: { x: 3, y: 1 },
+        resolution: 2,
+      }).setOrigin(0.5, 1).setDepth(y + 2);
+      this.shopSigns.push(sign);
+    }
   }
 
   private updateBugs(dt: number) {
