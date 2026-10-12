@@ -48,45 +48,82 @@ export function openCreator(o: CreatorOpts) {
   const a: Appearance = { ...(o.initial ?? defaultAppearance()) };
   let name = o.name ?? 'Sofi';
   let rest = o.restaurant ?? 'Midnight Maki';
-  const preview = h('div', { class: 'preview' });
-  const body = h('div', { class: 'creator' });
-  const rerender = () => {
-    preview.innerHTML = '';
-    const c = previewCanvas(a);
-    c.style.width = c.width * 4 + 'px';
-    c.style.height = 'auto';
-    c.style.maxWidth = '100%';
-    preview.append(c);
-  };
+  let done = false;
 
-  const stepper = (label: string, get: () => string, prev: () => void, next: () => void) => {
-    const span = h('span', null, get());
-    const row = h(
-      'div',
-      { class: 'opt-row' },
-      h('label', null, label),
-      h(
-        'div',
-        { class: 'stepper' },
-        h('button', { 'aria-label': 'Anterior', onclick: () => { prev(); span.textContent = get(); audio.sfxPlay('tap'); rerender(); } }, '‹'),
-        span,
-        h('button', { 'aria-label': 'Siguiente', onclick: () => { next(); span.textContent = get(); audio.sfxPlay('tap'); rerender(); } }, '›'),
-      ),
-    );
-    return row;
+  // ---------------------------------------------------------------- big animated preview (turns and walks)
+  const DIRS: Dir[] = ['down', 'left', 'up', 'right'];
+  let dirIdx = 0;
+  let walking = false;
+  let frame = 0;
+  const stage = makeCanvas(FW + 8, FH + 4);
+  stage.className = 'cr-stage-canvas';
+  const sg = ctx2d(stage);
+  const paintStage = () => {
+    sg.clearRect(0, 0, stage.width, stage.height);
+    sg.fillStyle = 'rgba(30,60,30,.28)';
+    sg.beginPath();
+    sg.ellipse(stage.width / 2, stage.height - 3, 7, 2, 0, 0, Math.PI * 2);
+    sg.fill();
+    const legs = walking ? (['idle', 'a', 'idle', 'b'] as const)[frame % 4] : 'idle';
+    const blink = !walking && frame % 18 === 17;
+    drawCharacter(sg, 4, (walking && legs !== 'idle' ? -1 : 0) + 1, a, { dir: DIRS[dirIdx], legs, expr: blink ? 'blink' : 'neutral' });
   };
-  const swatches = (label: string, colors: () => string[], get: () => string, set: (c: string) => void) => {
-    const wrap = h('div', { class: 'swatches' });
+  const timer = window.setInterval(() => {
+    frame++;
+    paintStage();
+  }, 180);
+  const turn = (d: number) => {
+    dirIdx = (dirIdx + d + 4) % 4;
+    audio.sfxPlay('tap');
+    paintStage();
+  };
+  const walkBtn = h('button', { class: 'btn small', onclick: () => { walking = !walking; walkBtn.textContent = walking ? 'Quieta' : 'Caminar'; } }, 'Caminar');
+  const stageBox = h(
+    'div',
+    { class: 'cr-stage' },
+    stage,
+    h('div', { class: 'cr-stage-tools' },
+      h('button', { class: 'btn small', 'aria-label': 'Girar a la izquierda', onclick: () => turn(-1) }, '⟲'),
+      walkBtn,
+      h('button', { class: 'btn small', 'aria-label': 'Girar a la derecha', onclick: () => turn(1) }, '⟳'),
+    ),
+  );
+  const rerender = () => {
+    paintStage();
+    for (const fn of refreshers) fn();
+  };
+  const refreshers: (() => void)[] = [];
+
+  // ---------------------------------------------------------------- building blocks
+  const section = (label: string, ...kids: (HTMLElement | null)[]) => h('div', { class: 'cr-sec' }, h('div', { class: 'cr-label' }, label), ...kids.filter(Boolean) as HTMLElement[]);
+  const swatches = (colors: () => string[], get: () => string, set: (c: string) => void) => {
+    const wrap = h('div', { class: 'cr-swatches' });
     const draw = () => {
       wrap.innerHTML = '';
       for (const c of colors())
-        wrap.append(h('button', { class: 'swatch' + (c === get() ? ' sel' : ''), style: { background: c }, 'aria-label': c, onclick: () => { set(c); audio.sfxPlay('tap'); draw(); rerender(); } }));
+        wrap.append(h('button', { class: 'swatch' + (c === get() ? ' sel' : ''), style: { background: c }, 'aria-label': c, onclick: () => { set(c); audio.sfxPlay('tap'); rerender(); } }));
     };
     draw();
-    (wrap as any).redraw = draw;
-    return h('div', { class: 'opt-row' }, h('label', null, label), wrap);
+    refreshers.push(draw);
+    return wrap;
   };
-  const cycle = <T,>(arr: T[], cur: T, d: number) => arr[(arr.indexOf(cur) + d + arr.length) % arr.length];
+  /** grid of tiles; each tile shows a mini preview of the character with that option applied */
+  const tiles = (options: () => { key: string; label: string; apply: (x: Appearance) => void; current: boolean }[], crop: 'head' | 'body' | 'full' = 'full') => {
+    const wrap = h('div', { class: 'cr-tiles ' + crop });
+    const draw = () => {
+      wrap.innerHTML = '';
+      for (const op of options()) {
+        const look: Appearance = { ...a };
+        op.apply(look);
+        const cv = makeCanvas(FW, crop === 'head' ? 18 : FH);
+        drawCharacter(ctx2d(cv), 0, 0, look, { dir: 'down', legs: 'idle', expr: 'neutral' });
+        wrap.append(h('button', { class: 'cr-tile' + (op.current ? ' sel' : ''), title: op.label, onclick: () => { op.apply(a); audio.sfxPlay('tap'); rerender(); } }, cv, h('span', null, op.label)));
+      }
+    };
+    draw();
+    refreshers.push(draw);
+    return wrap;
+  };
 
   const clothesFor = (slot: ClothingSlot) => {
     const list = CLOTHES.filter((c) => c.slot === slot && (o.ownedClothes ? o.ownedClothes.includes(c.id) : c.price === 0 && c.shop === 'yuki' || ['hd_bow', 'hd_flower', 'fc_glasses', 'ex_scarf_red', 'bg_satchel', 'hd_beanie', 'top_kimono_sakura', 'bot_dress_rose', 'top_stripes_navy'].includes(c.id)));
@@ -94,72 +131,72 @@ export function openCreator(o: CreatorOpts) {
     if (['head', 'face', 'extra', 'bag'].includes(slot)) ids.unshift('');
     return ids;
   };
-  const clothStepper = (label: string, slot: ClothingSlot) =>
-    stepper(
-      label,
-      () => (a[slot] ? CLOTHES_BY_ID[a[slot]]?.name ?? '—' : 'Nada'),
-      () => (a[slot] = cycle(clothesFor(slot), a[slot], -1)),
-      () => (a[slot] = cycle(clothesFor(slot), a[slot], 1)),
-    );
+  const clothTiles = (slot: ClothingSlot) =>
+    tiles(() => clothesFor(slot).map((id) => ({ key: id, label: id ? CLOTHES_BY_ID[id]?.name ?? id : 'Nada', current: a[slot] === id, apply: (x: Appearance) => { x[slot] = id; } })), slot === 'head' || slot === 'face' ? 'head' : 'full');
 
-  const skinRow = swatches('Piel / pelaje', () => (a.species === 'human' ? SKINS_HUMAN : FURS), () => a.skin, (c) => (a.skin = c));
-  const speciesRow = stepper(
-    'Apariencia',
-    () => SPECIES.find((s) => s.id === a.species)?.name ?? '',
-    () => setSpecies(-1),
-    () => setSpecies(1),
-  );
-  function setSpecies(d: number) {
-    const i = SPECIES.findIndex((s) => s.id === a.species);
-    a.species = SPECIES[(i + d + SPECIES.length) % SPECIES.length].id;
-    const pal = a.species === 'human' ? SKINS_HUMAN : FURS;
-    if (!pal.includes(a.skin)) a.skin = pal[a.species === 'human' ? 1 : a.species === 'raccoon' ? 4 : 1];
-    (skinRow.querySelector('.swatches') as any).redraw();
-  }
+  const setSpecies = (sp: Species) => {
+    a.species = sp;
+    const pal = sp === 'human' ? SKINS_HUMAN : FURS;
+    if (!pal.includes(a.skin)) a.skin = pal[sp === 'human' ? 1 : sp === 'raccoon' ? 4 : 1];
+  };
 
   const nameInput = h('input', { type: 'text', value: name, maxlength: '14', 'aria-label': 'Nombre', oninput: (e: Event) => (name = (e.target as HTMLInputElement).value) });
   const restInput = h('input', { type: 'text', value: rest, maxlength: '20', 'aria-label': 'Nombre del restaurante', oninput: (e: Event) => (rest = (e.target as HTMLInputElement).value) });
 
-  body.append(
-    preview,
-    o.askNames ? h('div', { class: 'opt-row' }, h('label', null, 'Nombre'), nameInput) : null as any,
-    speciesRow,
-    skinRow,
-    stepper('Peinado', () => HAIR_STYLES[a.hairStyle]?.name ?? '', () => (a.hairStyle = (a.hairStyle + HAIR_STYLES.length - 1) % HAIR_STYLES.length), () => (a.hairStyle = (a.hairStyle + 1) % HAIR_STYLES.length)),
-    swatches('Color de pelo', () => HAIRS, () => a.hairColor, (c) => (a.hairColor = c)),
-    stepper('Ojos', () => EYE_STYLES[a.eyes] ?? '', () => (a.eyes = (a.eyes + EYE_STYLES.length - 1) % EYE_STYLES.length), () => (a.eyes = (a.eyes + 1) % EYE_STYLES.length)),
-    swatches('Color de ojos', () => EYES, () => a.eyeColor, (c) => (a.eyeColor = c)),
-    clothStepper('Arriba', 'top'),
-    clothStepper('Abajo', 'bottom'),
-    clothStepper('Calzado', 'shoes'),
-    clothStepper('Cabeza', 'head'),
-    clothStepper('Cara', 'face'),
-    clothStepper('Extra', 'extra'),
-    clothStepper('Bolso', 'bag'),
-    o.askNames ? h('div', { class: 'opt-row' }, h('label', null, 'Restaurante'), restInput) : null as any,
-  );
-  rerender();
+  // ---------------------------------------------------------------- tabs
+  const pages: [string, () => HTMLElement][] = [
+    ['Cuerpo', () => h('div', null,
+      section('Apariencia', tiles(() => SPECIES.map((sp) => ({ key: sp.id, label: sp.name, current: a.species === sp.id, apply: (x: Appearance) => { x.species = sp.id; const pal = sp.id === 'human' ? SKINS_HUMAN : FURS; if (!pal.includes(x.skin)) x.skin = pal[sp.id === 'human' ? 1 : sp.id === 'raccoon' ? 4 : 1]; } })), 'head')),
+      section(a.species === 'human' ? 'Piel' : 'Pelaje', swatches(() => (a.species === 'human' ? SKINS_HUMAN : FURS), () => a.skin, (c) => (a.skin = c))),
+    )],
+    ['Pelo y ojos', () => h('div', null,
+      section('Peinado', tiles(() => HAIR_STYLES.map((hs, i) => ({ key: String(i), label: hs.name, current: a.hairStyle === i, apply: (x: Appearance) => { x.hairStyle = i; } })), 'head')),
+      section('Color de pelo', swatches(() => HAIRS, () => a.hairColor, (c) => (a.hairColor = c))),
+      section('Ojos', tiles(() => EYE_STYLES.map((n, i) => ({ key: String(i), label: n, current: a.eyes === i, apply: (x: Appearance) => { x.eyes = i; } })), 'head')),
+      section('Color de ojos', swatches(() => EYES, () => a.eyeColor, (c) => (a.eyeColor = c))),
+    )],
+    ['Ropa', () => h('div', null, section('Arriba', clothTiles('top')), section('Abajo', clothTiles('bottom')), section('Calzado', clothTiles('shoes')))],
+    ['Accesorios', () => h('div', null, section('Cabeza', clothTiles('head')), section('Cara', clothTiles('face')), section('Extra', clothTiles('extra')), section('Bolso', clothTiles('bag')))],
+  ];
+  if (o.askNames) pages.push(['Nombre', () => h('div', null, section('Tu nombre', nameInput), section('Nombre del restaurante', restInput), h('p', { class: 'hint' }, 'Podés cambiar tu ropa más adelante desde el ropero de tu habitación.'))]);
+
+  const content = h('div', { class: 'cr-page' });
+  const tabBar = h('div', { class: 'tabs cr-tabs' });
+  const show = (i: number) => {
+    refreshers.length = 0;
+    content.innerHTML = '';
+    content.append(pages[i][1]());
+    [...tabBar.children].forEach((t, j) => t.classList.toggle('active', j === i));
+    content.scrollTop = 0;
+  };
+  pages.forEach(([label], i) => tabBar.append(h('button', { class: 'tab', onclick: () => { audio.sfxPlay('tap'); show(i); } }, label)));
+  const body = h('div', { class: 'creator2' }, stageBox, h('div', { class: 'cr-side' }, tabBar, content));
+  show(0);
+  paintStage();
+  void setSpecies;
 
   const randomize = () => {
-    a.species = SPECIES[Math.floor(Math.random() * SPECIES.length)].id;
+    setSpecies(SPECIES[Math.floor(Math.random() * SPECIES.length)].id);
     const pal = a.species === 'human' ? SKINS_HUMAN : FURS;
     a.skin = pal[Math.floor(Math.random() * pal.length)];
     a.hairStyle = Math.floor(Math.random() * (HAIR_STYLES.length - 1));
     a.hairColor = HAIRS[Math.floor(Math.random() * HAIRS.length)];
     a.eyes = Math.floor(Math.random() * EYE_STYLES.length);
-    for (const s of ['top', 'bottom', 'shoes', 'head', 'face', 'extra', 'bag'] as ClothingSlot[]) {
-      const opts = clothesFor(s);
-      a[s] = opts[Math.floor(Math.random() * opts.length)];
+    a.eyeColor = EYES[Math.floor(Math.random() * EYES.length)];
+    for (const sl of ['top', 'bottom', 'shoes', 'head', 'face', 'extra', 'bag'] as ClothingSlot[]) {
+      const opts = clothesFor(sl);
+      a[sl] = opts[Math.floor(Math.random() * opts.length)];
     }
-    done = true;
-    p.close();
-    openCreator({ ...o, initial: a, name, restaurant: rest });
+    audio.sfxPlay('tap');
+    const active = [...tabBar.children].findIndex((t) => t.classList.contains('active'));
+    show(Math.max(0, active));
+    paintStage();
   };
 
-  let done = false;
   const p = panel({
     title: o.title,
     body,
+    wide: true,
     foot: [
       h('button', { class: 'btn', onclick: randomize }, 'Al azar'),
       h('button', {
@@ -174,7 +211,9 @@ export function openCreator(o: CreatorOpts) {
       }, o.confirmLabel),
     ],
     onClose: () => {
+      window.clearInterval(timer);
       if (!done) o.onCancel?.();
     },
   });
+  p.root.classList.add('creator-panel');
 }

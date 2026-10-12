@@ -165,14 +165,20 @@ export const DEFAULT_SETTINGS: Settings = {
   textScale: 1,
   textSpeed: 45,
   reduceMotion: false,
-  joystick: false,
+  joystick: true,
   cookMode: 'relaxed',
+  settingsVersion: 2,
 };
 
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem('mm_settings');
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (raw) {
+      const saved = JSON.parse(raw);
+      // v2: the virtual joystick is on by default (older saves stored it switched off)
+      if (!saved.settingsVersion || saved.settingsVersion < 2) Object.assign(saved, { joystick: true, settingsVersion: 2 });
+      return { ...DEFAULT_SETTINGS, ...saved };
+    }
   } catch {
     /* ignore */
   }

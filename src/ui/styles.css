@@ -510,3 +510,72 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 @media (max-width: 420px) { .icon-btn { width: 52px; height: 52px; } .hud-buttons { gap: 2px; } }
 .wmap { width: min(100%, calc(62vh * 1.2)); margin: 0 auto; }
 .wmap-friends { transform: translate(-50%, 55%); }
+
+/* ---------- virtual joystick: stone ring + wooden knob ---------- */
+.joystick {
+  width: 128px; height: 128px; left: calc(20px + var(--safe-l)); bottom: calc(22px + var(--safe-b));
+  background: radial-gradient(circle, rgba(43,29,23,.42) 0 58%, rgba(43,29,23,.22) 59%);
+  border: 6px solid #a8a2a8; box-shadow: 0 0 0 3px #2b1d17, inset 0 0 0 3px #2b1d17, 0 5px 0 rgba(0,0,0,.3);
+}
+.joystick::before, .joystick::after { content: ''; position: absolute; left: 50%; top: 50%; pointer-events: none; }
+.joystick::before { width: 84%; height: 3px; transform: translate(-50%, -50%); background: repeating-linear-gradient(90deg, rgba(255,244,220,.35) 0 6px, transparent 6px 12px); }
+.joystick::after { width: 3px; height: 84%; transform: translate(-50%, -50%); background: repeating-linear-gradient(0deg, rgba(255,244,220,.35) 0 6px, transparent 6px 12px); }
+.joystick i {
+  left: 36px; top: 36px; width: 44px; height: 44px; z-index: 1;
+  background: radial-gradient(circle at 35% 30%, #f0c890, #c08a5a 55%, #8e5d3c);
+  border: 4px solid #2b1d17; box-shadow: 0 3px 0 rgba(0,0,0,.35), inset 0 -3px 0 rgba(0,0,0,.18);
+}
+@media (orientation: portrait) {
+  .hud-suggest { bottom: calc(170px + var(--safe-b)); max-width: calc(100vw - 24px); }
+}
+@media (orientation: landscape) and (max-height: 460px) {
+  .joystick { width: 112px; height: 112px; }
+  .joystick i { left: 28px; top: 28px; }
+}
+
+/* ---------- optional illustrated title background ---------- */
+.title-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .8s; }
+.title-screen.has-bg .title-bg { opacity: 1; }
+.title-bg-img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; animation: bgdrift 30s ease-in-out infinite alternate; }
+.title-screen.has-bg::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 50% 40%, transparent 50%, rgba(10,8,30,.45)); }
+@keyframes bgdrift { from { transform: scale(1.04) translate(-1%, 0) } to { transform: scale(1.04) translate(1%, -1%) } }
+.reduce-motion .title-bg-img { animation: none; }
+
+/* ---------- character creator v2 ---------- */
+.creator-panel { height: min(100%, 760px); }
+.creator2 { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; }
+.cr-stage {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px;
+  border: 12px solid transparent; border-image: var(--tx-logframe) 8 / 12px round;
+  background: linear-gradient(#9fd8f6 0 55%, #7ccb59 55% 100%);
+}
+.cr-stage-canvas { width: 140px; height: auto; image-rendering: pixelated; }
+.cr-stage-tools { display: flex; gap: 4px; }
+.cr-side { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cr-tabs { flex: 0 0 auto; }
+.cr-page { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; padding-right: 2px; }
+.cr-sec { margin-bottom: 10px; }
+.cr-label { font-weight: 600; color: #6b3a1e; margin: 2px 0 4px; }
+.cr-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.cr-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 6px; }
+.cr-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; min-height: 0;
+  background: #fffaf0; border: 3px solid #c9a97a; border-radius: 8px; box-shadow: 0 2px 0 rgba(120,80,40,.25); font-size: .68em; line-height: 1.1;
+}
+.cr-tile canvas { width: 40px; height: 60px; image-rendering: pixelated; }
+.cr-tiles.head .cr-tile canvas { width: 40px; height: 36px; }
+.cr-tile.sel { border-color: #e8a628; background: #fff1c8; box-shadow: 0 0 0 2px #e8a628; }
+.cr-tile:active { transform: scale(.95); }
+.cr-page input[type=text] { width: 100%; }
+@media (orientation: landscape) {
+  .creator2 { flex-direction: row; }
+  .cr-stage { justify-content: center; width: 38%; }
+  .cr-stage-canvas { width: min(160px, 26vh); }
+}
+@media (orientation: landscape) and (max-height: 460px) {
+  .creator-panel .panel-head { padding-bottom: 2px; }
+  .creator-panel .panel-head h2 { font-size: 1.05em; }
+  .cr-stage-canvas { width: 22vh; }
+}
+.creator-panel .panel-body { overflow: hidden; display: flex; flex-direction: column; }
+@media (orientation: landscape) { .cr-tabs .tab { font-size: .8em; padding: 0 4px; min-height: 30px; } }

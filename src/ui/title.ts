@@ -69,6 +69,21 @@ export async function showTitle(phaser: Phaser.Game) {
   for (const it of items) it.className = 'board-item';
   items[0]?.classList.add('sel');
   for (const it of items) it.addEventListener('pointerenter', () => { for (const o of items) o.classList.toggle('sel', o === it); });
+  // optional illustrated background (public/title-bg.jpg and, for phones held upright, public/title-bg-vertical.jpg)
+  const base = import.meta.env.BASE_URL;
+  const bgImg = h('img', { class: 'title-bg-img', alt: '', draggable: 'false' }) as HTMLImageElement;
+  const bg = h('picture', { class: 'title-bg' }, h('source', { media: '(orientation: portrait)', srcset: base + 'title-bg-vertical.jpg' }), bgImg);
+  bgImg.onload = () => root.classList.add('has-bg');
+  bgImg.onerror = () => {
+    // no vertical version: fall back to the main image once, then to the animated scene
+    if (!bgImg.dataset.fallback) {
+      bgImg.dataset.fallback = '1';
+      bg.querySelector('source')?.remove();
+      bgImg.src = base + 'title-bg.jpg';
+    } else bg.remove();
+  };
+  bgImg.src = base + 'title-bg.jpg';
+  root.append(bg);
   root.append(
     logo,
     h('div', { class: 'title-menu title-board' }, ...items, imp),
