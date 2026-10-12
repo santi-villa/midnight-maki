@@ -8,7 +8,7 @@ export interface GameEvents {
   'dialogue:start': { id: string };
   'dialogue:end': { id: string };
   'ui:modal': { open: boolean };
-  'interact:available': { label: string | null };
+  'interact:available': { label: string | null; kind?: string };
   'quest:changed': { id: string };
   'recipe:cooked': { id: string; quality: number };
   'toast': { text: string; icon?: string };

@@ -339,3 +339,102 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .dlg::before { left: -9px; top: -11px; }
 .dlg::after { right: -9px; bottom: -11px; }
 .dlg { border-style: double; border-width: 5px; background: linear-gradient(#fbf4e2, #f3e6c8); }
+
+
+/* =====================================================================
+   Wooden UI skin (textures generated in ui/skin.ts)
+   ===================================================================== */
+:root {
+  --outline: -1px 0 #2b1d17, 1px 0 #2b1d17, 0 -1px #2b1d17, 0 1px #2b1d17, -1px -1px #2b1d17, 1px 1px #2b1d17, -1px 1px #2b1d17, 1px -1px #2b1d17, 0 3px 0 rgba(43,29,23,.55);
+}
+.btn, .panel, .icon-btn, .hud-interact, .dlg, .hud-status, .hud-quest, .tab, .close-x, .stepper button, .title-board { image-rendering: pixelated; }
+
+/* buttons: light wooden planks */
+.btn {
+  border: 8px solid transparent; border-radius: 0;
+  border-image: var(--tx-plank-btn) 4 fill / 8px stretch;
+  background: none; box-shadow: 0 3px 0 rgba(43,29,23,.45);
+  padding: 4px 10px; color: #3a2418; text-shadow: 0 1px 0 rgba(255,255,255,.35);
+}
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(43,29,23,.45); }
+.btn.primary { border-image-source: var(--tx-plank-btn-gold); }
+.btn.rose { border-image-source: var(--tx-plank-btn-rose); }
+.btn.sage { border-image-source: var(--tx-plank-btn-sage); }
+.btn.small { padding: 2px 8px; }
+.btn.ghost { border-image: none; border: 3px solid var(--cream-2); border-radius: 10px; }
+
+/* panels: plank board inside a log frame, parchment content */
+.panel {
+  border: 16px solid transparent; border-radius: 0;
+  border-image: var(--tx-logframe) 8 / 16px round;
+  background: var(--tx-planks) 0 0 / 64px 64px;
+  box-shadow: 0 14px 34px rgba(0,0,0,.45);
+}
+.panel-head { background: transparent; border-bottom: none; padding: 4px 6px 8px; }
+.panel-head h2 { color: #fff4dc; text-shadow: var(--outline); font-size: 1.35em; }
+.panel-body { background: var(--tx-parchment) 0 0 / 32px 32px; border: 3px solid #2b1d17; border-radius: 8px; box-shadow: inset 0 2px 0 rgba(255,255,255,.5), inset 0 -3px 0 rgba(160,120,70,.25); }
+.panel-foot { border-top: none; padding: 8px 2px 2px; }
+.close-x {
+  border: 8px solid transparent; border-radius: 0; border-image: var(--tx-plank-btn-rose) 4 fill / 8px stretch; background: none;
+  color: #3a2418; width: 44px; height: 44px;
+}
+.tabs { background: transparent; border-bottom: none; padding: 0 0 6px; gap: 4px; }
+.tab { border: 8px solid transparent; border-radius: 0; border-image: var(--tx-plank-btn) 4 fill / 8px stretch; background: none; padding: 0 6px; min-height: 36px; }
+.tab.active { border-image-source: var(--tx-plank-btn-gold); transform: translateY(-2px); }
+.slot, .card { background: #fffaf0; border: 3px solid #c9a97a; border-radius: 8px; box-shadow: 0 2px 0 rgba(120,80,40,.25); }
+.slot.selected { border-color: #e8a628; background: #fff1c8; }
+.stepper button { border: 8px solid transparent; border-radius: 0; border-image: var(--tx-plank-btn) 4 fill / 8px stretch; background: none; }
+
+/* HUD */
+.hud-status {
+  border: 12px solid transparent; border-radius: 0; border-image: var(--tx-logframe) 8 / 12px round;
+  background: var(--tx-planks) 0 0 / 48px 48px; color: #fff4dc; text-shadow: var(--outline); padding: 2px 6px;
+}
+.hud-status .hint { color: #f3e2c0; }
+.hud-status .coin { color: #ffd65a; }
+.hud-buttons { gap: 4px; }
+.icon-btn {
+  position: relative; width: 58px; height: 58px; padding: 0;
+  border: 12px solid transparent; border-radius: 0; border-image: var(--tx-stone) 6 fill / 12px stretch;
+  background: none; box-shadow: 0 3px 0 rgba(43,29,23,.45);
+  margin-bottom: 16px;
+}
+.icon-btn:active { border-image-source: var(--tx-stone-down); transform: translateY(2px); box-shadow: none; }
+.icon-btn .skin-icon { width: 30px; height: 30px; image-rendering: pixelated; margin: -2px; }
+.icon-btn .lbl, .hud-interact .lbl {
+  position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 8px;
+  color: #fff4dc; text-shadow: var(--outline); font-size: .72em; font-weight: 600; letter-spacing: .5px; white-space: nowrap; pointer-events: none;
+}
+.hud-quest {
+  top: calc(96px + var(--safe-t));
+  border: 10px solid transparent; border-radius: 0; border-image: var(--tx-logframe) 8 / 10px round;
+  background: var(--tx-parchment) 0 0 / 32px 32px; color: #3a2418; padding: 2px 6px;
+}
+.hud-quest b { color: #a0521f; }
+.hud-interact {
+  width: 82px; height: 82px; border-radius: 0; padding: 0;
+  border: 14px solid transparent; border-image: var(--tx-stone) 6 fill / 14px stretch;
+  background: none; box-shadow: 0 4px 0 rgba(43,29,23,.45), 0 0 18px rgba(255,214,120,.55);
+  bottom: calc(34px + var(--safe-b));
+}
+.hud-interact:active { border-image-source: var(--tx-stone-down); }
+.hud-interact .skin-icon { width: 40px; height: 40px; image-rendering: pixelated; margin: -4px; }
+.hud-interact .lbl { font-size: .8em; max-width: 120px; white-space: normal; text-align: center; line-height: 1.05; }
+.hud-suggest button { border: 8px solid transparent; border-radius: 0; border-image: var(--tx-plank-btn) 4 fill / 8px stretch; background: none; padding: 0 6px; }
+
+/* dialogue: parchment inside a log frame, wooden name plate */
+.dlg {
+  border: 16px solid transparent; border-style: solid; border-radius: 0;
+  border-image: var(--tx-logframe) 8 / 16px round;
+  background: var(--tx-parchment) 0 0 / 32px 32px; box-shadow: 0 10px 26px rgba(0,0,0,.35);
+  padding: 4px 6px;
+}
+.dlg::before, .dlg::after { display: none; }
+.dlg .name { top: -30px; border: 8px solid transparent; border-radius: 0; border-image: var(--tx-plank-btn-gold) 4 fill / 8px stretch; background: none; color: #3a2418; padding: 0 8px; }
+.dlg .portrait { border: 4px solid #2b1d17; border-radius: 6px; margin-top: -60px; box-shadow: 0 0 0 3px #d9a970, 0 4px 0 3px #2b1d17; }
+.dlg .choices button { border: 8px solid transparent; border-radius: 0; border-image: var(--tx-plank-btn) 4 fill / 8px stretch; background: none; padding: 2px 10px; }
+.dlg .tools { top: -30px; }
+.dlg .tools button { border: 6px solid transparent; border-radius: 0; border-image: var(--tx-plank-btn) 4 fill / 6px stretch; background: none; padding: 0 4px; }
+.toast { background: var(--tx-planks) 0 0 / 48px 48px; color: #fff4dc; text-shadow: var(--outline); border: 3px solid #2b1d17; border-radius: 8px; }
+.joystick { background: rgba(43,29,23,.25); border: 4px solid rgba(255,244,220,.55); }
+.joystick i { background: #c08a5a; border: 4px solid #2b1d17; box-shadow: inset 0 3px 0 rgba(255,255,255,.3); }

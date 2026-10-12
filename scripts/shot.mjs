@@ -11,6 +11,7 @@ await page.getByRole('button', { name: 'Nueva partida' }).click();
 await page.getByRole('button', { name: 'Comenzar' }).click();
 await page.getByRole('button', { name: 'Saltar intro ›' }).click();
 await page.getByText('Tocá para continuar').click();
+if (process.env.DLG) { await page.locator(".dlg").first().waitFor({ timeout: 8000 }).catch(() => {}); await page.waitForTimeout(800); for (let i = 0; i < Number(process.env.DLG); i++) { await page.locator('.dlg').click().catch(() => {}); await page.waitForTimeout(300); } await page.screenshot({ path: out }); await browser.close(); process.exit(0); }
 for (let i = 0; i < 80; i++) {
   if (await page.locator('.dlg').isVisible().catch(() => false)) await page.locator('.dlg').click().catch(() => {});
   else if (i > 10) break;
@@ -30,5 +31,6 @@ if (zone !== 'none') {
   }
 }
 await page.waitForTimeout(1500);
+if (process.env.CLICK) { await page.getByRole('button', { name: process.env.CLICK }).first().click().catch((e) => console.log('click', e.message)); await page.waitForTimeout(700); }
 await page.screenshot({ path: out });
 await browser.close();

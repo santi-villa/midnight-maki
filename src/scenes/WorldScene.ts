@@ -855,7 +855,7 @@ export class WorldScene extends Phaser.Scene {
     const label = this.target ? this.target.label : null;
     if (label !== this.lastLabel) {
       this.lastLabel = label;
-      bus.emit('interact:available', { label });
+      bus.emit('interact:available', { label, kind: this.target?.kind });
     }
   }
 
