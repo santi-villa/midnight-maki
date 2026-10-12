@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Intro</title>
+<style>body{background:#111;margin:0;padding:6px}canvas{image-rendering:pixelated;width:512px;height:288px;margin:3px}</style></head><body>
+<script type="module">
+import { paintSlide } from './src/story/slides.ts';
+import { defaultAppearance } from './src/core/state.ts';
+for (const id of ['city', 'letter', 'train', 'arrival']) document.body.append(paintSlide(id, defaultAppearance()));
+</script></body></html>

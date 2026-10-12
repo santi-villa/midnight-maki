@@ -3,8 +3,8 @@ import { audio } from '../audio/audio';
 import { game } from '../core/state';
 import { world } from '../scenes/WorldScene';
 import { fmt, runScene, say } from '../dialogue/dialogue';
-import { fade, h, sleep, uiRoot } from '../ui/dom';
-import type { CinematicScene } from '../scenes/CinematicScene';
+import { fade, h, uiRoot } from '../ui/dom';
+import { paintSlide, type SlideId } from './slides';
 import { showHud } from '../ui/hud';
 import { addClue } from './story';
 
@@ -14,15 +14,16 @@ function letter(lines: string[], sign: string): Promise<void> {
       'div',
       {
         style: {
-          background: '#f6ecd6', border: '4px solid #6b4330', borderRadius: '6px', padding: '22px 20px', maxWidth: '420px', width: '90%',
-          boxShadow: '0 10px 30px rgba(0,0,0,.5)', lineHeight: '1.55', fontSize: '1.05em', animation: 'popin .6s ease-out', color: '#2a2230',
+          padding: '18px 18px', maxWidth: '440px', width: '90%', maxHeight: '86vh', overflowY: 'auto',
+          lineHeight: '1.5', fontSize: '1.05em', color: '#3a2418',
         },
       },
       ...lines.map((l) => h('p', { style: { margin: '0 0 10px' } }, fmt(l))),
       h('p', { style: { textAlign: 'right', margin: '14px 0 0', fontStyle: 'italic' } }, sign),
       h('p', { class: 'hint', style: { textAlign: 'center', marginTop: '16px' } }, 'Tocá para continuar'),
     );
-    const wrap = h('div', { style: { position: 'fixed', inset: '0', background: '#14162a', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '70' } }, paper);
+    paper.className = 'letter-paper';
+    const wrap = h('div', { class: 'letter-wrap' }, paper);
     wrap.addEventListener('pointerup', () => {
       wrap.style.transition = 'opacity .5s';
       wrap.style.opacity = '0';
@@ -35,83 +36,102 @@ function letter(lines: string[], sign: string): Promise<void> {
   });
 }
 
-// ------------------------------------------------------------------ cinematic helpers
+// ------------------------------------------------------------------ storybook pages
 let skipped = false;
-let subBox: HTMLElement | null = null;
+let book: HTMLElement | null = null;
 
-async function startCinematic(): Promise<CinematicScene> {
-  skipped = false;
-  const sp = world.scene;
-  if (!sp.isActive('cinematic')) sp.launch('cinematic');
-  sp.bringToTop('cinematic');
-  await sleep(120);
-  const skip = h('button', { class: 'btn small ghost cine-skip', onclick: () => { skipped = true; subBox?.querySelector<HTMLElement>('.cine-sub')?.click(); } }, 'Saltar intro ›');
-  subBox = h('div', { class: 'cine' }, skip);
-  uiRoot().append(subBox);
-  return sp.get('cinematic') as CinematicScene;
+/** A still illustration (hand-made public/intro/<n>.jpg|png if present, otherwise painted) with its lines of text. */
+async function page(n: number, id: SlideId, lines: string[]): Promise<void> {
+  if (skipped || !book) return;
+  const pic = h('div', { class: 'book-pic' });
+  const custom = await findCustom(n);
+  if (custom) pic.append(h('img', { src: custom, alt: '' }));
+  else {
+    const cv = paintSlide(id, game.save.player.appearance);
+    pic.append(cv);
+  }
+  const text = h('div', { class: 'book-text' });
+  const pageEl = h('div', { class: 'book-page' }, pic, h('div', { class: 'book-caption' }, text, h('div', { class: 'book-next' }, '▼')));
+  const prev = book.querySelector('.book-page');
+  book.append(pageEl);
+  requestAnimationFrame(() => pageEl.classList.add('in'));
+  if (prev) {
+    prev.classList.remove('in');
+    setTimeout(() => prev.remove(), 500);
+  }
+  for (const line of lines) {
+    if (skipped) return;
+    text.textContent = fmt(line);
+    text.classList.remove('show');
+    void text.offsetWidth;
+    text.classList.add('show');
+    await waitTap(pageEl);
+  }
 }
 
-function endCinematic() {
-  world.scene.stop('cinematic');
-  subBox?.remove();
-  subBox = null;
-}
-
-/** storybook subtitle; types out, waits for a tap */
-function subtitle(text: string): Promise<void> {
-  if (skipped || !subBox) return Promise.resolve();
+function waitTap(el: HTMLElement): Promise<void> {
   return new Promise((resolve) => {
-    const full = fmt(text);
-    const el = h('div', { class: 'cine-sub' });
-    subBox!.append(el);
-    let i = 0;
-    const tm = setInterval(() => {
-      i += 2;
-      el.textContent = full.slice(0, i);
-      if (i >= full.length) clearInterval(tm);
-    }, 40);
-    el.addEventListener('click', () => {
-      if (i < full.length && !skipped) {
-        i = full.length;
-        el.textContent = full;
-        return;
-      }
-      clearInterval(tm);
-      el.classList.add('out');
-      setTimeout(() => el.remove(), 300);
+    const done = () => {
+      el.removeEventListener('pointerup', done);
+      window.removeEventListener('mm-skip', done);
+      audio.sfxPlay('blip');
       resolve();
-    });
-    // also advance when tapping anywhere on the picture
-    subBox!.onclick = (e) => {
-      if (e.target === subBox) el.click();
     };
+    // a short delay avoids skipping a line with the same tap that showed it
+    setTimeout(() => {
+      el.addEventListener('pointerup', done);
+      window.addEventListener('mm-skip', done);
+    }, 250);
   });
 }
 
-async function crossfade(next: () => void) {
-  if (skipped) return;
-  await fade(true, 450);
-  next();
-  await fade(false, 450);
+const customCache = new Map<number, string | null>();
+function findCustom(n: number): Promise<string | null> {
+  if (customCache.has(n)) return Promise.resolve(customCache.get(n)!);
+  const base = import.meta.env.BASE_URL + 'intro/' + n;
+  const tryUrl = (u: string) => new Promise<boolean>((res) => {
+    const img = new Image();
+    img.onload = () => res(true);
+    img.onerror = () => res(false);
+    img.src = u;
+  });
+  return (async () => {
+    for (const ext of ['.jpg', '.png', '.webp']) if (await tryUrl(base + ext)) {
+      customCache.set(n, base + ext);
+      return base + ext;
+    }
+    customCache.set(n, null);
+    return null;
+  })();
+}
+
+function openBook() {
+  skipped = false;
+  const skip = h('button', { class: 'btn small book-skip', onclick: () => { skipped = true; window.dispatchEvent(new Event('mm-skip')); } }, 'Saltar intro ›');
+  book = h('div', { class: 'book' }, skip);
+  uiRoot().append(book);
+}
+
+function closeBook() {
+  book?.remove();
+  book = null;
 }
 
 export async function playIntro() {
   await fade(true, 10);
+  openBook();
   audio.ambience('rain');
   audio.play('emotional');
-  const cine = await startCinematic();
-  await fade(false, 600);
-  if (!skipped) {
-    cine.shotCity();
-    await subtitle('En una ciudad grande y gris, {name} trabajaba hasta tarde todas las noches.');
-    await subtitle('Le gustaban las cosas simples: el sushi, los animales tiernos, las historias con misterio.');
-  }
-  if (!skipped) {
-    await crossfade(() => cine.shotLetter());
-    await subtitle('Una noche de lluvia, alguien deslizó una carta por debajo de la puerta.');
-    await subtitle('No tenía remitente. Solo una estrella dibujada en el sello.');
-  }
-  await fade(true, 400);
+  await fade(false, 500);
+  await page(1, 'city', [
+    'En una ciudad grande y gris, {name} trabajaba hasta tarde todas las noches.',
+    'Le gustaban las cosas simples: el sushi, los animales tiernos, las historias con misterio.',
+  ]);
+  if (!skipped) audio.sfxPlay('paper');
+  await page(2, 'letter', [
+    'Una noche de lluvia, alguien deslizó una carta por debajo de la puerta.',
+    'No tenía remitente. Solo una estrella dibujada en el sello.',
+  ]);
   await letter(
     [
       'Querida {name}:',
@@ -123,18 +143,21 @@ export async function playIntro() {
   );
   addClue('letter_inherit', true);
   if (!skipped) {
-    audio.ambience('none');
+    audio.ambience('waves');
     audio.play('beach');
-    cine.shotTrain();
-    await fade(false, 600);
-    await subtitle('A la mañana siguiente, {name} tomó el primer tren hacia el sur. Hacia el mar.');
-    await subtitle('El paisaje gris se fue quedando atrás, y aparecieron colinas, gaviotas... y el mar.');
-    await crossfade(() => cine.shotArrival());
-    audio.play('town');
-    await subtitle('Al atardecer llegó a Villa Nori: un pueblo pequeño, con olor a pino, a sal y a arroz recién hecho.');
-    await fade(true, 500);
+    audio.sfxPlay('train');
   }
-  endCinematic();
+  await page(3, 'train', [
+    'A la mañana siguiente, {name} tomó el primer tren hacia el sur. Hacia el mar.',
+    'El paisaje gris se fue quedando atrás, y aparecieron colinas, gaviotas... y el mar.',
+  ]);
+  if (!skipped) {
+    audio.ambience('none');
+    audio.play('town');
+  }
+  await page(4, 'arrival', ['Al atardecer llegó a Villa Nori: un pueblo pequeño, con olor a pino, a sal y a arroz recién hecho.']);
+  await fade(true, 500);
+  closeBook();
   await world.enterZone('plaza', 15, 22, 'up', false);
   showHud(false);
   world.inputLocked++;
