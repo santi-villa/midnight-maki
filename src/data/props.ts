@@ -105,6 +105,15 @@ export const PROPS: Record<string, PropDef> = {
   bld_station: P('building', 8, 3, 128, 80, '#d8d0c4', '#5d5864', { variant: 5, label: 'ESTACIÓN VILLA NORI' }),
   bld_gallery: P('building', 5, 3, 80, 72, '#f6ecd6', '#7a5fb0', { variant: 2, label: 'GALERÍA' }),
   lighthouse: P('lighthouse', 3, 2, 48, 112),
+  // walkable shop interiors
+  shop_counter: P('shopcounter', 1, 1, 16, 24, '#a8714a', '#e2b585'),
+  shop_counter_reg: P('shopcounter', 1, 1, 16, 28, '#a8714a', '#e2b585', { variant: 1 }),
+  shop_counter_rose: P('shopcounter', 1, 1, 16, 24, '#c27f86', '#f6e2d6'),
+  clothes_rack: P('clothesrack', 2, 1, 32, 28, '#d9a3a6', '#3b4470'),
+  clothes_rack_b: P('clothesrack', 2, 1, 32, 28, '#9bb59a', '#f6f1e6'),
+  bread_case: P('breadcase', 2, 1, 32, 24),
+  flour_sack: P('flour', 1, 1, 16, 18),
+  shop_rug: P('shoprug', 2, 1, 32, 10, '#b8524f', '', { solid: false }),
   // wooden signposts naming where each exit leads
   sign_forest: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'BOSQUE ↑' }),
   sign_beach: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'PLAYA ↓' }),

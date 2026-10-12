@@ -151,6 +151,9 @@ function plaza(): ZoneDef {
   return zone(b, {
     id: 'plaza', name: 'Plaza de Villa Nori', music: 'town', outdoor: true,
     doors: [
+      { x: 26, y: 6, to: 'shop_yuki', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Ropa de Yuki' },
+      { x: 27, y: 18, to: 'shop_taro', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Almacén de Taro' },
+      { x: 5, y: 18, to: 'shop_bento', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Panadería' },
       { x: 5, y: 6, to: 'restaurant', tx: 8, ty: 12, dir: 'up', walk: true, label: 'Midnight Maki' },
       { x: 15, y: 0, to: 'forest', tx: 14, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Kiki dice que el sendero al bosque todavía está lleno de ramas.' } },
       { x: 16, y: 0, to: 'forest', tx: 15, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Kiki dice que el sendero al bosque todavía está lleno de ramas.' } },
@@ -164,9 +167,6 @@ function plaza(): ZoneDef {
       { x: 30, y: 0, to: 'market', tx: 13, ty: 16, dir: 'up', walk: true, lock: { flag: 'market_open', msg: 'El torii está en silencio. Dicen que algunas noches aparece un mercado del otro lado.' } },
     ],
     interact: [
-      { id: 'yuki_shop', x: 26, y: 6, label: 'Tienda de Yuki', action: 'shop:yuki' },
-      { id: 'taro_shop', x: 27, y: 18, label: 'Almacén de Taro', action: 'shop:taro' },
-      { id: 'bakery', x: 5, y: 18, label: 'Panadería de Bento', action: 'shop:bento' },
       { id: 'library', x: 11, y: 24, label: 'Biblioteca', action: 'library' },
       { id: 'board', x: 11, y: 8, label: 'Cartelera', action: 'board' },
       { id: 'board2', x: 12, y: 8, label: 'Cartelera', action: 'board' },
@@ -234,6 +234,35 @@ function restaurant(): ZoneDef {
     gather: [],
   });
 }
+
+// ================================================================== SHOP INTERIORS
+function shopRoom(id: string, name: string, walls: string, floor: string, exit: [number, number], build: (b: Builder) => void, action: string, label: string): ZoneDef {
+  const b = new Builder(10, 8, '#');
+  b.room(0, 0, 10, 8, [2, 7]);
+  b.set(5, 7, 'm');
+  build(b);
+  return zone(b, {
+    id, name, music: 'town', outdoor: false, walls, floor,
+    doors: [{ x: 5, y: 7, to: 'plaza', tx: exit[0], ty: exit[1], dir: 'down', walk: true }],
+    interact: [4, 5, 6].map((x) => ({ id: id + '_c' + x, x, y: 4, label, action })),
+    rooms: [],
+    gather: [],
+  });
+}
+const shopYuki = () => shopRoom('shop_yuki', 'Ropa de Yuki', 'rose', 'rose', [26, 7], (b) => {
+  b.prop('wallshelf', 1, 1).prop('wallshelf', 7, 1).prop('clothes_rack', 1, 3).prop('clothes_rack_b', 7, 3)
+    .prop('shop_counter_rose', 4, 4).prop('shop_counter_rose', 5, 4).prop('shop_counter_rose', 6, 4)
+    .prop('pot_rose', 1, 6).prop('pot_cream', 8, 6).prop('shop_rug', 4, 6).prop('lantern_cream', 3, 2).prop('lantern_cream', 6, 2);
+}, 'shop:yuki', 'Ropa de Yuki');
+const shopTaro = () => shopRoom('shop_taro', 'Almacén de Taro', 'wood', 'wood', [27, 19], (b) => {
+  b.prop('wallshelf', 1, 1).prop('wallshelf', 3, 1).prop('wallshelf', 6, 1).prop('crate', 1, 3).prop('crate', 1, 4).prop('barrel', 8, 3)
+    .prop('barrel', 8, 4).prop('sack', 2, 6).prop('crate', 7, 6)
+    .prop('shop_counter', 4, 4).prop('shop_counter_reg', 5, 4).prop('shop_counter', 6, 4).prop('shop_rug', 4, 6).prop('lantern_red', 3, 2).prop('lantern_red', 7, 2);
+}, 'shop:taro', 'Almacén de Taro');
+const shopBento = () => shopRoom('shop_bento', 'Panadería de Bento', 'cream', 'checker', [5, 19], (b) => {
+  b.prop('wallshelf', 1, 1).prop('wallshelf', 7, 1).prop('bread_case', 1, 3).prop('flour_sack', 8, 3).prop('flour_sack', 8, 5)
+    .prop('shop_counter', 4, 4).prop('shop_counter_reg', 5, 4).prop('shop_counter', 6, 4).prop('pot_cream', 1, 6).prop('shop_rug', 4, 6).prop('lantern_cream', 3, 2).prop('lantern_cream', 6, 2);
+}, 'shop:bento', 'Panadería de Bento');
 
 // ================================================================== HOME (upstairs)
 function home(): ZoneDef {
@@ -499,7 +528,7 @@ function lighthouse(): ZoneDef {
 
 // ================================================================== ARRIVAL (intro cutscene in plaza at night)
 export const ZONES: Record<string, ZoneDef> = {};
-for (const z of [plaza(), restaurant(), home(), storage(), beach(), forest(), garden(), station(), market(), lighthouse()]) ZONES[z.id] = z;
+for (const z of [plaza(), shopYuki(), shopTaro(), shopBento(), restaurant(), home(), storage(), beach(), forest(), garden(), station(), market(), lighthouse()]) ZONES[z.id] = z;
 
 /** Wooden signposts next to each exit, so every place says where it leads. */
 const SIGNPOSTS: Record<string, [string, number, number][]> = {
