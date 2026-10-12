@@ -8,6 +8,7 @@ import { volumize } from './shade';
 import { IZAKAYA_KINDS } from './izakaya';
 import { NATURE_KINDS } from './nature';
 import { drawPlaque } from './pixfont';
+import { SHOP_KINDS } from './shopart';
 
 const OUT = '#3a2a2a';
 
@@ -788,7 +789,7 @@ const K: Record<string, DrawFn> = {
   },
 };
 
-Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS);
+Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS);
 
 export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string): HTMLCanvasElement {
   const c = makeCanvas(w, h);
@@ -809,6 +810,6 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   return c;
 }
 
-const FLAT = new Set(['wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds']);
+const FLAT = new Set(['shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds']);
 
 export const OBJECT_KINDS = Object.keys(K);

@@ -172,6 +172,7 @@ function paintingURL() {
 function hereZone(): string {
   const z = world?.zoneId ?? 'plaza';
   if (z === 'home' || z === 'storage') return 'restaurant';
+  if (z.startsWith('shop_')) return 'plaza';
   return z;
 }
 
@@ -221,7 +222,7 @@ export function openWorldMap() {
   for (const id of ['spicy', 'rigg', 'pip']) {
     const z = whereIs(id);
     if (!z) continue;
-    const key = z === 'home' || z === 'storage' ? 'restaurant' : z;
+    const key = z === 'home' || z === 'storage' ? 'restaurant' : z.startsWith('shop_') ? 'plaza' : z;
     byZone.set(key, [...(byZone.get(key) ?? []), id]);
   }
   for (const [z, ids] of byZone) {
