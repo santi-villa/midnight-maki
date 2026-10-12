@@ -42,6 +42,25 @@ export function questTarget(): GuideTarget | null {
   if (!id) return null;
   const step = currentStep(id);
   if (!step) return null;
+
+  // Explicit structured target takes precedence over regex guessing
+  if (step.target) {
+    const t = step.target;
+    if (t.kind === 'npc') {
+      const z = whereIs(t.npc);
+      return z ? { zone: z, npc: t.npc } : null;
+    }
+    if (t.kind === 'object') {
+      return { zone: t.zone, x: t.x, y: t.y };
+    }
+    if (t.kind === 'interior') {
+      return { zone: t.fromZone, x: t.door.x, y: t.door.y };
+    }
+    if (t.kind === 'location') {
+      return { zone: t.zone, x: t.x, y: t.y };
+    }
+  }
+
   const text = step.text.replace(/<[^>]+>/g, '');
   // a character named in the step wins (they move around, so follow them)
   for (const c of CHARACTERS) {
