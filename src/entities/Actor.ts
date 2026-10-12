@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FRAMES } from '../art/characters';
 import type { Dir } from '../core/types';
+import { lowFx } from '../core/perf';
 import type { Grid } from '../world/grid';
 
 export const TILE = 16;
@@ -235,7 +236,7 @@ export class Actor {
     this.sprite.setDepth(ry);
     this.shadow.setPosition(rx, ry - 1);
     this.shadow.setDepth(ry - 0.5);
-    this.cast.setPosition(rx + 2, ry - 1).setDepth(ry - 0.6);
+    this.cast.setPosition(rx + 2, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx());
     if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
     if (this.bubble) this.bubble.setPosition(rx, ry - this.sprite.height - 1);
   }

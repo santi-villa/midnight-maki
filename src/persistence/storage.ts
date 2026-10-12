@@ -238,6 +238,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reduceMotion: false,
   joystick: true,
   guide: true,
+  perf: 'auto',
   cookMode: 'relaxed',
   settingsVersion: 2,
 };
