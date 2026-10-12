@@ -6,10 +6,12 @@
  */
 import type { Appearance, Dir, Species } from '../core/types';
 import { CLOTHES_BY_ID } from '../data/clothes';
-import { ctx2d, drawTemplate, makeCanvas, px, shade, type Ctx } from './pixel';
+import { ctx2d, drawTemplate, makeCanvas, mix, px, shade, type Ctx } from './pixel';
+import { softVolume } from './shade';
+import { CH, CW, drawChibi } from './chibi';
 
-export const FW = 16;
-export const FH = 24;
+export const FW = CW;
+export const FH = CH;
 
 export type Expr = 'neutral' | 'blink' | 'happy' | 'surprised' | 'sad' | 'smug' | 'sleep';
 export type Legs = 'idle' | 'a' | 'b';
@@ -235,7 +237,8 @@ function colorsFor(a: Appearance): Colors {
   const longLegs = bot && ['pants', 'overalls', 'hakama'].includes(bot.kind);
   return {
     skin,
-    skinO: shade(skin, -0.55),
+    // contours lean towards the shared dark ink so every character reads like the raccoons
+    skinO: mix(shade(skin, -0.6), '#2b2231', 0.55),
     top: topC,
     top2: top?.c2 ?? shade(topC, -0.15),
     arm: shortSleeve ? skin : topC,
@@ -258,7 +261,13 @@ export interface FrameOpts {
   expr: Expr;
 }
 
+/** Draws one frame of any character (chibi renderer). */
 export function drawCharacter(ctx: Ctx, ox: number, oy: number, a: Appearance, o: FrameOpts): void {
+  drawChibi(ctx, ox, oy, a, o);
+}
+
+/** Previous 16x24 renderer (kept for reference while the chibi one matures). */
+export function drawCharacterLegacy(ctx: Ctx, ox: number, oy: number, a: Appearance, o: FrameOpts): void {
   const col = colorsFor(a);
   const side = !frontView(o.dir);
   const flip = o.dir === 'left';
@@ -268,7 +277,7 @@ export function drawCharacter(ctx: Ctx, ox: number, oy: number, a: Appearance, o
   const dir: Dir = o.dir === 'left' ? 'right' : o.dir;
 
   const style = HAIR_STYLES[a.species === 'human' || a.hairStyle < HAIR_STYLES.length ? a.hairStyle : HAIR_STYLES.length - 1] ?? HAIR_STYLES[0];
-  const hairPal = { H: col.hair, h: shade(col.hair, -0.18), O: shade(col.hair, -0.6) };
+  const hairPal = { H: col.hair, h: shade(col.hair, -0.18), O: mix(shade(col.hair, -0.6), '#2b2231', 0.55) };
 
   // ---------- back layer
   drawTail(t, a, dir, col);
@@ -1010,14 +1019,16 @@ export function buildCharacterSheet(a: Appearance, drop: number[] = []): HTMLCan
     drawCharacter(fctx, 0, 0, a, s);
     // walk frames bob up 1px, breathing frames sink 1px: both shift the upper body only
     const shift = s.legs !== 'idle' ? -1 : i >= 20 ? 1 : 0;
+    const UP = FH - 6; // rows above the legs
     if (shift) {
       const tmp = makeCanvas(FW, FH);
       const tg = ctx2d(tmp);
       tg.drawImage(frame, 0, 0);
-      fctx.clearRect(0, 0, FW, 20);
-      fctx.drawImage(tmp, 0, 0, FW, 20, 0, shift, FW, 20);
-      if (shift < 0) fctx.drawImage(tmp, 0, 19, FW, 1, 0, 19, FW, 1);
+      fctx.clearRect(0, 0, FW, UP);
+      fctx.drawImage(tmp, 0, 0, FW, UP, 0, shift, FW, UP);
+      if (shift < 0) fctx.drawImage(tmp, 0, UP - 1, FW, 1, 0, UP - 1, FW, 1);
     }
+    softVolume(frame);
     if (!drop.length) ctx.drawImage(frame, i * FW, 0);
     else {
       let dy = FH - 1;
@@ -1051,7 +1062,7 @@ export function buildPortrait(a: Appearance, expr: Expr, drop: number[] = [], sc
   const data = ctx2d(src).getImageData(0, 0, FW, FH).data;
   let top = 0;
   outer: for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) if (data[(y * FW + x) * 4 + 3]) { top = y; break outer; }
-  const h = 18;
+  const h = 22;
   const out = makeCanvas(FW * scale + 2 * scale, h * scale + scale);
   const o = ctx2d(out);
   o.drawImage(src, 0, Math.max(0, top - 1), FW, h, scale, scale, FW * scale, h * scale);
