@@ -170,7 +170,7 @@ export const CHARACTERS: CharacterDef[] = [
     bio: 'Enorme, amable y apasionado por hornear. Su pan de leche es famoso.', birthday: 403, voice: 0.7,
   },
   {
-    id: 'mika', name: 'Mika', title: 'Artista',
+    id: 'sumi', name: 'Sumi', title: 'Artista',
     appearance: A({ species: 'fox', skin: '#c9a0a0', eyes: 4, eyeColor: '#3b4470', top: 'top_kimono_sakura', bottom: 'bot_pants_brown', shoes: 'sh_sneakers', head: 'hd_beret' }),
     loves: ['fl_star', 'b_sakura', 'st_quartz'], likes: ['fl_tulip', 'sh_pink', 'sakura'], dislikes: ['f_mackerel', 'stone'],
     routine: [
@@ -232,5 +232,6 @@ export const CHARACTERS: CharacterDef[] = [
 ];
 
 export const CHAR_BY_ID: Record<string, CharacterDef> = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
+if (CHAR_BY_ID.sumi) CHAR_BY_ID.mika = CHAR_BY_ID.sumi; // backwards compatibility alias for legacy saves
 export const RACCOONS = ['pip', 'spicy', 'rigg'];
 export const VILLAGERS = CHARACTERS.filter((c) => !c.raccoon).map((c) => c.id);

@@ -13,13 +13,14 @@ import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
 import { ZONES, type DoorDef, type InteractDef } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
-import { charactersIn } from '../systems/npcs';
+import { charactersIn, stopFor } from '../systems/npcs';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
-import { buildZone, condOk, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture } from './textures';
+import { currentQuestTarget } from '../quests/quests';
+import { buildZone, condOk, doorLeadingTo, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture } from './textures';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 
@@ -33,6 +34,7 @@ export type Target =
 interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; }
 interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
+interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
 export let world: WorldScene;
 
@@ -45,6 +47,7 @@ export class WorldScene extends Phaser.Scene {
   private overLayer: Phaser.Tilemaps.TilemapLayer | null = null;
   private objs: Phaser.GameObjects.GameObject[] = [];
   private furnSprites: Phaser.GameObjects.Image[] = [];
+  private occluders: Occluder[] = [];
   player!: Actor;
   npcs = new Map<string, NpcState>();
   extras = new Map<string, Actor>(); // cutscene-only actors
@@ -72,6 +75,8 @@ export class WorldScene extends Phaser.Scene {
   private transitioning = false;
   private pointerDown: { x: number; y: number; t: number } | null = null;
   decorMode = false;
+  private questPin!: Phaser.GameObjects.Image;
+  private questPinBob = 0;
 
   constructor() {
     super('world');
@@ -108,6 +113,7 @@ export class WorldScene extends Phaser.Scene {
     bus.on('appearance:changed', () => this.refreshLooks());
     bus.on('settings:changed', () => this.enterLowFx());
     bus.on('settings:changed', () => this.setupAmbient());
+    this.questPin = this.add.image(0, 0, questMarkerTexture(this)).setOrigin(0.5, 1).setDepth(150000).setVisible(false);
     this.layout();
   }
 
@@ -167,6 +173,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private clearZone() {
+    this.questPin?.setVisible(false);
     for (const o of this.objs) o.destroy();
     this.objs = [];
     for (const f of this.furnSprites) f.destroy();
@@ -216,6 +223,7 @@ export class WorldScene extends Phaser.Scene {
         else if (t === TILE_INDEX.deep0) this.waterTiles.push({ x, y, deep: true });
       }
     this.lamps = [];
+    this.occluders = [];
     // props
     for (const p of this.zone.props) {
       const key = propTexture(this, p.key);
@@ -225,8 +233,20 @@ export class WorldScene extends Phaser.Scene {
       // wall-mounted props (on wall face rows) render behind actors
       const onWall = def.ground[p.y]?.[p.x] === 'W' || def.ground[p.y]?.[p.x] === 'V';
       // awnings and posters sit on building fronts; puddles lie on the ground
-      img.setDepth(onWall ? -5 : p.def.kind === 'awning' || p.def.kind === 'poster' ? py + 18 : p.def.kind === 'puddle' ? -8 : py - (p.def.solid ? 0 : 8));
-      if (p.def.anim === 'sway' && !lowFx()) {
+      img.setDepth(onWall ? -5 : p.def.kind === 'puddle' ? -8 : p.def.kind === 'awning' || p.def.kind === 'poster' ? py - 0.1 : py);
+      if (!onWall && p.def.kind !== 'puddle' && (p.def.sh > p.def.h * TILE || !p.def.solid)) {
+        this.occluders.push({
+          sprite: img,
+          baseY: py,
+          bounds: {
+            left: px - p.def.sw / 2,
+            right: px + p.def.sw / 2,
+            top: py - p.def.sh,
+            bottom: py,
+          },
+        });
+      }
+      if (p.def.anim === 'sway' && !lowFx() && !settings.reduceMotion) {
         this.tweens.add({ targets: img, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
       if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 84 : p.def.kind === 'stall' ? 70 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: 0.55 });
@@ -262,6 +282,7 @@ export class WorldScene extends Phaser.Scene {
   private placeFurnitureSprites() {
     for (const f of this.furnSprites) f.destroy();
     this.furnSprites = [];
+    this.occluders = this.occluders.filter((o) => o.sprite.active);
     const def = this.zone.def;
     this.lamps = this.lamps.filter((l) => !(l as any).furn);
     for (const inst of this.zone.furniture) this.addFurnSprite(inst);
@@ -277,11 +298,23 @@ export class WorldScene extends Phaser.Scene {
     if (def.walkable) img.setDepth(-6);
     else if (def.wall) img.setDepth(-5);
     else {
-      img.setDepth(py - 1);
+      img.setDepth(py);
       const sh = this.add.ellipse(px, py - 1, def.w * TILE * 0.85, 5, 0x1a1428, 0.3).setDepth(-7);
       this.furnSprites.push(sh as any);
       const cs = this.castShadow(img, def.kind, false);
       if (cs) this.furnSprites.push(cs);
+      if (def.sh > def.h * TILE) {
+        this.occluders.push({
+          sprite: img,
+          baseY: py,
+          bounds: {
+            left: px - (def.w * TILE) / 2,
+            right: px + (def.w * TILE) / 2,
+            top: py - def.sh,
+            bottom: py,
+          },
+        });
+      }
     }
     (img as any).furnUid = f.uid;
     this.furnSprites.push(img);
@@ -893,6 +926,8 @@ export class WorldScene extends Phaser.Scene {
     this.updateWater(dt);
     this.updateLighting();
     this.updateAtmosphere(dt);
+    this.updateOccluders(dt);
+    this.updateQuestMarker(dt);
     this.dust(dt);
     this.quirks(dt);
     this.updateGuide(dt);
@@ -960,12 +995,129 @@ export class WorldScene extends Phaser.Scene {
     const p = this.player;
     const nx = p.x + dx;
     const ny = p.y + dy;
-    const hw = 4;
+    const hw = 5;
     const g = this.zone.grid;
-    const pts: [number, number][] = [[nx - hw, ny - 5], [nx + hw, ny - 5], [nx - hw, ny - 0.5], [nx + hw, ny - 0.5]];
-    for (const [x, y] of pts) if (g.isSolid(Math.floor(x / TILE), Math.floor(y / TILE))) return;
+    const pts: [number, number][] = [
+      [nx - hw, ny - 6],
+      [nx, ny - 6],
+      [nx + hw, ny - 6],
+      [nx - hw, ny - 0.5],
+      [nx, ny - 0.5],
+      [nx + hw, ny - 0.5],
+    ];
+    for (const [x, y] of pts) {
+      if (g.isSolid(Math.floor(x / TILE), Math.floor(y / TILE))) return;
+    }
     p.x = nx;
     p.y = ny;
+  }
+
+  private updateOccluders(dt: number) {
+    if (!this.player) return;
+    const actors: Actor[] = [this.player];
+    for (const [, n] of this.npcs) if (n.actor.sprite.visible) actors.push(n.actor);
+    for (const e of this.extras.values()) if (e.sprite.visible) actors.push(e);
+
+    const lerp = Math.min(1, dt * 10);
+    for (const occ of this.occluders) {
+      if (!occ.sprite.active) continue;
+      let occluded = false;
+      for (const a of actors) {
+        if (a.y < occ.baseY) {
+          const aLeft = a.x - 7;
+          const aRight = a.x + 7;
+          const aTop = a.y - 24;
+          const aBottom = a.y - 2;
+          if (aRight > occ.bounds.left && aLeft < occ.bounds.right && aBottom > occ.bounds.top && aTop < occ.bounds.bottom) {
+            occluded = true;
+            break;
+          }
+        }
+      }
+      const targetAlpha = occluded ? 0.45 : 1.0;
+      occ.sprite.alpha += (targetAlpha - occ.sprite.alpha) * lerp;
+    }
+  }
+
+  private updateQuestMarker(dt: number) {
+    if (!this.player || !this.zone) return;
+    const target = currentQuestTarget();
+    if (!target) {
+      if (this.questPin?.visible) this.questPin.setVisible(false);
+      return;
+    }
+
+    let tx: number | null = null;
+    let ty: number | null = null;
+
+    if (target.kind === 'object') {
+      if (target.zone === this.zoneId) {
+        tx = target.x * TILE + 8;
+        ty = target.y * TILE + 4;
+      } else {
+        const d = doorLeadingTo(this.zoneId, target.zone);
+        if (d) {
+          tx = d.x * TILE + 8;
+          ty = d.y * TILE + 4;
+        }
+      }
+    } else if (target.kind === 'npc') {
+      const stop = stopFor(target.npc, clock.period);
+      if (stop && stop.zone === this.zoneId) {
+        const actor = this.npcs.get(target.npc)?.actor;
+        if (actor && actor.sprite.visible) {
+          tx = actor.x;
+          ty = actor.y - 24;
+        } else {
+          tx = stop.x * TILE + 8;
+          ty = stop.y * TILE + 4;
+        }
+      } else if (stop) {
+        const d = doorLeadingTo(this.zoneId, stop.zone);
+        if (d) {
+          tx = d.x * TILE + 8;
+          ty = d.y * TILE + 4;
+        }
+      }
+    } else if (target.kind === 'interior') {
+      if (this.zoneId === target.fromZone) {
+        tx = target.door.x * TILE + 8;
+        ty = target.door.y * TILE + 4;
+      } else if (this.zoneId === target.targetZone) {
+        if (target.interiorTarget) {
+          tx = target.interiorTarget.x * TILE + 8;
+          ty = target.interiorTarget.y * TILE + 4;
+        }
+      } else {
+        const d = doorLeadingTo(this.zoneId, target.fromZone);
+        if (d) {
+          tx = d.x * TILE + 8;
+          ty = d.y * TILE + 4;
+        }
+      }
+    } else if (target.kind === 'location') {
+      if (target.zone === this.zoneId) {
+        if (target.x != null && target.y != null) {
+          tx = target.x * TILE + 8;
+          ty = target.y * TILE + 4;
+        }
+      } else {
+        const d = doorLeadingTo(this.zoneId, target.zone);
+        if (d) {
+          tx = d.x * TILE + 8;
+          ty = d.y * TILE + 4;
+        }
+      }
+    }
+
+    if (tx == null || ty == null) {
+      if (this.questPin?.visible) this.questPin.setVisible(false);
+      return;
+    }
+
+    this.questPinBob += dt * 4;
+    this.questPin.setPosition(tx, ty - 12 + Math.sin(this.questPinBob) * 3);
+    if (!this.questPin.visible) this.questPin.setVisible(true);
   }
 
   private lastDoorMsg = 0;
