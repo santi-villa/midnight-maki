@@ -1,6 +1,8 @@
 /** Lazily converts generated canvases into Phaser textures (cached by key). */
 import Phaser from 'phaser';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
+import { buildFolkSheet, FOLK_PAD } from '../art/folk';
+import { FOLK_SPECS } from '../data/folkSpecs';
 import { drawObject } from '../art/objects';
 import { ctx2d, makeCanvas, outline, shade } from '../art/pixel';
 import { buildTileset } from '../art/tiles';
@@ -8,7 +10,7 @@ import { buildRaccoonSheet, type RaccoonBuild } from '../art/raccoon';
 import { iconCanvas, type IconSpec } from '../art/icons';
 import { FURN_BY_ID } from '../data/furniture';
 import { PROPS } from '../data/props';
-import { appearanceKey, appearanceOf, dropOf } from '../systems/appearance';
+import { appearanceKey, appearanceOf, dropOf, folkCustom } from '../systems/appearance';
 
 /** The three raccoons use the chibi renderer (art/raccoon.ts). */
 export const RACCOON_BUILD: Record<string, RaccoonBuild> = { spicy: 'small', rigg: 'medium', pip: 'big' };
@@ -25,7 +27,13 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
   const key = 'ch_' + hashStr(look);
   if (!scene.textures.exists(key)) {
     const build = RACCOON_BUILD[id];
-    if (build) {
+    const folk = FOLK_SPECS[id];
+    if (folk) {
+      const { canvas, fw, fh } = buildFolkSheet(folk, folkCustom(id));
+      const tex = scene.textures.addCanvas(key, canvas)!;
+      for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
+      tex.customData = { pad: FOLK_PAD };
+    } else if (build) {
       const { canvas, fw, fh } = buildRaccoonSheet(appearanceOf(id), build);
       const tex = scene.textures.addCanvas(key, canvas)!;
       for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
