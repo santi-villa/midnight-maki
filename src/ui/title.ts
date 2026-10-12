@@ -5,6 +5,7 @@ import { hasSave, importSaveFile, loadGame } from '../persistence/storage';
 import { openCreator } from './creator';
 import { confirmBox, h, hideBoot, panel, toast, uiRoot } from './dom';
 import { openSettings } from './settingsPanel';
+import { skinIconEl } from './skin';
 
 export async function showTitle(phaser: Phaser.Game) {
   setPhaser(phaser);
@@ -57,18 +58,20 @@ export async function showTitle(phaser: Phaser.Game) {
     }
     imp.value = '';
   });
+  const logo = h(
+    'div',
+    { class: 'title-logo mm-logo' },
+    h('div', { class: 'logo-row' }, skinIconEl('lantern', 'logo-lantern'), h('div', { class: 't1' }, ...[...'MIDNIGHT'].map((ch, i) => h('span', { class: 'wave', style: { animationDelay: i * 0.08 + 's' } }, ch))), skinIconEl('lantern', 'logo-lantern')),
+    h('div', { class: 'logo-row' }, skinIconEl('maki', 'logo-maki'), skinIconEl('maki', 'logo-maki'), h('div', { class: 't1 red' }, ...[...'MAKI'].map((ch, i) => h('span', { class: 'wave', style: { animationDelay: 0.7 + i * 0.08 + 's' } }, ch))), skinIconEl('maki', 'logo-maki'), skinIconEl('maki', 'logo-maki')),
+    h('div', { class: 't2' }, 'Los secretos de Villa Nori'),
+  );
+  const items = [saved ? cont : null, nueva, h('button', { class: 'btn', onclick: () => { start(); openSettings(false); } }, 'Opciones'), h('button', { class: 'btn', onclick: () => { start(); imp.click(); } }, 'Importar partida'), h('button', { class: 'btn', onclick: () => credits() }, 'Créditos')].filter(Boolean) as HTMLElement[];
+  for (const it of items) it.className = 'board-item';
+  items[0]?.classList.add('sel');
+  for (const it of items) it.addEventListener('pointerenter', () => { for (const o of items) o.classList.toggle('sel', o === it); });
   root.append(
-    h('div', { class: 'title-logo' }, h('div', { class: 't1' }, ...[...'Midnight Maki'].map((ch, i) => h('span', { class: 'wave', style: { animationDelay: i * 0.08 + 's' } }, ch === ' ' ? '\u00a0' : ch))), h('div', { class: 't2' }, 'Los secretos de Villa Nori')),
-    h(
-      'div',
-      { class: 'title-menu' },
-      saved ? cont : null,
-      nueva,
-      h('button', { class: 'btn', onclick: () => { start(); openSettings(false); } }, 'Ajustes'),
-      h('button', { class: 'btn', onclick: () => { start(); imp.click(); } }, 'Importar partida'),
-      h('button', { class: 'btn ghost', onclick: () => credits() }, 'Créditos'),
-      imp,
-    ),
+    logo,
+    h('div', { class: 'title-menu title-board' }, ...items, imp),
     h('div', { class: 'title-foot' }, 'Un pequeño mundo hecho con cariño · sin anuncios, sin compras, sin conexión necesaria'),
   );
   uiRoot().append(root);
