@@ -161,6 +161,28 @@ const ICONS: Record<string, IconFn> = {
     px(g, 7, 11, INK, 3, 2);
     px(g, 8, 11, '#f2c22e', 1, 1);
   },
+  lantern(g) {
+    px(g, 7, 0, INK, 2, 2);
+    px(g, 4, 2, INK, 8, 2);
+    px(g, 5, 2, '#5a3726', 6, 1);
+    ellipse(g, 7.5, 8.5, 6, 5.5, INK);
+    ellipse(g, 7.5, 8.5, 5, 4.6, '#f06a3a');
+    ellipse(g, 7, 8, 3.2, 3.4, '#ffb45a');
+    ellipse(g, 6.5, 7.5, 1.6, 2, '#ffe6a0');
+    for (const y of [6, 9, 11]) px(g, 3, y, '#c94a2a', 10, 1);
+    px(g, 4, 13, INK, 8, 2);
+    px(g, 5, 13, '#5a3726', 6, 1);
+    px(g, 7, 15, '#c94a2a', 2, 1);
+  },
+  maki(g) {
+    ellipse(g, 7.5, 7.5, 7, 7, INK);
+    ellipse(g, 7.5, 7.5, 6.2, 6.2, '#22301f');
+    ellipse(g, 7.5, 7.5, 4.8, 4.8, '#f6f1e6');
+    ellipse(g, 7.5, 7.5, 2.4, 2.4, '#f06c4f');
+    px(g, 5, 6, '#7fbf4f', 2, 2);
+    px(g, 9, 9, '#f2c66d', 2, 1);
+    px(g, 4, 4, '#ffffff', 2, 1);
+  },
   coin(g) {
     ellipse(g, 7.5, 8, 6.5, 6.5, INK);
     ellipse(g, 7.5, 8, 5.5, 5.5, '#f2c22e');
@@ -200,6 +222,7 @@ export function installSkin() {
   r.setProperty('--tx-logframe', url(logFrame()));
   r.setProperty('--tx-stone', url(stoneFrame()));
   r.setProperty('--tx-stone-down', url(stoneFrame(true)));
+  r.setProperty('--maki-icon', `url("${skinIcon('maki')}")`);
   r.setProperty('--tx-plank-btn', url(plankButton('#e9c58f')));
   r.setProperty('--tx-plank-btn-gold', url(plankButton('#f2c66d')));
   r.setProperty('--tx-plank-btn-rose', url(plankButton('#e8a7ad')));
