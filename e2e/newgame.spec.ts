@@ -20,6 +20,7 @@ async function advance(page: Page, rounds = 120) {
 test('new game → restaurant → cook first sushi → progress persists', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ textSpeed: 0, music: 0, sfx: 0, ambience: 0 })));
   await page.goto('/?debug');
+  await page.locator('.tt').click(); // first tap reveals the menu
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   // the animated opening can be skipped (the letter is always shown)

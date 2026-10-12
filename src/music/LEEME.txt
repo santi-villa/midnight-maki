@@ -1,0 +1,7 @@
+Canción del menú principal
+==========================
+Poné acá el archivo de la canción instrumental (mp3, ogg, m4a, wav, webm u opus).
+Si hay varios, se usa el que tenga "menu", "title", "principal" o "main" en el nombre; si no, el primero.
+Suena en loop al primer toque en el menú, y se apaga suavemente al empezar o continuar la partida.
+Sin archivo, el juego usa la música generada que ya traía (no se borra nada).
+También se acepta public/music/menu.mp3 (o .ogg / .m4a).

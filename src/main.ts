@@ -26,8 +26,8 @@ onBack(async () => {
 
 if (new URLSearchParams(location.search).has('debug')) {
   // test hooks: inspect state from the console / automated checks
-  Promise.all([import('./core/state'), import('./scenes/WorldScene'), import('./systems/time'), import('./persistence/storage')]).then(([s, w, t, st]) => {
-    (window as any).mmDebug = { game: s.game, get world() { return w.world; }, clock: t.clock, storage: st };
+  Promise.all([import('./core/state'), import('./scenes/WorldScene'), import('./systems/time'), import('./persistence/storage'), import('./audio/audio')]).then(([s, w, t, st, a]) => {
+    (window as any).mmDebug = { game: s.game, get world() { return w.world; }, clock: t.clock, storage: st, audio: a.audio };
   });
 }
 applySettings();
