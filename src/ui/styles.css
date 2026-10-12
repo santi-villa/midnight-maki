@@ -255,14 +255,14 @@ input[type=range] { width: 100%; accent-color: var(--rose-2); }
 .cook-steps .s.done { background: var(--sage); }
 .cook-steps .s.now { background: var(--gold); }
 .cook-stage { flex: 1; position: relative; border-radius: 14px; overflow: hidden; border: 4px solid var(--wood-dark); background: #6b4330; min-height: 0; }
-.cook-stage canvas.board { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.cook-stage canvas.board { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
 .cook-tray { display: flex; gap: 8px; overflow-x: auto; padding: 6px; background: var(--wood-2); border-radius: 12px; border: 3px solid var(--wood-dark); min-height: 86px; touch-action: pan-x; }
 .cook-tray .ing { flex: 0 0 auto; width: 70px; height: 70px; background: var(--cream); border: 3px solid var(--wood-dark); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: .65em; touch-action: none; position: relative; }
 .cook-tray .ing canvas { width: 36px; height: 36px; image-rendering: pixelated; pointer-events: none; }
 .cook-tray .ing .q { position: absolute; top: 1px; right: 4px; font-weight: 700; font-size: 1.1em; }
 .cook-tray .ing.empty { opacity: .35; }
-.cook-msg { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(246,236,214,.95); border: 3px solid var(--wood-dark); border-radius: 10px; padding: 6px 12px; font-size: .95em; text-align: center; max-width: 92%; pointer-events: none; }
-.drag-ghost { position: fixed; z-index: 80; pointer-events: none; width: 56px; height: 56px; image-rendering: pixelated; transform: translate(-50%, -50%); }
+.cook-msg { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(246,236,214,.95); border: 3px solid var(--wood-dark); border-radius: 10px; padding: 6px 12px; font-size: 1em; line-height: 1.25; text-align: center; max-width: 92%; pointer-events: none; }
+.drag-ghost { position: fixed; z-index: 80; pointer-events: none; width: 48px; height: 48px; image-rendering: pixelated; transform: translate(-50%, -50%); }
 
 /* Generic minigame overlay */
 .mg { position: fixed; inset: 0; z-index: 30; background: rgba(20,22,40,.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: calc(10px + var(--safe-t)) 10px calc(10px + var(--safe-b)); touch-action: none; }
