@@ -1,5 +1,6 @@
 /** Procedural 16x16 tileset. Each tile key maps to an index in the generated sheet. */
 import { PAL } from './palette';
+import { bank, bridgeTile, brightGrass, brightWater, darkGrassBright, flowerBedBright, fringe, pathTile, paverTile, sandTile, shoreTile, soilTile } from './nature';
 import { barFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWall, izakayaWindow, tatamiMat } from './izakaya';
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
 
@@ -12,33 +13,6 @@ function speckle(c: Ctx, x: number, y: number, r: () => number, colors: string[]
   for (let i = 0; i < n; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), colors[Math.floor(r() * colors.length)]);
 }
 
-function grass(variant: number): TileDraw {
-  return (c, x, y, r) => {
-    px(c, x, y, PAL.grass, 16, 16);
-    // soft clumps of light and shade give the lawn depth
-    for (let i = 0; i < 3; i++) {
-      const cx = x + Math.floor(r() * 13);
-      const cy = y + Math.floor(r() * 13);
-      px(c, cx, cy, PAL.grassL, 3, 2);
-      px(c, cx, cy + 2, PAL.grassD, 3, 1);
-    }
-    speckle(c, x, y, r, [PAL.grassL, PAL.grassD], 18);
-    // little blades
-    for (let i = 0; i < 3 + variant; i++) {
-      const bx = x + Math.floor(r() * 15);
-      const by = y + 2 + Math.floor(r() * 13);
-      px(c, bx, by, PAL.grassD);
-      px(c, bx + 1, by - 1, PAL.grassD);
-    }
-    if (variant === 3) {
-      // tiny flowers
-      const fx = x + 3 + Math.floor(r() * 9);
-      const fy = y + 3 + Math.floor(r() * 9);
-      px(c, fx, fy, PAL.cream);
-      px(c, fx + 4, fy + 3, PAL.rose);
-    }
-  };
-}
 
 function plank(base: string, line: string): TileDraw {
   return (c, x, y, r) => {
@@ -89,35 +63,8 @@ function dirt(): TileDraw {
   };
 }
 
-function sand(): TileDraw {
-  return (c, x, y, r) => {
-    px(c, x, y, PAL.sand, 16, 16);
-    speckle(c, x, y, r, [PAL.sandD, '#f2e2bd', '#e0c999'], 20);
-  };
-}
 
-function water(frame: number, deep = false): TileDraw {
-  return (c, x, y) => {
-    px(c, x, y, deep ? PAL.waterD : PAL.water, 16, 16);
-    const hl = deep ? PAL.water : PAL.waterL;
-    for (let i = 0; i < 3; i++) {
-      const wx = (i * 6 + frame * 2) % 16;
-      const wy = (i * 5 + 2) % 16;
-      px(c, x + wx, y + wy, hl, 4, 1);
-      px(c, x + ((wx + 8) % 13), y + ((wy + 8) % 16), hl, 3, 1);
-    }
-  };
-}
 
-function shore(): TileDraw {
-  return (c, x, y, r) => {
-    sand()(c, x, y, r);
-    px(c, x, y, PAL.water, 16, 5);
-    px(c, x, y + 5, PAL.waterL, 16, 1);
-    px(c, x + 2, y + 6, PAL.cream, 5, 1);
-    px(c, x + 9, y + 6, PAL.cream, 4, 1);
-  };
-}
 
 /** Wall top (beam seen from above) */
 function wallTop(base: string): TileDraw {
@@ -174,49 +121,9 @@ function doorMat(): TileDraw {
   };
 }
 
-function bridge(): TileDraw {
-  return (c, x, y) => {
-    px(c, x, y, PAL.waterD, 16, 16);
-    for (let j = 0; j < 16; j += 4) {
-      px(c, x + 1, y + j, PAL.woodL, 14, 3);
-      px(c, x + 1, y + j + 3, PAL.woodD, 14, 1);
-    }
-    px(c, x, y, PAL.woodDD, 1, 16);
-    px(c, x + 15, y, PAL.woodDD, 1, 16);
-  };
-}
 
-function darkGrass(): TileDraw {
-  return (c, x, y, r) => {
-    px(c, x, y, '#6f8f62', 16, 16);
-    speckle(c, x, y, r, ['#5f7f55', '#7c9b6b', '#4f6b4a'], 26);
-  };
-}
 
-function flowerBed(color: string): TileDraw {
-  return (c, x, y, r) => {
-    px(c, x, y, '#7a5a44', 16, 16);
-    speckle(c, x, y, r, ['#6b4c38'], 10);
-    for (let j = 2; j < 16; j += 5)
-      for (let i = 2; i < 16; i += 5) {
-        px(c, x + i, y + j + 1, PAL.forest, 1, 2);
-        px(c, x + i - 1, y + j, color, 3, 1);
-        px(c, x + i, y + j - 1, color);
-      }
-  };
-}
 
-function soil(wet: boolean): TileDraw {
-  return (c, x, y, r) => {
-    px(c, x, y, wet ? '#5e4334' : '#8a6a50', 16, 16);
-    for (let j = 2; j < 16; j += 4) px(c, x + 1, y + j, wet ? '#4c3428' : '#76583f', 14, 1);
-    speckle(c, x, y, r, [wet ? '#6b4c3a' : '#9a7a5e'], 8);
-    px(c, x, y, PAL.woodD, 16, 1);
-    px(c, x, y + 15, PAL.woodD, 16, 1);
-    px(c, x, y, PAL.woodD, 1, 16);
-    px(c, x + 15, y, PAL.woodD, 1, 16);
-  };
-}
 
 function voidTile(): TileDraw {
   return (c, x, y) => px(c, x, y, '#1a1626', 16, 16);
@@ -269,21 +176,24 @@ const DEFS: TileDef[] = [];
 const add = (key: string, solid: boolean, draw: TileDraw) => DEFS.push({ key, solid, draw });
 
 add('void', true, voidTile());
-for (let i = 0; i < 4; i++) add('grass' + i, false, grass(i));
-add('dgrass', false, darkGrass());
-add('dirt', false, dirt());
-add('cobble', false, stonePath('#b2aca6', '#6f6a72', '#d8d2c8'));
-add('sand', false, sand());
-add('shore', true, shore());
-for (let i = 0; i < 3; i++) add('water' + i, true, water(i));
-for (let i = 0; i < 3; i++) add('deep' + i, true, water(i, true));
-add('bridge', false, bridge());
+for (let i = 0; i < 4; i++) add('grass' + i, false, brightGrass(i));
+add('dgrass', false, darkGrassBright);
+add('dirt', false, pathTile);
+for (let i = 0; i < 3; i++) add('cobble' + (i || ''), false, paverTile(i));
+add('sand', false, sandTile);
+add('shore', true, shoreTile);
+for (let i = 0; i < 3; i++) add('water' + i, true, brightWater(i));
+for (let i = 0; i < 3; i++) add('deep' + i, true, brightWater(i, true));
+add('bridge', false, bridgeTile);
 add('mat', false, doorMat());
-add('bed_rose', false, flowerBed('#e8b8c0'));
-add('bed_gold', false, flowerBed(PAL.gold));
-add('bed_lav', false, flowerBed(PAL.lav));
-add('soil', false, soil(false));
-add('soilwet', false, soil(true));
+add('bed_rose', false, flowerBedBright('#f4a6c0'));
+add('bed_gold', false, flowerBedBright('#ffd36a'));
+add('bed_lav', false, flowerBedBright('#b9a0ec'));
+add('soil', false, soilTile(false));
+add('soilwet', false, soilTile(true));
+// transparent edge overlays (grass creeping over paths, grassy banks over water); index = mask 1..15
+for (let m = 1; m < 16; m++) add('fr' + m, false, fringe(m));
+for (let m = 1; m < 16; m++) add('bk' + m, false, bank(m));
 add('station', false, stationFloor());
 add('rail', false, rail());
 add('kitchen', false, barFloor);

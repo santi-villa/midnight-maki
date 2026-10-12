@@ -6,6 +6,7 @@ import { PAL } from './palette';
 import { ctx2d, ellipse, makeCanvas, outline, px, rng, shade, type Ctx } from './pixel';
 import { volumize } from './shade';
 import { IZAKAYA_KINDS } from './izakaya';
+import { NATURE_KINDS } from './nature';
 
 const OUT = '#3a2a2a';
 
@@ -763,7 +764,7 @@ const K: Record<string, DrawFn> = {
   },
 };
 
-Object.assign(K, IZAKAYA_KINDS);
+Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS);
 
 export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7): HTMLCanvasElement {
   const c = makeCanvas(w, h);

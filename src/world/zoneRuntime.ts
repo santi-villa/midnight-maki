@@ -13,6 +13,8 @@ export interface FurnInstance { room: string; f: PlacedFurniture; def: Furniture
 export interface BuiltZone {
   def: ZoneDef;
   tiles: number[][];
+  /** transition overlay (grass edges over paths/water); -1 = empty */
+  overlay: number[][];
   grid: Grid;
   props: PropInstance[];
   furniture: FurnInstance[];
@@ -58,7 +60,7 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     }
     case 'G': return TILE_INDEX.dgrass;
     case 'p': return TILE_INDEX.dirt;
-    case 'c': return TILE_INDEX.cobble;
+    case 'c': return TILE_INDEX['cobble' + (['', '1', '2'][hash(x, y) % 3])];
     case 's': return TILE_INDEX.sand;
     case 'h': return TILE_INDEX.shore;
     case 'w': return TILE_INDEX.water0;
@@ -141,7 +143,31 @@ export function buildZone(id: string, night = false): BuiltZone {
   }
   // doors are always walkable
   for (const d of def.doors) grid.setSolid(d.x, d.y, false);
-  return { def, tiles, grid, props, furniture };
+  return { def, tiles, overlay: buildOverlay(def), grid, props, furniture };
+}
+
+const GRASSY = 'gG';
+const EDGED = 'pcsohryl';
+const WATERY = 'wd';
+
+/** Grass edges that soften the borders between lawn and paths / water (outdoor zones only). */
+export function buildOverlay(def: ZoneDef): number[][] {
+  const out = def.ground.map((row) => [...row].map(() => -1));
+  if (!def.outdoor) return out;
+  const at = (x: number, y: number) => def.ground[y]?.[x] ?? '';
+  for (let y = 0; y < def.h; y++)
+    for (let x = 0; x < def.w; x++) {
+      const ch = at(x, y);
+      const water = WATERY.includes(ch);
+      if (!water && !EDGED.includes(ch)) continue;
+      let m = 0;
+      if (GRASSY.includes(at(x, y - 1) || '.')) m |= 1;
+      if (GRASSY.includes(at(x + 1, y) || '.')) m |= 2;
+      if (GRASSY.includes(at(x, y + 1) || '.')) m |= 4;
+      if (GRASSY.includes(at(x - 1, y) || '.')) m |= 8;
+      if (m) out[y][x] = TILE_INDEX[(water ? 'bk' : 'fr') + m];
+    }
+  return out;
 }
 
 /** Checks whether placing furniture keeps every essential tile reachable (doors, interactables, spawn). */

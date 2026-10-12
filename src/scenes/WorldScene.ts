@@ -38,6 +38,8 @@ export class WorldScene extends Phaser.Scene {
   zoneId = '';
   private map: Phaser.Tilemaps.Tilemap | null = null;
   private layer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private overMap: Phaser.Tilemaps.Tilemap | null = null;
+  private overLayer: Phaser.Tilemaps.TilemapLayer | null = null;
   private objs: Phaser.GameObjects.GameObject[] = [];
   private furnSprites: Phaser.GameObjects.Image[] = [];
   player!: Actor;
@@ -179,8 +181,12 @@ export class WorldScene extends Phaser.Scene {
     this.critters = [];
     this.layer?.destroy();
     this.map?.destroy();
+    this.overLayer?.destroy();
+    this.overMap?.destroy();
     this.layer = null;
     this.map = null;
+    this.overLayer = null;
+    this.overMap = null;
   }
 
   buildZoneObjects(id: string) {
@@ -194,6 +200,10 @@ export class WorldScene extends Phaser.Scene {
     void TILESET_COLS;
     this.layer = this.map.createLayer(0, ts, 0, 0)!;
     this.layer.setDepth(-10);
+    this.overMap = this.make.tilemap({ data: this.zone.overlay, tileWidth: TILE, tileHeight: TILE });
+    const ots = this.overMap.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0)!;
+    this.overLayer = this.overMap.createLayer(0, ots, 0, 0)!;
+    this.overLayer.setDepth(-9.5);
     this.waterTiles = [];
     for (let y = 0; y < def.h; y++)
       for (let x = 0; x < def.w; x++) {
@@ -1115,13 +1125,13 @@ export class WorldScene extends Phaser.Scene {
     let glow = 0;
     let vig = 0.2;
     if (per === 0) {
-      tint = mix(0xffdcb4, 0xfff6e8, prog);
-      vig = 0.18;
+      tint = mix(0xffeacc, 0xffffff, prog);
+      vig = 0.06;
     } else if (per === 1) {
-      tint = mix(0xfff8ec, 0xffe2c0, prog);
-      vig = 0.16;
+      tint = mix(0xffffff, 0xfff0d8, prog);
+      vig = 0.05;
     } else if (per === 2) {
-      tint = def.outdoor ? mix(0xf2a882, 0x8a74b8, prog) : mix(0xf6c6a0, 0xb8a0c8, prog);
+      tint = def.outdoor ? mix(0xffe2c2, 0xb0a2de, prog) : mix(0xffe8cc, 0xd6c4e4, prog);
       glow = prog > 0.25 ? 0.4 + 0.5 * prog : 0;
       vig = 0.3;
     } else {
