@@ -43,6 +43,18 @@ function hash(x: number, y: number) {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
+/** Which of the 3 look-alike water tiles sits at x,y (so the tile grid never shows). */
+export function waterVariant(x: number, y: number): number {
+  return hash(x, y) % 3;
+}
+
+/** 's' shallow, 'm' shallow next to deep water (a softer blue), 'd' deep. */
+export function waterDepthAt(ground: string[], x: number, y: number): 's' | 'm' | 'd' {
+  if (ground[y]?.[x] === 'd') return 'd';
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (ground[y + dy]?.[x + dx] === 'd') return 'm';
+  return 's';
+}
+
 export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = false): number {
   const st = roomStyle(roomAt(def, x, y), def);
   switch (ch) {
@@ -63,8 +75,8 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case 'c': return TILE_INDEX['cobble' + (['', '1', '2'][hash(x, y) % 3])];
     case 's': return TILE_INDEX.sand;
     case 'h': return TILE_INDEX.shore;
-    case 'w': return TILE_INDEX.water0;
-    case 'd': return TILE_INDEX.deep0;
+    case 'w': return TILE_INDEX[`wtc${waterDepthAt(def.ground, x, y)}${waterVariant(x, y)}_0`];
+    case 'd': return TILE_INDEX[`wtcd${waterVariant(x, y)}_0`];
     case 'b': return TILE_INDEX.bridge;
     case 'r': return TILE_INDEX.bed_rose;
     case 'y': return TILE_INDEX.bed_gold;
