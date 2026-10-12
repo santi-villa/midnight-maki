@@ -1,0 +1,354 @@
+/**
+ * Original synthesized audio (no external files): soft SFX, generative lo-fi music loops and ambience.
+ * Everything is gated behind the first user gesture, as browsers require.
+ */
+import { settings } from '../core/settings';
+import { bus } from '../core/events';
+
+type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'none';
+
+interface TrackDef {
+  bpm: number;
+  scale: number[];        // semitone offsets from root
+  root: number;           // midi
+  chords: number[][];     // degrees per bar
+  lead: 'piano' | 'pluck' | 'bell' | 'flute';
+  density: number;        // 0..1 notes per eighth
+  bass: boolean;
+  swing: number;
+}
+
+const PENTA = [0, 2, 4, 7, 9];
+const MINOR_PENTA = [0, 3, 5, 7, 10];
+const MIYAKO = [0, 1, 5, 7, 8]; // in-scale japanese flavour
+
+const TRACKS: Record<Exclude<Track, 'none'>, TrackDef> = {
+  title: { bpm: 70, scale: PENTA, root: 57, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'piano', density: 0.35, bass: true, swing: 0.1 },
+  town: { bpm: 84, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [7, 11, 14, 17]], lead: 'pluck', density: 0.5, bass: true, swing: 0.15 },
+  restaurant: { bpm: 78, scale: PENTA, root: 62, chords: [[0, 4, 7, 11], [5, 9, 12, 16], [-1, 2, 5, 9], [4, 7, 11, 14]], lead: 'piano', density: 0.45, bass: true, swing: 0.2 },
+  restaurant_night: { bpm: 66, scale: PENTA, root: 57, chords: [[0, 3, 7, 10], [5, 8, 12, 15], [-2, 2, 5, 9], [3, 7, 10, 14]], lead: 'piano', density: 0.3, bass: true, swing: 0.2 },
+  home: { bpm: 64, scale: PENTA, root: 60, chords: [[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]], lead: 'bell', density: 0.25, bass: false, swing: 0.1 },
+  forest: { bpm: 72, scale: MIYAKO, root: 57, chords: [[0, 7, 12], [1, 8, 13], [-2, 5, 10], [0, 7, 12]], lead: 'flute', density: 0.3, bass: true, swing: 0 },
+  beach: { bpm: 80, scale: PENTA, root: 65, chords: [[0, 4, 7, 9], [5, 9, 12, 14], [2, 5, 9, 12], [7, 11, 14, 16]], lead: 'pluck', density: 0.4, bass: true, swing: 0.25 },
+  garden: { bpm: 70, scale: PENTA, root: 64, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [0, 4, 7]], lead: 'bell', density: 0.35, bass: false, swing: 0.1 },
+  market: { bpm: 92, scale: MIYAKO, root: 62, chords: [[0, 7, 12], [5, 12, 17], [1, 8, 13], [0, 7, 12]], lead: 'pluck', density: 0.55, bass: true, swing: 0.1 },
+  mystery: { bpm: 60, scale: MINOR_PENTA, root: 57, chords: [[0, 3, 7], [-4, 0, 3], [1, 5, 8], [-1, 2, 7]], lead: 'bell', density: 0.2, bass: true, swing: 0 },
+  stars: { bpm: 58, scale: PENTA, root: 64, chords: [[0, 4, 7, 11], [9, 12, 16, 19], [5, 9, 12, 16], [7, 11, 14, 18]], lead: 'bell', density: 0.3, bass: false, swing: 0 },
+  festival: { bpm: 100, scale: PENTA, root: 62, chords: [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]], lead: 'flute', density: 0.6, bass: true, swing: 0.15 },
+  emotional: { bpm: 60, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [-7, -3, 0, 4], [-5, -1, 2, 7]], lead: 'piano', density: 0.25, bass: true, swing: 0 },
+};
+
+const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+
+class AudioEngine {
+  ctx: AudioContext | null = null;
+  private music!: GainNode;
+  private sfx!: GainNode;
+  private amb!: GainNode;
+  private master!: GainNode;
+  private current: Track = 'none';
+  private timer: number | null = null;
+  private nextTime = 0;
+  private step = 0;
+  private rng = Math.random;
+  private ambSrc: AudioBufferSourceNode | null = null;
+  private ambKind = '';
+  private noiseBuf: AudioBuffer | null = null;
+  private pendingTrack: Track = 'none';
+  private lastSfx: Record<string, number> = {};
+
+  /** must be called from a user gesture */
+  unlock() {
+    if (this.ctx) {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      return;
+    }
+    try {
+      const Ctor = window.AudioContext || (window as any).webkitAudioContext;
+      this.ctx = new Ctor();
+    } catch {
+      return;
+    }
+    const c = this.ctx!;
+    this.master = c.createGain();
+    this.master.connect(c.destination);
+    this.music = c.createGain();
+    this.sfx = c.createGain();
+    this.amb = c.createGain();
+    // gentle lowpass on music for a lo-fi warmth
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 3200;
+    this.music.connect(lp).connect(this.master);
+    this.sfx.connect(this.master);
+    this.amb.connect(this.master);
+    this.applyVolumes();
+    this.noise();
+    bus.on('settings:changed', () => this.applyVolumes());
+    document.addEventListener('visibilitychange', () => {
+      if (!this.ctx) return;
+      if (document.hidden) this.ctx.suspend();
+      else this.ctx.resume();
+    });
+    if (this.pendingTrack !== 'none') this.play(this.pendingTrack);
+  }
+
+  applyVolumes() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.music.gain.setTargetAtTime(settings.music * 0.35, t, 0.1);
+    this.sfx.gain.setTargetAtTime(settings.sfx * 0.5, t, 0.05);
+    this.amb.gain.setTargetAtTime(settings.ambience * 0.35, t, 0.2);
+  }
+
+  play(track: Track) {
+    this.pendingTrack = track;
+    if (!this.ctx || track === this.current) return;
+    this.current = track;
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    if (track === 'none') return;
+    this.step = 0;
+    this.nextTime = this.ctx.currentTime + 0.3;
+    this.timer = window.setInterval(() => this.schedule(), 100);
+  }
+
+  private schedule() {
+    const c = this.ctx;
+    if (!c || this.current === 'none') return;
+    const def = TRACKS[this.current];
+    const eighth = 60 / def.bpm / 2;
+    while (this.nextTime < c.currentTime + 0.4) {
+      const bar = Math.floor(this.step / 8) % def.chords.length;
+      const inBar = this.step % 8;
+      const chord = def.chords[bar];
+      const swing = inBar % 2 ? eighth * def.swing : 0;
+      const t = this.nextTime + swing;
+      if (inBar === 0) {
+        // soft pad chord
+        for (const n of chord) this.note(def.root + n - 12, t, eighth * 7.5, 'pad', 0.05);
+        if (def.bass) this.note(def.root + chord[0] - 24, t, eighth * 3, 'bass', 0.12);
+      }
+      if (def.bass && inBar === 4) this.note(def.root + chord[0] - 24 + (this.rng() < 0.5 ? 7 : 0), t, eighth * 3, 'bass', 0.09);
+      if (this.rng() < def.density && inBar !== 7) {
+        const deg = def.scale[Math.floor(this.rng() * def.scale.length)];
+        const oct = this.rng() < 0.3 ? 12 : 0;
+        this.note(def.root + deg + oct, t, eighth * (this.rng() < 0.3 ? 3 : 1.6), def.lead, 0.09);
+      }
+      // brushed hat for lo-fi feel
+      if (def.bass && inBar % 2 === 0 && this.noiseBuf) this.hat(t, inBar === 4 ? 0.025 : 0.012);
+      this.nextTime += eighth;
+      this.step++;
+    }
+  }
+
+  private note(midi: number, t: number, dur: number, kind: string, vol: number) {
+    const c = this.ctx!;
+    const g = c.createGain();
+    g.connect(this.music);
+    const f = mtof(midi);
+    const oscs: OscillatorNode[] = [];
+    const mk = (type: OscillatorType, freq: number, gain = 1) => {
+      const o = c.createOscillator();
+      o.type = type;
+      o.frequency.value = freq;
+      if (gain !== 1) {
+        const og = c.createGain();
+        og.gain.value = gain;
+        o.connect(og).connect(g);
+      } else o.connect(g);
+      oscs.push(o);
+    };
+    let attack = 0.01;
+    let release = dur;
+    switch (kind) {
+      case 'piano':
+        mk('triangle', f);
+        mk('sine', f * 2, 0.3);
+        release = dur * 1.8;
+        break;
+      case 'pluck':
+        mk('triangle', f);
+        mk('square', f, 0.05);
+        release = dur * 1.2;
+        break;
+      case 'bell':
+        mk('sine', f);
+        mk('sine', f * 3.01, 0.18);
+        release = dur * 2.5;
+        break;
+      case 'flute':
+        mk('sine', f);
+        mk('triangle', f * 2, 0.08);
+        attack = 0.06;
+        break;
+      case 'pad':
+        mk('sine', f);
+        mk('triangle', f * 1.003, 0.4);
+        attack = 0.4;
+        break;
+      case 'bass':
+        mk('sine', f);
+        mk('triangle', f, 0.3);
+        break;
+    }
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + attack + release);
+    for (const o of oscs) {
+      o.start(t);
+      o.stop(t + attack + release + 0.05);
+    }
+  }
+
+  private noise(): AudioBuffer {
+    if (this.noiseBuf) return this.noiseBuf;
+    const c = this.ctx!;
+    const buf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < d.length; i++) {
+      // brown-ish noise: softer than white
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      d[i] = last * 3.5;
+    }
+    this.noiseBuf = buf;
+    return buf;
+  }
+
+  private hat(t: number, vol: number) {
+    const c = this.ctx!;
+    const s = c.createBufferSource();
+    s.buffer = this.noise();
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 5000;
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+    s.connect(hp).connect(g).connect(this.music);
+    s.start(t, Math.random());
+    s.stop(t + 0.08);
+  }
+
+  /** looping ambience bed: 'rain' | 'waves' | 'night' | 'none' */
+  ambience(kind: string) {
+    if (!this.ctx || kind === this.ambKind) return;
+    this.ambKind = kind;
+    if (this.ambSrc) {
+      try {
+        this.ambSrc.stop();
+      } catch {
+        /* already stopped */
+      }
+      this.ambSrc = null;
+    }
+    if (kind === 'none') return;
+    const c = this.ctx;
+    const s = c.createBufferSource();
+    s.buffer = this.noise();
+    s.loop = true;
+    const f = c.createBiquadFilter();
+    const g = c.createGain();
+    if (kind === 'rain') {
+      f.type = 'bandpass';
+      f.frequency.value = 1800;
+      f.Q.value = 0.4;
+      g.gain.value = 0.5;
+    } else if (kind === 'waves') {
+      f.type = 'lowpass';
+      f.frequency.value = 600;
+      g.gain.value = 0.6;
+      const lfo = c.createOscillator();
+      const lg = c.createGain();
+      lfo.frequency.value = 0.12;
+      lg.gain.value = 0.35;
+      lfo.connect(lg).connect(g.gain);
+      lfo.start();
+    } else {
+      f.type = 'lowpass';
+      f.frequency.value = 300;
+      g.gain.value = 0.25;
+    }
+    s.connect(f).connect(g).connect(this.amb);
+    s.start();
+    this.ambSrc = s;
+  }
+
+  sfxPlay(name: string) {
+    const c = this.ctx;
+    if (!c) return;
+    const now = c.currentTime;
+    // avoid stacking the same sound repeatedly
+    if (this.lastSfx[name] && now - this.lastSfx[name] < 0.04) return;
+    this.lastSfx[name] = now;
+    const tone = (freq: number, t0: number, dur: number, type: OscillatorType = 'sine', vol = 0.3, slide = 0) => {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, now + t0);
+      if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, now + t0 + dur);
+      g.gain.setValueAtTime(0.0001, now + t0);
+      g.gain.linearRampToValueAtTime(vol, now + t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + t0 + dur);
+      o.connect(g).connect(this.sfx);
+      o.start(now + t0);
+      o.stop(now + t0 + dur + 0.02);
+    };
+    const noiseHit = (t0: number, dur: number, freq: number, vol = 0.3) => {
+      const s = c.createBufferSource();
+      s.buffer = this.noise();
+      const f = c.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = freq;
+      const g = c.createGain();
+      g.gain.setValueAtTime(vol, now + t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + t0 + dur);
+      s.connect(f).connect(g).connect(this.sfx);
+      s.start(now + t0, Math.random());
+      s.stop(now + t0 + dur);
+    };
+    switch (name) {
+      case 'tap': tone(880, 0, 0.06, 'triangle', 0.15); break;
+      case 'open': tone(660, 0, 0.08, 'triangle', 0.18); tone(990, 0.05, 0.1, 'triangle', 0.14); break;
+      case 'close': tone(880, 0, 0.07, 'triangle', 0.14); tone(587, 0.05, 0.09, 'triangle', 0.12); break;
+      case 'coin': tone(1318, 0, 0.08, 'square', 0.06); tone(1760, 0.06, 0.18, 'square', 0.05); break;
+      case 'pickup': tone(784, 0, 0.07, 'triangle', 0.2); tone(1175, 0.06, 0.12, 'triangle', 0.18); break;
+      case 'cut': noiseHit(0, 0.08, 3500, 0.5); tone(1400, 0, 0.04, 'sine', 0.08, 0.6); break;
+      case 'place': tone(330, 0, 0.09, 'sine', 0.25, 0.7); noiseHit(0, 0.05, 900, 0.2); break;
+      case 'roll': noiseHit(0, 0.18, 700, 0.25); break;
+      case 'success': [523, 659, 784, 1046].forEach((f, i) => tone(f, i * 0.08, 0.25, 'triangle', 0.15)); break;
+      case 'error': tone(220, 0, 0.12, 'triangle', 0.15); tone(196, 0.1, 0.16, 'triangle', 0.13); break;
+      case 'splash': noiseHit(0, 0.35, 1200, 0.4); break;
+      case 'bite': tone(600, 0, 0.05, 'square', 0.08); tone(600, 0.1, 0.05, 'square', 0.08); break;
+      case 'door': noiseHit(0, 0.12, 400, 0.3); tone(180, 0, 0.12, 'sine', 0.2); break;
+      case 'step': noiseHit(0, 0.04, 1500, 0.06); break;
+      case 'blip': tone(520, 0, 0.035, 'triangle', 0.05); break;
+      case 'clue': [784, 988, 1318].forEach((f, i) => tone(f, i * 0.1, 0.3, 'sine', 0.15)); break;
+      case 'sparkle': [1568, 2093, 2637].forEach((f, i) => tone(f, i * 0.05, 0.15, 'sine', 0.08)); break;
+      case 'water': tone(500, 0, 0.12, 'sine', 0.12, 1.6); break;
+      case 'camera': noiseHit(0, 0.05, 4000, 0.4); tone(2000, 0.05, 0.05, 'square', 0.04); break;
+    }
+  }
+
+  /** dialogue voice blip with per-character pitch */
+  voice(pitch: number) {
+    const c = this.ctx;
+    if (!c) return;
+    const now = c.currentTime;
+    if (this.lastSfx.voice && now - this.lastSfx.voice < 0.06) return;
+    this.lastSfx.voice = now;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'triangle';
+    o.frequency.value = 330 * pitch * (0.95 + Math.random() * 0.1);
+    g.gain.setValueAtTime(0.06, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    o.connect(g).connect(this.sfx);
+    o.start(now);
+    o.stop(now + 0.06);
+  }
+}
+
+export const audio = new AudioEngine();
+export type { Track };

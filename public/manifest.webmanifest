@@ -1,0 +1,16 @@
+{
+  "name": "Midnight Maki: Los secretos de Villa Nori",
+  "short_name": "Midnight Maki",
+  "description": "Un juego cozy de sushi, mapaches y misterios.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1f2440",
+  "theme_color": "#1f2440",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
