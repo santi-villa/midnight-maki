@@ -161,6 +161,23 @@ const ICONS: Record<string, IconFn> = {
     px(g, 7, 11, INK, 3, 2);
     px(g, 8, 11, '#f2c22e', 1, 1);
   },
+  map(g) {
+    // folded paper map with a red pin
+    px(g, 1, 2, INK, 14, 13);
+    px(g, 2, 3, '#f2dfb0', 4, 11);
+    px(g, 6, 3, '#e6cf98', 4, 11);
+    px(g, 10, 3, '#f2dfb0', 4, 11);
+    px(g, 6, 3, '#c9a96a', 1, 11);
+    px(g, 10, 3, '#c9a96a', 1, 11);
+    px(g, 3, 9, '#5db449', 3, 3);
+    px(g, 7, 5, '#3ea8e4', 2, 4);
+    px(g, 11, 10, '#5db449', 2, 2);
+    for (const [x, y] of [[3, 6], [5, 7], [7, 9], [9, 10]]) px(g, x, y, '#b07a4c');
+    ellipse(g, 11.5, 5, 2.4, 2.4, INK);
+    ellipse(g, 11.5, 5, 1.6, 1.6, '#e0424f');
+    px(g, 11, 4, '#ffb0b0');
+    px(g, 11, 7, INK, 1, 3);
+  },
   lantern(g) {
     px(g, 7, 0, INK, 2, 2);
     px(g, 4, 2, INK, 8, 2);
