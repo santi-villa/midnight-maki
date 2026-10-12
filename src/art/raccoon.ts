@@ -183,7 +183,7 @@ function snoutSide(c: Ctx, hx: number, hy: number, s: number, p: Pal) {
 }
 
 // ------------------------------------------------------------------ accessories
-function headAcc(c: Ctx, kind: string, c1: string, c2: string, cx: number, top: number, w: number, view: 'front' | 'side' | 'back') {
+export function headAcc(c: Ctx, kind: string, c1: string, c2: string, cx: number, top: number, w: number, view: 'front' | 'side' | 'back') {
   const d = shade(c1, -0.25);
   switch (kind) {
     case 'bandana': {
@@ -263,7 +263,7 @@ function headAcc(c: Ctx, kind: string, c1: string, c2: string, cx: number, top: 
   }
 }
 
-function bodyAcc(c: Ctx, kind: string, c1: string, c2: string, cx: number, by: number, bw: number, view: 'front' | 'side' | 'back') {
+export function bodyAcc(c: Ctx, kind: string, c1: string, c2: string, cx: number, by: number, bw: number, view: 'front' | 'side' | 'back') {
   switch (kind) {
     case 'apron':
       if (view === 'back') {

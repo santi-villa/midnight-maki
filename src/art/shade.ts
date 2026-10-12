@@ -57,3 +57,29 @@ export function volumize(c: HTMLCanvasElement, strength = 1): HTMLCanvasElement 
   g.putImageData(img, 0, 0);
   return c;
 }
+
+/** Gentle top-light / bottom-shade pass for small character sprites (keeps their own outline). */
+export function softVolume(c: HTMLCanvasElement): HTMLCanvasElement {
+  const w = c.width;
+  const h = c.height;
+  const g = ctx2d(c);
+  const img = g.getImageData(0, 0, w, h);
+  const a = img.data;
+  const src = new Uint8ClampedArray(a);
+  const op = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && src[(y * w + x) * 4 + 3] > 40;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (!op(x, y)) continue;
+      const i = (y * w + x) * 4;
+      let f = 1;
+      // light from the top-left: brighten pixels under a top edge, darken the right/bottom rims
+      if (op(x, y - 1) && !op(x, y - 2)) f *= 1.12;
+      if (!op(x + 2, y) && op(x + 1, y)) f *= 0.86;
+      if (!op(x, y + 2) && op(x, y + 1)) f *= 0.88;
+      a[i] = Math.min(255, src[i] * f);
+      a[i + 1] = Math.min(255, src[i + 1] * f);
+      a[i + 2] = Math.min(255, src[i + 2] * (f < 1 ? f * 1.05 : f));
+    }
+  g.putImageData(img, 0, 0);
+  return c;
+}

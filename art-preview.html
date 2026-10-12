@@ -19,14 +19,22 @@ for (const [id, b] of Object.entries(builds)) {
   const row = document.createElement('div'); row.append(c); out.append(row);
 }
 
-import { buildCharacterSheet } from './src/art/characters.ts';
+import { buildCharacterSheet, FW, FH } from './src/art/characters.ts';
 import { defaultAppearance } from './src/core/state.ts';
+import { CHARACTERS } from './src/data/characters.ts';
 {
-  const sheet = buildCharacterSheet(defaultAppearance());
-  const list = (new URLSearchParams(location.search).get('f') ?? '0,3,6,9,13,14,15,18').split(',').map(Number);
-  const c = document.createElement('canvas'); c.width = 16 * list.length * S; c.height = 24 * S;
-  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-  list.forEach((f, i) => g.drawImage(sheet, f * 16, 0, 16, 24, i * 16 * S, 0, 16 * S, 24 * S));
-  const row = document.createElement('div'); row.append(c); out.append(row);
+  const list = (new URLSearchParams(location.search).get('f') ?? '0,3,6,13').split(',').map(Number);
+  const looks = [defaultAppearance(), ...CHARACTERS.filter((c) => !c.raccoon).map((c) => c.appearance)];
+  const per = Number(new URLSearchParams(location.search).get('per') ?? 6);
+  for (let k = 0; k < looks.length; k += per) {
+    const group = looks.slice(k, k + per);
+    const c = document.createElement('canvas'); c.width = (FW * list.length + 6) * group.length * S; c.height = FH * S;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    group.forEach((a, j) => {
+      const sheet = buildCharacterSheet(a);
+      list.forEach((f, i) => g.drawImage(sheet, f * FW, 0, FW, FH, (j * (FW * list.length + 6) + i * FW) * S, 0, FW * S, FH * S));
+    });
+    const row = document.createElement('div'); row.append(c); out.append(row);
+  }
 }
 </script></body></html>
