@@ -16,8 +16,9 @@ for (let i = 0; i < 80; i++) {
   else if (i > 10) break;
   await page.waitForTimeout(100);
 }
-if (zone !== 'plaza') {
+if (zone !== 'none') {
   const [tx, ty] = (process.argv[4] ?? '7,8').split(',').map(Number);
+  if (process.env.PERIOD) await page.evaluate((p) => { const g = (window).mmDebug.game; g.save.time.period = Number(p); g.save.time.minutes = 30; }, process.env.PERIOD);
   await page.evaluate(([z, x, y]) => (window).mmDebug.world.enterZone(z, x, y, 'down', false), [zone, tx, ty]);
   await page.waitForTimeout(800);
   for (let i = 0; i < 120; i++) {
