@@ -2,11 +2,18 @@
 import { bus } from '../core/events';
 import { game } from '../core/state';
 
+export type QuestTarget =
+  | { kind: 'location'; zone: string; x?: number; y?: number; label?: string }
+  | { kind: 'npc'; npc: string; label?: string }
+  | { kind: 'object'; zone: string; x: number; y: number; label?: string; interactId?: string }
+  | { kind: 'interior'; fromZone: string; door: { x: number; y: number }; targetZone: string; interiorTarget?: { x: number; y: number; label?: string }; label?: string };
+
 export interface QuestStep {
   text: string;
   done: () => boolean;
   hint?: string;
   onDone?: () => void;
+  target?: QuestTarget;
 }
 
 export interface QuestDef {
@@ -62,6 +69,16 @@ export function currentStep(id: string): QuestStep | null {
   const st = game.save.quests.active[id];
   if (!q || !st) return null;
   return q.steps[st.step] ?? null;
+}
+
+export function currentQuestTarget(): QuestTarget | null {
+  const id = game.save.quests.tracked;
+  if (!id) return null;
+  const q = REG.get(id);
+  const st = game.save.quests.active[id];
+  if (!q || !st) return null;
+  const step = q.steps[st.step];
+  return step?.target ?? null;
 }
 
 let checking = false;

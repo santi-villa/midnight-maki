@@ -67,9 +67,9 @@ export const SHOPS: Record<string, ShopDef> = {
     tabs: [{ name: 'Puesto', list: () => clothes('yuki').filter((c) => c.id === 'ex_necklace') }],
     sell: ['shell', 'material'],
   },
-  mika: {
-    title: 'Puesto de Mika', keeper: 'mika', greet: 'Cuadros, atriles y cosas lindas para tus paredes.',
-    tabs: [{ name: 'Arte y deco', list: () => furn('mika') }],
+  sumi: {
+    title: 'Puesto de Sumi', keeper: 'sumi', greet: 'Cuadros, atriles y cosas lindas para tus paredes.',
+    tabs: [{ name: 'Arte y deco', list: () => furn('sumi') }],
   },
   market_food: {
     title: 'Dulces de luna', greet: 'Perlas de luna, carambolas y caramelos brillantes.',
@@ -92,6 +92,7 @@ export const SHOPS: Record<string, ShopDef> = {
     tabs: [{ name: 'Deco', list: () => furn('market') }],
   },
 };
+if (SHOPS.sumi) SHOPS.mika = SHOPS.sumi; // legacy save compatibility alias
 
 function entryInfo(e: Entry): { name: string; icon: HTMLElement; desc: string; owned: number } {
   if (e.kind === 'item') {
