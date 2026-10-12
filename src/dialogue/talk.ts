@@ -114,6 +114,44 @@ async function specialTalk(id: string): Promise<boolean> {
     if (n >= 5) game.setFlag('ach_pip_treasure');
     return true;
   }
+  // occasional little moments (once every few days each)
+  const day = game.save.time.day;
+  const lastEv = Number(game.flag('ev_last_' + id) ?? -99);
+  if (day - lastEv >= 3 && game.friendLevel(id) >= 1 && Math.random() < 0.45) {
+    if (id === 'rigg' && clock.period === 3) {
+      game.setFlag('ev_last_' + id, day);
+      await say('rigg', 'Psst. {name}. ¿Ves esa estrella? La que titila más.', 'smug');
+      await say('player', '¿La que está arriba del faro?');
+      await say('rigg', 'Esa. La anoto cada noche. Hoy está más cerca. O yo estoy más lejos de lo que pensaba.');
+      const c = await choose(['Contame qué más anotás.', 'Quedémonos un rato mirando.']);
+      await say('rigg', c === 0 ? 'Muchas cosas. Algún día te dejo leer el cuaderno. Algún día.' : '...Sí. Así está bien.', 'happy');
+      game.addFriendship('rigg', 12);
+      return true;
+    }
+    if (id === 'spicy' && clock.period < 3) {
+      game.setFlag('ev_last_' + id, day);
+      await say('spicy', '¡Alto ahí! Necesito una catadora oficial. Abrí la boca. Confiá en mí.', 'happy');
+      const c = await choose(['Confío. ¡Dame!', 'Primero decime qué tiene.']);
+      if (c === 0) {
+        await say('narr', 'Es un bocado de arroz con salmón y... algo que hace cosquillas en la nariz.');
+        await say('spicy', '¿Y? ¿Y? ¿Ves los fuegos artificiales? ¡Eso es el yuzu picante!', 'happy');
+      } else await say('spicy', 'Arroz, salmón y un secreto. Si te digo el secreto deja de ser secreto. Probá igual.', 'smug');
+      game.addItem('rice', 1, 'spicy');
+      await say('narr', 'Spicy te da un poco de arroz extra "para tus experimentos".');
+      game.addFriendship('spicy', 12);
+      return true;
+    }
+    if (id === 'pip') {
+      game.setFlag('ev_last_' + id, day);
+      await say('pip', '¡Mirá! Te hice un dibujo.', 'happy');
+      const art = ['un sushi con patitas', 'vos montada en una ballena', 'el restaurante con un arcoíris', 'Spicy en un volcán', 'Rigg leyendo debajo de la luna'][day % 5];
+      await say('narr', `Es ${art}. Tiene muchísimos colores y un poco de arroz pegado.`);
+      const c = await choose(['¡Es hermoso! Lo voy a colgar.', '¿Por qué tiene arroz?']);
+      await say('pip', c === 0 ? '¡¿En serio?! Entonces hago otro. Y otro. Vas a necesitar más paredes.' : 'Es arte mixto. Spicy dice que es "textura".', 'happy');
+      game.addFriendship('pip', 12);
+      return true;
+    }
+  }
   if (id === 'spicy' && game.friendLevel('spicy') >= 1 && !game.has('spicy_lab_intro')) {
     game.setFlag('spicy_lab_intro');
     await say('spicy', 'Acabo de crear mi obra maestra.', 'happy');
@@ -184,6 +222,16 @@ async function personalStory(id: string, lvl: number) {
   };
   const S: Record<string, Record<number, () => Promise<void>>> = {
     pip: {
+      1: async () => {
+        await say('pip', '¿Sabés qué? Antes, cuando el restaurante estaba vacío, ponía tres platos en la mesa igual. Por las dudas.', 'sad');
+        await say('pip', 'Ahora pongo cuatro. Y no es por las dudas.', 'happy');
+        memory('pip_four_plates', 'Cuatro platos');
+      },
+      2: async () => {
+        await say('pip', 'Te muestro mi caja de tesoros. Es un honor muy grande. Mirá: una piedra, un botón, una pluma de gaviota...');
+        await say('pip', '...y este papelito. Es la primera nota que me dejaste en la cocina. "Gracias por ayudar, Pip". La guardé.', 'happy');
+        memory('pip_treasure_box', 'La caja de tesoros');
+      },
       4: async () => {
         await say('pip', '{name}, ¿puedo contarte un secreto? Tengo miedo de las tormentas. Mucho.', 'sad');
         await say('pip', 'Cuando era chiquito, una noche de tormenta alguien me tapó con una manta y me cantó. Creo que por eso me gustan tanto las mantas.');
@@ -199,6 +247,15 @@ async function personalStory(id: string, lvl: number) {
       },
     },
     spicy: {
+      1: async () => {
+        await say('spicy', '¿Sabés por qué uso pañuelo? Porque un chef de verdad necesita algo que lo identifique. Y porque se me pegaba arroz en las orejas.', 'smug');
+        memory('spicy_bandana', 'El pañuelo de Spicy');
+      },
+      2: async () => {
+        await say('spicy', 'Te voy a confesar algo. La primera vez que cociné para alguien, lo quemé todo. TODO. Hasta el agua.', 'sad');
+        await say('spicy', 'Pip se lo comió igual y dijo "¡crocante!". Ahí supe que quería cocinar para siempre.', 'happy');
+        memory('spicy_first_dish', 'El primer plato de Spicy');
+      },
       4: async () => {
         await say('spicy', 'La primera vez que cociné algo, se me quemó. Era un huevo. UN HUEVO.', 'sad');
         await say('spicy', 'Akio se lo comió igual y dijo "tiene carácter". Desde ese día, cocino con carácter. Con mucho.');
@@ -212,6 +269,15 @@ async function personalStory(id: string, lvl: number) {
       },
     },
     rigg: {
+      1: async () => {
+        await say('rigg', 'Te hice un lugar en mi cuaderno. Una página entera. Por ahora dice "{name}: confiable. Le gusta el sushi. Ríe fuerte".', 'smug');
+        memory('rigg_notebook_page', 'Una página en el cuaderno de Rigg');
+      },
+      2: async () => {
+        await say('rigg', 'De chica me perdí en el bosque. Seguí el sonido del mar y llegué al restaurante. Desde entonces me quedé.');
+        await say('rigg', 'Por eso siempre sé dónde está el mar. Es mi forma de no perderme. Ahora también sé dónde estás vos.', 'happy');
+        memory('rigg_lost_forest', 'El camino al mar');
+      },
       4: async () => {
         await say('rigg', 'Antes de que llegaras, contaba los días en mi cuaderno. Ahora me olvido de contarlos. Creo que eso es bueno.', 'smug');
         await say('rigg', 'Te muestro algo: un mapa de Villa Nori que dibujé yo. Te agregué. Estás acá, en el restaurante. Con nosotros.');
