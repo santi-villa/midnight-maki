@@ -7,6 +7,7 @@
 import type { Appearance, Dir } from '../core/types';
 import { CLOTHES_BY_ID } from '../data/clothes';
 import type { Expr, Legs } from './characters';
+import type { ChibiArms } from './chibi';
 import { ctx2d, ellipse, makeCanvas, mix, outline, px, shade, type Ctx } from './pixel';
 
 export type RaccoonBuild = 'small' | 'medium' | 'big';
@@ -306,7 +307,7 @@ function accOf(id: string) {
 }
 
 // ------------------------------------------------------------------ standing raccoon (Spicy, Rigg)
-interface Pose { dir: Dir; legs: Legs; expr: Expr; bob: number; }
+interface Pose { dir: Dir; legs: Legs; expr: Expr; bob: number; arms?: ChibiArms; sit?: boolean; }
 
 function standing(a: Appearance, pose: Pose, size: 'small' | 'medium'): HTMLCanvasElement {
   const p = palette(a);
@@ -353,10 +354,38 @@ function standing(a: Appearance, pose: Pose, size: 'small' | 'medium'): HTMLCanv
     if (side) {
       const sw = pose.legs === 'a' ? 1 : pose.legs === 'b' ? -1 : 0;
       ellipse(c, cx + 1 + sw, bodyY + 1, 1.6, 2.8 * s, p.limb);
+    } else if (pose.arms === 'wave1' || pose.arms === 'wave2') {
+      ellipse(c, cx - 6 * s, bodyY + 1, 1.6, 2.6 * s, p.limb);
+      ellipse(c, cx + 6.5 * s, bodyY - 1, 1.6, 2.4 * s, p.limb);
+    } else if (pose.arms) {
+      const dy = pose.arms === 'cook2' ? 1 : 0;
+      ellipse(c, cx - 3 * s, bodyY + 2 + dy, 2, 1.6, p.limb);
+      ellipse(c, cx + 3 * s, bodyY + 2 + dy, 2, 1.6, p.limb);
     } else {
       const sw = pose.legs === 'idle' ? 0 : pose.legs === 'a' ? 1 : -1;
       ellipse(c, cx - 6 * s, bodyY + 1 + sw, 1.6, 2.6 * s, p.limb);
       ellipse(c, cx + 6 * s, bodyY + 1 - sw, 1.6, 2.6 * s, p.limb);
+    }
+  };
+  const held: Layer = (c) => {
+    if (side || !pose.arms) return;
+    if (pose.arms.startsWith('wave')) {
+      // paw raised beside the cheek, in front of the head
+      const wy = headY + 3 - (pose.arms === 'wave2' ? 2 : 0);
+      ellipse(c, cx + hrx + 0.5, wy, 1.9, 2.4, p.limb);
+      ellipse(c, cx + hrx + 0.5, wy - 0.6, 1.1, 1.3, shade(p.limb, 0.25));
+      return;
+    }
+    const dy = pose.arms === 'cook2' ? 1 : 0;
+    if (pose.arms === 'read') {
+      px(c, cx - 4, bodyY, '#3b4470', 9, 5);
+      px(c, cx - 3, bodyY + 1, '#f6f1e6', 3, 3);
+      px(c, cx + 1, bodyY + 1, '#f6f1e6', 3, 3);
+    } else {
+      px(c, cx - 4, bodyY + 3 + dy, '#f6f1e6', 9, 1);
+      px(c, cx - 3, bodyY + 4 + dy, '#d9675f', 7, 2);
+      px(c, cx + (pose.arms === 'cook1' ? 1 : 0), bodyY - 2 + dy, '#a8714a', 1, 5);
+      px(c, cx + (pose.arms === 'cook1' ? 2 : 1), bodyY - 2 + dy, '#a8714a', 1, 5);
     }
   };
   const ears: Layer = (c) => {
@@ -389,7 +418,7 @@ function standing(a: Appearance, pose: Pose, size: 'small' | 'medium'): HTMLCanv
     }
     if (head) headAcc(c, head.kind, head.c1, head.c2, hx, Math.round(headY - hry), Math.round(hrx), front ? 'front' : side ? 'side' : 'back');
   };
-  const canvas = stack(W, H, [tailLayer, capeBack, feet, body, arms, ears, headL, tailFront], decorate);
+  const canvas = stack(W, H, [tailLayer, capeBack, feet, body, arms, ears, headL, tailFront, held], decorate);
   return pose.dir === 'left' ? mirrorCanvas(canvas) : canvas;
 }
 
@@ -500,6 +529,13 @@ const SPECS: Omit<Pose, 'bob'>[] = [
   { dir: 'up', legs: 'idle', expr: 'neutral' },
   { dir: 'right', legs: 'idle', expr: 'neutral' },
   { dir: 'left', legs: 'idle', expr: 'neutral' },
+  // action frames 24..29 (see EXTRA_POSES in characters.ts)
+  { dir: 'down', legs: 'idle', expr: 'neutral', arms: 'cook1' },
+  { dir: 'down', legs: 'idle', expr: 'happy', arms: 'cook2' },
+  { dir: 'down', legs: 'idle', expr: 'happy', arms: 'wave1' },
+  { dir: 'down', legs: 'idle', expr: 'happy', arms: 'wave2' },
+  { dir: 'down', legs: 'idle', expr: 'neutral', arms: 'read' },
+  { dir: 'down', legs: 'idle', expr: 'smug', sit: true },
 ];
 
 export function raccoonFrame(a: Appearance, build: RaccoonBuild, pose: Pose): HTMLCanvasElement {
@@ -508,7 +544,7 @@ export function raccoonFrame(a: Appearance, build: RaccoonBuild, pose: Pose): HT
 
 /** Sheet with the shared 24-frame layout. Returns the canvas and its frame size. */
 export function buildRaccoonSheet(a: Appearance, build: RaccoonBuild): { canvas: HTMLCanvasElement; fw: number; fh: number } {
-  const frames = SPECS.map((sp, i) => raccoonFrame(a, build, { ...sp, bob: sp.legs !== 'idle' ? -1 : i >= 20 ? 1 : 0 }));
+  const frames = SPECS.map((sp, i) => raccoonFrame(a, build, { ...sp, bob: sp.legs !== 'idle' ? -1 : i >= 20 && i < 24 ? 1 : sp.sit ? 1 : 0 }));
   const fw = frames[0].width;
   const fh = frames[0].height;
   const canvas = makeCanvas(fw * frames.length, fh);

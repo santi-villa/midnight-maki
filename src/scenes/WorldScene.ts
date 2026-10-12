@@ -28,7 +28,7 @@ export type Target =
   | { kind: 'gather'; spot: GatherSpot; label: string }
   | { kind: 'bug'; idx: number; label: string };
 
-interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; }
+interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; }
 interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 
@@ -944,7 +944,16 @@ export class WorldScene extends Phaser.Scene {
     if (n.leaving || this.inputLocked) return;
     if (a.path.length) return;
     // villagers turn to look at you when you walk close by
-    if ((a.act === 'idle' || a.act === 'work' || a.act === 'play') && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 30) a.faceTowards(this.player.x, this.player.y);
+    const near = Math.hypot(a.x - this.player.x, a.y - this.player.y) < 30;
+    if ((a.act === 'idle' || a.act === 'work' || a.act === 'play') && near) a.faceTowards(this.player.x, this.player.y);
+    // a friendly wave the first time you come close (then not again for a while)
+    const now = this.time.now;
+    if (near && a.act !== 'sleep' && a.act !== 'wave' && now - (n.wavedAt ?? -1e9) > 45000 && a.dir === 'down') {
+      n.wavedAt = now;
+      const back = a.act;
+      a.setAct('wave');
+      this.time.delayedCall(1300, () => a.act === 'wave' && a.setAct(back));
+    }
     n.t -= dt;
     if (n.t > 0) return;
     n.t = 4 + Math.random() * 6;

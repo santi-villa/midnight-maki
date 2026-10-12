@@ -259,6 +259,8 @@ export interface FrameOpts {
   dir: Dir;
   legs: Legs;
   expr: Expr;
+  arms?: import('./chibi').ChibiArms;
+  sit?: boolean;
 }
 
 /** Draws one frame of any character (chibi renderer). */
@@ -960,6 +962,15 @@ function drawHeadAcc(t: Ctx, kind: string, c1: string, c2: string, dir: Dir) {
 }
 
 // ------------------------------------------------------------------ sheets
+/** Action frames 24..29 (cook ×2, wave ×2, read, sit). */
+export const EXTRA_POSES: FrameOpts[] = [
+  { dir: 'down', legs: 'idle', expr: 'neutral', arms: 'cook1' },
+  { dir: 'down', legs: 'idle', expr: 'happy', arms: 'cook2' },
+  { dir: 'down', legs: 'idle', expr: 'happy', arms: 'wave1' },
+  { dir: 'down', legs: 'idle', expr: 'happy', arms: 'wave2' },
+  { dir: 'down', legs: 'idle', expr: 'neutral', arms: 'read' },
+  { dir: 'down', legs: 'idle', expr: 'neutral', sit: true },
+];
 /** Frame layout of every generated character sheet. */
 export const FRAMES = {
   down: [0, 1, 0, 2],
@@ -976,8 +987,12 @@ export const FRAMES = {
   smug: 19,
   // breathing: same pose with the upper body 1px lower
   breathe: { down: 20, up: 21, right: 22, left: 23 },
+  cook: [24, 25],
+  wave: [26, 27],
+  read: 28,
+  sit: 29,
 } as const;
-export const FRAME_COUNT = 24;
+export const FRAME_COUNT = 30;
 
 /**
  * Builds a horizontal sheet of FRAME_COUNT frames for the appearance.
@@ -1011,6 +1026,7 @@ export function buildCharacterSheet(a: Appearance, drop: number[] = []): HTMLCan
     { dir: 'up', legs: 'idle', expr: 'neutral' },
     { dir: 'right', legs: 'idle', expr: 'neutral' },
     { dir: 'left', legs: 'idle', expr: 'neutral' },
+    ...EXTRA_POSES,
   ];
   const frame = makeCanvas(FW, FH);
   const fctx = ctx2d(frame);
@@ -1018,7 +1034,7 @@ export function buildCharacterSheet(a: Appearance, drop: number[] = []): HTMLCan
     fctx.clearRect(0, 0, FW, FH);
     drawCharacter(fctx, 0, 0, a, s);
     // walk frames bob up 1px, breathing frames sink 1px: both shift the upper body only
-    const shift = s.legs !== 'idle' ? -1 : i >= 20 ? 1 : 0;
+    const shift = s.legs !== 'idle' ? -1 : i >= 20 && i < 24 ? 1 : 0;
     const UP = FH - 6; // rows above the legs
     if (shift) {
       const tmp = makeCanvas(FW, FH);
