@@ -58,7 +58,7 @@ export function propTexture(scene: Phaser.Scene, key: string): string {
   const k = 'pr_' + key;
   if (!scene.textures.exists(k)) {
     const d = PROPS[key];
-    scene.textures.addCanvas(k, drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key)));
+    scene.textures.addCanvas(k, drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label));
   }
   return k;
 }

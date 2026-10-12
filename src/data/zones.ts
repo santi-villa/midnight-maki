@@ -501,4 +501,15 @@ function lighthouse(): ZoneDef {
 export const ZONES: Record<string, ZoneDef> = {};
 for (const z of [plaza(), restaurant(), home(), storage(), beach(), forest(), garden(), station(), market(), lighthouse()]) ZONES[z.id] = z;
 
+/** Wooden signposts next to each exit, so every place says where it leads. */
+const SIGNPOSTS: Record<string, [string, number, number][]> = {
+  plaza: [['sign_forest', 17, 3], ['sign_beach', 17, 23], ['sign_garden', 28, 11], ['sign_station', 2, 10], ['sign_market', 26, 2]],
+  beach: [['sign_plaza_up', 16, 2], ['sign_lighthouse', 5, 6]],
+  forest: [['sign_plaza_down', 16, 21]],
+  garden: [['sign_plaza_left', 1, 8]],
+  station: [['sign_plaza_right', 20, 8]],
+  market: [['sign_plaza_down', 14, 15]],
+};
+for (const [zid, list] of Object.entries(SIGNPOSTS)) for (const [id, x, y] of list) ZONES[zid]?.props.push({ id, x, y });
+
 export const ZONE_LIST = Object.keys(ZONES);
