@@ -1,4 +1,5 @@
 /** Save validation & migrations. DOM-free (tested in node). */
+import { STARTER_CLOTHES } from '../data/clothes';
 import { newSave, SAVE_VERSION } from '../core/state';
 import type { SaveData } from '../core/types';
 
@@ -52,7 +53,8 @@ export function validateSave(raw: unknown): SaveData {
   if (!Array.isArray(out.orders)) out.orders = [];
   if (!Array.isArray(out.garden) || out.garden.length < 6) out.garden = base.garden;
   out.recipesKnown = [...new Set(out.recipesKnown)];
-  out.clothesOwned = [...new Set(out.clothesOwned)];
+  // starter clothes added in later versions are given to existing saves too
+  out.clothesOwned = [...new Set([...(Array.isArray(out.clothesOwned) ? out.clothesOwned : []), ...STARTER_CLOTHES])];
   out.achievements = [...new Set(out.achievements)];
   out.time.period = Math.max(0, Math.min(3, Math.floor(out.time.period)));
   out.time.day = Math.max(1, Math.floor(out.time.day));

@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Ropa negra</title>
+<style>body{background:#7ccb59;margin:0;padding:6px}canvas{image-rendering:pixelated;width:120px;height:180px;margin:3px}</style></head><body>
+<script type="module">
+import { drawCharacter } from './src/art/characters.ts';
+import { defaultAppearance } from './src/core/state.ts';
+const looks = [
+  { top: 'top_tee_black', bottom: 'bot_pants_black', shoes: 'sh_boots_black' },
+  { top: 'top_hoodie_black', bottom: 'bot_skirt_black', shoes: 'sh_boots_black', head: 'hd_bow_black' },
+  { top: 'top_sweater_black', bottom: 'bot_dress_black', shoes: 'sh_shoes_black', bag: 'bg_backpack_black' },
+  { top: 'top_kimono_black', bottom: 'bot_pants_black', shoes: 'sh_boots_black', extra: 'ex_scarf_black' },
+  { top: 'top_coat_black', bottom: 'bot_shorts_black', shoes: 'sh_boots_black', head: 'hd_beanie_black', hairColor: '#2a2230' },
+];
+for (const l of looks) for (const dir of ['down', 'right']) { const c = document.createElement('canvas'); c.width = 20; c.height = 30; drawCharacter(c.getContext('2d'), 0, 0, { ...defaultAppearance(), ...l }, { dir, legs: 'idle', expr: 'neutral' }); document.body.append(c); }
+</script></body></html>
