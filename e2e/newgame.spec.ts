@@ -23,10 +23,8 @@ test('new game → restaurant → cook first sushi → progress persists', async
   await page.locator('.tt').click(); // first tap reveals the menu
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
-  // the animated opening can be skipped (the letter is always shown)
+  // the picture sequence can be skipped, including the letter
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
-  // the letter
-  await page.getByText('Tocá para continuar').click();
   await advance(page);
   await expect(page.locator('.hud-quest')).toContainText('Entrá a Midnight Maki');
 
@@ -95,6 +93,8 @@ test('new game → restaurant → cook first sushi → progress persists', async
   // persist and reload
   await page.evaluate(async () => { await (window as any).mmDebug.storage.saveGame('e2e'); });
   await page.reload();
+  await page.locator('.tt').click();
+  await page.waitForTimeout(600);
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug?.game?.save?.restaurant?.served)).toBe(1);
 });

@@ -16,6 +16,7 @@ import { registerAction } from '../systems/actions';
 import { clock } from '../systems/time';
 import { toast } from '../ui/dom';
 import { CLUE_BY_ID } from './clues';
+import { playIntroShotOnce } from './introAudio';
 
 // ------------------------------------------------------------------ helpers
 export function addClue(id: string, silent = false) {
@@ -275,6 +276,7 @@ export function storyTalk(id: string): Beat | null {
 // ------------------------------------------------------------------ prologue scenes
 async function meetRaccoons() {
   await lock(async () => {
+    playIntroShotOnce('wooden_door', 0.42, 2.4);
     const pip = world.actor('pip', 6, 6);
     const spicy = world.actor('spicy', 3, 3);
     const rigg = world.actor('rigg', 14, 10);
@@ -285,7 +287,7 @@ async function meetRaccoons() {
       pip.emote('!');
       await say('narr', 'Un mapache grandote y redondito, en puntas de pie sobre un banquito que cruje, intenta alcanzar un frasco del estante.');
       await say('?Mapache grandote|pip', 'Un poquito más... un poquititito más...');
-      audio.sfxPlay('error');
+      playIntroShotOnce('metal_jar', 0.7);
       pip.setAct('surprised');
       await say('narr', '¡CRASH! El frasco cae y rueda por el piso. Por suerte era de lata.');
       await world.walk('spicy', 5, 6);
@@ -297,13 +299,15 @@ async function meetRaccoons() {
       pip.face('down');
       spicy.face('down');
       await say('pip', '¡Una persona! ¡Una persona de verdad!', 'happy');
-      await say('player', 'Hola... Me llamo {name}. Recibí una carta. Dice que este restaurante es... mío.');
-      await say('?Mapache con pañuelo|spicy', '¿Tuyo? Ah. Ahhh. Entonces sos la nueva dueña. Bienvenida a Midnight Maki. Yo soy Spicy Beacon, chef principal, artista del arroz.', 'happy');
+      await say('player', 'Hola... Soy {name}. Recibí una carta ofreciéndome hacerme cargo de este restaurante.');
+      await say('rigg', 'Entonces... llegaste, al final.', 'neutral');
+      await say('spicy', '¿Hacerte cargo? ¡Eso significa que podríamos volver a abrir!', 'happy');
+      await say('pip', '¡Podríamos tener clientes de verdad! ¡Y mesas! ¡Y servilletas lindas!', 'happy');
+      await say('?Mapache con pañuelo|spicy', 'Yo soy Spicy Beacon, chef principal, artista del arroz.', 'happy');
       await say('pip', '¡Yo soy Pip! Atiendo las mesas. Bueno, cuando hay mesas. Y gente. Hace mucho que no hay gente.', 'happy');
       await world.walk('rigg', 12, 8);
       await say('rigg', 'Rigg. Me ocupo de... pensar. Alguien tiene que hacerlo.', 'smug');
       await say('rigg', 'El restaurante está casi abandonado. Hace años que no viene nadie. Nosotros lo mantenemos como podemos.');
-      await say('spicy', 'Pero con una dueña... ¡podríamos volver a abrir! ¡Cocinar para el pueblo! ¡Picante para todos!', 'happy');
       const c = await choose(['Me quedo. Vamos a abrir Midnight Maki juntos.', 'No sé cocinar sushi... pero puedo aprender.']);
       if (c === 0) await say('pip', '¡SÍ! ¡Se queda! ¡Se queda!', 'happy');
       else await say('spicy', '¡Para eso estoy yo! Te voy a enseñar todo. Bueno, casi todo. Algunos secretos son secretos.', 'smug');

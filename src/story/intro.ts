@@ -1,115 +1,45 @@
-/** Opening: rain, a letter, arrival at Villa Nori. */
+/** Opening pictures: the letter, the train, and the first sight of Midnight Maki. */
 import { audio } from '../audio/audio';
 import { game } from '../core/state';
-import { world } from '../scenes/WorldScene';
 import { fmt, runScene, say } from '../dialogue/dialogue';
+import { world } from '../scenes/WorldScene';
 import { fade, h, uiRoot } from '../ui/dom';
-import { paintSlide, type SlideId } from './slides';
 import { showHud } from '../ui/hud';
+import { applyIntroCue, stopIntroAudio } from './introAudio';
+import { INTRO_SCENES, LETTER_LINES, LETTER_SIGN, takeCues, type IntroMusic, type IntroScene } from './introScript';
 import { addClue } from './story';
 
-function letter(lines: string[], sign: string): Promise<void> {
-  return new Promise((resolve) => {
-    const paper = h(
-      'div',
-      {
-        style: {
-          padding: '18px 18px', maxWidth: '440px', width: '90%', maxHeight: '86vh', overflowY: 'auto',
-          lineHeight: '1.5', fontSize: '1.05em', color: '#3a2418',
-        },
-      },
-      ...lines.map((l) => h('p', { style: { margin: '0 0 10px' } }, fmt(l))),
-      h('p', { style: { textAlign: 'right', margin: '14px 0 0', fontStyle: 'italic' } }, sign),
-      h('p', { class: 'hint', style: { textAlign: 'center', marginTop: '16px' } }, 'Tocá para continuar'),
-    );
-    paper.className = 'letter-paper';
-    const wrap = h('div', { class: 'letter-wrap' }, paper);
-    wrap.addEventListener('pointerup', () => {
-      wrap.style.transition = 'opacity .5s';
-      wrap.style.opacity = '0';
-      setTimeout(() => {
-        wrap.remove();
-        resolve();
-      }, 500);
-    });
-    uiRoot().append(wrap);
-  });
-}
-
-// ------------------------------------------------------------------ storybook pages
 let skipped = false;
 let book: HTMLElement | null = null;
+let music: IntroMusic | '' = '';
+const fired = new Set<string>();
 
-/** A still illustration (hand-made public/intro/<n>.jpg|png if present, otherwise painted) with its lines of text. */
-async function page(n: number, id: SlideId, lines: string[]): Promise<void> {
-  if (skipped || !book) return;
-  const pic = h('div', { class: 'book-pic' });
-  const custom = await findCustom(n);
-  if (custom) pic.append(h('img', { src: custom, alt: '' }));
-  else {
-    const cv = paintSlide(id, game.save.player.appearance);
-    pic.append(cv);
-  }
-  const text = h('div', { class: 'book-text' });
-  const pageEl = h('div', { class: 'book-page' }, pic, h('div', { class: 'book-caption' }, text, h('div', { class: 'book-next' }, '▼')));
-  const prev = book.querySelector('.book-page');
-  book.append(pageEl);
-  requestAnimationFrame(() => pageEl.classList.add('in'));
-  if (prev) {
-    prev.classList.remove('in');
-    setTimeout(() => prev.remove(), 500);
-  }
-  for (const line of lines) {
-    if (skipped) return;
-    text.textContent = fmt(line);
-    text.classList.remove('show');
-    void text.offsetWidth;
-    text.classList.add('show');
-    await waitTap(pageEl);
-  }
+const ADVANCE_KEYS = new Set(['Enter', ' ', 'ArrowRight', 'ArrowDown']);
+
+function playMusic(track: IntroMusic) {
+  if (track === music) return;
+  music = track;
+  audio.unlock();
+  audio.crossfade(track);
 }
 
-function waitTap(el: HTMLElement): Promise<void> {
-  return new Promise((resolve) => {
-    const done = () => {
-      el.removeEventListener('pointerup', done);
-      window.removeEventListener('mm-skip', done);
-      audio.sfxPlay('blip');
-      resolve();
-    };
-    // a short delay avoids skipping a line with the same tap that showed it
-    setTimeout(() => {
-      el.addEventListener('pointerup', done);
-      window.addEventListener('mm-skip', done);
-    }, 250);
-  });
-}
-
-const customCache = new Map<number, string | null>();
-function findCustom(n: number): Promise<string | null> {
-  if (customCache.has(n)) return Promise.resolve(customCache.get(n)!);
-  const base = import.meta.env.BASE_URL + 'intro/' + n;
-  const tryUrl = (u: string) => new Promise<boolean>((res) => {
-    const img = new Image();
-    img.onload = () => res(true);
-    img.onerror = () => res(false);
-    img.src = u;
-  });
-  return (async () => {
-    for (const ext of ['.jpg', '.png', '.webp']) if (await tryUrl(base + ext)) {
-      customCache.set(n, base + ext);
-      return base + ext;
-    }
-    customCache.set(n, null);
-    return null;
-  })();
+function runCues(scene: IntroScene, at: 'enter' | number) {
+  if (skipped) return;
+  for (const cue of takeCues(scene, at, fired)) applyIntroCue(cue);
 }
 
 function openBook() {
   skipped = false;
-  const skip = h('button', { class: 'btn small book-skip', onclick: () => { skipped = true; window.dispatchEvent(new Event('mm-skip')); } }, 'Saltar intro ›');
+  music = '';
+  fired.clear();
+  const skip = h('button', { class: 'btn small book-skip', type: 'button', onclick: skipIntro }, 'Saltar intro ›');
   book = h('div', { class: 'book' }, skip);
   uiRoot().append(book);
+}
+
+function skipIntro() {
+  skipped = true;
+  window.dispatchEvent(new Event('mm-skip'));
 }
 
 function closeBook() {
@@ -117,57 +47,149 @@ function closeBook() {
   book = null;
 }
 
+function waitTap(el: HTMLElement): Promise<void> {
+  return new Promise((resolve) => {
+    let doneOnce = false;
+    const done = (fromSkip = false) => {
+      if (doneOnce) return;
+      doneOnce = true;
+      el.removeEventListener('pointerup', onPointer);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mm-skip', onSkip);
+      if (!fromSkip && !skipped) audio.sfxPlay('blip');
+      resolve();
+    };
+    const onPointer = () => done(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat || !ADVANCE_KEYS.has(e.key)) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      e.preventDefault();
+      done(false);
+    };
+    const onSkip = () => done(true);
+    window.setTimeout(() => {
+      if (skipped || !el.isConnected) {
+        done(true);
+        return;
+      }
+      el.addEventListener('pointerup', onPointer);
+      window.addEventListener('keydown', onKey);
+      window.addEventListener('mm-skip', onSkip);
+    }, 250);
+  });
+}
+
+function probe(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+
+async function findImage(n: number): Promise<string | null> {
+  const base = import.meta.env.BASE_URL + 'intro/' + n;
+  for (const ext of ['.jpg', '.png', '.webp']) {
+    if (await probe(base + ext)) return base + ext;
+  }
+  return null;
+}
+
+async function showLetter(): Promise<void> {
+  if (skipped || !book) return;
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('mm-skip', finish);
+      window.removeEventListener('keydown', onKey);
+      wrap.remove();
+      addClue('letter_inherit', true);
+      resolve();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      finish();
+    };
+    const paper = h(
+      'div',
+      { class: 'letter-paper', role: 'dialog', 'aria-label': 'Carta' },
+      h('div', { class: 'letter-scroll' }, ...LETTER_LINES.map((line) => h('p', null, fmt(line))), h('p', { class: 'letter-sign' }, LETTER_SIGN)),
+      h('button', { class: 'btn primary letter-close', type: 'button', onclick: finish }, 'Cerrar carta'),
+    );
+    const wrap = h('div', { class: 'letter-wrap' }, paper);
+    wrap.addEventListener('pointerdown', (e) => e.stopPropagation());
+    book?.append(wrap);
+    window.addEventListener('mm-skip', finish);
+    window.addEventListener('keydown', onKey);
+    const close = paper.querySelector('button');
+    if (close instanceof HTMLButtonElement) close.focus();
+  });
+}
+
+async function showScene(scene: IntroScene): Promise<void> {
+  if (skipped || !book) return;
+  const pic = h('div', { class: 'book-pic' });
+  const src = await findImage(scene.image);
+  if (skipped || !book) return;
+  if (src) pic.append(h('img', { class: 'book-photo', src, alt: scene.alt }));
+  else pic.append(h('div', { class: 'book-missing' }, `Falta la ilustración public/intro/${scene.image}.jpg`));
+  const who = h('div', { class: 'book-who' });
+  const text = h('div', { class: 'book-text' });
+  const pageEl = h(
+    'div',
+    { class: 'book-page' },
+    pic,
+    h('div', { class: 'book-caption' }, who, text, h('div', { class: 'book-next', 'aria-hidden': 'true' }, '▼')),
+  );
+  const prev = book.querySelector('.book-page');
+  book.append(pageEl);
+  requestAnimationFrame(() => pageEl.classList.add('in'));
+  if (prev) {
+    prev.classList.remove('in');
+    window.setTimeout(() => prev.remove(), 500);
+  }
+  if (scene.musicAt == null) playMusic(scene.music);
+  runCues(scene, 'enter');
+  for (let i = 0; i < scene.lines.length; i++) {
+    if (skipped) return;
+    const line = scene.lines[i];
+    if (scene.musicAt === i) playMusic(scene.music);
+    runCues(scene, i);
+    who.textContent = line.who === 'player' ? game.save.player.name : '';
+    who.hidden = line.who !== 'player';
+    text.textContent = fmt(line.text);
+    text.classList.remove('show');
+    void text.offsetWidth;
+    text.classList.add('show');
+    await waitTap(pageEl);
+    if (skipped) return;
+    if (scene.letterAfter === i) await showLetter();
+  }
+}
+
 export async function playIntro() {
   await fade(true, 10);
   openBook();
-  audio.ambience('rain');
-  audio.play('intro');
+  audio.unlock();
   await fade(false, 500);
-  await page(1, 'city', [
-    'En una ciudad grande y gris, {name} trabajaba hasta tarde todas las noches.',
-    'Le gustaban las cosas simples: el sushi, los animales tiernos, las historias con misterio.',
-  ]);
-  if (!skipped) audio.sfxPlay('paper');
-  await page(2, 'letter', [
-    'Una noche de lluvia, alguien deslizó una carta por debajo de la puerta.',
-    'No tenía remitente. Solo una estrella dibujada en el sello.',
-  ]);
-  await letter(
-    [
-      'Querida {name}:',
-      'Si estás leyendo esto, es porque Midnight Maki ahora es tuyo. Un pequeño restaurante de sushi en Villa Nori, junto al mar.',
-      'Está un poco descuidado. Pero no está vacío. Cuidalo, y cuidá a quienes viven ahí. Ellos te van a estar esperando.',
-      'Hay cosas que no puedo explicarte en una carta. Villa Nori te las va a contar de a poquito.',
-    ],
-    '— A.',
-  );
-  addClue('letter_inherit', true);
-  if (!skipped) {
-    audio.ambience('waves');
-    audio.play('beach');
-    audio.sfxPlay('train');
+  for (const scene of INTRO_SCENES) {
+    if (skipped) break;
+    await showScene(scene);
   }
-  await page(3, 'train', [
-    'A la mañana siguiente, {name} tomó el primer tren hacia el sur. Hacia el mar.',
-    'El paisaje gris se fue quedando atrás, y aparecieron colinas, gaviotas... y el mar.',
-  ]);
-  if (!skipped) {
-    audio.ambience('none');
-    audio.play('town');
-  }
-  await page(4, 'arrival', ['Al atardecer llegó a Villa Nori: un pueblo pequeño, con olor a pino, a sal y a arroz recién hecho.']);
-  await fade(true, 500);
+  await Promise.all([fade(true, 500), stopIntroAudio(0.45)]);
   closeBook();
+  addClue('letter_inherit', true);
   await world.enterZone('plaza', 15, 22, 'up', false);
   showHud(false);
   world.inputLocked++;
-  audio.ambience('none');
-  audio.play('town');
   await fade(false, 900);
   await runScene('arrival', async () => {
-    await say('narr', 'Después de un largo viaje en tren y un trecho a pie, llegás a Villa Nori. Huele a mar, a pino y a pan recién horneado.');
-    await say('player', 'Así que este es el pueblo... Es más lindo de lo que imaginaba.');
-    await say('narr', 'Al fondo de la plaza, un cartel apagado dice "Midnight Maki". Tiene las ventanas encendidas. ¿Alguien adentro?');
+    await say('narr', 'Los dos faroles de Midnight Maki están encendidos, al fondo de la plaza. La entrada te espera.');
   });
   world.inputLocked--;
   showHud(true);

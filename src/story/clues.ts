@@ -4,7 +4,7 @@ export type ClueKind = 'carta' | 'foto' | 'testimonio' | 'objeto' | 'lugar' | 'c
 export interface ClueDef { id: string; title: string; kind: ClueKind; text: string; chapter: number; }
 
 export const CLUES: ClueDef[] = [
-  { id: 'letter_inherit', title: 'La carta de la herencia', kind: 'carta', chapter: 0, text: '"Midnight Maki es tuyo. Cuidalo, y cuidá a quienes viven ahí. Ellos te van a estar esperando." Firmada solo con una letra: A.' },
+  { id: 'letter_inherit', title: 'La carta sin remitente', kind: 'carta', chapter: 0, text: '"Hoy el restaurante necesita a alguien nuevo. Si decidís venir, vas a reconocer Midnight Maki por sus dos faroles." Firmada solo con una letra: A.' },
   { id: 'drawing_stars', title: 'Dibujo de tres estrellas', kind: 'objeto', chapter: 0, text: 'Un dibujo viejo que Pip encontró debajo de su futón. Tres estrellas unidas por líneas, sobre un faro.' },
   { id: 'akio_gone', title: 'El antiguo dueño', kind: 'testimonio', chapter: 1, text: 'Abuela Ume: "Akio cerró el restaurante hace diez años, una noche de tormenta. Al otro día ya no estaba. Nadie lo vio irse."' },
   { id: 'note_storage', title: 'Nota del depósito', kind: 'carta', chapter: 1, text: '"Las tres estrellas no se perdieron. Están esperando. Donde el arroz duerme, la madera recuerda." — A.' },
