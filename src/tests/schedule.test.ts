@@ -1,0 +1,171 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { game, newSave } from '../core/state';
+import { ZONES } from '../data/zones';
+import { shopGate, stopFor, whereIs } from '../systems/npcs';
+import { phaseOf } from '../systems/schedule';
+
+function at(period: number, minutes: number, day = 4) {
+  game.save.time.period = period;
+  game.save.time.minutes = minutes;
+  game.save.time.day = day;
+  game.save.quests.done = ['prologue'];
+}
+
+beforeEach(() => {
+  game.load(newSave('Tester'));
+  at(0, 20);
+});
+
+describe('daily rhythm', () => {
+  it('splits a period into settle, work, meal, stroll, talk and leaving', () => {
+    expect(phaseOf(0)).toBe('settle');
+    expect(phaseOf(20)).toBe('main');
+    expect(phaseOf(40)).toBe('meal');
+    expect(phaseOf(60)).toBe('stroll');
+    expect(phaseOf(75)).toBe('social');
+    expect(phaseOf(85)).toBe('depart');
+  });
+
+  it('keeps a shopkeeper in the shop for the whole morning and afternoon shift', () => {
+    at(0, 30);
+    expect(whereIs('taro')).toBe('shop_taro');
+    expect(stopFor('yuki', 0)?.zone).toBe('shop_yuki');
+    at(1, 40);
+    expect(whereIs('taro')).toBe('shop_taro');
+    expect(whereIs('bento')).toBe('shop_bento');
+  });
+
+  it('gives the morning a cleaning start, a meal, and a walk to the door before a zone change', () => {
+    at(0, 5);
+    expect(stopFor('taro', 0)?.act).toBe('clean');
+    at(0, 40);
+    expect(['eat', 'drink']).toContain(stopFor('taro', 0)?.act);
+    expect(stopFor('taro', 0)?.zone).toBe('shop_taro');
+    at(1, 85);
+    const leaving = stopFor('taro', 1);
+    const door = ZONES.shop_taro.doors.find((d) => d.to === 'plaza')!;
+    expect(leaving?.zone).toBe('shop_taro');
+    expect(leaving?.x).toBe(door.x);
+    expect(leaving?.y).toBe(door.y);
+    expect(leaving?.act).toBe('look');
+  });
+
+  it('sends a strolling neighbor toward a place they like, still inside the same zone', () => {
+    at(0, 60);
+    const pip = stopFor('pip', 0);
+    expect(pip?.zone).toBe('plaza');
+    expect(pip?.x).toBe(15);
+    expect(pip?.y).toBe(13);
+  });
+
+  it('hides villagers who are asleep and lets raccoons sleep in their room', () => {
+    at(3, 30);
+    expect(stopFor('yuki', 3)).toBeNull();
+    expect(whereIs('kumo')).toBeNull();
+    const pip = stopFor('pip', 3);
+    expect(pip?.zone).toBe('home');
+    expect(pip?.act).toBe('sleep');
+    const rigg = stopFor('rigg', 3);
+    expect(rigg?.zone).toBe('home');
+    expect(rigg?.act).toBe('read');
+    expect(rigg?.x).toBe(24);
+    expect(rigg?.y).toBe(4);
+  });
+
+  it('does not walk a sleeper out of bed at the end of the night', () => {
+    at(3, 88);
+    const pip = stopFor('pip', 3);
+    expect(pip?.zone).toBe('home');
+    expect(pip?.act).toBe('sleep');
+    expect(pip?.x).toBe(10);
+  });
+});
+
+describe('weather, festivals and story', () => {
+  it('keeps indoor shifts during rain and shelters outdoor neighbors', () => {
+    game.setFlag('weather', 'rain');
+    at(0, 30);
+    expect(whereIs('taro')).toBe('shop_taro');
+    expect(shopGate('taro').open).toBe(true);
+    expect(whereIs('momo')).toBe('restaurant');
+    expect(stopFor('momo', 0)?.act).toBe('sit');
+    expect(whereIs('kiki')).toBe('plaza');
+    expect(whereIs('pip')).toBe('restaurant');
+  });
+
+  it('holds the prologue raccoons in the restaurant', () => {
+    at(0, 50, 1);
+    game.save.quests.done = [];
+    expect(whereIs('pip')).toBe('restaurant');
+    expect(stopFor('spicy', 0)?.act).toBe('cook');
+  });
+
+  it('obeys a story placement and does not rewrite it', () => {
+    at(3, 85);
+    game.setFlag('at_taro', 'shop_taro,5,3,work');
+    const taro = stopFor('taro', 3);
+    expect(taro).toMatchObject({ zone: 'shop_taro', x: 5, y: 3, act: 'work' });
+    expect(shopGate('taro').open).toBe(true);
+  });
+
+  it('brings festival neighbors to the plaza without pulling shopkeepers off the counter', () => {
+    game.setFlag('festival_today', 'flowers');
+    at(1, 30);
+    expect(whereIs('sumi')).toBe('plaza');
+    expect(whereIs('momo')).toBe('plaza');
+    expect(whereIs('taro')).toBe('shop_taro');
+    expect(shopGate('sumi').open).toBe(true);
+    expect(shopGate('taro').open).toBe(true);
+  });
+
+  it('does not touch saved decoration', () => {
+    game.save.decor.room_player = [{ uid: 1, id: 'bed_rose', x: 2, y: 2, rot: 0 }];
+    const snap = JSON.stringify(game.save.decor);
+    at(0, 60);
+    stopFor('pip', 0);
+    shopGate('yuki');
+    expect(JSON.stringify(game.save.decor)).toBe(snap);
+  });
+});
+
+describe('shop hours', () => {
+  it('opens after setup, stays open across a two-period shift, and closes at the end', () => {
+    at(0, 5);
+    expect(shopGate('taro').phase).toBe('setup');
+    expect(shopGate('taro').open).toBe(false);
+    at(0, 85);
+    expect(shopGate('taro').open).toBe(true);
+    at(1, 5);
+    expect(shopGate('yuki').open).toBe(true);
+    at(1, 80);
+    expect(shopGate('bento').phase).toBe('closing');
+    expect(shopGate('bento').open).toBe(false);
+  });
+
+  it('follows each stall and refuses a normal purchase when the keeper is gone', () => {
+    at(0, 30);
+    expect(shopGate('sumi').open).toBe(true);
+    expect(shopGate('nami').open).toBe(false);
+    at(1, 30);
+    expect(shopGate('sumi').open).toBe(false);
+    expect(shopGate('nami').open).toBe(false);
+    game.setFlag('unlock_beach');
+    expect(shopGate('nami').open).toBe(true);
+    expect(shopGate('shells').open).toBe(true);
+    at(3, 20);
+    expect(shopGate('taro').open).toBe(false);
+    expect(shopGate('taro').detail).toMatch(/Horario/);
+    expect(shopGate('market_food').tracked).toBe(false);
+  });
+
+  it('lets a flag force a shop open or shut', () => {
+    at(3, 40);
+    game.setFlag('shop_force_taro');
+    expect(shopGate('taro').open).toBe(true);
+    game.setFlag('shop_force_taro', false);
+    game.setFlag('shop_shut_taro');
+    at(0, 30);
+    expect(shopGate('taro').open).toBe(false);
+    expect(shopGate('taro').detail).toMatch(/hoy no abre/i);
+  });
+});

@@ -152,36 +152,37 @@ async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof 
 /** Plated dish showcase: the finished sushi on a wooden board with 1-3 stars. Tap to continue. */
 function showPlate(r: RecipeDef, quality: number): Promise<void> {
   return new Promise((resolve) => {
-    const S = 6;
-    const cv = makeCanvas(48, 30);
+    const scale = 4;
+    const cv = makeCanvas(64, 40);
     const g = ctx2d(cv);
     // wooden geta board + white plate
     g.fillStyle = '#2b1d17';
-    g.fillRect(2, 18, 44, 9);
+    g.fillRect(4, 24, 56, 12);
     g.fillStyle = '#c48d5e';
-    g.fillRect(3, 18, 42, 7);
+    g.fillRect(6, 24, 52, 9);
     g.fillStyle = '#e2b585';
-    g.fillRect(3, 18, 42, 1);
+    g.fillRect(6, 24, 52, 1);
     g.fillStyle = '#7a4c30';
-    g.fillRect(6, 25, 4, 3);
-    g.fillRect(38, 25, 4, 3);
+    g.fillRect(10, 33, 5, 4);
+    g.fillRect(49, 33, 5, 4);
     g.fillStyle = 'rgba(0,0,0,.18)';
     g.beginPath();
-    g.ellipse(24, 19, 15, 4, 0, 0, Math.PI * 2);
+    g.ellipse(32, 24, 18, 5, 0, 0, Math.PI * 2);
     g.fill();
-    // three servings of the dish
     const ic = iconCanvas(r.icon);
     g.imageSmoothingEnabled = false;
-    for (const x of [8, 16, 24]) g.drawImage(ic, x, 4, 16, 16);
-    // garnish: ginger and wasabi
+    for (const x of [12, 24, 36]) g.drawImage(ic, x, 6, 16, 16);
     g.fillStyle = '#f4a6b0';
-    g.fillRect(38, 15, 4, 3);
+    g.fillRect(50, 18, 5, 4);
     g.fillStyle = '#8fbf5f';
-    g.fillRect(41, 14, 3, 3);
-    cv.style.width = cv.width * S + 'px';
-    cv.style.height = cv.height * S + 'px';
+    g.fillRect(55, 17, 4, 4);
+    for (let i = 0; i <= quality; i++) {
+      g.fillStyle = '#ffc23a';
+      g.fillRect(22 + i * 7, 2, 5, 5);
+    }
+    cv.style.width = cv.width * scale + 'px';
+    cv.style.height = cv.height * scale + 'px';
     cv.style.maxWidth = '86vw';
-    cv.style.height = 'auto';
     const stars = h('div', { class: 'plate-stars' }, ...[0, 1, 2].map((i) => h('span', { class: i <= quality ? 'on' : '' }, '★')));
     const words = ['¡Listo para servir!', '¡Muy bien hecho!', '¡Perfecto!'][quality];
     const wrap = h('div', { class: 'plate-show' }, h('div', { class: 'plate-card' }, h('div', { class: 'plate-name' }, r.name), cv, stars, h('div', { class: 'plate-words' }, words), h('div', { class: 'hint' }, 'Tocá para servir')));

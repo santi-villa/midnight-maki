@@ -185,7 +185,6 @@ function calendarView() {
 
 // ------------------------------------------------------------------ main menu
 export function openMenu() {
-  const inHome = world.zoneId === 'home';
   const b = (label: string, hint: string, fn: () => void, cls = '') =>
     h('button', { class: 'btn ' + cls, style: { textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }, onclick: () => { p.close(); fn(); } }, h('span', null, label), h('span', { class: 'hint', style: { fontWeight: '400' } }, hint));
   const grid = h(
@@ -198,10 +197,8 @@ export function openMenu() {
     b('Investigación', 'Pistas y cuaderno', () => openJournal(1)),
     b('Amigos', 'Relaciones', () => openJournal(2)),
     b('Colecciones', 'Álbum y logros', () => openJournal(3)),
-    b('Decorar', world.zone?.def.rooms.length ? 'Muebles, pisos y paredes' : 'Entrá a una habitación o al salón', () => import('../decoration/editor').then((m) => m.startDecor()), 'sage'),
     b('Cámara', 'Sacar una foto', () => import('./camera').then((m) => m.takePhoto())),
     b('Descansar un rato', clock.period < 3 ? 'Pasar al siguiente momento del día' : 'Es de noche: andá a dormir a tu cama', () => restPeriod()),
-    inHome ? b('Dormir', 'Terminar el día', () => import('../systems/sleep').then((m) => m.sleepNow())) : null,
     b('Ajustes', 'Sonido, texto, accesibilidad', () => openSettings(true)),
     b('Guardar y salir', 'Volver al título', async () => {
       const { saveGame } = await import('../persistence/storage');
@@ -232,8 +229,7 @@ function suggestions(): { label: string; run: () => void }[] {
   if (game.save.orders.length) out.push({ label: 'Preparar sushi', run: () => import('../restaurant/kitchen').then((m) => m.openOrders()) });
   const r = ['pip', 'spicy', 'rigg'].sort((a, b) => game.rel(a).lastTalkDay - game.rel(b).lastTalkDay)[0];
   if (game.rel(r).lastTalkDay !== game.save.time.day) out.push({ label: `Visitar a ${CHARACTERS.find((c) => c.id === r)!.name}`, run: () => toast(`${CHARACTERS.find((c) => c.id === r)!.name} está en: ${ZONES[whereIs(r) ?? '']?.name ?? 'su cuarto'}`) });
-  if (Object.keys(game.save.furnitureOwned).length) out.push({ label: 'Decorar', run: () => import('../decoration/editor').then((m) => m.startDecor()) });
-  else if (game.has('unlock_beach') && game.save.time.period < 3) out.push({ label: 'Ir a pescar', run: () => toast('La playa está al sur de la plaza.') });
+  if (game.has('unlock_beach') && game.save.time.period < 3 && world.zoneId !== 'beach') out.push({ label: 'Ir a pescar', run: () => toast('La playa está al sur de la plaza.') });
   else out.push({ label: 'Ver colección', run: () => openJournal(3) });
   return out.slice(0, 3);
 }

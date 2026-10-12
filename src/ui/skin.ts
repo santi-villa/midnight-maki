@@ -206,6 +206,52 @@ const ICONS: Record<string, IconFn> = {
     ellipse(g, 6.5, 7, 3, 3, '#ffe27a');
     px(g, 7, 5, '#c9961a', 2, 6);
   },
+  gift(g) {
+    px(g, 2, 6, INK, 12, 9);
+    px(g, 3, 7, '#e07080', 10, 7);
+    px(g, 3, 7, '#f4b8be', 10, 2);
+    px(g, 7, 3, INK, 2, 12);
+    px(g, 8, 4, '#f2c66d', 1, 10);
+    px(g, 3, 6, INK, 10, 2);
+    px(g, 4, 6, '#f2c66d', 8, 1);
+    px(g, 4, 2, INK, 3, 3);
+    px(g, 9, 2, INK, 3, 3);
+    px(g, 5, 3, '#ffe08a', 2, 2);
+    px(g, 9, 3, '#ffe08a', 2, 2);
+  },
+  door(g) {
+    px(g, 2, 1, INK, 12, 14);
+    px(g, 3, 2, '#a8734d', 10, 12);
+    px(g, 3, 2, '#d7a56e', 10, 2);
+    px(g, 7, 2, INK, 2, 12);
+    px(g, 4, 3, '#f2c66d', 2, 2);
+    px(g, 10, 3, '#f2c66d', 2, 2);
+    px(g, 5, 8, '#2b1d17', 1, 2);
+    px(g, 10, 8, '#f6ecd6', 1, 2);
+    px(g, 3, 13, '#7a4c30', 10, 1);
+  },
+  bed(g) {
+    px(g, 1, 6, INK, 14, 9);
+    px(g, 2, 7, '#f6ecd6', 12, 7);
+    px(g, 2, 7, '#fffaf2', 12, 2);
+    px(g, 2, 7, INK, 5, 7);
+    px(g, 3, 8, '#f0d0d4', 3, 5);
+    px(g, 8, 10, '#e8a0b0', 5, 2);
+    px(g, 2, 13, '#c48a5a', 12, 1);
+  },
+  decor(g) {
+    px(g, 6, 9, INK, 4, 5);
+    px(g, 7, 10, '#7eb0c8', 2, 3);
+    px(g, 5, 13, INK, 6, 2);
+    px(g, 6, 13, '#b7dcea', 4, 1);
+    px(g, 7, 3, INK, 2, 7);
+    px(g, 8, 5, '#6f9e5a', 1, 4);
+    px(g, 3, 1, INK, 6, 6);
+    px(g, 4, 2, '#f0a0b0', 4, 4);
+    px(g, 5, 3, '#fff0f4', 1, 1);
+    px(g, 10, 4, INK, 4, 4);
+    px(g, 11, 5, '#f2c66d', 2, 2);
+  },
 };
 
 function icon(name: string): HTMLCanvasElement {

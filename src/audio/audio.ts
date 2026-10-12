@@ -5,7 +5,7 @@
 import { settings } from '../core/settings';
 import { bus } from '../core/events';
 
-type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'none';
+type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'none';
 
 interface TrackDef {
   bpm: number;
@@ -30,6 +30,7 @@ const TRACKS: Record<Exclude<Track, 'none'>, TrackDef> = {
   title: { bpm: 70, scale: PENTA, root: 57, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'piano', density: 0.35, bass: true, swing: 0.1 },
   town: { bpm: 84, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [7, 11, 14, 17]], lead: 'pluck', density: 0.5, bass: true, swing: 0.15 },
   restaurant: { bpm: 78, scale: PENTA, root: 62, chords: [[0, 4, 7, 11], [5, 9, 12, 16], [-1, 2, 5, 9], [4, 7, 11, 14]], lead: 'piano', density: 0.45, bass: true, swing: 0.2 },
+  kitchen: { bpm: 68, scale: MIYAKO, root: 60, chords: [[0, 7, 12], [5, 12, 17], [-2, 5, 10], [0, 7, 12]], lead: 'pluck', density: 0.28, bass: true, swing: 0.05 },
   restaurant_night: { bpm: 66, scale: PENTA, root: 57, chords: [[0, 3, 7, 10], [5, 8, 12, 15], [-2, 2, 5, 9], [3, 7, 10, 14]], lead: 'piano', density: 0.3, bass: true, swing: 0.2 },
   home: { bpm: 64, scale: PENTA, root: 60, chords: [[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]], lead: 'bell', density: 0.25, bass: false, swing: 0.1 },
   forest: { bpm: 72, scale: MIYAKO, root: 57, chords: [[0, 7, 12], [1, 8, 13], [-2, 5, 10], [0, 7, 12]], lead: 'flute', density: 0.3, bass: true, swing: 0 },
@@ -47,6 +48,7 @@ const MELODIES: Partial<Record<Exclude<Track, 'none'>, string>> = {
   title:      '4 - 3 - 2 - 1 2 | 3 - - - . . 2 1 | 0 - 1 - 2 - 4 3 | 2 - - - - - . . ',
   town:       '0 2 4 2 3 - 2 1 | 2 - 0 - . 1 2 3 | 4 - 5 4 3 2 1 2 | 0 - - - . . . . ',
   restaurant: '2 - 4 - 5 4 2 - | 3 - 2 1 0 - . . | 1 2 3 - 4 - 3 2 | 1 - - - 0 - . . ',
+  kitchen:    '0 - 2 - 4 - 3 2 | 1 - - - 0 - . . | 2 - 3 - 4 - 2 - | 0 - - - - - . . ',
   restaurant_night: '4 - - 3 2 - - . | 3 - - 2 1 - . . | 0 - 2 - 3 - 4 - | 2 - - - - - . . ',
   home:       '0 - 2 - 4 - - . | 3 - 2 - 1 - - . | 2 - 1 - 0 - 2 - | 1 - - - - - . . ',
   forest:     '0 - - 1 2 - - . | 3 - 2 - 1 - . . | 0 - 1 - 2 - 4 - | 3 - - - 2 - . . ',
@@ -58,7 +60,7 @@ const MELODIES: Partial<Record<Exclude<Track, 'none'>, string>> = {
   festival:   '0 2 4 2 0 2 4 5 | 4 - 2 - 0 - . . | 1 3 4 3 1 3 4 6 | 5 - 4 - 2 - . . ',
   emotional:  '2 - - 3 4 - - . | 3 - 2 - 1 - - . | 0 - - 1 2 - - . | 1 - - - - - - . ',
 };
-const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { title: true, town: true, restaurant: true, restaurant_night: true, home: true, garden: true, stars: true, emotional: true, beach: true };
+const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { title: true, town: true, restaurant: true, restaurant_night: true, kitchen: true, home: true, garden: true, stars: true, emotional: true, beach: true };
 
 function parseMelody(src: string): (number | null | '-')[] {
   return src.replace(/\|/g, ' ').trim().split(/\s+/).map((t) => (t === '.' ? null : t === '-' ? '-' : Number(t)));
@@ -143,6 +145,10 @@ class AudioEngine {
     this.amb.gain.setTargetAtTime(settings.ambience * 0.35, t, 0.2);
   }
 
+  currentTrack(): Track {
+    return this.current === 'none' ? this.pendingTrack : this.current;
+  }
+
   play(track: Track) {
     this.pendingTrack = track;
     if (!this.ctx || track === this.current) return;
@@ -153,6 +159,23 @@ class AudioEngine {
     this.step = 0;
     this.nextTime = this.ctx.currentTime + 0.3;
     this.timer = window.setInterval(() => this.schedule(), 100);
+  }
+
+  /** Dip the music and bring the next tune in. Volumes still follow the player settings. */
+  crossfade(track: Track) {
+    if (!this.ctx || !this.music) {
+      this.play(track);
+      return;
+    }
+    if (track === this.current) return;
+    const t = this.ctx.currentTime;
+    const target = settings.music * 0.35;
+    const now = Math.max(0.0001, this.music.gain.value);
+    this.music.gain.cancelScheduledValues(t);
+    this.music.gain.setValueAtTime(now, t);
+    this.music.gain.linearRampToValueAtTime(0.0001, t + 0.28);
+    this.play(track);
+    this.music.gain.linearRampToValueAtTime(Math.max(0.0001, target), t + 0.9);
   }
 
   private schedule() {
@@ -381,6 +404,8 @@ class AudioEngine {
       case 'pickup': tone(784, 0, 0.07, 'triangle', 0.2); tone(1175, 0.06, 0.12, 'triangle', 0.18); break;
       case 'cut': noiseHit(0, 0.08, 3500, 0.5); tone(1400, 0, 0.04, 'sine', 0.08, 0.6); break;
       case 'place': tone(330, 0, 0.09, 'sine', 0.25, 0.7); noiseHit(0, 0.05, 900, 0.2); break;
+      case 'rice': noiseHit(0, 0.07, 1400, 0.12); tone(520, 0, 0.05, 'sine', 0.04); break;
+      case 'steam': tone(660, 0, 0.22, 'sine', 0.06, 1.4); noiseHit(0, 0.18, 1800, 0.08); break;
       case 'roll': noiseHit(0, 0.18, 700, 0.25); break;
       case 'success': [523, 659, 784, 1046].forEach((f, i) => tone(f, i * 0.08, 0.25, 'triangle', 0.15)); break;
       case 'error': tone(220, 0, 0.12, 'triangle', 0.15); tone(196, 0.1, 0.16, 'triangle', 0.13); break;

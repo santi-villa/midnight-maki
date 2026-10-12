@@ -57,7 +57,7 @@ export function installCoach() {
   bus.on('zone:enter', ({ zone }) => {
     if (zone === 'plaza' && game.has('arrived')) arrival();
     if (zone === 'restaurant' && game.has('tut_spicy')) show({ id: 'bag', who: 'spicy', target: '.hud-buttons .icon-btn:nth-child(1)', text: 'En la Mochila están tus ingredientes. ¡Sin arroz no hay sushi, y sin sushi no hay gloria!' });
-    if (zone === 'home') show({ id: 'menu', who: 'pip', target: '.hud-buttons .icon-btn:nth-child(4)', text: 'En el Menú está Decorar, el ropero, la cámara y para descansar. ¡Mi cuarto es el más lindo, igual!' });
+    if (zone === 'home') show({ id: 'menu', who: 'pip', target: '.ctx-dock', text: 'En tu cuarto, el de la izquierda, aparece Decorar. Junto a tu cama, Dormir. El Menú queda para el ropero, la cámara y los ajustes.' });
   });
   bus.on('interact:available', ({ label }) => {
     if (label) show({ id: 'act', who: 'spicy', target: '.hud-interact', text: 'Cuando aparece este botón grande, tocalo para hablar o usar lo que tenés cerca.' });
