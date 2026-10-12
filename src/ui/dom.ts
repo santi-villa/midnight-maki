@@ -83,11 +83,13 @@ export function panel(opts: {
 }
 
 /** Escape closes the top-most modal */
-window.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape' || !stack.length) return;
-  const top = stack[stack.length - 1].el as any;
-  if (top.__close && !top.dataset.noesc) top.__close();
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !stack.length) return;
+    const top = stack[stack.length - 1].el as any;
+    if (top.__close && !top.dataset.noesc) top.__close();
+  });
+}
 
 export function confirmBox(text: string, yes = 'Sí', no = 'Cancelar'): Promise<boolean> {
   return new Promise((resolve) => {

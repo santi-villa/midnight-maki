@@ -7,6 +7,7 @@ import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
 import { ZONES } from '../data/zones';
 import { world } from '../scenes/WorldScene';
+import { currentQuestTarget } from '../quests/quests';
 import { portraitURL } from '../systems/appearance';
 import { whereIs } from '../systems/npcs';
 import { h, panel } from './dom';
@@ -180,17 +181,37 @@ export function openWorldMap() {
   const img = h('img', { class: 'wmap-art', src: paintingURL(), alt: 'Mapa de Villa Nori', draggable: 'false' });
   wrap.append(img);
   const info = h('div', { class: 'wmap-info card' }, 'Tocá un lugar para ver qué hay.');
+  const qTarget = currentQuestTarget();
+  let questTargetZone: string | null = null;
+  if (qTarget) {
+    if (qTarget.kind === 'npc') {
+      questTargetZone = whereIs(qTarget.npc);
+    } else if (qTarget.kind === 'interior') {
+      questTargetZone = qTarget.fromZone;
+    } else if (qTarget.kind === 'location' || qTarget.kind === 'object') {
+      questTargetZone = qTarget.zone;
+    }
+    if (questTargetZone === 'home' || questTargetZone === 'storage') {
+      questTargetZone = 'restaurant';
+    }
+  }
+
   const here = hereZone();
   for (const p of PLACES) {
     const open = !p.flag || game.has(p.flag);
+    const isTarget = p.id === questTargetZone;
     const plate = h('button', {
-      class: 'wmap-plate' + (open ? '' : ' locked') + (p.id === here ? ' here' : ''),
-      style: { left: (p.x / MW) * 100 + '%', top: (p.y / MH) * 100 + '%' },
+      class: 'wmap-plate' + (open ? '' : ' locked') + (p.id === here ? ' here' : '') + (isTarget ? ' target' : ''),
+      style: {
+        left: (p.x / MW) * 100 + '%',
+        top: (p.y / MH) * 100 + '%',
+        borderColor: isTarget ? '#d97d27' : undefined,
+      },
       onclick: () => {
         info.innerHTML = '';
-        info.append(h('b', null, open ? p.name : '???'), h('div', { class: 'hint' }, open ? p.desc : 'Todavía no descubriste este lugar.'));
+        info.append(h('b', null, (open ? p.name : '???') + (isTarget ? ' ✦ Misión' : '')), h('div', { class: 'hint' }, open ? p.desc : 'Todavía no descubriste este lugar.'));
       },
-    }, open ? p.name : '???');
+    }, (open ? p.name : '???') + (isTarget && p.id !== here ? ' ✦' : ''));
     wrap.append(plate);
     if (p.id === here) {
       wrap.append(h('div', { class: 'wmap-you', style: { left: (p.x / MW) * 100 + '%', top: (p.y / MH) * 100 + '%' } }, h('img', { src: portraitURL('player', 'happy'), alt: '' }), h('span', null, 'Estás acá')));
@@ -212,5 +233,6 @@ export function openWorldMap() {
     wrap.append(row);
   }
   const legend = h('div', { class: 'hint', style: { marginTop: '6px' } }, 'Mapaches: ' + ['pip', 'spicy', 'rigg'].map((r) => `${CHARACTERS.find((c) => c.id === r)!.name} — ${ZONES[whereIs(r) ?? '']?.name ?? 'paseando'}`).join(' · '));
-  panel({ title: 'Mapa de Villa Nori', body: h('div', null, wrap, info, legend) });
+  const qHint = qTarget?.label ? h('div', { class: 'hint', style: { marginTop: '4px', color: '#b85d19', fontWeight: 'bold' } }, `✦ Objetivo actual: ${qTarget.label}`) : null;
+  panel({ title: 'Mapa de Villa Nori', body: h('div', null, wrap, info, legend, qHint) });
 }
