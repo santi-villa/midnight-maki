@@ -8,9 +8,12 @@ import { fade, sleep } from '../ui/dom';
 import { clock } from './time';
 
 export async function sleepNow() {
+  const { showDaySummary, snapshotDay } = await import('../ui/daySummary');
+  await showDaySummary();
   await fade(true, 600);
   audio.play('home');
   clock.newDay();
+  snapshotDay();
   // morning: wake up in your room
   await world.enterZone('home', 3, 5, 'down', false);
   await sleep(300);
