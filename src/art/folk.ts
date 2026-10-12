@@ -1,6 +1,6 @@
 /**
  * "Folk" renderer: the detailed pixel-art villagers (animal folk and people) of the second art direction.
- * Frames are FOLK_W x FOLK_H (32x44) with the feet on the last rows. Each character is a data spec (species shape,
+ * Frames are FOLK_W x FOLK_H (24x39 at the default scale) with the feet on the last rows. Each character is a data spec (species shape,
  * fur palette, outfit, accessories); the same code draws every direction, walking frame and expression.
  *
  * Each body part is drawn flat on its own canvas with a 3-tone shading pass (light top-left, shade bottom-right),
@@ -10,12 +10,21 @@ import type { Dir } from '../core/types';
 import { ctx2d, makeCanvas, mix, px, shade, type Ctx } from './pixel';
 import { bodyAcc, headAcc } from './raccoon';
 
-export const FOLK_W = 32;
-export const FOLK_H = 52;
-/** Empty rows above the 44-row figure: room for tall ears and hats. */
-export const FOLK_PAD = 8;
-let FW = FOLK_W; // frame width of the character being drawn (wide characters get a wider frame)
-let AX = FOLK_W / 2; // symmetry axis (a pixel boundary)
+/**
+ * Everything is designed on a 32x52 "design grid" and rasterised at FOLK_SCALE (0.75), so the sprites stay crisp
+ * pixel art but come out chibi-sized (about 24x39 px, close to the previous characters).
+ */
+export const FOLK_SCALE = 0.75;
+const K = FOLK_SCALE;
+const DW = 32; // design frame width
+const DH = 52; // design frame height
+const DPAD = 8; // empty design rows above the figure: room for tall ears and hats
+export const FOLK_W = Math.round(DW * K);
+export const FOLK_H = Math.round(DH * K);
+/** Transparent rows above the figure in the output frame (used for speech-bubble placement). */
+export const FOLK_PAD = Math.round(DPAD * K);
+let FW = DW; // design width of the character being drawn (wide characters get a wider frame)
+let AX = DW / 2; // symmetry axis in design units
 
 export type FolkExpr = 'neutral' | 'blink' | 'happy' | 'surprised' | 'sad' | 'smug' | 'sleep';
 export type FolkArms = 'cook1' | 'cook2' | 'wave1' | 'wave2' | 'read';
@@ -88,11 +97,14 @@ function fill(c: Ctx, box: Box, inside: Test, base: string, o: { lt?: string; dk
   const dk = o.dk ?? shade(base, -0.2);
   const w = Math.max(1, box.x1 - box.x0);
   const h = Math.max(1, box.y1 - box.y0);
-  for (let y = Math.floor(box.y0); y < Math.ceil(box.y1); y++)
-    for (let x = Math.floor(box.x0); x < Math.ceil(box.x1); x++) {
-      if (!inside(x + 0.5, y + 0.5)) continue;
-      const u = (x + 0.5 - box.x0) / w; // 0..1
-      const v = (y + 0.5 - box.y0) / h;
+  // sample the analytic shape at the centre of every OUTPUT pixel: crisp edges, no blur
+  for (let y = Math.floor(box.y0 * K); y < Math.ceil(box.y1 * K); y++)
+    for (let x = Math.floor(box.x0 * K); x < Math.ceil(box.x1 * K); x++) {
+      const dx = (x + 0.5) / K;
+      const dy = (y + 0.5) / K;
+      if (!inside(dx, dy)) continue;
+      const u = (dx - box.x0) / w; // 0..1
+      const v = (dy - box.y0) / h;
       let col = base;
       if (!o.flat) {
         if (v > 0.74 || (u > 0.8 && v > 0.35)) col = dk;
@@ -112,26 +124,32 @@ const tri = (ax: number, ay: number, bx: number, by: number, cx: number, cy: num
 };
 const boxOf = (cx: number, cy: number, rx: number, ry: number): Box => ({ x0: cx - rx, y0: cy - ry, x1: cx + rx, y1: cy + ry });
 
-const dot = (c: Ctx, x: number, y: number, col: string, w = 1, h = 1) => px(c, Math.round(x), Math.round(y), col, w, h);
+/** a rectangle given in design units, drawn at least 1 output pixel wide/tall */
+const dot = (c: Ctx, x: number, y: number, col: string, w = 1, h = 1) => {
+  const x0 = Math.round(x * K);
+  const y0 = Math.round(y * K);
+  px(c, x0, y0, col, Math.max(1, Math.round((x + w) * K) - x0), Math.max(1, Math.round((y + h) * K) - y0));
+};
 
 /** each part on its own canvas, 1px contour, stacked */
 function stack(spec: FolkSpec, layers: ((c: Ctx) => void)[], after?: (c: Ctx) => void): HTMLCanvasElement {
-  const out = makeCanvas(FW, FOLK_H);
+  const OW = Math.round(FW * K);
+  const out = makeCanvas(OW, FOLK_H);
   const o = ctx2d(out);
   const ink = spec.ink ?? '#2c2230';
   for (const l of layers) {
-    const cv = makeCanvas(FW, FOLK_H);
+    const cv = makeCanvas(OW, FOLK_H);
     const g = ctx2d(cv);
     g.translate(0, FOLK_PAD);
     l(g);
     g.setTransform(1, 0, 0, 1, 0, 0);
     // contour
-    const img = g.getImageData(0, 0, FW, FOLK_H);
+    const img = g.getImageData(0, 0, OW, FOLK_H);
     const a = img.data;
-    const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < FW && y < FOLK_H && a[(y * FW + x) * 4 + 3] > 0;
+    const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < OW && y < FOLK_H && a[(y * OW + x) * 4 + 3] > 0;
     const pts: number[] = [];
     for (let y = 0; y < FOLK_H; y++)
-      for (let x = 0; x < FW; x++) if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) pts.push(x, y);
+      for (let x = 0; x < OW; x++) if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) pts.push(x, y);
     g.fillStyle = ink;
     for (let i = 0; i < pts.length; i += 2) g.fillRect(pts[i], pts[i + 1], 1, 1);
     o.drawImage(cv, 0, 0);
@@ -172,13 +190,13 @@ function geo(spec: FolkSpec, pose: FolkPose, side: boolean): Geo {
   return {
     dy,
     headCx: side ? AX + 0.5 : AX,
-    headCy: 17.4 + dy,
-    headRx: side ? 10 : 11.2,
-    headRy: 8.7,
-    torsoTop: 25 + dy,
-    torsoBot: 35 + (pose.sit ? 3 : 0) + (pose.sit ? 0 : 0),
-    hw: (side ? 5 : 6.4) + (spec.wide ?? 0) * (side ? 0.6 : 1),
-    legTop: 34 + (pose.sit ? 3 : 0),
+    headCy: 18.4 + dy,
+    headRx: side ? 11 : 12.2,
+    headRy: 9.6,
+    torsoTop: 26.6 + dy,
+    torsoBot: 34.6 + (pose.sit ? 3 : 0),
+    hw: (side ? 4.8 : 6) + (spec.wide ?? 0) * (side ? 0.6 : 1),
+    legTop: 33.8 + (pose.sit ? 3 : 0),
   };
 }
 
@@ -233,177 +251,172 @@ function earsLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
 }
 
 // ------------------------------------------------------------------ face
+// Faces are drawn straight in OUTPUT pixels (not design units) so both eyes always match exactly.
 function faceFront(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
-  const { headCx: cx, headCy: cy } = g;
+  const { headCx, headCy } = g;
+  const cx = Math.round(headCx * K);
+  const cyo = headCy * K;
+  const ey = Math.round(cyo - 1.7);
   const eyeCol = spec.eye;
-  const ey = Math.round(cy - 1.6);
-  const gap = 4.9;
+  // mask + muzzle are soft shapes (design units)
   const mask = spec.mask;
+  const dcy = headCy;
   if (mask) {
     for (const s of [-1, 1]) {
-      const mx = cx + s * 5.6;
-      fill(c, boxOf(mx, ey + 1.3, 4.6, 3.3), ell(mx, ey + 1.3, 4.6, 3.3, 2.2), mask, { flat: true });
+      const mx = headCx + s * 6;
+      fill(c, boxOf(mx, dcy + 0.4, 5.2, 4.2), ell(mx, dcy + 0.4, 5.2, 4.2, 2.2), mask, { flat: true });
     }
-    fill(c, boxOf(cx, ey + 0.5, 1.6, 2.6), rect(cx - 1.6, ey - 1, cx + 1.6, ey + 3), mask, { flat: true });
+    fill(c, boxOf(headCx, dcy, 2, 3.4), rect(headCx - 2, dcy - 2.6, headCx + 2, dcy + 3), mask, { flat: true });
   }
-  // muzzle
-  if (spec.furLight) {
-    fill(c, boxOf(cx, cy + 5.2, 5.4, 3.6), ell(cx, cy + 5.2, 5.4, 3.6, 2.2), spec.furLight, { lt: shade(spec.furLight, 0.1), dk: shade(spec.furLight, -0.1) });
-  }
-  if (spec.headMark) fill(c, boxOf(cx, cy - 7, 1.6, 2.5), rect(cx - 1.6, cy - 9, cx + 1.6, cy - 5), spec.headMark, { flat: true });
-  // eyes
-  const eyeX = [cx - gap, cx + gap];
-  for (let i = 0; i < 2; i++) {
-    const ex = Math.round(eyeX[i] - 1);
-    const sign = i === 0 ? -1 : 1;
+  if (spec.furLight) fill(c, boxOf(headCx, dcy + 5.6, 5.8, 3.8), ell(headCx, dcy + 5.6, 5.8, 3.8, 2.2), spec.furLight, { lt: shade(spec.furLight, 0.1), dk: shade(spec.furLight, -0.1) });
+  if (spec.headMark) fill(c, boxOf(headCx, dcy - 7, 1.6, 2.5), rect(headCx - 1.6, dcy - 9, headCx + 1.6, dcy - 5), spec.headMark, { flat: true });
+  for (const left of [true, false]) {
+    const x0 = left ? cx - 6 : cx + 3;
     switch (expr) {
       case 'blink':
       case 'sleep':
-        dot(c, ex - 1, ey + 2, eyeCol, 4, 1);
+        px(c, x0, ey + 2, eyeCol, 3, 1);
         break;
       case 'happy':
-        dot(c, ex - 1, ey + 2, eyeCol, 1, 1);
-        dot(c, ex, ey + 1, eyeCol, 2, 1);
-        dot(c, ex + 2, ey + 2, eyeCol, 1, 1);
+        px(c, x0, ey + 2, eyeCol);
+        px(c, x0 + 1, ey + 1, eyeCol);
+        px(c, x0 + 2, ey + 2, eyeCol);
         break;
       case 'surprised':
-        dot(c, ex - 1, ey - 1, eyeCol, 4, 5);
-        dot(c, ex, ey, '#ffffff', 1, 1);
+        px(c, x0, ey - 1, eyeCol, 3, 5);
+        px(c, x0, ey - 1, '#ffffff');
         break;
       case 'sad':
-        dot(c, ex, ey, eyeCol, 2, 4);
-        dot(c, ex, ey, '#ffffff', 1, 1);
-        dot(c, ex - 1 + (sign > 0 ? 0 : 0), ey - 2 + (sign < 0 ? 1 : 0), eyeCol, 3, 1);
+        px(c, x0, ey, eyeCol, 3, 4);
+        px(c, x0, ey, '#ffffff');
+        px(c, x0 + (left ? 1 : 0), ey - 2, eyeCol, 2, 1);
         break;
       case 'smug':
-        dot(c, ex, ey + 1, eyeCol, 2, 3);
-        dot(c, ex - 1, ey + 1, eyeCol, 4, 1);
-        dot(c, ex, ey + 1, shade(spec.fur, -0.1), 2, 1);
+        px(c, x0, ey + 1, eyeCol, 3, 3);
+        px(c, x0, ey + 1, shade(spec.fur, -0.12), 3, 1);
         break;
       default:
-        dot(c, ex - (sign < 0 ? 1 : 0), ey, eyeCol, 3, 4);
-        dot(c, ex - (sign < 0 ? 1 : 0), ey, '#ffffff', 1, 1);
-        dot(c, ex - (sign < 0 ? 1 : 0) + 2, ey + 3, shade(eyeCol, 0.25), 1, 1);
+        px(c, x0, ey, eyeCol, 3, 4);
+        px(c, x0, ey, '#ffffff');
+        px(c, x0 + 2, ey + 3, shade(eyeCol, 0.3));
     }
   }
-  if (spec.blush && expr !== 'sad') for (const s of [-1, 1]) dot(c, cx + s * 8.2 - 1.5, ey + 4, spec.blush, 3, 2);
-  // nose + mouth
-  const ny = Math.round(cy + 3.4);
-  dot(c, cx - 1, ny, spec.nose, 2, 1);
-  dot(c, cx - 1, ny + 1, shade(spec.nose, 0.1), 2, 1);
+  if (spec.blush && expr !== 'sad') {
+    px(c, cx - 8, ey + 3, spec.blush, 2, 1);
+    px(c, cx + 6, ey + 3, spec.blush, 2, 1);
+  }
+  const ny = ey + 4;
+  px(c, cx - 1, ny, spec.nose, 2, 1);
   const my = ny + 2;
   const mc = shade(spec.nose, -0.1);
   if (expr === 'happy') {
-    dot(c, cx - 2, my, mc);
-    dot(c, cx + 1, my, mc);
-    dot(c, cx - 1, my + 1, mc, 2, 1);
-  } else if (expr === 'surprised') dot(c, cx - 1, my, mc, 2, 2);
+    px(c, cx - 2, my, mc);
+    px(c, cx + 1, my, mc);
+    px(c, cx - 1, my + 1, mc, 2, 1);
+  } else if (expr === 'surprised') px(c, cx - 1, my, mc, 2, 2);
   else if (expr === 'sad') {
-    dot(c, cx - 1, my, mc, 2, 1);
-    dot(c, cx - 2, my + 1, mc);
-    dot(c, cx + 1, my + 1, mc);
+    px(c, cx - 1, my, mc, 2, 1);
+    px(c, cx - 2, my + 1, mc);
+    px(c, cx + 1, my + 1, mc);
   } else if (expr === 'smug') {
-    dot(c, cx - 1, my, mc, 3, 1);
-    dot(c, cx + 2, my - 1, mc);
+    px(c, cx - 2, my + 1, mc, 3, 1);
+    px(c, cx + 1, my, mc);
   } else {
-    dot(c, cx - 2, my, mc);
-    dot(c, cx - 1, my + 1, mc);
-    dot(c, cx, my + 1, mc);
-    dot(c, cx + 1, my, mc);
+    px(c, cx - 2, my, mc);
+    px(c, cx - 1, my + 1, mc, 2, 1);
+    px(c, cx + 1, my, mc);
   }
   if (spec.glasses) {
-    for (const ex of eyeX) {
-      const x0 = Math.round(ex - 3);
-      px(c, x0, ey - 1, spec.glasses, 6, 1);
-      px(c, x0, ey + 4, spec.glasses, 6, 1);
+    for (const left of [true, false]) {
+      const x0 = (left ? cx - 6 : cx + 3) - 1;
+      px(c, x0, ey - 1, spec.glasses, 5, 1);
+      px(c, x0, ey + 4, spec.glasses, 5, 1);
       px(c, x0, ey - 1, spec.glasses, 1, 6);
-      px(c, x0 + 5, ey - 1, spec.glasses, 1, 6);
+      px(c, x0 + 4, ey - 1, spec.glasses, 1, 6);
     }
-    px(c, Math.round(cx - 1), ey + 1, spec.glasses, 2, 1);
+    px(c, cx - 1, ey + 1, spec.glasses, 2, 1);
   }
 }
 
 function faceHuman(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx, view: 'front' | 'side') {
-  const { headCx: cx, headCy: cy } = g;
-  const ey = Math.round(cy - 1);
+  const { headCx, headCy } = g;
+  const cx = Math.round(headCx * K);
+  const ey = Math.round(headCy * K - 1.2);
   const skin = spec.fur;
   const brow = spec.hair?.c ?? shade(skin, -0.4);
-  const eyes = view === 'front' ? [cx - 4.6, cx + 3.6] : [cx + 4.2];
-  for (const ex0 of eyes) {
-    const ex = Math.round(ex0);
-    if (expr === 'blink' || expr === 'sleep') dot(c, ex, ey + 2, spec.eye, 2, 1);
+  const xs = view === 'front' ? [cx - 5, cx + 3] : [cx + 3];
+  for (const x0 of xs) {
+    if (expr === 'blink' || expr === 'sleep') px(c, x0, ey + 2, spec.eye, 2, 1);
     else if (expr === 'happy') {
-      dot(c, ex, ey + 2, spec.eye);
-      dot(c, ex + 1, ey + 1, spec.eye);
-      dot(c, ex + 2, ey + 2, spec.eye);
+      px(c, x0, ey + 2, spec.eye);
+      px(c, x0 + 1, ey + 1, spec.eye);
     } else {
-      dot(c, ex, ey + (expr === 'surprised' ? 0 : 1), spec.eye, 2, expr === 'surprised' ? 4 : 3);
-      dot(c, ex, ey + (expr === 'surprised' ? 0 : 1), '#ffffff', 1, 1);
+      px(c, x0, ey + (expr === 'surprised' ? 0 : 1), spec.eye, 2, expr === 'surprised' ? 4 : 3);
+      px(c, x0, ey + (expr === 'surprised' ? 0 : 1), '#ffffff');
     }
-    // brows (sad: slanted up in the middle, smug: one higher)
-    const by = ey - (expr === 'surprised' ? 3 : 1.6);
-    dot(c, ex - 1, by + (expr === 'sad' ? 1 : 0), brow, 3, 1);
+    px(c, x0 - 1, ey - (expr === 'surprised' ? 2 : 0) + (expr === 'sad' ? 1 : 0), brow, 3, 1);
   }
-  if (spec.blush) for (const bx of view === 'front' ? [cx - 7.6, cx + 5] : [cx + 2]) dot(c, bx, ey + 4, spec.blush, 3, 2);
-  const nx = view === 'front' ? cx - 1 : cx + 8;
-  dot(c, nx, cy + 2, shade(skin, -0.2), view === 'front' ? 2 : 2, 2);
-  dot(c, nx, cy + 3, shade(skin, -0.32), view === 'front' ? 2 : 1, 1);
+  if (spec.blush) for (const bx of view === 'front' ? [cx - 8, cx + 6] : [cx + 1]) px(c, bx, ey + 3, spec.blush, 2, 1);
+  const nx = view === 'front' ? cx - 1 : cx + 6;
+  px(c, nx, ey + 3, shade(skin, -0.22), 2, 2);
   if (spec.beard) {
     const bc = spec.beard;
-    const bx = view === 'front' ? cx : cx + 2.4;
-    const test: Test = (x, y) => y >= cy + 3.6 && ell(bx, cy + 3, view === 'front' ? 8.6 : 5.6, 7, 2)(x, y) && !(view === 'front' && Math.abs(x - bx) < 2 && y < cy + 5.6) && x < cx + 9.4;
-    fill(c, { x0: bx - 9, y0: cy + 3, x1: bx + 9, y1: cy + 11 }, test, bc, { lt: shade(bc, 0.2) });
-    if (view === 'front') dot(c, nx - 2, cy + 4, bc, 6, 1);
-    else dot(c, nx - 3, cy + 4, bc, 4, 1);
+    const bx = view === 'front' ? headCx : headCx + 2.4;
+    const test: Test = (x, y) => y >= headCy + 4 && ell(bx, headCy + 3, view === 'front' ? 9 : 5.8, 7.2, 2)(x, y) && !(view === 'front' && Math.abs(x - bx) < 2.2 && y < headCy + 6.4) && x < headCx + 9.6;
+    fill(c, { x0: bx - 10, y0: headCy + 3, x1: bx + 10, y1: headCy + 12 }, test, bc, { lt: shade(bc, 0.2) });
+    if (view === 'front') px(c, cx - 3, ey + 4, bc, 6, 1);
   }
-  const mx = view === 'front' ? cx - 1 : cx + 6;
-  const mc = spec.beard ? shade(spec.beard, -0.45) : shade(skin, -0.38);
+  const mx = view === 'front' ? cx - 1 : cx + 5;
+  const my = ey + 6;
+  const mc = spec.beard ? shade(spec.beard, -0.45) : shade(skin, -0.4);
   if (expr === 'happy') {
-    dot(c, mx - 1, cy + 6, mc);
-    dot(c, mx, cy + 7, mc, 2, 1);
-    dot(c, mx + 2, cy + 6, mc);
-  } else if (expr === 'surprised') dot(c, mx, cy + 6, mc, 2, 2);
+    px(c, mx - 1, my, mc);
+    px(c, mx, my + 1, mc, 2, 1);
+    px(c, mx + 2, my, mc);
+  } else if (expr === 'surprised') px(c, mx, my, mc, 2, 2);
   else if (expr === 'sad') {
-    dot(c, mx, cy + 6, mc, 2, 1);
-    dot(c, mx - 1, cy + 7, mc);
-    dot(c, mx + 2, cy + 7, mc);
-  } else dot(c, mx - 0, cy + 6, mc, 3, 1);
+    px(c, mx, my, mc, 2, 1);
+    px(c, mx - 1, my + 1, mc);
+    px(c, mx + 2, my + 1, mc);
+  } else px(c, mx, my, mc, 2, 1);
   if (spec.glasses) {
-    for (const ex0 of eyes) {
-      const x0 = Math.round(ex0) - 2;
-      px(c, x0, ey - 1, spec.glasses, 6, 1);
-      px(c, x0, ey + 3, spec.glasses, 6, 1);
-      px(c, x0, ey - 1, spec.glasses, 1, 5);
-      px(c, x0 + 5, ey - 1, spec.glasses, 1, 5);
+    for (const x0 of xs) {
+      const gx = x0 - 1;
+      px(c, gx, ey - 1, spec.glasses, 4, 1);
+      px(c, gx, ey + 3, spec.glasses, 4, 1);
+      px(c, gx, ey - 1, spec.glasses, 1, 5);
+      px(c, gx + 3, ey - 1, spec.glasses, 1, 5);
     }
-    if (view === 'front') px(c, Math.round(cx - 1), ey + 1, spec.glasses, 2, 1);
+    if (view === 'front') px(c, cx - 1, ey + 1, spec.glasses, 2, 1);
   }
 }
 
 function faceSide(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
-  const { headCx: cx, headCy: cy } = g;
-  const ey = Math.round(cy - 1.4);
-  const ex = Math.round(cx + 4.2);
-  if (spec.mask) fill(c, boxOf(ex + 0.5, ey + 1.3, 4.2, 3.3), ell(ex + 0.5, ey + 1.3, 4.2, 3.3, 2.2), spec.mask, { flat: true });
-  if (spec.furLight) fill(c, boxOf(cx + 6.6, cy + 4.6, 4.2, 3), ell(cx + 6.6, cy + 4.6, 4.2, 3, 2.2), spec.furLight, { lt: shade(spec.furLight, 0.1), dk: shade(spec.furLight, -0.1) });
-  if (spec.headMark) dot(c, cx + 3, cy - 9, spec.headMark, 3, 3);
-  if (expr === 'blink' || expr === 'sleep') dot(c, ex - 1, ey + 2, spec.eye, 3, 1);
+  const { headCx, headCy } = g;
+  const cx = Math.round(headCx * K);
+  const ey = Math.round(headCy * K - 1.7);
+  const ex = cx + 3;
+  const dcy = headCy;
+  if (spec.mask) fill(c, boxOf(headCx + 4.4, dcy + 0.4, 5.2, 4.2), ell(headCx + 4.4, dcy + 0.4, 5.2, 4.2, 2.2), spec.mask, { flat: true });
+  if (spec.furLight) fill(c, boxOf(headCx + 7.4, dcy + 5.2, 4.6, 3.4), ell(headCx + 7.4, dcy + 5.2, 4.6, 3.4, 2.2), spec.furLight, { lt: shade(spec.furLight, 0.1), dk: shade(spec.furLight, -0.1) });
+  if (spec.headMark) fill(c, boxOf(headCx + 3, dcy - 7, 2, 2), rect(headCx + 1, dcy - 9, headCx + 5, dcy - 5), spec.headMark, { flat: true });
+  if (expr === 'blink' || expr === 'sleep') px(c, ex, ey + 2, spec.eye, 3, 1);
   else if (expr === 'happy') {
-    dot(c, ex - 1, ey + 2, spec.eye);
-    dot(c, ex, ey + 1, spec.eye, 2, 1);
-    dot(c, ex + 2, ey + 2, spec.eye);
+    px(c, ex, ey + 2, spec.eye);
+    px(c, ex + 1, ey + 1, spec.eye);
+    px(c, ex + 2, ey + 2, spec.eye);
   } else {
-    dot(c, ex, ey, spec.eye, 2, expr === 'surprised' ? 5 : 4);
-    dot(c, ex, ey, '#ffffff', 1, 1);
+    px(c, ex, ey - (expr === 'surprised' ? 1 : 0), spec.eye, 2, expr === 'surprised' ? 5 : 4);
+    px(c, ex, ey - (expr === 'surprised' ? 1 : 0), '#ffffff');
   }
-  if (spec.blush) dot(c, ex - 2, ey + 4, spec.blush, 3, 2);
-  dot(c, cx + 9.4, Math.round(cy + 3.2), spec.nose, 2, 2);
-  dot(c, cx + 7, Math.round(cy + 6.4), shade(spec.nose, -0.1), 2, 1);
+  if (spec.blush) px(c, ex - 3, ey + 3, spec.blush, 2, 1);
+  px(c, cx + 7, ey + 3, spec.nose, 2, 2);
+  px(c, cx + 5, ey + 6, shade(spec.nose, -0.1), 2, 1);
   if (spec.glasses) {
-    px(c, ex - 2, ey - 1, spec.glasses, 6, 1);
-    px(c, ex - 2, ey + 4, spec.glasses, 6, 1);
-    px(c, ex - 2, ey - 1, spec.glasses, 1, 6);
-    px(c, ex + 3, ey - 1, spec.glasses, 1, 6);
+    px(c, ex - 1, ey - 1, spec.glasses, 4, 1);
+    px(c, ex - 1, ey + 4, spec.glasses, 4, 1);
+    px(c, ex - 1, ey - 1, spec.glasses, 1, 6);
+    px(c, ex + 2, ey - 1, spec.glasses, 1, 6);
   }
 }
 
@@ -447,7 +460,7 @@ function hatLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ct
   const hat = CUSTOM?.head ? undefined : spec.hat;
   if (CUSTOM?.head) {
     const t = g.headCy - g.headRy;
-    headAcc(c, CUSTOM.head.kind, CUSTOM.head.c1, CUSTOM.head.c2, g.headCx, Math.round(t) - 1, 9, view);
+    headAcc(c, CUSTOM.head.kind, CUSTOM.head.c1, CUSTOM.head.c2, Math.round(g.headCx * K), Math.round(t * K) - 1, 8, view);
     return;
   }
   if (!hat || hat.kind === 'none') return;
@@ -514,7 +527,7 @@ function hatLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ct
 function legsLayer(spec: FolkSpec, g: Geo, pose: FolkPose, view: 'front' | 'side' | 'back', c: Ctx) {
   const top = g.legTop;
   const lc = spec.legsColor;
-  const bottom = 42;
+  const bottom = 40.8;
   const sit = !!pose.sit;
   const mk = (x0: number, w: number, y1: number) => {
     fill(c, { x0, y0: top, x1: x0 + w, y1 }, rect(x0, top, x0 + w, y1), lc);
@@ -546,7 +559,7 @@ function legsLayer(spec: FolkSpec, g: Geo, pose: FolkPose, view: 'front' | 'side
 
 function skirtLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ctx) {
   if (spec.legs !== 'skirt' && spec.legs !== 'robe') return;
-  const hem = spec.legs === 'robe' ? 41 : 37.5;
+  const hem = spec.legs === 'robe' ? 40 : 37;
   const w = (view === 'side' ? 6.2 : 8.4) + (spec.wide ?? 0) + (spec.legs === 'robe' ? 1.2 : 0);
   const col = spec.skirtC ?? spec.legsColor;
   const test: Test = (x, y) => {
@@ -563,8 +576,8 @@ function torsoLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: 
   const test: Test = (x, y) => {
     if (y < g.torsoTop || y >= g.torsoBot) return false;
     if (pear) {
-      const cyb = g.torsoTop + 6.4;
-      const k = (y - cyb) / 6.6;
+      const cyb = g.torsoTop + 4.6;
+      const k = (y - cyb) / 5;
       return Math.abs(x - cx) <= hw * Math.sqrt(Math.max(0, 1 - k * k)) + 0.4;
     }
     const t = (y - g.torsoTop) / (g.torsoBot - g.torsoTop);
@@ -581,7 +594,7 @@ function torsoLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: 
     fill(c, boxOf(bcx, by, rx, ry), ell(bcx, by, rx, ry, 2.2), b.c, { lt: shade(b.c, 0.08), dk: shade(b.c, -0.1) });
   }
   if (CUSTOM?.extra) {
-    bodyAcc(c, CUSTOM.extra.kind, CUSTOM.extra.c1, CUSTOM.extra.c2, Math.round(cx), Math.round(g.torsoTop + 8), Math.round(hw) + 1, view);
+    bodyAcc(c, CUSTOM.extra.kind, CUSTOM.extra.c1, CUSTOM.extra.c2, Math.round(cx * K), Math.round((g.torsoTop + 7) * K), Math.round(hw * K) + 1, view);
     return;
   }
   // decorations that live on the torso (hidden from the back unless noted)
@@ -680,7 +693,7 @@ function armLayer(spec: FolkSpec, g: Geo, pose: FolkPose, view: 'front' | 'side'
       mk(AX + 2, top + 2, 6);
       return;
     }
-    mk(Math.round(ax), top, 8);
+    mk(Math.round(ax), top, 7);
     return;
   }
   const arms = pose.arms;
@@ -698,15 +711,15 @@ function armLayer(spec: FolkSpec, g: Geo, pose: FolkPose, view: 'front' | 'side'
     return;
   }
   if (arms === 'wave1' || arms === 'wave2') {
-    if (L) mk(AX - hw - 1.4, top + 1, 8);
+    if (L) mk(AX - hw - 1.4, top + 1, 7);
     if (R) {
       const wx = arms === 'wave1' ? AX + hw + 1.2 : AX + hw + 2.4;
       mk(wx, top - 7, 9);
     }
     return;
   }
-  if (L) mk(AX - hw - 1.6, top + (pose.legs === 'a' ? 1 : 0) + 0.5 * swing, 8);
-  if (R) mk(AX + hw - 1.4, top + (pose.legs === 'b' ? 1 : 0), 8);
+  if (L) mk(AX - hw - 1.6, top + (pose.legs === 'a' ? 1 : 0) + 0.5 * swing, 7);
+  if (R) mk(AX + hw - 1.4, top + (pose.legs === 'b' ? 1 : 0), 7);
 }
 
 // ------------------------------------------------------------------ tails
@@ -764,7 +777,7 @@ function headLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
 // ------------------------------------------------------------------ one frame
 export function folkFrame(spec: FolkSpec, pose: FolkPose, custom?: FolkCustom): HTMLCanvasElement {
   CUSTOM = custom;
-  FW = spec.frameW ?? FOLK_W;
+  FW = spec.frameW ?? DW;
   AX = FW / 2;
   const side = pose.dir === 'left' || pose.dir === 'right';
   const view: 'front' | 'side' | 'back' = pose.dir === 'down' ? 'front' : pose.dir === 'up' ? 'back' : 'side';
@@ -795,8 +808,8 @@ export function folkFrame(spec: FolkSpec, pose: FolkPose, custom?: FolkCustom): 
     if (pose.arms === 'read') {
       const by = g.torsoTop + 5;
       fill(o, { x0: AX - 4, y0: by, x1: AX + 4, y1: by + 6 }, rect(AX - 4, by, AX + 4, by + 5), '#e9d3a5', { lt: '#f6e7c4' });
-      px(o, AX, by, '#8a5a3c', 1, 5);
-      px(o, AX - 4, by + 4, '#8a5a3c', 8, 1);
+      dot(o, AX, by, '#8a5a3c', 1, 5);
+      dot(o, AX - 4, by + 4, '#8a5a3c', 8, 1);
     }
   });
   return pose.dir === 'left' ? mirrorCanvas(canvas) : canvas;
@@ -818,21 +831,22 @@ const SPECS: Omit<FolkPose, 'bob'>[] = [
 
 export function buildFolkSheet(spec: FolkSpec, custom?: FolkCustom): { canvas: HTMLCanvasElement; fw: number; fh: number } {
   const frames = SPECS.map((sp, i) => folkFrame(spec, { ...sp, bob: sp.legs !== 'idle' ? -1 : i >= 20 && i < 24 ? 1 : 0 }, custom));
-  const canvas = makeCanvas(FW * frames.length, FOLK_H);
+  const fw = frames[0].width;
+  const canvas = makeCanvas(fw * frames.length, FOLK_H);
   const g = ctx2d(canvas);
-  frames.forEach((f, i) => g.drawImage(f, i * FW, 0));
-  return { canvas, fw: FW, fh: FOLK_H };
+  frames.forEach((f, i) => g.drawImage(f, i * fw, 0));
+  return { canvas, fw, fh: FOLK_H };
 }
 
 /** Head-and-shoulders portrait from the front frame, upscaled with crisp pixels. */
-export function buildFolkPortrait(spec: FolkSpec, expr: FolkExpr, scale = 5, custom?: FolkCustom): HTMLCanvasElement {
+export function buildFolkPortrait(spec: FolkSpec, expr: FolkExpr, scale = 6, custom?: FolkCustom): HTMLCanvasElement {
   const f = folkFrame(spec, { dir: 'down', legs: 'idle', expr, bob: 0 }, custom);
   const top = 1;
-  const h = 40;
-  const out = makeCanvas(FW * scale, h * scale);
+  const h = 30;
+  const out = makeCanvas(f.width * scale, h * scale);
   const o = ctx2d(out);
   o.imageSmoothingEnabled = false;
-  o.drawImage(f, 0, top, FW, h, 0, 0, FW * scale, h * scale);
+  o.drawImage(f, 0, top, f.width, h, 0, 0, f.width * scale, h * scale);
   return out;
 }
 

@@ -3,7 +3,8 @@
 Los 15 vecinos y mapaches (Pip, Spicy, Rigg, Momo, Taro, Yuki, Kumo, Nami, Hoshi, Bento, Sumi, Kiki, Sora, Abuela Ume y Akio) usan el motor nuevo `src/art/folk.ts`. Sofi todavía usa el anterior hasta que llegue su imagen.
 
 ## Qué cambió
-- Sprites de **32×52** (la figura mide 44 filas y el resto es aire para orejas largas y sombreros; Pip usa 42 de ancho). Antes eran 20×30.
+- Sprites de **24×39** (Pip, más ancho, 32×39), casi del tamaño de los anteriores (20×30), con cabeza grande y cuerpo corto para que sean más tiernos. Se diseñan en una grilla de 32×52 y se rasterizan a 0,75, así los píxeles quedan nítidos.
+- Los rostros se dibujan directo en píxeles finales, para que los dos ojos sean siempre idénticos.
 - Cada parte (cola, cuerpo, brazos, orejas, cabeza, pelo, sombrero) se pinta con 3 tonos y contorno propio, como en tu hoja de referencia.
 - Las **30 animaciones de siempre** para todos: caminar en 4 direcciones, parpadeo, feliz, sorprendido, triste, canchero, dormido, respiración, cocinar, saludar, leer y sentarse.
 - Retratos de diálogo generados con el mismo dibujo (nítidos, sin recortes borrosos de la hoja).
