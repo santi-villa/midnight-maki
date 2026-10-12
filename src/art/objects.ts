@@ -5,6 +5,7 @@
 import { PAL } from './palette';
 import { ctx2d, ellipse, makeCanvas, outline, px, rng, shade, type Ctx } from './pixel';
 import { volumize } from './shade';
+import { IZAKAYA_KINDS } from './izakaya';
 
 const OUT = '#3a2a2a';
 
@@ -315,12 +316,31 @@ const K: Record<string, DrawFn> = {
     for (const [sx, sy] of [[cx - 12, 4], [cx + 11, 7], [cx + 2, -1]]) px(c, sx, sy + 1, PAL.gold, 1, 1);
   },
   // ------------------------------------------------------------ furniture
-  table(c, W, H, c1) {
-    const top = shade(c1, 0.12);
-    px(c, 2, H - 6, shade(c1, -0.5), 2, 6);
-    px(c, W - 4, H - 6, shade(c1, -0.5), 2, 6);
-    box(c, 0, H - 16, W, 10, top, shade(c1, -0.55));
-    px(c, 1, H - 7, shade(c1, -0.2), W - 2, 2);
+  table(c, W, H, c1, _c2, _rot, r) {
+    const o = '#2b1d17';
+    const top = shade(c1, 0.14);
+    const legH = H > 18 ? 7 : 4;
+    // legs
+    for (const lx of [2, W - 4]) {
+      px(c, lx, H - legH, o, 3, legH);
+      px(c, lx + 1, H - legH, shade(c1, -0.35), 1, legH - 1);
+    }
+    // apron + top
+    px(c, 0, H - legH - 9, o, W, 10);
+    px(c, 1, H - legH - 8, top, W - 2, 6);
+    px(c, 1, H - legH - 8, shade(top, 0.18), W - 2, 1);
+    px(c, 1, H - legH - 2, shade(c1, -0.25), W - 2, 2);
+    for (let x = 6; x < W - 4; x += 9) px(c, x, H - legH - 6, shade(top, -0.06), 5, 1);
+    // little table setting: soy bottle and a tea cup
+    if (W >= 28) {
+      const sx = 4 + Math.floor(r() * 6);
+      px(c, sx, H - legH - 12, o, 3, 5);
+      px(c, sx + 1, H - legH - 11, '#7a3a2a', 1, 3);
+      px(c, sx + 1, H - legH - 13, '#c94a3f', 1, 1);
+      const cx = W - 10;
+      px(c, cx, H - legH - 10, o, 4, 3);
+      px(c, cx + 1, H - legH - 10, '#9bb59a', 2, 2);
+    }
   },
   roundtable(c, W, H, c1) {
     px(c, W / 2 - 1, H - 6, shade(c1, -0.5), 2, 6);
@@ -328,22 +348,47 @@ const K: Record<string, DrawFn> = {
     ellipse(c, W / 2, H - 10, W / 2 - 2, 4, shade(c1, 0.12));
   },
   chair(c, W, H, c1, c2, rot) {
-    const o = shade(c1, -0.55);
-    if (rot === 0 || rot === 2) {
-      // facing down (backrest at top) / facing up (backrest bottom hidden)
-      if (rot === 0) box(c, 3, H - 16, W - 6, 6, c1, o);
-      box(c, 3, H - 10, W - 6, 6, c2, o);
-      px(c, 4, H - 4, o, 1, 4);
-      px(c, W - 5, H - 4, o, 1, 4);
-      if (rot === 2) box(c, 3, H - 6, W - 6, 4, c1, o);
+    const o = '#2b1d17';
+    const wood = c1;
+    const seat = c2 || shade(c1, 0.15);
+    const leg = (x: number) => {
+      px(c, x, H - 5, o, 2, 5);
+      px(c, x, H - 5, shade(wood, -0.3), 1, 4);
+    };
+    const back = (y: number, h: number) => {
+      px(c, 3, y, o, W - 6, h);
+      px(c, 4, y + 1, wood, W - 8, h - 2);
+      px(c, 4, y + 1, shade(wood, 0.2), W - 8, 1);
+      for (let x = 6; x < W - 5; x += 3) px(c, x, y + 3, shade(wood, -0.3), 1, h - 4);
+    };
+    const seatTop = (y: number) => {
+      px(c, 3, y, o, W - 6, 5);
+      px(c, 4, y + 1, seat, W - 8, 2);
+      px(c, 4, y + 1, shade(seat, 0.2), W - 8, 1);
+      px(c, 4, y + 3, shade(wood, -0.25), W - 8, 1);
+    };
+    if (rot === 0) {
+      back(H - 18, 9);
+      seatTop(H - 10);
+      leg(4);
+      leg(W - 6);
+    } else if (rot === 2) {
+      seatTop(H - 12);
+      leg(4);
+      leg(W - 6);
+      back(H - 9, 8);
     } else {
       const left = rot === 3;
-      box(c, 4, H - 10, W - 8, 6, c2, o);
-      box(c, left ? W - 6 : 2, H - 16, 4, 13, c1, o);
-      px(c, 5, H - 4, o, 1, 4);
-      px(c, W - 6, H - 4, o, 1, 4);
+      seatTop(H - 10);
+      leg(5);
+      leg(W - 7);
+      const bx = left ? W - 6 : 2;
+      px(c, bx, H - 18, o, 4, 14);
+      px(c, bx + 1, H - 17, wood, 2, 12);
+      px(c, bx + 1, H - 17, shade(wood, 0.2), 2, 1);
     }
   },
+
   stool(c, W, H, c1) {
     ellipse(c, W / 2, H - 9, 5, 3, shade(c1, -0.4));
     ellipse(c, W / 2, H - 10, 5, 2, c1);
@@ -529,7 +574,7 @@ const K: Record<string, DrawFn> = {
     px(c, W - 5, H - 15, '#7d7a83', 1, 6);
   },
   sink(c, W, H) {
-    K.counter(c, W, H, PAL.woodL, '#d8d2c8', 0, Math.random);
+    K.kitchencounter(c, W, H, '', '', 0, Math.random);
     px(c, 3, H - 17, '#9fb6c2', W - 6, 3);
     px(c, W / 2, H - 21, '#7d7a83', 2, 4);
   },
@@ -539,7 +584,7 @@ const K: Record<string, DrawFn> = {
     px(c, 5, H - 20, PAL.red, 2, 1);
   },
   cuttingboard(c, W, H) {
-    K.counter(c, W, H, PAL.woodL, '#d8d2c8', 0, Math.random);
+    K.kitchencounter(c, W, H, '', '', 0, Math.random);
     box(c, 2, H - 19, W - 4, 5, '#e6c79b');
     px(c, W - 5, H - 20, '#c9ccd6', 3, 1);
   },
@@ -718,6 +763,8 @@ const K: Record<string, DrawFn> = {
   },
 };
 
+Object.assign(K, IZAKAYA_KINDS);
+
 export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7): HTMLCanvasElement {
   const c = makeCanvas(w, h);
   const ctx = ctx2d(c);
@@ -732,6 +779,6 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   return c;
 }
 
-const FLAT = new Set(['rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds']);
+const FLAT = new Set(['wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds']);
 
 export const OBJECT_KINDS = Object.keys(K);

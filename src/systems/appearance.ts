@@ -2,6 +2,9 @@ import { buildPortrait, type Expr } from '../art/characters';
 import { game } from '../core/state';
 import type { Appearance } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
+import spicyPortrait from '../assets/portraits/spicy.png';
+import riggPortrait from '../assets/portraits/rigg.png';
+import pipPortrait from '../assets/portraits/pip.png';
 
 /** Current appearance of any character, including raccoon outfit customizations. */
 export function appearanceOf(id: string): Appearance {
@@ -22,8 +25,12 @@ export function appearanceKey(id: string): string {
   return id + ':' + JSON.stringify(appearanceOf(id));
 }
 
+/** Illustrated portraits (the raccoons' reference art) take precedence over generated ones. */
+const ILLUSTRATED: Record<string, string> = { spicy: spicyPortrait, rigg: riggPortrait, pip: pipPortrait };
+
 const portraitCache = new Map<string, string>();
 export function portraitURL(id: string, expr: Expr = 'neutral'): string {
+  if (ILLUSTRATED[id]) return ILLUSTRATED[id];
   const key = appearanceKey(id) + '|' + expr;
   let url = portraitCache.get(key);
   if (!url) {

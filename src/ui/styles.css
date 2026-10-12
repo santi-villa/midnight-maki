@@ -208,7 +208,7 @@ h3 { margin: 4px 0 8px; font-size: 1.05em; }
   display: flex; gap: 12px;
   animation: popin .15s;
 }
-.dlg .portrait { flex: 0 0 auto; width: 96px; height: 108px; image-rendering: pixelated; background: var(--cream-2); border-radius: 10px; border: 3px solid var(--wood-dark); align-self: flex-end; margin-top: -48px; }
+.dlg .portrait { object-fit: cover; flex: 0 0 auto; width: 96px; height: 108px; image-rendering: pixelated; background: var(--cream-2); border-radius: 10px; border: 3px solid var(--wood-dark); align-self: flex-end; margin-top: -48px; }
 .dlg .portrait.none { display: none; }
 .dlg .body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .dlg .name { position: absolute; top: -20px; left: 16px; background: var(--wood); color: var(--cream); border: 3px solid var(--wood-dark); border-radius: 8px; padding: 2px 10px; font-weight: 600; }

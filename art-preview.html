@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Vista previa de arte</title>
+<style>body{background:#6b4330;margin:0;padding:12px;font:14px sans-serif;color:#fff}canvas{image-rendering:pixelated;margin:4px;vertical-align:bottom}</style>
+</head><body><div id="out"></div>
+<script type="module">
+import { buildRaccoonSheet, buildRaccoonPortrait } from './src/art/raccoon.ts';
+import { CHAR_BY_ID } from './src/data/characters.ts';
+const builds = { spicy: 'small', rigg: 'medium', pip: 'big' };
+const out = document.getElementById('out');
+const S = Number(new URLSearchParams(location.search).get('s') ?? 4);
+for (const [id, b] of Object.entries(builds)) {
+  const { canvas } = buildRaccoonSheet(CHAR_BY_ID[id].appearance, b);
+  const c = document.createElement('canvas');
+  const list = (new URLSearchParams(location.search).get('f') ?? '0,3,6,9,13,14,15,18').split(',').map(Number);
+  const fw = canvas.width / 24;
+  c.width = fw * list.length * S; c.height = canvas.height * S;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  list.forEach((f, i) => g.drawImage(canvas, f * fw, 0, fw, canvas.height, i * fw * S, 0, fw * S, canvas.height * S));
+  const row = document.createElement('div'); row.append(c); out.append(row);
+}
+
+import { buildCharacterSheet } from './src/art/characters.ts';
+import { defaultAppearance } from './src/core/state.ts';
+{
+  const sheet = buildCharacterSheet(defaultAppearance());
+  const list = (new URLSearchParams(location.search).get('f') ?? '0,3,6,9,13,14,15,18').split(',').map(Number);
+  const c = document.createElement('canvas'); c.width = 16 * list.length * S; c.height = 24 * S;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  list.forEach((f, i) => g.drawImage(sheet, f * 16, 0, 16, 24, i * 16 * S, 0, 16 * S, 24 * S));
+  const row = document.createElement('div'); row.append(c); out.append(row);
+}
+</script></body></html>

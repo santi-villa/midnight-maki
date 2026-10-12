@@ -29,6 +29,8 @@ export interface ZoneDef {
   fishing?: 'sea' | 'lake';
   bugs?: boolean;
   dark?: boolean; // always dim (station, lighthouse inside)
+  walls?: string; // wall style outside decor rooms
+  floor?: string; // floor style outside decor rooms
 }
 
 // ------------------------------------------------------------------ builder
@@ -185,21 +187,34 @@ function plaza(): ZoneDef {
 
 // ================================================================== RESTAURANT
 function restaurant(): ZoneDef {
+  // izakaya / sushi bar: tall dark walls (noren band on top), bar behind a sushi counter, tatami corner
   const b = new Builder(18, 14, '#');
-  b.room(0, 0, 18, 14, [3, 10, 14]);
+  b.room(0, 0, 18, 14, [11, 14]);
+  b.rect(1, 0, 16, 1, 'U');
   b.rect(1, 2, 6, 4, 'k');
+  b.rect(12, 9, 5, 4, 't');
   b.set(8, 13, 'm').set(9, 13, 'm');
   // fixed kitchen props are furniture-like props
   b.prop('k_fridge', 1, 2).prop('k_stove', 2, 2).prop('k_sink', 3, 2).prop('k_rice', 4, 2).prop('k_board', 5, 2)
     .prop('k_counter', 1, 5).prop('k_counter', 2, 5).prop('k_counter', 3, 5).prop('k_counter', 4, 5)
-    .prop('k_register', 7, 4).prop('k_register', 8, 4)
+    .prop('k_register', 7, 4).prop('k_register2', 8, 4)
+    .prop('bar_stool', 1, 6).prop('bar_stool', 2, 6).prop('bar_stool', 3, 6).prop('bar_stool', 4, 6)
     .prop('stairs', 16, 2)
     .prop('door_storage', 13, 1, '!storage_open')
     .prop('door_storage_open', 13, 1, 'storage_open')
-    .prop('poster_a', 6, 1)
-    .prop('poster_b', 9, 1);
+    .prop('wallshelf', 1, 1)
+    .prop('wallshelf', 3, 1)
+    .prop('mm_sign', 6, 1)
+    .prop('wall_lantern_red', 5, 1)
+    .prop('wall_lantern_cream', 12, 1)
+    .prop('wall_lantern_red', 15, 1)
+    .prop('sake_barrel', 1, 9)
+    .prop('sake_barrel', 1, 10)
+    .prop('barrel', 2, 10)
+    .prop('bamboo', 1, 12)
+    .prop('bamboo', 6, 12);
   return zone(b, {
-    id: 'restaurant', name: 'Midnight Maki', music: 'restaurant', outdoor: false,
+    id: 'restaurant', name: 'Midnight Maki', music: 'restaurant', outdoor: false, walls: 'izakaya', floor: 'izakaya',
     doors: [
       { x: 8, y: 13, to: 'plaza', tx: 5, ty: 7, dir: 'down', walk: true },
       { x: 9, y: 13, to: 'plaza', tx: 5, ty: 7, dir: 'down', walk: true },
@@ -214,7 +229,7 @@ function restaurant(): ZoneDef {
       { id: 'fridge', x: 1, y: 3, label: 'Despensa', action: 'pantry' },
       { id: 'storage_door', x: 13, y: 2, label: 'Depósito', action: 'door:storage' },
     ],
-    rooms: [{ id: 'dining', name: 'Salón', x: 7, y: 6, w: 10, h: 7, defWall: 'wood', defFloor: 'wood' }],
+    rooms: [{ id: 'dining', name: 'Salón', x: 7, y: 6, w: 10, h: 7, defWall: 'izakaya', defFloor: 'izakaya' }],
     gather: [],
   });
 }

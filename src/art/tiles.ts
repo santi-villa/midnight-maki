@@ -1,5 +1,6 @@
 /** Procedural 16x16 tileset. Each tile key maps to an index in the generated sheet. */
 import { PAL } from './palette';
+import { barFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWall, izakayaWindow, tatamiMat } from './izakaya';
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
 
 export const TS = 16;
@@ -55,16 +56,6 @@ function checker(a: string, b: string, size = 8): TileDraw {
   return (c, x, y) => {
     for (let j = 0; j < 16; j += size) for (let i = 0; i < 16; i += size) px(c, x + i, y + j, ((i + j) / size) % 2 ? a : b, size, size);
     px(c, x, y, shade(a, -0.08), 16, 1);
-  };
-}
-
-function tatami(): TileDraw {
-  return (c, x, y, r) => {
-    px(c, x, y, '#c9c48a', 16, 16);
-    for (let j = 0; j < 16; j += 2) px(c, x, y + j, '#bdb67c', 16, 1);
-    speckle(c, x, y, r, ['#d6d19a'], 8);
-    px(c, x, y, '#5d6b4a', 16, 1);
-    px(c, x, y, '#5d6b4a', 1, 16);
   };
 }
 
@@ -253,7 +244,8 @@ function rail(): TileDraw {
 export const FLOOR_STYLES: Record<string, { name: string; draw: TileDraw; price: number }> = {
   wood: { name: 'Madera cálida', draw: plank(PAL.woodL, PAL.wood), price: 0 },
   darkwood: { name: 'Madera oscura', draw: plank('#6e4a38', '#563626'), price: 150 },
-  tatami: { name: 'Tatami', draw: tatami(), price: 200 },
+  tatami: { name: 'Tatami', draw: tatamiMat, price: 200 },
+  izakaya: { name: 'Tablones de izakaya', draw: izakayaFloor, price: 180 },
   checker: { name: 'Damero crema', draw: checker('#efe3c8', '#d2c3a2'), price: 150 },
   rose: { name: 'Baldosa rosa', draw: checker('#efc9c6', '#e0b0ae'), price: 180 },
   lavcarpet: { name: 'Alfombra lavanda', draw: carpet('#b7a8d6', '#cfc3e6'), price: 220 },
@@ -294,7 +286,7 @@ add('soil', false, soil(false));
 add('soilwet', false, soil(true));
 add('station', false, stationFloor());
 add('rail', false, rail());
-add('kitchen', false, checker('#e9e3d6', '#cfc7b6', 4));
+add('kitchen', false, barFloor);
 for (const [k, f] of Object.entries(FLOOR_STYLES)) add('floor_' + k, false, f.draw);
 for (const [k, w] of Object.entries(WALL_STYLES)) {
   add('walltop_' + k, true, wallTop(w.base));
@@ -303,6 +295,12 @@ for (const [k, w] of Object.entries(WALL_STYLES)) {
   add('windowN_' + k, true, windowTile(w.base, true));
 }
 add('walltop_stone', true, wallTop('#8d8790'));
+// the restaurant's own walls (not sold as a decor style)
+add('walltop_izakaya', true, izakayaTop);
+add('upper_izakaya', true, izakayaUpper);
+add('wall_izakaya', true, izakayaWall);
+add('window_izakaya', true, izakayaWindow(false));
+add('windowN_izakaya', true, izakayaWindow(true));
 add('wall_stone', true, wallFace('#a59f9a', '#8d8790', 'plain'));
 
 export const TILE_INDEX: Record<string, number> = Object.fromEntries(DEFS.map((d, i) => [d.key, i]));

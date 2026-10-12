@@ -73,6 +73,7 @@ export const FURNITURE: FurnitureDef[] = [
   F('bonsai_sakura', 'Bonsái sakura', 'plant', 'japanese', 320, 'bonsai', '#e8b4c0', '#3b4470', 1, 1, 18, { shop: 'event' }),
   F('vase_tulips', 'Jarrón con tulipanes', 'plant', 'pastel', 70, 'vase', '#e8a0b0', '#f6ecd6', 1, 1, 18),
   F('vase_lav', 'Jarrón con lavanda', 'plant', 'cottage', 70, 'vase', '#9686bd', '#a8734d', 1, 1, 18),
+  F('bamboo_pot', 'Bambú en maceta', 'plant', 'japanese', 120, 'bamboo', '#6f9e5a', '#3b4470', 1, 1, 36),
   F('plant_herbs', 'Macetita de hierbas', 'plant', 'natural', 50, 'plant', '#7fae5f', '#a8734d', 1, 1, 22, { likes: ['spicy'] }),
   // ---------------- lights
   F('lamp_cream', 'Lámpara de pie', 'light', 'cozy', 130, 'floorlamp', '#f3e6c8', '', 1, 1, 32, { light: '#f4d68c' }),
@@ -80,6 +81,8 @@ export const FURNITURE: FurnitureDef[] = [
   F('lamp_table', 'Velador', 'light', 'cozy', 80, 'tablelamp', '#f2c66d', '', 1, 1, 16, { light: '#f4d68c' }),
   F('lantern_red', 'Farol rojo', 'light', 'japanese', 90, 'paperlantern', '#d9675f', '', 1, 1, 26, { light: '#f4b08c' }),
   F('lantern_cream', 'Farol de papel', 'light', 'japanese', 90, 'paperlantern', '#f3e6c8', '', 1, 1, 26, { light: '#f4d68c' }),
+  F('andon', 'Andon', 'light', 'japanese', 160, 'andon', '#f6e3b0', '', 1, 1, 28, { light: '#f4d68c' }),
+  F('sake_barrel', 'Barril de sake', 'restaurant', 'japanese', 140, 'sakebarrel', '#b8524f', '', 1, 1, 18),
   F('candles', 'Velas', 'light', 'dark', 60, 'candles', '#f6ecd6', '', 1, 1, 14, { light: '#f4c070' }),
   F('starlamp', 'Lámpara estrella', 'light', 'night', 200, 'starlamp', '#f2c66d', '', 1, 1, 20, { light: '#f8e3a0', shop: 'market', likes: ['pip', 'rigg'] }),
   // ---------------- rugs

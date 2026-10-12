@@ -40,7 +40,8 @@ export class Actor {
     this.id = id;
     this.x = tx * TILE + TILE / 2;
     this.y = ty * TILE + TILE - 2;
-    this.shadow = scene.add.ellipse(this.x, this.y, 11, 4, 0x2a2230, 0.25);
+    const fw = scene.textures.get(texture).get(0)?.width ?? 16;
+    this.shadow = scene.add.ellipse(this.x, this.y, Math.max(11, Math.round(fw * 0.62)), fw > 30 ? 6 : 4, 0x2a2230, 0.25);
     this.sprite = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 1);
     // silhouette cast shadow that follows the current animation frame
     this.cast = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 0).setFlipY(true).setTintFill(0x140c24).setAlpha(0.3).setScale(1, 0.34);

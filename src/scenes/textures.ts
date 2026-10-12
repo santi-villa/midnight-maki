@@ -4,10 +4,14 @@ import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
 import { drawObject } from '../art/objects';
 import { ctx2d, makeCanvas } from '../art/pixel';
 import { buildTileset } from '../art/tiles';
+import { buildRaccoonSheet, type RaccoonBuild } from '../art/raccoon';
 import { iconCanvas, type IconSpec } from '../art/icons';
 import { FURN_BY_ID } from '../data/furniture';
 import { PROPS } from '../data/props';
 import { appearanceKey, appearanceOf, dropOf } from '../systems/appearance';
+
+/** The three raccoons use the chibi renderer (art/raccoon.ts). */
+export const RACCOON_BUILD: Record<string, RaccoonBuild> = { spicy: 'small', rigg: 'medium', pip: 'big' };
 
 const charKeys = new Map<string, string>(); // id -> current texture key
 
@@ -20,9 +24,16 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
   const look = appearanceKey(id);
   const key = 'ch_' + hashStr(look);
   if (!scene.textures.exists(key)) {
-    const sheet = buildCharacterSheet(appearanceOf(id), dropOf(id));
-    const tex = scene.textures.addCanvas(key, sheet)!;
-    for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * FW, 0, FW, FH);
+    const build = RACCOON_BUILD[id];
+    if (build) {
+      const { canvas, fw, fh } = buildRaccoonSheet(appearanceOf(id), build);
+      const tex = scene.textures.addCanvas(key, canvas)!;
+      for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
+    } else {
+      const sheet = buildCharacterSheet(appearanceOf(id), dropOf(id));
+      const tex = scene.textures.addCanvas(key, sheet)!;
+      for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * FW, 0, FW, FH);
+    }
   }
   const prev = charKeys.get(id);
   charKeys.set(id, key);
