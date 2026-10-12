@@ -17,6 +17,8 @@ export class Actor {
   id: string;
   sprite: Phaser.GameObjects.Sprite;
   shadow: Phaser.GameObjects.Ellipse;
+  /** transparent rows above the figure in this texture (detailed folk sprites) */
+  pad = 0;
   cast: Phaser.GameObjects.Sprite;
   bubble: Phaser.GameObjects.Text | null = null;
   x: number; // feet position in px
@@ -43,6 +45,7 @@ export class Actor {
     this.x = tx * TILE + TILE / 2;
     this.y = ty * TILE + TILE - 2;
     const fw = scene.textures.get(texture).get(0)?.width ?? 16;
+    this.pad = (scene.textures.get(texture).customData as { pad?: number } | undefined)?.pad ?? 0;
     this.shadow = scene.add.ellipse(this.x, this.y, Math.max(11, Math.round(fw * 0.62)), fw > 30 ? 6 : 4, 0x2a2230, 0.25);
     this.sprite = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 1);
     // silhouette cast shadow that follows the current animation frame
@@ -58,6 +61,7 @@ export class Actor {
   }
 
   setTexture(key: string) {
+    this.pad = (this.scene.textures.get(key).customData as { pad?: number } | undefined)?.pad ?? 0;
     this.sprite.setTexture(key, this.sprite.frame.name);
     this.cast.setTexture(key, this.sprite.frame.name);
   }
@@ -251,7 +255,7 @@ export class Actor {
     this.shadow.setDepth(ry - 0.5);
     this.cast.setPosition(rx + 2, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx());
     if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
-    if (this.bubble) this.bubble.setPosition(rx, ry - this.sprite.height - 1);
+    if (this.bubble) this.bubble.setPosition(rx, ry - this.sprite.height + this.pad - 1);
   }
 
   setVisible(v: boolean) {

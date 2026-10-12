@@ -1,4 +1,7 @@
 import { buildPortrait, type Expr } from '../art/characters';
+import { buildFolkPortrait, type FolkCustom } from '../art/folk';
+import { CLOTHES_BY_ID } from '../data/clothes';
+import { FOLK_SPECS } from '../data/folkSpecs';
 import { game } from '../core/state';
 import type { Appearance } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
@@ -20,6 +23,22 @@ export function dropOf(id: string): number[] {
   return CHAR_BY_ID[id]?.drop ?? [];
 }
 
+/** Hat / body item the player chose in the raccoons' wardrobe (when it differs from their own look). */
+export function folkCustom(id: string): FolkCustom | undefined {
+  const spec = FOLK_SPECS[id];
+  const o = game.save.raccoonOutfits[id];
+  const def = CHAR_BY_ID[id];
+  if (!spec || !o || !def) return undefined;
+  const pick = (cid: string) => {
+    const d = cid ? CLOTHES_BY_ID[cid] : undefined;
+    return d ? { kind: d.kind, c1: d.c1, c2: d.c2 ?? d.c1 } : undefined;
+  };
+  const custom: FolkCustom = {};
+  if (o.head !== def.appearance.head) custom.head = pick(o.head) ?? { kind: 'none', c1: '#000', c2: '#000' };
+  if (o.extra !== def.appearance.extra) custom.extra = pick(o.extra) ?? { kind: 'none', c1: '#000', c2: '#000' };
+  return custom.head || custom.extra ? custom : undefined;
+}
+
 /** Stable key that changes whenever the look changes (for texture caching). */
 export function appearanceKey(id: string): string {
   return id + ':' + JSON.stringify(appearanceOf(id));
@@ -30,11 +49,12 @@ const ILLUSTRATED: Record<string, string> = { spicy: spicyPortrait, rigg: riggPo
 
 const portraitCache = new Map<string, string>();
 export function portraitURL(id: string, expr: Expr = 'neutral'): string {
-  if (ILLUSTRATED[id]) return ILLUSTRATED[id];
+  const folk = FOLK_SPECS[id];
+  if (!folk && ILLUSTRATED[id]) return ILLUSTRATED[id];
   const key = appearanceKey(id) + '|' + expr;
   let url = portraitCache.get(key);
   if (!url) {
-    url = buildPortrait(appearanceOf(id), expr, dropOf(id)).toDataURL();
+    url = (folk ? buildFolkPortrait(folk, expr, 5, folkCustom(id)) : buildPortrait(appearanceOf(id), expr, dropOf(id))).toDataURL();
     portraitCache.set(key, url);
   }
   return url;
