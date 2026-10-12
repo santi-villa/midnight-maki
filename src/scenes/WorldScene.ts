@@ -14,6 +14,7 @@ import { ITEMS_BY_ID } from '../data/items';
 import { ZONES, type DoorDef, type InteractDef } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { charactersIn } from '../systems/npcs';
+import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
@@ -383,7 +384,7 @@ export class WorldScene extends Phaser.Scene {
     };
     if (!night) for (let i = 0; i < (this.zoneId === 'beach' ? 2 : 3); i++) add('bird');
     if (this.zoneId === 'plaza' || this.zoneId === 'garden') add('cat');
-    if (!night && ['plaza', 'garden', 'forest'].includes(this.zoneId)) for (let i = 0; i < (this.zoneId === 'garden' ? 5 : 3); i++) add('butterfly');
+    if (!night && seasonOf(game.save.time.day) < 2 && ['plaza', 'garden', 'forest'].includes(this.zoneId)) for (let i = 0; i < (this.zoneId === 'garden' ? 5 : 3); i++) add('butterfly');
   }
 
   private updateCritters(dt: number) {
@@ -707,13 +708,28 @@ export class WorldScene extends Phaser.Scene {
       em.setDepth(210000);
       this.ambient.push(em);
     }
-    if (!rain && ['plaza', 'garden'].includes(this.zoneId) && !night) {
+    const season = seasonOf(game.save.time.day);
+    if (season === 3 && !rain) {
+      const flake = dotTexture(this, 'snow', '#ffffff', 2, 2);
+      const em = this.add.particles(0, -4, flake, { x: { min: 0, max: W }, speedY: { min: 14, max: 28 }, speedX: { min: -8, max: 8 }, lifespan: (H / 20) * 1000, frequency: 70, alpha: { start: 0.95, end: 0.7 } });
+      em.setDepth(150000);
+      this.ambient.push(em);
+    } else if (season === 2 && !rain && !night) {
+      const cols = ['#d98a3a', '#c4602e', '#e0b050'];
+      cols.forEach((c, i) => {
+        const leaf = dotTexture(this, 'aleaf' + i, c, 3, 3);
+        const em = this.add.particles(0, -4, leaf, { x: { min: 0, max: W }, speedY: { min: 10, max: 20 }, speedX: { min: -10, max: 14 }, lifespan: (H / 14) * 1000, frequency: 500, rotate: { min: 0, max: 360 } });
+        em.setDepth(150000);
+        this.ambient.push(em);
+      });
+    }
+    if (!rain && season < 2 && ['plaza', 'garden'].includes(this.zoneId) && !night) {
       const pet = dotTexture(this, 'petal', '#f4c6cf', 2, 1);
       const em = this.add.particles(0, -4, pet, { x: { min: 0, max: W }, speedY: { min: 8, max: 16 }, speedX: { min: 4, max: 12 }, lifespan: 14000, frequency: 1300, rotate: { min: 0, max: 360 } });
       em.setDepth(150000);
       this.ambient.push(em);
     }
-    if (!rain && this.zoneId === 'forest' && !night) {
+    if (!rain && season < 2 && this.zoneId === 'forest' && !night) {
       const leaf = dotTexture(this, 'leaf', '#a8bf7c', 2, 2);
       const em = this.add.particles(0, -4, leaf, { x: { min: 0, max: W }, speedY: { min: 6, max: 12 }, speedX: { min: -6, max: 6 }, lifespan: 16000, frequency: 1600 });
       em.setDepth(150000);
@@ -1188,6 +1204,15 @@ export class WorldScene extends Phaser.Scene {
       tint = mix(tint, 0x8a94b8, 0.6);
       glow = Math.max(glow, 0.45);
       vig = Math.max(vig, 0.32);
+    }
+    if (def.outdoor && !def.dark) {
+      // seasonal colour grade: warm amber in autumn, cool blue-white in winter
+      const season = seasonOf(game.save.time.day);
+      const grade = season === 2 ? 0xffbe84 : season === 3 ? 0xc4d8ff : 0xffffff;
+      if (grade !== 0xffffff) {
+        const m = (a: number, b: number, sh: number) => (((a >> sh) & 255) * ((b >> sh) & 255)) / 255;
+        tint = (Math.round(m(tint, grade, 16)) << 16) | (Math.round(m(tint, grade, 8)) << 8) | Math.round(m(tint, grade, 0));
+      }
     }
     const alpha = tint === 0xffffff ? 0 : 1;
     rt.clear();
