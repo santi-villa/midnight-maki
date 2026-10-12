@@ -7,6 +7,7 @@ import { game } from '../core/state';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
 import { h, uiRoot } from './dom';
+import { skinIconEl } from './skin';
 
 let root: HTMLElement | null = null;
 let timeEl: HTMLElement;
@@ -39,10 +40,10 @@ export function mountHud(hd: HudHandlers) {
   const status = h('div', { class: 'hud-status' }, h('div', { class: 'time' }, timeIcon, timeEl), dateEl, h('div', { class: 'row', style: { gap: '4px' } }, iconElement({ type: 'coin' }), coinEl));
   status.querySelector('canvas')!.setAttribute('style', 'width:18px;height:18px;image-rendering:pixelated');
   const btn = (icon: string, label: string, fn: () => void) => {
-    const b = h('button', { class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, iconElement({ type: icon }));
+    const b = h('button', { class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon), h('span', { class: 'lbl' }, label));
     return b;
   };
-  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('journal', 'Diario', () => handlers.journal()), btn('menu', 'Menú', () => handlers.menu()));
+  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('scroll', 'Misiones', () => handlers.journal()), btn('gear', 'Menú', () => handlers.menu()));
   actBtn = h('button', { class: 'hud-interact', onclick: () => world?.tryInteract() }) as HTMLButtonElement;
   actBtn.style.display = 'none';
   questEl = h('div', { class: 'hud-quest', title: 'Tocá para achicar', onclick: () => { questEl.classList.toggle('mini'); try { localStorage.setItem('mm_questmini', questEl.classList.contains('mini') ? '1' : ''); } catch { /* ignore */ } } });
@@ -94,10 +95,12 @@ bus.on('zone:enter', () => {
   refreshSuggestions();
 });
 bus.on('flag:set', () => refresh());
-bus.on('interact:available', ({ label }) => {
+bus.on('interact:available', ({ label, kind }) => {
   if (!actBtn) return;
   actBtn.style.display = label ? '' : 'none';
-  actBtn.textContent = label ?? '';
+  actBtn.innerHTML = '';
+  if (label) actBtn.append(skinIconEl(kind === 'npc' ? 'talk' : 'act'), h('span', { class: 'lbl' }, label));
+  actBtn.setAttribute('aria-label', label ?? '');
   if (suggestEl) suggestEl.style.display = label ? 'none' : '';
 });
 bus.on('dialogue:start', () => showHud(false));

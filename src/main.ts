@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import './ui/styles.css';
 import { applySettings } from './core/settings';
+import { installSkin } from './ui/skin';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { WorldScene } from './scenes/WorldScene';
@@ -31,6 +32,7 @@ if (new URLSearchParams(location.search).has('debug')) {
   });
 }
 applySettings();
+installSkin();
 
 /** Boot only once the container has a real size (hidden tabs / iOS standalone can report 0 at first). */
 function whenSized(cb: () => void) {
