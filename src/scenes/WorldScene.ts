@@ -3,7 +3,8 @@
  * ambient effects and interaction detection. Gameplay decisions are delegated to systems/actions.
  */
 import Phaser from 'phaser';
-import { TILESET_COLS, TILE_INDEX, WATER_FRAMES } from '../art/tiles';
+import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
+import { WaterFx } from './waterFx';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { settings } from '../core/settings';
@@ -24,7 +25,7 @@ import { customerAsk } from '../restaurant/orders';
 import { collectTipAt, deliverTo, guestViews, pumpService, syncRestaurantHours, takeOrderAt, type GuestView, type PaidMeal } from '../restaurant/service';
 import type { FurnPiece, PartyPhase } from '../restaurant/floor';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
-import { buildZone, condOk, doorLeadingTo, roomAt, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
+import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture } from './textures';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
@@ -62,9 +63,13 @@ export class WorldScene extends Phaser.Scene {
   extras = new Map<string, Actor>(); // cutscene-only actors
   joy = { x: 0, y: 0 };
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
-  private waterTiles: { x: number; y: number; deep: boolean }[] = [];
+  private waterTiles: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[] = [];
+  private shoreTiles: { x: number; y: number }[] = [];
+  private bankTiles: { x: number; y: number; mask: number }[] = [];
   private waterFrame = 0;
   private waterT = 0;
+  private waterRain: boolean | null = null;
+  private waterFx: WaterFx | null = null;
   private lamps: Light[] = [];
   private dark!: Phaser.GameObjects.RenderTexture;
   private lightStamp!: Phaser.GameObjects.Image;
@@ -234,11 +239,18 @@ export class WorldScene extends Phaser.Scene {
     this.overLayer = this.overMap.createLayer(0, ots, 0, 0)!;
     this.overLayer.setDepth(-9.5);
     this.waterTiles = [];
+    this.shoreTiles = [];
+    this.bankTiles = [];
+    this.waterRain = null;
+    const bankIdx = new Map<number, number>();
+    for (let m = 1; m < 16; m++) bankIdx.set(TILE_INDEX['bk' + m], m);
     for (let y = 0; y < def.h; y++)
       for (let x = 0; x < def.w; x++) {
-        const t = this.zone.tiles[y][x];
-        if (t === TILE_INDEX.water0) this.waterTiles.push({ x, y, deep: false });
-        else if (t === TILE_INDEX.deep0) this.waterTiles.push({ x, y, deep: true });
+        const ch = def.ground[y][x];
+        if (ch === 'w' || ch === 'd') this.waterTiles.push({ x, y, depth: waterDepthAt(def.ground, x, y), v: waterVariant(x, y) });
+        else if (ch === 'h') this.shoreTiles.push({ x, y });
+        const m = bankIdx.get(this.zone.overlay[y][x]);
+        if (m) this.bankTiles.push({ x, y, mask: m });
       }
     this.lamps = [];
     this.occluders = [];
@@ -874,6 +886,9 @@ export class WorldScene extends Phaser.Scene {
   setupAmbient() {
     for (const e of this.ambient) e.destroy();
     this.ambient = [];
+    this.waterFx?.destroy();
+    this.waterFx = null;
+    if (this.zone?.def.outdoor && this.waterTiles.length) this.waterFx = new WaterFx(this, this.zone.def.ground, this.lamps, lowFx());
     this.weather?.destroy();
     this.weather = null;
     if (!this.zone || lowFx()) return;
@@ -1194,6 +1209,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateCritters(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
+    this.waterFx?.update(dt, this.waterEnv());
     this.updateLighting();
     this.updateAtmosphere(dt);
     this.updateOccluders(dt);
@@ -1561,14 +1577,42 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /** Writes the current animation frame into every water, shoreline and bank tile (only a few hundred putTileAt calls). */
+  private applyWater(frame: number, rain: boolean) {
+    const L = this.layer;
+    if (!L) return;
+    for (const w of this.waterTiles) L.putTileAt(waterFrames(w.depth, w.v, rain)[(frame + w.v) % 4], w.x, w.y);
+    for (const t of this.shoreTiles) L.putTileAt(SHORE_FRAMES[(frame + t.x) % 4], t.x, t.y);
+    const O = this.overLayer;
+    if (O) for (const b of this.bankTiles) O.putTileAt(TILE_INDEX[((frame >> 1) + b.x + b.y) % 2 ? 'bkb' + b.mask : 'bk' + b.mask], b.x, b.y);
+  }
+
+  /** Water animation: 4 frames at ~2 fps. Battery / reduced-motion mode keeps one still frame (but still follows the rain). */
   private updateWater(dt: number) {
-    if (!this.waterTiles.length || !this.layer) return;
+    if (!this.layer || !(this.waterTiles.length || this.shoreTiles.length)) return;
+    const rain = this.zone.def.outdoor && game.flag('weather') === 'rain';
+    if (lowFx()) {
+      if (this.waterRain !== rain) {
+        this.waterRain = rain;
+        this.applyWater(0, rain);
+      }
+      return;
+    }
     this.waterT += dt;
-    if (this.waterT < 0.5) return;
+    if (this.waterT < 0.45 && this.waterRain === rain) return;
     this.waterT = 0;
-    if (lowFx()) return;
-    this.waterFrame = (this.waterFrame + 1) % 3;
-    for (const w of this.waterTiles) this.layer.putTileAt(WATER_FRAMES[w.deep ? 1 : 0][this.waterFrame], w.x, w.y);
+    this.waterRain = rain;
+    this.waterFrame = (this.waterFrame + 1) % 4;
+    this.applyWater(this.waterFrame, rain);
+  }
+
+  /** How strongly the moon / lanterns should show on the water right now (0 by day, rising at dusk). */
+  private waterEnv() {
+    const per = clock.period;
+    const prog = clock.progress();
+    const moon = per === 3 ? 1 : per === 2 ? prog * 0.6 : 0;
+    const lamp = per === 3 ? 1 : per === 2 ? 0.35 + 0.6 * prog : 0;
+    return { moon, lamp, rain: game.flag('weather') === 'rain', view: this.cameras.main.worldView };
   }
 
   /** floating "+N" text above the player (coins, items) */

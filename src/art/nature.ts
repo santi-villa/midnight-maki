@@ -3,7 +3,7 @@
  * soft beige paths that blend into the lawn, sparkling blue water with grassy banks, round leafy trees,
  * fluffy layered pines, log fences, timber-framed cottages with tiled roofs, crates, sacks and stalls.
  */
-import { ctx2d, ellipse, makeCanvas, px, shade, type Ctx } from './pixel';
+import { ctx2d, ellipse, makeCanvas, mix, px, rng, shade, type Ctx } from './pixel';
 
 export const NAT = {
   grass: '#5db449',
@@ -118,29 +118,105 @@ export const paverTile = (variant = 0, pal: string[] = WARM): TileDraw => (c, x,
   }
 };
 
-export function brightWater(frame: number, deep = false): TileDraw {
+// ---------------------------------------------------------------- water
+/**
+ * Water is drawn as 3 variants x 4 animation frames per kind (shallow/deep, calm/rain). Variants differ in their patches of
+ * lighter/darker blue and where the ripples sit, so the grid never shows; every motion loops in exactly 4 frames:
+ * ripples bob a pixel or two, thin current streaks slide 4px per frame (a full tile per loop) and one glint twinkles per frame.
+ */
+interface WaterPal { base: string; dk: string; dk2: string; lt: string; cur: string; glint: string }
+const WATER_PAL: Record<'calm' | 'rain', Record<'shallow' | 'mid' | 'deep', WaterPal>> = {
+  calm: {
+    shallow: { base: '#3b9ce0', dk: '#2f86cc', dk2: '#2873b8', lt: '#6ec6f4', cur: '#58b4ec', glint: '#e4f8ff' },
+    mid: { base: '#3387d0', dk: '#2a75bc', dk2: '#2264aa', lt: '#5aaee6', cur: '#4a9ade', glint: '#c4ecff' },
+    deep: { base: '#2c76c0', dk: '#2464ac', dk2: '#1c5498', lt: '#4590d6', cur: '#3a80cc', glint: '#a8dcff' },
+  },
+  rain: {
+    shallow: { base: '#5a90b6', dk: '#4c80a4', dk2: '#417196', lt: '#85b3cd', cur: '#6fa2c0', glint: '#d6e6ef' },
+    mid: { base: '#4d7ea6', dk: '#416f95', dk2: '#376285', lt: '#719fbe', cur: '#5f90b2', glint: '#c9dde9' },
+    deep: { base: '#3f6a94', dk: '#355c82', dk2: '#2d5073', lt: '#5a86ad', cur: '#4a7aa3', glint: '#b9d3e6' },
+  },
+};
+// [x, y, w, h, tone] patches: static colour variation inside each variant
+const WATER_PATCHES: [number, number, number, number, 'dk' | 'dk2' | 'lt'][][] = [
+  [[1, 2, 6, 2, 'dk'], [9, 5, 5, 1, 'lt'], [3, 9, 7, 2, 'dk'], [11, 12, 4, 2, 'dk2']],
+  [[8, 1, 6, 2, 'dk'], [2, 4, 4, 1, 'lt'], [0, 8, 5, 2, 'dk2'], [8, 10, 6, 1, 'lt'], [10, 13, 5, 2, 'dk']],
+  [[4, 0, 5, 2, 'dk2'], [11, 6, 5, 2, 'dk'], [1, 7, 5, 1, 'lt'], [2, 12, 7, 2, 'dk'], [10, 3, 4, 1, 'lt']],
+];
+// ripples [row, length, start x]; they bob with BOB[frame]
+const WATER_RIPPLES: [number, number, number][][] = [[[3, 5, 1], [8, 4, 9], [13, 4, 3]], [[1, 4, 10], [6, 5, 2], [11, 5, 8]], [[4, 4, 6], [9, 5, 0], [14, 4, 10]]];
+const WATER_GLINTS: [number, number][][] = [[[4, 6], [12, 3], [8, 11], [2, 14]], [[10, 2], [3, 9], [13, 12], [6, 5]], [[7, 13], [14, 7], [2, 2], [11, 9]]];
+const CURRENTS: [number, number, number][] = [[2, 9, 5], [10, 7, 3], [6, 8, 12]]; // [variant row offsets] used per variant below
+const BOB = [0, 1, 2, 1];
+
+/** px that wraps around the tile edge so moving streaks leave one side and enter the other. */
+function wrapPx(c: Ctx, x: number, y: number, ox: number, row: number, len: number, color: string) {
+  for (let i = 0; i < len; i++) px(c, x + ((ox + i) % 16 + 16) % 16, y + row, color);
+}
+
+export type WaterDepth = 'shallow' | 'mid' | 'deep';
+export function waterTile(variant: number, frame: number, depth: WaterDepth, rain: boolean): TileDraw {
+  const deep = depth === 'deep';
   return (c, x, y) => {
-    const base = deep ? '#3698d8' : NAT.water;
-    px(c, x, y, base, 16, 16);
-    // gentle drifting ripples (irregular so the grid doesn't show)
-    const ripples: [number, number, number][] = [[2, 3, 4], [9, 6, 3], [5, 11, 3], [12, 13, 2]];
-    ripples.forEach(([rx, ry, w], i) => {
-      const ox = (rx + frame * (i % 2 ? 1 : 2)) % 14;
-      px(c, x + ox, y + ry, i % 2 ? NAT.waterL : shade(base, 0.12), w, 1);
+    const pal = WATER_PAL[rain ? 'rain' : 'calm'][depth];
+    px(c, x, y, pal.base, 16, 16);
+    for (const [sx, sy, w, h, tone] of WATER_PATCHES[variant]) {
+      const col = pal[tone];
+      for (let j = 0; j < h; j++) px(c, x + sx + (j % 2 ? 0 : 1), y + sy + j, col, w - (j % 2 ? 0 : 2), 1);
+    }
+    // thin current streaks slide 4px per frame, so 4 frames make one seamless loop
+    const cur = CURRENTS[variant];
+    wrapPx(c, x, y, cur[2] + frame * 4, cur[0], rain ? 4 : cur[1], pal.cur);
+    if (!rain) wrapPx(c, x, y, cur[2] + 7 + frame * 4, cur[0] + 7, 4, pal.cur);
+    if (rain) {
+      // choppy dashes plus two expanding rain rings per loop
+      for (const [rx, ry, w] of WATER_RIPPLES[variant]) px(c, x + rx, y + ry, pal.lt, Math.max(2, w - 2), 1);
+      WATER_GLINTS[variant].slice(0, 2).forEach(([gx, gy], k) => {
+        const age = (frame + k * 2) % 4;
+        const cx = x + gx;
+        const cy = y + Math.min(14, gy + 1);
+        if (age === 0) px(c, cx, cy, pal.glint);
+        if (age === 1) { px(c, cx - 1, cy, pal.glint); px(c, cx + 1, cy, pal.glint); }
+        if (age === 2) { px(c, cx - 2, cy, pal.lt); px(c, cx + 2, cy, pal.lt); px(c, cx - 1, cy - 1, pal.lt, 3, 1); px(c, cx - 1, cy + 1, pal.lt, 3, 1); }
+        if (age === 3) { px(c, cx - 3, cy, pal.cur); px(c, cx + 3, cy, pal.cur); }
+      });
+      return;
+    }
+    // soft ripples: light crest with a darker shadow underneath, bobbing 0-2px
+    WATER_RIPPLES[variant].forEach(([ry, len, rx], i) => {
+      const ox = rx + BOB[(frame + i) % 4];
+      px(c, x + Math.min(ox, 16 - len), y + ry, i % 2 ? pal.lt : mix(pal.lt, pal.base, 0.4), len, 1);
+      if (!deep || i !== 1) px(c, x + Math.min(ox, 16 - len) + 1, y + ry + 1, pal.dk, Math.max(1, len - 2), 1);
     });
-    if (frame === 1) px(c, x + 7, y + 9, NAT.waterLL);
-    if (frame === 2) px(c, x + 13, y + 4, NAT.waterLL);
+    // one glint per frame (deeper water twinkles less)
+    const [gx, gy] = WATER_GLINTS[variant][frame];
+    px(c, x + gx, y + gy, pal.glint);
+    if (!deep && frame === (variant + 1) % 4) {
+      px(c, x + gx - 1, y + gy, pal.lt);
+      px(c, x + gx + 1, y + gy, pal.lt);
+      px(c, x + gx, y + gy - 1, pal.lt);
+    }
   };
 }
 
-export const shoreTile: TileDraw = (c, x, y, r) => {
-  sandTile(c, x, y, r);
-  px(c, x, y, NAT.water, 16, 5);
-  px(c, x, y + 5, NAT.waterL, 16, 1);
-  px(c, x, y + 6, NAT.waterLL, 16, 1);
-  px(c, x + 3, y + 7, '#ffffff', 4, 1);
-  px(c, x + 10, y + 7, '#ffffff', 3, 1);
-};
+/** Beach waterline: the wave creeps up (frames 0-2) and slides back, leaving a wet-sand row and broken foam. */
+export function shoreTileFrame(frame: number): TileDraw {
+  const RISE = [0, 1, 2, 1];
+  return (c, x, y) => {
+    sandTile(c, x, y, rng(777));
+    const wl = 5 + RISE[frame];
+    const pal = WATER_PAL.calm.shallow;
+    px(c, x, y, pal.base, 16, wl);
+    for (let i = 0; i < 16; i += 5) px(c, x + ((i + frame * 3) % 16), y + 1 + (i % 3), pal.lt, 3, 1);
+    px(c, x, y + wl - 1, pal.lt, 16, 1);
+    px(c, x, y + wl, NAT.waterLL, 16, 1);
+    // broken foam trailing behind the wave
+    for (let i = 0; i < 16; i += 4) px(c, x + ((i + frame * 5) % 14), y + wl + 1, '#ffffff', 2 + (i % 3 === 0 ? 1 : 0), 1);
+    // wet sand where the water just was
+    for (let i = 0; i < 16; i++) if ((i + frame) % 3) px(c, x + i, y + wl + 2, mix(NAT.sand, '#b89d6a', 0.35));
+  };
+}
+export const shoreTile: TileDraw = shoreTileFrame(0);
 
 export const bridgeTile: TileDraw = (c, x, y) => {
   px(c, x, y, NAT.water, 16, 16);
@@ -219,7 +295,7 @@ export function fringe(mask: number): TileDraw {
 }
 
 /** Grassy bank over a water tile: grass, an earth lip (north side) and a foam line. */
-export function bank(mask: number): TileDraw {
+export function bank(mask: number, off = 0): TileDraw {
   return (c, x, y, r) => {
     if (mask & 1) {
       const d = jag(r, 16, 2, 3);
@@ -227,14 +303,16 @@ export function bank(mask: number): TileDraw {
         px(c, x + i, y, NAT.grass, 1, v);
         px(c, x + i, y + v, NAT.earth, 1, 3);
         px(c, x + i, y + v + 2, NAT.earthD, 1, 1);
-        px(c, x + i, y + v + 3, NAT.waterLL, 1, 1);
+        px(c, x + i, y + v + 3 + off, NAT.waterLL, 1, 1);
+        if ((i + off) % 2 === 0) px(c, x + i, y + v + 4 + off, '#62bcee', 1, 1);
       });
     }
     if (mask & 4) {
       const d = jag(r, 16, 1, 3);
       d.forEach((v, i) => {
         px(c, x + i, y + 16 - v, NAT.grass, 1, v);
-        px(c, x + i, y + 15 - v, NAT.waterLL, 1, 1);
+        px(c, x + i, y + 15 - v - off, NAT.waterLL, 1, 1);
+        if ((i + off) % 2 === 0) px(c, x + i, y + 14 - v - off, '#62bcee', 1, 1);
       });
     }
     if (mask & 8) {
@@ -242,7 +320,8 @@ export function bank(mask: number): TileDraw {
       d.forEach((v, i) => {
         px(c, x, y + i, NAT.grass, v, 1);
         px(c, x + v, y + i, NAT.earth, 1, 1);
-        px(c, x + v + 1, y + i, NAT.waterLL, 1, 1);
+        px(c, x + v + 1 + off, y + i, NAT.waterLL, 1, 1);
+        if ((i + off) % 2 === 0) px(c, x + v + 2 + off, y + i, '#62bcee', 1, 1);
       });
     }
     if (mask & 2) {
@@ -250,7 +329,8 @@ export function bank(mask: number): TileDraw {
       d.forEach((v, i) => {
         px(c, x + 16 - v, y + i, NAT.grass, v, 1);
         px(c, x + 15 - v, y + i, NAT.earth, 1, 1);
-        px(c, x + 14 - v, y + i, NAT.waterLL, 1, 1);
+        px(c, x + 14 - v - off, y + i, NAT.waterLL, 1, 1);
+        if ((i + off) % 2 === 0) px(c, x + 13 - v - off, y + i, '#62bcee', 1, 1);
       });
     }
   };

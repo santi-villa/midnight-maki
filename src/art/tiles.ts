@@ -1,6 +1,6 @@
 /** Procedural 16x16 tileset. Each tile key maps to an index in the generated sheet. */
 import { PAL } from './palette';
-import { bank, bridgeTile, brightGrass, brightWater, darkGrassBright, flowerBedBright, fringe, GREY_STONE, pathTile, paverTile, sandTile, shoreTile, soilTile } from './nature';
+import { bank, bridgeTile, brightGrass, darkGrassBright, flowerBedBright, fringe, GREY_STONE, pathTile, paverTile, sandTile, shoreTile, shoreTileFrame, soilTile, waterTile } from './nature';
 import { barFloor, plankFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWall, izakayaWindow, tatamiMat } from './izakaya';
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
 
@@ -174,8 +174,14 @@ add('dirt', false, pathTile);
 for (let i = 0; i < 3; i++) add('cobble' + (i || ''), false, paverTile(i));
 add('sand', false, sandTile);
 add('shore', true, shoreTile);
-for (let i = 0; i < 3; i++) add('water' + i, true, brightWater(i));
-for (let i = 0; i < 3; i++) add('deep' + i, true, brightWater(i, true));
+for (let f = 1; f < 4; f++) add('shore' + f, true, shoreTileFrame(f));
+// water: wt<calm|rain><shallow|deep><variant>_<frame>; water0 / deep0 stay as aliases of the first calm frame
+add('water0', true, waterTile(0, 0, 'shallow', false));
+add('deep0', true, waterTile(0, 0, 'deep', false));
+// wt<calm|rain><s=shallow|m=mid|d=deep><variant>_<frame>; 'mid' softens the step between shallow and deep water
+for (const rain of [false, true])
+  for (const depth of ['shallow', 'mid', 'deep'] as const)
+    for (let v = 0; v < 3; v++) for (let f = 0; f < 4; f++) add(`wt${rain ? 'r' : 'c'}${depth[0]}${v}_${f}`, true, waterTile(v, f, depth, rain));
 add('bridge', false, bridgeTile);
 add('mat', false, doorMat());
 add('bed_rose', false, flowerBedBright('#f4a6c0'));
@@ -186,6 +192,7 @@ add('soilwet', false, soilTile(true));
 // transparent edge overlays (grass creeping over paths, grassy banks over water); index = mask 1..15
 for (let m = 1; m < 16; m++) add('fr' + m, false, fringe(m));
 for (let m = 1; m < 16; m++) add('bk' + m, false, bank(m));
+for (let m = 1; m < 16; m++) add('bkb' + m, false, bank(m, 1)); // second foam frame
 add('station', false, paverTile(2, GREY_STONE));
 add('rail', false, rail());
 add('kitchen', false, barFloor);
@@ -210,10 +217,12 @@ add('wall_stone', true, wallFace('#a59f9a', '#8d8790', 'plain'));
 export const TILE_INDEX: Record<string, number> = Object.fromEntries(DEFS.map((d, i) => [d.key, i]));
 export const TILE_SOLID: boolean[] = DEFS.map((d) => d.solid);
 export const TILE_KEYS = DEFS.map((d) => d.key);
-export const WATER_FRAMES = [
-  [TILE_INDEX.water0, TILE_INDEX.water1, TILE_INDEX.water2],
-  [TILE_INDEX.deep0, TILE_INDEX.deep1, TILE_INDEX.deep2],
-];
+/** The 4 animation frames of a water tile (rain = choppier, greyer set). */
+export function waterFrames(depth: 's' | 'm' | 'd', variant: number, rain: boolean): number[] {
+  return [0, 1, 2, 3].map((f) => TILE_INDEX[`wt${rain ? 'r' : 'c'}${depth}${variant}_${f}`]);
+}
+/** Beach waterline frames (frame 0 is the plain 'shore' tile). */
+export const SHORE_FRAMES = [TILE_INDEX.shore, TILE_INDEX.shore1, TILE_INDEX.shore2, TILE_INDEX.shore3];
 
 export const TILESET_COLS = 16;
 
