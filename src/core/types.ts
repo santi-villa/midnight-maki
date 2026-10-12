@@ -110,4 +110,6 @@ export interface Settings {
   joystick: boolean;
   cookMode: 'relaxed' | 'normal' | 'challenge';
   settingsVersion?: number;
+  /** objective arrow towards the tracked quest */
+  guide?: boolean;
 }

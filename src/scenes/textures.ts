@@ -178,3 +178,36 @@ export function hashStr(s: string): number {
   }
   return h >>> 0;
 }
+
+/** Objective guide sprites: a golden arrow (pointing right) and a bouncing diamond marker. */
+export function guideTexture(scene: Phaser.Scene, kind: 'arrow' | 'mark'): string {
+  const key = 'guide_' + kind;
+  if (scene.textures.exists(key)) return key;
+  const c = makeCanvas(13, 13);
+  const g = ctx2d(c);
+  const ink = '#2b1d17';
+  if (kind === 'arrow') {
+    const rows = ['....X........', '....XX.......', 'XXXXXXX......', 'XXXXXXXX.....', 'XXXXXXX......', '....XX.......', '....X........'];
+    rows.forEach((r, j) => [...r].forEach((v, i) => { if (v === 'X') { g.fillStyle = ink; g.fillRect(i + 2, j + 3, 1, 1); } }));
+    g.fillStyle = '#ffd25a';
+    g.fillRect(3, 6, 5, 1);
+    g.fillRect(6, 4, 1, 5);
+    g.fillRect(7, 5, 1, 3);
+    g.fillRect(8, 6, 1, 1);
+    g.fillStyle = '#fff2a0';
+    g.fillRect(3, 6, 3, 1);
+  } else {
+    for (let j = 0; j < 11; j++) {
+      const w = j < 6 ? j : 10 - j;
+      g.fillStyle = ink;
+      g.fillRect(6 - w - 1, j + 1, w * 2 + 3, 1);
+    }
+    for (let j = 1; j < 10; j++) {
+      const w = j < 6 ? j - 1 : 9 - j;
+      g.fillStyle = j < 5 ? '#fff2a0' : '#ffc23a';
+      g.fillRect(6 - w, j + 1, w * 2 + 1, 1);
+    }
+  }
+  scene.textures.addCanvas(key, c);
+  return key;
+}
