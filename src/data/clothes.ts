@@ -87,6 +87,23 @@ export const CLOTHES: ClothingDef[] = [
   C('bg_backpack', 'Mochila', 'bag', 'backpack', '#b2585e', '#7c3a40', 120, 'casual'),
   C('bg_satchel', 'Bolso cruzado', 'bag', 'satchel', '#8a5a3c', '#f2c66d', 110, 'cozy'),
   C('bg_raccoon', 'Mochila mapache', 'bag', 'raccoonpack', '#8d8a93', '#3a3440', 0, 'animal', 'event'),
+  // ---- black wardrobe (starter set + shop pieces)
+  C('top_tee_black', 'Remera negra', 'top', 'tee', '#3a3346', '#56506a', 0, 'casual'),
+  C('top_hoodie_black', 'Buzo negro', 'top', 'hoodie', '#3a3346', '#5e5672', 0, 'cozy'),
+  C('top_sweater_black', 'Suéter negro', 'top', 'sweater', '#3a3346', '#f2f0ec', 110, 'cozy'),
+  C('top_cardigan_black', 'Cárdigan negro', 'top', 'cardigan', '#3a3346', '#d9a3a6', 130, 'elegant'),
+  C('top_kimono_black', 'Haori negro', 'top', 'kimono', '#352f40', '#c94a3f', 190, 'japanese'),
+  C('top_coat_black', 'Tapado negro', 'top', 'coat', '#352f40', '#8a8296', 200, 'winter'),
+  C('bot_pants_black', 'Pantalón negro', 'bottom', 'pants', '#3a3346', '#56506a', 0, 'casual'),
+  C('bot_skirt_black', 'Pollera negra', 'bottom', 'skirt', '#3a3346', '#56506a', 0, 'elegant'),
+  C('bot_dress_black', 'Vestido negro', 'bottom', 'dress', '#352f40', '#f2f0ec', 160, 'elegant'),
+  C('bot_shorts_black', 'Short negro', 'bottom', 'shorts', '#3a3346', '#56506a', 80, 'summer'),
+  C('sh_boots_black', 'Botas negras', 'shoes', 'boots', '#2f2a38', '#56506a', 0, 'gothic'),
+  C('sh_shoes_black', 'Zapatillas negras', 'shoes', 'shoes', '#2f2a38', '#f2f0ec', 90, 'casual'),
+  C('hd_beanie_black', 'Gorro negro', 'head', 'beanie', '#3a3346', '#5e5672', 80, 'winter'),
+  C('hd_bow_black', 'Moño negro', 'head', 'bow', '#352f40', '#5e5672', 70, 'gothic'),
+  C('ex_scarf_black', 'Bufanda negra', 'extra', 'scarf', '#3a3346', '#5e5672', 90, 'winter'),
+  C('bg_backpack_black', 'Mochila negra', 'bag', 'backpack', '#3a3346', '#5e5672', 120, 'casual'),
 ];
 
 export const CLOTHES_BY_ID: Record<string, ClothingDef> = Object.fromEntries(CLOTHES.map((c) => [c.id, c]));
