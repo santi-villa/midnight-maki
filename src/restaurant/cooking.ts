@@ -1,16 +1,34 @@
 /**
  * Sushi preparation minigame. A full-screen canvas board drives each recipe step:
- * drag ingredients, spread rice by rubbing, slice with swipes, roll with upward swipes,
- * cut the roll, shape rice by tapping, wrap, garnish and plate.
+ * drag ingredients, spread rice by rubbing, slice along a guide, roll with an upward
+ * drag, cut the roll, shape rice by tapping, hold a gentle cooking mark, wrap, garnish
+ * and plate. Recipes, ingredients and the 0|1|2 quality result are unchanged.
  * Modes: relaxed (default, no timer), normal (scored), challenge (optional timer).
+ * The board is drawn in board pixels and shown at an integer scale.
  */
 import { iconCanvas, iconElement } from '../art/icons';
 import { audio } from '../audio/audio';
+import type { Track } from '../audio/audio';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
 import { ITEMS_BY_ID, INGREDIENT_ALIASES } from '../data/items';
 import { RECIPES_BY_ID, type CookStep, type RecipeDef } from '../data/recipes';
 import { h, openModal, sleep } from '../ui/dom';
+import {
+  challengeLimit,
+  guideTolerance,
+  heatHit,
+  heatMark,
+  heatWindow,
+  inPlate,
+  judgeCook,
+  missCosts,
+  nextGuide,
+  platePrecision,
+  rollFromDrag,
+  swipeCuts,
+  type CookJudgement,
+} from './cookScore';
 
 export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; variant?: string; variantBonus: number; }
 
@@ -20,17 +38,17 @@ const STEP_NAMES: Record<CookStep['t'], string> = {
 };
 
 const STEP_HELP: Record<CookStep['t'], string> = {
-  nori: 'Arrastrá el alga a la esterilla.',
-  rice: 'Arrastrá el arroz y frotá con el dedo para esparcirlo.',
-  place: 'Arrastrá los ingredientes del relleno sobre el arroz.',
-  slice: 'Deslizá el dedo de arriba hacia abajo sobre las líneas para cortar.',
-  roll: 'Deslizá hacia arriba varias veces para enrollar.',
-  cut: 'Deslizá de arriba hacia abajo sobre las marcas para cortar.',
-  shape: 'Tocá el arroz para moldear cada bolita.',
+  nori: 'Arrastrá el alga hasta la esterilla.',
+  rice: 'Arrastrá el arroz y frotá, sin apuro, hasta cubrir la esterilla.',
+  place: 'Arrastrá cada relleno a su lugar sobre el arroz.',
+  slice: 'Deslizá el dedo de arriba hacia abajo sobre la línea punteada.',
+  roll: 'Arrastrá hacia arriba, como si cerraras la esterilla.',
+  cut: 'Deslizá de arriba hacia abajo sobre la siguiente marca.',
+  shape: 'Tocá el arroz tres veces para moldear cada pieza.',
   top: 'Arrastrá la cobertura sobre cada bolita.',
   wrap: 'Deslizá de izquierda a derecha para envolver con alga.',
   garnish: 'Arrastrá los ingredientes para decorar.',
-  plate: 'Arrastrá las piezas al plato.',
+  plate: 'Arrastrá cada pieza hasta el centro del plato.',
 };
 
 const RICE = '#fbf7ee';
@@ -96,6 +114,17 @@ class CookingGame {
   private variant: { item: string; name: string; bonus: number } | null = null;
   private timeLimit = 0;
   private sparkles: { x: number; y: number; t: number }[] = [];
+  private bits: { x: number; y: number; vx: number; vy: number; t: number; c: string }[] = [];
+  private prec: number[] = [];
+  private heatOn = false;
+  private heated = false;
+  private heatT = 0;
+  private verdict: CookJudgement | null = null;
+  private finger: { x: number; y: number } | null = null;
+  private rubTravel = 0;
+  private riceSfx = 0;
+  private musicBefore: Track = 'none';
+  private lastFrame = 0;
 
   constructor(private r: RecipeDef, private title: string, private finish: (r: CookResult) => void) {}
 
@@ -107,7 +136,9 @@ class CookingGame {
     }
     this.mat = { x: Math.round((this.W - 192) / 2), y: Math.round(this.H * 0.3), w: 192, h: 100 };
     const mode = settings.cookMode;
-    if (mode === 'challenge') this.timeLimit = 40 + this.r.steps.length * 12;
+    if (mode === 'challenge') this.timeLimit = challengeLimit(this.r.steps.length);
+    this.musicBefore = audio.currentTrack();
+    audio.crossfade('kitchen');
     this.stepsEl = h('div', { class: 'cook-steps' });
     this.timerEl = h('div', { class: 'pill' });
     this.msg = h('div', { class: 'cook-msg' });
@@ -136,13 +167,15 @@ class CookingGame {
 
   private resize = () => {
     const rect = this.canvas.parentElement!.getBoundingClientRect();
-    this.S = Math.max(0.5, Math.min(rect.width / this.W, rect.height / this.H));
-    this.canvas.width = this.W;
-    this.canvas.height = this.H;
+    const fit = Math.min(rect.width / this.W, rect.height / this.H);
+    this.S = Math.max(1, Math.floor(fit) || 1);
+    this.canvas.width = this.W * this.S;
+    this.canvas.height = this.H * this.S;
     this.canvas.style.width = this.W * this.S + 'px';
     this.canvas.style.height = this.H * this.S + 'px';
-    this.canvas.style.left = (rect.width - this.W * this.S) / 2 + 'px';
-    this.canvas.style.top = (rect.height - this.H * this.S) / 2 + 'px';
+    this.canvas.style.left = Math.round((rect.width - this.W * this.S) / 2) + 'px';
+    this.canvas.style.top = Math.round((rect.height - this.H * this.S) / 2) + 'px';
+    this.g.setTransform(this.S, 0, 0, this.S, 0, 0);
     this.g.imageSmoothingEnabled = false;
   };
 
@@ -214,8 +247,8 @@ class CookingGame {
       case 'plate':
         this.plated = 0;
         this.plateNeeded = Math.min(this.pieces || 1, 8);
-        this.say(STEP_HELP.plate + ' (o tocá "Servir todo")');
-        this.tray.append(h('button', { class: 'btn primary', onclick: () => { this.plated = this.plateNeeded; audio.sfxPlay('place'); this.checkStep(); } }, 'Servir todo'));
+        this.say(STEP_HELP.plate + ' También podés tocar "Servir todo".');
+        this.tray.append(h('button', { class: 'btn primary', onclick: () => this.serveAll() }, 'Servir todo'));
         break;
     }
   }
@@ -241,28 +274,39 @@ class CookingGame {
       try { c.setPointerCapture(e.pointerId); } catch { /* synthetic or released pointer */ }
       const p = this.toBoard(e);
       this.swipe = { ...p, t: performance.now() };
+      this.finger = p;
+      this.rubTravel = 0;
       this.onTap(p.x, p.y);
     });
     c.addEventListener('pointermove', (e) => {
       if (!this.swipe) return;
       const p = this.toBoard(e);
       this.onRub(p.x, p.y, this.swipe);
+      this.finger = p;
     });
     c.addEventListener('pointerup', (e) => {
       if (!this.swipe) return;
       const p = this.toBoard(e);
       this.onSwipe(this.swipe, p);
       this.swipe = null;
+      this.finger = null;
+      this.rubTravel = 0;
     });
-    c.addEventListener('pointercancel', () => (this.swipe = null));
+    c.addEventListener('pointercancel', () => {
+      this.swipe = null;
+      this.finger = null;
+      this.rubTravel = 0;
+    });
   }
 
   private startDrag(e: PointerEvent, id: string, optional: boolean) {
     e.preventDefault();
     const ghost = h('canvas', { class: 'drag-ghost' }) as HTMLCanvasElement;
-    ghost.width = 16;
-    ghost.height = 16;
-    ghost.getContext('2d')!.drawImage(iconCanvas(ITEMS_BY_ID[id]?.icon ?? { type: 'blob' }), 0, 0);
+    ghost.width = 48;
+    ghost.height = 48;
+    const gg = ghost.getContext('2d')!;
+    gg.imageSmoothingEnabled = false;
+    gg.drawImage(iconCanvas(ITEMS_BY_ID[id]?.icon ?? { type: 'blob' }), 0, 0, 16, 16, 0, 0, 48, 48);
     document.body.append(ghost);
     const move = (ev: PointerEvent) => {
       ghost.style.left = ev.clientX + 'px';
@@ -322,7 +366,11 @@ class CookingGame {
         const i = list.indexOf(id);
         if (i >= 0 && (s.t === 'garnish' || this.inMat(x, y))) {
           list.splice(i, 1);
-          (s.t === 'place' ? this.fillings : this.garnish).push({ id, x, y });
+          if (s.t === 'place') {
+            const spot = this.slotAt(this.fillings.length, s.items.length);
+            this.prec.push(Math.max(0, 1 - Math.hypot(x - spot.x, y - spot.y) / 48));
+            this.fillings.push({ id, x: spot.x - 9, y: spot.y - 5 });
+          } else this.garnish.push({ id, x, y });
           audio.sfxPlay('place');
           if (!list.includes(id)) (this.tray.querySelector(`[data-id="${id}"]`) as HTMLElement)?.classList.add('empty');
           this.checkStep();
@@ -377,6 +425,10 @@ class CookingGame {
   }
 
   private onTap(x: number, y: number) {
+    if (this.heatOn) {
+      this.tryHeat();
+      return;
+    }
     const s = this.step;
     if (!s) return;
     if (s.t === 'shape') {
@@ -388,22 +440,35 @@ class CookingGame {
         this.balls++;
         audio.sfxPlay('place');
         this.sparkles.push({ x: this.ballPos(idx).x, y: this.ballPos(idx).y, t: 0.6 });
+        this.puff(this.ballPos(idx).x, this.ballPos(idx).y, RICE);
         this.checkStep();
       }
       void x;
       void y;
-    } else if (s.t === 'plate') {
-      if (this.plated < this.plateNeeded) {
-        this.plated++;
-        audio.sfxPlay('place');
-        this.checkStep();
-      }
     }
   }
 
   private onRub(x: number, y: number, start: { x: number; y: number }) {
     const s = this.step;
-    if (s?.t === 'rice' && this.riceAdded) this.rub(x, y, 1);
+    if (s?.t === 'rice' && this.riceAdded) {
+      this.rub(x, y, 1);
+      this.riceSfx++;
+      if (this.riceSfx % 10 === 0) audio.sfxPlay('rice');
+      if (this.riceSfx % 6 === 0) this.puff(x, y, RICE);
+    }
+    if (s?.t === 'roll' && this.finger) {
+      const up = this.finger.y - y;
+      if (up > 0) {
+        const bamboo = game.save.restaurant.upgrades.includes('bamboo');
+        this.rollProgress = Math.min(1, this.rollProgress + rollFromDrag(up, bamboo));
+        this.rubTravel += up;
+        if (this.rollProgress >= 1 && !this.rolled) {
+          this.rolled = true;
+          audio.sfxPlay('roll');
+          this.checkStep();
+        }
+      }
+    }
     if (s?.t === 'wrap') {
       const p = Math.max(0, Math.min(1, (x - start.x) / 140));
       this.wrapProgress = Math.max(this.wrapProgress, p);
@@ -421,26 +486,118 @@ class CookingGame {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     if (s.t === 'slice' || s.t === 'cut') {
-      if (dy > 35 && Math.abs(dx) < 50) {
+      const layout = s.t === 'slice' ? this.sliceLayout() : { x0: this.mat.x, w: this.mat.w };
+      const done = s.t === 'slice' ? this.sliceDone : this.cutsDone;
+      const needed = s.t === 'slice' ? this.sliceNeeded : this.cutsNeeded;
+      const guide = nextGuide(done, needed, layout.x0, layout.w);
+      const midX = (a.x + b.x) / 2;
+      const hit = swipeCuts(dx, dy, midX, guide, guideTolerance(settings.cookMode));
+      if (hit === 'hit') {
         if (s.t === 'slice') this.sliceDone++;
         else this.cutsDone++;
+        const tol = guideTolerance(settings.cookMode);
+        this.prec.push(Math.max(0, 1 - Math.abs(midX - (guide ?? midX)) / tol));
         audio.sfxPlay('cut');
-        this.sparkles.push({ x: b.x, y: (a.y + b.y) / 2, t: 0.4 });
+        this.sparkles.push({ x: midX, y: (a.y + b.y) / 2, t: 0.4 });
+        this.puff(midX, (a.y + b.y) / 2, ingColor(s.t === 'slice' ? this.sliceItem : 'rice'));
         this.checkStep();
-      } else if (Math.hypot(dx, dy) > 25) this.say('Cortá de arriba hacia abajo.');
+      } else if (hit === 'miss') {
+        if (missCosts(settings.cookMode)) this.mistakes++;
+        audio.sfxPlay('tap');
+        this.say('Seguí la línea punteada, de arriba hacia abajo.');
+      } else if (Math.hypot(dx, dy) > 25) this.say('Cortá de arriba hacia abajo sobre la línea.');
     }
     if (s.t === 'roll') {
-      if (dy < -30) {
-        this.rollProgress = Math.min(1, this.rollProgress + (game.save.restaurant.upgrades.includes('bamboo') ? 0.5 : 0.34));
+      if (dy < -30 && this.rubTravel < 8) {
+        const bamboo = game.save.restaurant.upgrades.includes('bamboo');
+        this.rollProgress = Math.min(1, this.rollProgress + rollFromDrag(-dy, bamboo));
         audio.sfxPlay('roll');
         if (this.rollProgress >= 1) this.rolled = true;
         this.checkStep();
-      } else if (Math.hypot(dx, dy) > 25) this.say('Deslizá hacia arriba para enrollar.');
+      } else if (this.rollProgress < 1 && Math.hypot(dx, dy) > 25 && dy >= -30) this.say('Arrastrá hacia arriba para enrollar.');
     }
-    if (s.t === 'plate' && dy > 20 && this.plated < this.plateNeeded) {
+    if (s.t === 'plate' && this.plated < this.plateNeeded) {
+      const box = this.plateBox();
+      const inside = inPlate(b.x, b.y, box.cx, box.cy, box.rx, box.ry);
+      const tap = Math.hypot(dx, dy) < 28;
+      if (inside || (settings.cookMode === 'relaxed' && tap)) this.placePiece(b.x, b.y, !inside);
+      else if (Math.hypot(dx, dy) > 18) this.say('Soltá la pieza sobre el plato.');
+    }
+  }
+
+  private serveAll() {
+    const bump = settings.cookMode === 'challenge' ? 0.4 : 0.72;
+    while (this.plated < this.plateNeeded) {
       this.plated++;
-      audio.sfxPlay('place');
-      this.checkStep();
+      this.prec.push(bump);
+    }
+    audio.sfxPlay('place');
+    this.checkStep();
+  }
+
+  private placePiece(x: number, y: number, loose: boolean) {
+    if (this.plated >= this.plateNeeded) return;
+    const box = this.plateBox();
+    this.prec.push(loose ? 0.8 : platePrecision(x, y, box.cx, box.cy, box.rx, box.ry));
+    this.plated++;
+    audio.sfxPlay('place');
+    this.puff(x, y, '#fff6e4');
+    this.checkStep();
+  }
+
+  private plateBox() {
+    return {
+      cx: this.W / 2,
+      cy: this.H - 46,
+      rx: Math.min(86, this.W / 2 - 16),
+      ry: 24,
+    };
+  }
+
+  private sliceLayout() {
+    const w = 180;
+    return { x0: Math.round((this.W - w) / 2), y0: Math.round(this.H * 0.25), w, h: 60 };
+  }
+
+  private tryHeat() {
+    if (!this.heatOn) return;
+    const band = heatWindow(settings.cookMode);
+    const mark = heatMark(this.heatT, band.speed);
+    if (heatHit(mark, band.half)) {
+      this.prec.push(1);
+      this.finishHeat(true);
+    } else if (missCosts(settings.cookMode)) {
+      this.mistakes++;
+      audio.sfxPlay('error');
+      this.say('Casi. Esperá a que la marca llegue al dorado.');
+    } else {
+      audio.sfxPlay('tap');
+      this.say('Un poquito antes o después. El centro es el punto justo.');
+    }
+  }
+
+  private finishHeat(ok: boolean) {
+    if (!this.heatOn) return;
+    if (!ok && missCosts(settings.cookMode)) this.mistakes++;
+    if (!ok) this.prec.push(0.35);
+    this.heatOn = false;
+    this.heated = true;
+    audio.sfxPlay(ok ? 'steam' : 'tap');
+    this.puff(this.W / 2, this.H * 0.42, '#f6ecd6');
+    this.nextStep();
+  }
+
+  private puff(x: number, y: number, c: string) {
+    if (settings.reduceMotion) return;
+    const cap = settings.perf === 'low' ? 8 : 28;
+    for (let i = 0; i < 5 && this.bits.length < cap; i++) {
+      this.bits.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 18,
+        vy: -10 - Math.random() * 16,
+        t: 0.45 + Math.random() * 0.25,
+        c,
+      });
     }
   }
 
@@ -466,7 +623,15 @@ class CookingGame {
       case 'garnish': ok = this.needGarnish.length === 0; break;
       case 'plate': ok = this.plated >= this.plateNeeded; break;
     }
-    if (ok) this.nextStep();
+    if (!ok || this.heatOn) return;
+    if ((s.t === 'roll' || s.t === 'shape') && !this.heated) {
+      this.heatOn = true;
+      this.heatT = 0;
+      this.say('Fuego suave. Tocá cuando la marca esté en el dorado.');
+      audio.sfxPlay('steam');
+      return;
+    }
+    this.nextStep();
   }
 
   private async nextStep() {
@@ -488,24 +653,31 @@ class CookingGame {
     if (this.done) return;
     this.done = true;
     const mode = settings.cookMode;
-    const t = this.elapsed();
-    const par = 10 + this.r.steps.length * 7;
-    let quality: 0 | 1 | 2;
-    if (mode === 'relaxed') quality = this.mistakes <= 2 ? 2 : 1;
-    else {
-      const score = Math.max(0, 100 - this.mistakes * 10 - Math.max(0, t - par) * 1.5);
-      quality = score >= 80 ? 2 : score >= 50 ? 1 : 0;
-      if (mode === 'challenge' && this.timeLimit && t <= this.timeLimit) quality = Math.min(2, quality + 1) as 0 | 1 | 2;
-    }
+    const precision = this.prec.length ? this.prec.reduce((sum, n) => sum + n, 0) / this.prec.length : 0.75;
+    const judged = judgeCook({
+      mode,
+      mistakes: this.mistakes,
+      elapsed: this.elapsed(),
+      steps: this.r.steps.length,
+      timeLimit: this.timeLimit,
+      precision,
+    });
+    this.verdict = judged;
     const used = (this as any).variantUsed && this.variant;
     if (used && this.variant) game.consumeIngredients({ [this.variant.item]: 1 });
-    audio.sfxPlay('success');
-    this.say(['¡Listo!', '¡Muy bien!', '¡Perfecto!'][quality]);
+    audio.sfxPlay(judged.quality === 2 ? 'success' : 'sparkle');
+    this.say(judged.label);
     this.renderSteps();
     setTimeout(() => {
       this.cleanup();
-      this.finish({ ok: true, quality, score: quality, variant: used ? this.variant!.name : undefined, variantBonus: used ? this.variant!.bonus : 0 });
-    }, 900);
+      this.finish({
+        ok: true,
+        quality: judged.quality,
+        score: judged.score,
+        variant: used ? this.variant!.name : undefined,
+        variantBonus: used ? this.variant!.bonus : 0,
+      });
+    }, 1200);
   }
 
   private abort() {
@@ -518,6 +690,7 @@ class CookingGame {
   private cleanup() {
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.resize);
+    audio.crossfade(this.musicBefore);
     this.close();
   }
 
@@ -537,6 +710,22 @@ class CookingGame {
   }
 
   private loop = () => {
+    const now = performance.now();
+    const dt = this.lastFrame ? Math.min(0.05, (now - this.lastFrame) / 1000) : 0;
+    this.lastFrame = now;
+    if (this.heatOn && !this.done) {
+      this.heatT += dt;
+      if (this.heatT >= heatWindow(settings.cookMode).giveUp) this.finishHeat(false);
+      else if (!settings.reduceMotion && Math.random() < dt * 2) this.puff(this.W / 2, this.mat.y + 8, '#f6ecd6');
+    }
+    if (!settings.reduceMotion) {
+      for (const bit of this.bits) {
+        bit.t -= dt;
+        bit.x += bit.vx * dt;
+        bit.y += bit.vy * dt;
+      }
+      this.bits = this.bits.filter((bit) => bit.t > 0);
+    }
     this.draw();
     if (this.timeLimit) {
       const left = Math.max(0, this.timeLimit - this.elapsed());
@@ -564,6 +753,11 @@ class CookingGame {
       g.fillStyle = '#8e5d3c';
       g.fillRect((i * 71 + 30) % W, y, 1, 13);
     }
+    g.fillStyle = 'rgba(42,24,16,.28)';
+    g.fillRect(0, 0, W, 8);
+    g.fillRect(0, H - 8, W, 8);
+    g.fillRect(0, 0, 6, H);
+    g.fillRect(W - 6, 0, 6, H);
     const s = this.step;
     const usesMat = this.r.steps.some((st) => st.t === 'nori' || st.t === 'rice');
     const m = this.mat;
@@ -610,7 +804,23 @@ class CookingGame {
           g.fill();
         }
       }
-      if (!this.rolled) for (const f of this.fillings) this.drawIng(f.id, m.x + 16, Math.min(Math.max(f.y, m.y + m.h - visH + 6), m.y + m.h - 12), m.w - 32, 8);
+      if (!this.rolled && s?.t === 'place') {
+        const total = Math.max(1, this.needPlace.length + this.fillings.length);
+        for (let i = 0; i < this.needPlace.length; i++) {
+          const slot = this.slotAt(this.fillings.length + i, total);
+          g.fillStyle = 'rgba(246,236,214,.45)';
+          g.beginPath();
+          g.arc(slot.x, slot.y, 8, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+      if (!this.rolled) {
+        for (const f of this.fillings) {
+          const x = Math.min(Math.max(f.x, m.x + 4), m.x + m.w - 22);
+          const y = Math.min(Math.max(f.y, m.y + 4), m.y + m.h - 14);
+          this.drawIng(f.id, x, y, 18, 10);
+        }
+      }
       // roll
       if (this.rollProgress > 0 || this.rolled) {
         const ry = m.y + m.h - visH - 10;
@@ -707,21 +917,34 @@ class CookingGame {
     for (const f of this.garnish) this.drawIng(f.id, f.x - 6, f.y - 3, 12, 6);
     // plate
     if (s?.t === 'plate') {
+      const box = this.plateBox();
+      g.fillStyle = 'rgba(40,24,16,.3)';
+      g.beginPath();
+      g.ellipse(box.cx + 2, box.cy + 3, box.rx, box.ry, 0, 0, Math.PI * 2);
+      g.fill();
       g.fillStyle = '#d8d2c8';
       g.beginPath();
-      g.ellipse(W / 2, H - 40, Math.min(90, W / 2 - 10), 26, 0, 0, Math.PI * 2);
+      g.ellipse(box.cx, box.cy, box.rx, box.ry, 0, 0, Math.PI * 2);
       g.fill();
       g.fillStyle = '#fbf6ea';
       g.beginPath();
-      g.ellipse(W / 2, H - 43, Math.min(82, W / 2 - 18), 21, 0, 0, Math.PI * 2);
+      g.ellipse(box.cx, box.cy - 2, box.rx - 8, box.ry - 5, 0, 0, Math.PI * 2);
       g.fill();
+      g.strokeStyle = 'rgba(194,127,134,.85)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.ellipse(box.cx, box.cy - 2, box.rx * 0.45, box.ry * 0.45, 0, 0, Math.PI * 2);
+      g.stroke();
       for (let i = 0; i < this.plated; i++) {
-        const x = W / 2 - 64 + (i % 8) * 16;
-        this.drawRollSlice(x, H - 52, 14, 14, true);
+        const x = box.cx - 64 + (i % 8) * 16;
+        this.drawRollSlice(x, box.cy - 12, 14, 14, true);
       }
-      g.fillStyle = 'rgba(246,236,214,.9)';
+      const waiting = this.plateNeeded - this.plated;
+      for (let i = 0; i < waiting; i++) this.drawRollSlice(16 + i * 18, 28, 14, 14, true);
+      if (this.finger && waiting > 0) this.drawRollSlice(this.finger.x - 7, this.finger.y - 8, 14, 14, true);
+      g.fillStyle = '#4a3428';
       g.font = '11px sans-serif';
-      g.fillText(`Piezas: ${this.plated}/${this.plateNeeded}`, W / 2 - 30, H - 80);
+      g.fillText(`${this.plated}/${this.plateNeeded}`, box.cx - 12, box.cy - box.ry - 8);
     }
     // roll hint
     if (s?.t === 'roll') {
@@ -736,6 +959,22 @@ class CookingGame {
       g.lineTo(W - 3, 76);
       g.fill();
     }
+    if ((s?.t === 'slice' || s?.t === 'cut') && this.swipe && this.finger) {
+      g.strokeStyle = 'rgba(246,236,214,.9)';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(Math.round(this.swipe.x), Math.round(this.swipe.y));
+      g.lineTo(Math.round(this.finger.x), Math.round(this.finger.y));
+      g.stroke();
+    }
+    if (this.heatOn) this.drawHeat();
+    for (const bit of this.bits) {
+      g.globalAlpha = Math.max(0, bit.t * 2);
+      g.fillStyle = bit.c;
+      g.fillRect(Math.round(bit.x), Math.round(bit.y), 2, 2);
+      g.globalAlpha = 1;
+    }
+    if (this.verdict) this.drawVerdict();
     // sparkles
     for (const sp of this.sparkles) {
       sp.t -= 1 / 60;
@@ -746,22 +985,83 @@ class CookingGame {
     this.sparkles = this.sparkles.filter((s2) => s2.t > 0);
   }
 
+  private slotAt(index: number, total: number) {
+    const m = this.mat;
+    return { x: m.x + ((index + 1) / (total + 1)) * m.w, y: m.y + m.h * 0.62 };
+  }
+
+  private drawHeat() {
+    const g = this.g;
+    const band = heatWindow(settings.cookMode);
+    const mark = heatMark(this.heatT, band.speed);
+    const x = 28;
+    const y = this.H - 26;
+    const w = this.W - 56;
+    g.fillStyle = '#4a3428';
+    g.font = '10px sans-serif';
+    g.fillText('Fuego', x, y - 4);
+    g.fillStyle = 'rgba(40,24,16,.35)';
+    g.fillRect(x + 1, y + 2, w, 12);
+    g.fillStyle = '#6b4330';
+    g.fillRect(x, y, w, 10);
+    const sweet = w * band.half * 2;
+    g.fillStyle = '#e7b15a';
+    g.fillRect(x + w / 2 - sweet / 2, y, sweet, 10);
+    g.fillStyle = '#f6ecd6';
+    g.fillRect(x + mark * w - 2, y - 2, 4, 14);
+  }
+
+  private drawVerdict() {
+    if (!this.verdict) return;
+    const g = this.g;
+    g.fillStyle = 'rgba(28,16,12,.5)';
+    g.fillRect(0, 0, this.W, this.H);
+    const box = { cx: this.W / 2, cy: this.H / 2 + 8, rx: Math.min(78, this.W / 2 - 24), ry: 28 };
+    g.fillStyle = 'rgba(40,24,16,.35)';
+    g.beginPath();
+    g.ellipse(box.cx + 2, box.cy + 3, box.rx, box.ry, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#fbf6ea';
+    g.beginPath();
+    g.ellipse(box.cx, box.cy, box.rx, box.ry, 0, 0, Math.PI * 2);
+    g.fill();
+    const n = Math.min(6, Math.max(1, this.pieces || this.plateNeeded || 4));
+    for (let i = 0; i < n; i++) this.drawRollSlice(box.cx - (n * 16) / 2 + i * 16, box.cy - 10, 14, 16, true);
+    for (let i = 0; i < 3; i++) {
+      g.fillStyle = i <= this.verdict.quality ? '#ffc23a' : '#b7a48a';
+      g.fillRect(this.W / 2 - 26 + i * 18, box.cy - box.ry - 28, 12, 12);
+    }
+  }
+
   private drawIng(id: string, x: number, y: number, w: number, hgt: number) {
     const g = this.g;
-    const c = ingColor(id);
-    g.fillStyle = c;
-    g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(hgt));
-    g.fillStyle = 'rgba(255,255,255,.25)';
-    g.fillRect(Math.round(x), Math.round(y), Math.round(w), 1);
-    const it = ITEMS_BY_ID[id];
-    if (it?.icon.type === 'flakes' || it?.icon.type === 'roe') {
-      g.fillStyle = 'rgba(42,34,48,.25)';
-      for (let i = 0; i < w; i += 3) g.fillRect(x + i, y + ((i * 7) % Math.max(1, hgt)), 1, 1);
+    const left = Math.round(x);
+    const top = Math.round(y);
+    const ww = Math.max(4, Math.round(w));
+    const hh = Math.max(3, Math.round(hgt));
+    g.fillStyle = 'rgba(40,24,16,.28)';
+    g.fillRect(left + 1, top + 2, ww, hh);
+    g.fillStyle = ingColor(id);
+    g.fillRect(left, top, ww, hh);
+    g.fillStyle = 'rgba(255,248,230,.4)';
+    g.fillRect(left, top, ww, 1);
+    g.fillRect(left, top, 1, hh);
+    if (/salmon|tuna|shrimp|eel|carp|fish|unagi/.test(id)) {
+      g.fillStyle = 'rgba(255,255,255,.4)';
+      g.fillRect(left + 2, top + Math.floor(hh * 0.45), Math.max(1, ww - 4), 1);
+    } else if (/cucumber|avocado|carrot/.test(id)) {
+      g.fillStyle = 'rgba(255,255,255,.55)';
+      for (let i = 3; i < ww; i += 6) g.fillRect(left + i, top + Math.floor(hh / 2), 2, 2);
+    } else if (/roe|sesame|sakura|chili|tempura|berry/.test(id)) {
+      g.fillStyle = 'rgba(42,34,48,.35)';
+      for (let i = 2; i < ww; i += 4) g.fillRect(left + i, top + (i % hh), 2, 2);
     }
   }
 
   private drawRollSlice(x: number, y: number, w: number, hh: number, cut: boolean) {
     const g = this.g;
+    g.fillStyle = 'rgba(40,24,16,.28)';
+    g.fillRect(Math.round(x) + 1, Math.round(y) + 2, Math.round(w), Math.round(hh));
     const inside = this.r.steps.some((s) => s.t === 'garnish') && this.r.icon.type === 'uramaki';
     g.fillStyle = inside ? RICE : NORI;
     g.fillRect(x, y, w, hh);
