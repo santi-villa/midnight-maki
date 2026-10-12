@@ -1,11 +1,14 @@
 import type { Appearance } from '../core/types';
 
+/** Poses a character can hold. Walking is separate: it is just moving between these. */
+export type NpcAct = 'sleep' | 'cook' | 'read' | 'sit' | 'play' | 'work' | 'fish' | 'paint' | 'stars' | 'eat' | 'drink' | 'clean' | 'talk' | 'look';
+
 export interface RoutineStop {
   zone: string;
   x: number;
   y: number;
   wander?: number;     // tiles around the anchor the NPC strolls
-  act?: 'sleep' | 'cook' | 'read' | 'sit' | 'play' | 'work' | 'fish' | 'paint' | 'stars';
+  act?: NpcAct;
 }
 
 export interface CharacterDef {

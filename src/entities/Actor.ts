@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import { FRAMES } from '../art/characters';
 import type { Dir } from '../core/types';
+import type { NpcAct } from '../data/characters';
 import { lowFx } from '../core/perf';
 import type { Grid } from '../world/grid';
 
 export const TILE = 16;
 
-export type Act = 'idle' | 'sleep' | 'cook' | 'read' | 'sit' | 'play' | 'work' | 'fish' | 'paint' | 'stars' | 'happy' | 'surprised' | 'wave';
+export type Act = 'idle' | 'happy' | 'surprised' | 'wave' | NpcAct;
 
 const WALK_FRAMES: Record<Dir, readonly number[]> = { down: FRAMES.down, up: FRAMES.up, left: FRAMES.left, right: FRAMES.right };
 
@@ -199,6 +200,9 @@ export class Actor {
           break;
         case 'cook':
         case 'work':
+        case 'clean':
+        case 'fish':
+        case 'paint':
           frame = this.dir === 'up' ? FRAMES.up[Math.floor(this.actT * 3) % 2 ? 0 : 1] : FRAMES.cook[Math.floor(this.actT * 3) % 2];
           break;
         case 'read':
@@ -206,21 +210,30 @@ export class Actor {
           this.bob = Math.sin(this.actT * 1.4) > 0.9 ? 1 : 0;
           break;
         case 'sit':
+        case 'eat':
+        case 'drink':
           frame = FRAMES.sit;
+          if (!this.bubble && this.act !== 'sit' && this.actT > 0.35 && this.actT < 0.5) this.emote(this.act === 'eat' ? 'ñam' : 'té', 1.3);
           break;
         case 'wave':
-          frame = FRAMES.wave[Math.floor(this.actT * 4) % 2];
+        case 'talk':
+          frame = FRAMES.wave[Math.floor(this.actT * (this.act === 'talk' ? 2 : 4)) % 2];
           break;
         case 'play':
           frame = WALK_FRAMES[this.dir][0];
           this.bob = Math.abs(Math.sin(this.actT * 5)) > 0.8 ? 2 : 0;
           break;
+        case 'stars':
+          frame = FRAMES.up[0];
+          if (!this.bubble && Math.floor(this.actT) % 5 === 0 && this.actT % 1 < 0.08) this.emote('*', 1.2);
+          break;
+        case 'look':
         default:
           frame = WALK_FRAMES[this.dir][0];
           // gentle breathing while standing still
           if ((this.animT + this.phase) % 1.8 > 1.15) frame = FRAMES.breathe[this.dir];
       }
-      if (this.blinking > 0 && this.act !== 'sleep' && this.act !== 'happy') {
+      if (this.blinking > 0 && this.act !== 'sleep' && this.act !== 'happy' && this.act !== 'sit' && this.act !== 'eat' && this.act !== 'drink' && this.act !== 'read') {
         if (this.dir === 'down') frame = FRAMES.blinkDown;
         else if (this.dir === 'right') frame = FRAMES.blinkRight;
         else if (this.dir === 'left') frame = FRAMES.blinkLeft;

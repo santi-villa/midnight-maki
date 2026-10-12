@@ -9,6 +9,7 @@ import { CLOTHES, CLOTHES_BY_ID } from '../data/clothes';
 import { FURNITURE, FURN_BY_ID } from '../data/furniture';
 import { ITEMS_BY_ID, type ItemCat } from '../data/items';
 import { runScene, say } from '../dialogue/dialogue';
+import { shopGate } from '../systems/npcs';
 import { clock } from '../systems/time';
 import { previewCanvas } from './creator';
 import { h, panel, toast } from './dom';
@@ -146,6 +147,11 @@ function buy(e: Entry, qty = 1): boolean {
 export async function openShop(id: string) {
   const s = SHOPS[id];
   if (!s) return;
+  const gate = shopGate(id);
+  if (gate.tracked && !gate.open) {
+    toast(gate.detail);
+    return;
+  }
   if (s.open && !s.open()) {
     toast(s.closedMsg ?? 'Está cerrado ahora.');
     return;
