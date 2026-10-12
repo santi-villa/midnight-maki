@@ -29,8 +29,8 @@ export function roomAt(def: ZoneDef, x: number, y: number): RoomDef | undefined 
   return def.rooms.find((r) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h);
 }
 
-export function roomStyle(r: RoomDef | undefined) {
-  if (!r) return { wall: 'cream', floor: 'wood' };
+export function roomStyle(r: RoomDef | undefined, def?: ZoneDef) {
+  if (!r) return { wall: def?.walls ?? 'cream', floor: def?.floor ?? 'wood' };
   const s = game.save.roomStyle[r.id];
   return { wall: s?.wall ?? r.defWall, floor: s?.floor ?? r.defFloor };
 }
@@ -42,13 +42,15 @@ function hash(x: number, y: number) {
 }
 
 export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = false): number {
-  const st = roomStyle(roomAt(def, x, y));
+  const st = roomStyle(roomAt(def, x, y), def);
   switch (ch) {
     case '#': return TILE_INDEX['walltop_' + st.wall] ?? TILE_INDEX.walltop_cream;
     case 'W': return TILE_INDEX['wall_' + st.wall] ?? TILE_INDEX.wall_cream;
     case 'V': return TILE_INDEX[(night ? 'windowN_' : 'window_') + st.wall] ?? TILE_INDEX.window_cream;
     case 'f': return TILE_INDEX['floor_' + st.floor] ?? TILE_INDEX.floor_wood;
+    case 'U': return TILE_INDEX['upper_' + st.wall] ?? TILE_INDEX['walltop_' + st.wall] ?? TILE_INDEX.walltop_cream;
     case 'k': return TILE_INDEX.kitchen;
+    case 't': return TILE_INDEX.floor_tatami;
     case 'm': return TILE_INDEX.mat;
     case 'g': {
       const h = hash(x, y) % 10;
@@ -76,9 +78,10 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
 /** Default furniture for each decor room the first time it's visited. */
 const DEFAULT_DECOR: Record<string, [string, number, number, number?][]> = {
   dining: [
-    ['table_wood', 8, 8], ['chair_wood', 8, 9, 2], ['chair_wood', 9, 9, 2], ['chair_wood', 8, 7, 0], ['chair_wood', 9, 7, 0],
-    ['table_wood', 12, 8], ['chair_wood', 12, 9, 2], ['chair_wood', 13, 9, 2], ['chair_wood', 12, 7, 0], ['chair_wood', 13, 7, 0],
-    ['table_round', 15, 10], ['plant_fern', 16, 12], ['lantern_cream', 7, 12],
+    ['table_dark', 8, 8], ['chair_dark', 8, 9, 2], ['chair_dark', 9, 9, 2], ['chair_dark', 8, 7, 0], ['chair_dark', 9, 7, 0],
+    ['table_dark', 12, 7], ['chair_dark', 12, 8, 2], ['chair_dark', 13, 8, 2], ['chair_dark', 12, 6, 0], ['chair_dark', 13, 6, 0],
+    ['table_low', 15, 10], ['cushion_indigo', 15, 9], ['cushion_rose', 16, 9], ['cushion_rose', 15, 11], ['cushion_indigo', 16, 11],
+    ['bamboo_pot', 16, 6], ['andon', 11, 12], ['bamboo_pot', 7, 12],
   ],
   room_player: [['bed_rose', 1, 2], ['lamp_table', 2, 2], ['rug_cream', 3, 4], ['wardrobe_wood', 5, 2]],
   room_pip: [['futon_rose', 9, 3], ['plush_bear', 12, 2], ['lantern_cream', 13, 2]],
