@@ -27,7 +27,7 @@ test('folk sprites: every character renders all 30 frames, 4 directions differ, 
   expect(Object.keys(report).length).toBe(15);
   for (const [id, r] of Object.entries<any>(report)) {
     expect(r.sheetW, id).toBe(r.fw * 30);
-    expect(r.fh, id).toBe(52);
+    expect(r.fh, id).toBe(39);
     expect(r.empty, id).toBe(0);
     expect(r.lowest, id).toBeGreaterThanOrEqual(r.fh - 3); // feet on the last rows
     expect(new Set([r.down, r.up, r.right, r.left]).size, id).toBe(4);

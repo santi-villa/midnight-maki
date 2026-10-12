@@ -5,7 +5,7 @@ const GRAY = '#9d9ba3';
 
 export const FOLK_SPECS: Record<string, FolkSpec> = {
   spicy: {
-    id: 'spicy', ears: 'round', fur: GRAY, furLight: '#f4f1f0', innerEar: '#4b4553', mask: '#3b3541', nose: '#2b2330', eye: '#2b2330',
+    id: 'spicy', ears: 'round', fur: GRAY, furLight: '#f4f1f0', innerEar: '#4b4553', mask: '#57525f', nose: '#2b2330', eye: '#2b2330',
     hat: { kind: 'bandana', c: '#c9482f', c2: '#962f24' },
     top: '#8d8b95', topLight: '#a9a7b1', legsColor: '#77757f', legs: 'pants', shoes: '#4a4552',
     tail: { kind: 'ringed', c: '#a3a1a9' },
@@ -18,16 +18,16 @@ export const FOLK_SPECS: Record<string, FolkSpec> = {
     deco: [{ k: 'vest', c: '#3b3339', inner: '#2f2830' }, { k: 'necklace', c: '#e8c35a' }],
   },
   pip: {
-    id: 'pip', ears: 'round', fur: '#9c9ba5', furLight: '#d8d6e6', innerEar: '#5b5967', mask: '#4c4a58', nose: '#2b2330', eye: '#2b2330',
+    id: 'pip', ears: 'round', fur: '#9c9ba5', furLight: '#d8d6e6', innerEar: '#5b5967', mask: '#625f72', nose: '#2b2330', eye: '#2b2330',
     top: '#9c9ba5', topLight: '#b4b3bd', legsColor: '#8b8a95', legs: 'fur', shoes: '#5d5b68', wide: 3.6, frameW: 42,
     tail: { kind: 'ringed', c: '#8f8e99' },
-    belly: { c: '#d8d6ea', rx: 8, ry: 5.2, y: 5.6 },
+    belly: { c: '#d8d6ea', rx: 8, ry: 4.2, y: 4.6 },
   },
   rigg: {
-    id: 'rigg', ears: 'round', fur: '#8c5b37', furLight: '#bb8b5d', innerEar: '#c79d6c', mask: '#4a2f1f', nose: '#2a1a14', eye: '#2b2330',
+    id: 'rigg', ears: 'round', fur: '#8c5b37', furLight: '#bb8b5d', innerEar: '#c79d6c', mask: '#5e3c26', nose: '#2a1a14', eye: '#2b2330',
     top: '#8c5b37', topLight: '#a47048', legsColor: '#7b4d2f', legs: 'fur', shoes: '#4a3020',
     tail: { kind: 'ringed', c: '#8c5b37' },
-    belly: { c: '#f2e4ca', rx: 4.6, ry: 4.2, y: 6.4 },
+    belly: { c: '#f2e4ca', rx: 4.4, ry: 3.4, y: 5 },
   },
   momo: {
     id: 'momo', ears: 'long', fur: '#f3e6c8', furLight: '#fbf4e2', innerEar: '#f3b7b9', blush: '#f0a9a6', nose: '#d98b8b', eye: '#2b2330',
