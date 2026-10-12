@@ -63,6 +63,18 @@ async function startWorld(isNew: boolean) {
     onContinue();
   }
   startAutosave();
+  backupHousekeeping();
+}
+
+/** Keeps saves safe: asks for persistent storage and gently reminds to back up once a week. */
+async function backupHousekeeping() {
+  const st = await import('../persistence/storage');
+  st.requestPersistence();
+  if (game.save.time.day >= 3 && st.daysSinceBackup() > 7) {
+    setTimeout(() => {
+      import('../ui/dom').then(({ toast }) => toast('Consejo: hacé una copia de tu partida desde Ajustes → Copia de seguridad.'));
+    }, 20000);
+  }
 }
 
 function startAutosave() {

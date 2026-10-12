@@ -127,14 +127,85 @@ export async function deleteSave() {
   await idbDelete(BACKUP);
 }
 
+function exportName() {
+  const name = game.save.player.name.replace(/[^\w-]+/g, '') || 'partida';
+  return `midnight-maki-${name}-dia${game.save.time.day}.json`;
+}
+
+function markBackup() {
+  try {
+    localStorage.setItem('mm_last_backup', String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Days since the player last exported/shared/copied a backup (Infinity if never). */
+export function daysSinceBackup(): number {
+  try {
+    const t = Number(localStorage.getItem('mm_last_backup'));
+    return t ? (Date.now() - t) / 86400000 : Infinity;
+  } catch {
+    return Infinity;
+  }
+}
+
+/** Asks the browser not to evict our data under storage pressure (best effort). */
+export async function requestPersistence(): Promise<boolean> {
+  try {
+    return (await navigator.storage?.persist?.()) ?? false;
+  } catch {
+    return false;
+  }
+}
+
+/** Phone-friendly backup: opens the share sheet (WhatsApp, Drive, mail...) with the save file. */
+export async function shareSave(): Promise<'shared' | 'downloaded' | 'cancelled'> {
+  const data = JSON.stringify({ ...game.save, exportedAt: Date.now() });
+  const file = new File([data], exportName(), { type: 'application/json' });
+  const nav = navigator as any;
+  if (nav.canShare?.({ files: [file] })) {
+    try {
+      await nav.share({ files: [file], title: 'Midnight Maki: copia de mi partida', text: 'Copia de seguridad de mi partida de Midnight Maki.' });
+      markBackup();
+      return 'shared';
+    } catch {
+      return 'cancelled';
+    }
+  }
+  exportSave();
+  return 'downloaded';
+}
+
+/** Compact text code of the save (base64 of the JSON), handy to paste in a chat or notes. */
+export function saveCode(): string {
+  const json = JSON.stringify(game.save);
+  const bytes = new TextEncoder().encode(json);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  markBackup();
+  return 'MM1:' + btoa(bin);
+}
+
+export function saveFromCode(code: string): SaveData {
+  const raw = code.trim().replace(/^MM1:/, '');
+  try {
+    const bin = atob(raw);
+    const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+    return validateSave(JSON.parse(new TextDecoder().decode(bytes)));
+  } catch (err) {
+    throw err instanceof SaveError ? err : new SaveError('El código no es válido. Copialo completo.');
+  }
+}
+
 export function exportSave(): void {
+  markBackup();
   const data = JSON.stringify({ ...game.save, exportedAt: Date.now() }, null, 1);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const name = game.save.player.name.replace(/[^\w-]+/g, '') || 'partida';
   a.href = url;
-  a.download = `midnight-maki-${name}-dia${game.save.time.day}.json`;
+  a.download = exportName();
   document.body.appendChild(a);
   a.click();
   a.remove();
