@@ -490,3 +490,23 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .cook-msg { border: 10px solid transparent; border-radius: 0; border-image: var(--tx-logframe) 8 / 10px round; background: var(--tx-parchment) 0 0 / 32px 32px; padding: 2px 8px; }
 .mg-box { border: 16px solid transparent; border-radius: 0; border-image: var(--tx-logframe) 8 / 16px round; background: var(--tx-parchment) 0 0 / 32px 32px; }
 .creator .preview { border: 12px solid transparent; border-radius: 0; border-image: var(--tx-logframe) 8 / 12px round; background: linear-gradient(#8fd0f0, #bfe8a0 70%, #6cc456 70%); }
+
+/* ---------- illustrated world map ---------- */
+.wmap { position: relative; width: 100%; aspect-ratio: 240 / 200; border: 4px solid #2b1d17; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 3px #d9a970; }
+.wmap-art { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.wmap-plate {
+  position: absolute; transform: translate(-50%, -150%); white-space: nowrap; font-size: .7em; font-weight: 600; color: #3a2418;
+  border: 6px solid transparent; border-image: var(--tx-plank-btn) 4 fill / 6px stretch; background: none; padding: 0 3px; line-height: 1.2;
+  box-shadow: 0 2px 0 rgba(43,29,23,.4); z-index: 2;
+}
+.wmap-plate.locked { border-image-source: var(--tx-stone-down); color: #f3eef6; text-shadow: var(--outline); }
+.wmap-plate.here { border-image-source: var(--tx-plank-btn-gold); z-index: 3; }
+.wmap-you { position: absolute; transform: translate(-50%, -10%); display: flex; flex-direction: column; align-items: center; z-index: 4; pointer-events: none; animation: bob 1.2s ease-in-out infinite; }
+.wmap-you img { width: 30px; height: 34px; image-rendering: pixelated; object-fit: cover; border: 3px solid #2b1d17; border-radius: 50%; background: #f2c66d; }
+.wmap-you span { font-size: .6em; color: #fff4dc; text-shadow: var(--outline); font-weight: 600; }
+.wmap-friends { position: absolute; transform: translate(10%, 40%); display: flex; gap: 1px; z-index: 3; pointer-events: none; }
+.wmap-friends img { width: 22px; height: 22px; object-fit: cover; border: 2px solid #2b1d17; border-radius: 50%; background: #f6ead0; image-rendering: pixelated; }
+.wmap-info { margin-top: 8px; min-height: 48px; }
+@media (max-width: 420px) { .icon-btn { width: 52px; height: 52px; } .hud-buttons { gap: 2px; } }
+.wmap { width: min(100%, calc(62vh * 1.2)); margin: 0 auto; }
+.wmap-friends { transform: translate(-50%, 55%); }

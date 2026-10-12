@@ -222,24 +222,7 @@ function restPeriod() {
 }
 
 function openMap() {
-  const zones: [string, string, number, number, string?][] = [
-    ['forest', 'Bosque Susurrante', 50, 8, 'unlock_forest'],
-    ['market', 'Mercado Nocturno', 82, 10, 'market_known'],
-    ['station', 'Estación Abandonada', 10, 45, 'unlock_station'],
-    ['plaza', 'Plaza', 50, 45],
-    ['restaurant', 'Midnight Maki', 32, 33],
-    ['garden', 'Jardín de los Faroles', 88, 45, 'unlock_garden'],
-    ['beach', 'Playa de las Conchas', 50, 80, 'unlock_beach'],
-    ['lighthouse', 'Faro', 18, 82, 'unlock_lighthouse_view'],
-  ];
-  const map = h('div', { style: { position: 'relative', width: '100%', aspectRatio: '1 / 0.9', background: 'linear-gradient(#9bb59a 0 70%, #e8d3a8 70% 82%, #6f9fb8 82%)', border: '3px solid #46291f', borderRadius: '12px', overflow: 'hidden' } });
-  for (const [id, name, x, y, flag] of zones) {
-    const open = !flag || game.has(flag);
-    const here = world.zoneId === id || (world.zoneId === 'home' && id === 'restaurant') || (world.zoneId === 'storage' && id === 'restaurant');
-    map.append(h('div', { style: { position: 'absolute', left: x + '%', top: y + '%', transform: 'translate(-50%,-50%)', background: here ? '#f2c66d' : open ? '#f6ecd6' : '#a59f9a', border: '2px solid #46291f', borderRadius: '8px', padding: '3px 6px', fontSize: '.78em', whiteSpace: 'nowrap', textAlign: 'center' } }, open ? name : '???', here ? h('div', { style: { fontSize: '.85em' } }, '▲ Estás acá') : null));
-  }
-  const who = h('div', { class: 'hint', style: { marginTop: '8px' } }, 'Mapaches ahora: ' + ['pip', 'spicy', 'rigg'].map((r) => `${CHARACTERS.find((c) => c.id === r)!.name}: ${ZONES[whereIs(r) ?? '']?.name ?? '—'}`).join(' · '));
-  panel({ title: 'Mapa de Villa Nori', body: h('div', null, map, who) });
+  import('./worldmap').then((m) => m.openWorldMap());
 }
 
 // ------------------------------------------------------------------ suggestions (gentle, ignorable)

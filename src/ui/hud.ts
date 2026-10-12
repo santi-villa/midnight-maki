@@ -43,7 +43,7 @@ export function mountHud(hd: HudHandlers) {
     const b = h('button', { class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon), h('span', { class: 'lbl' }, label));
     return b;
   };
-  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('scroll', 'Misiones', () => handlers.journal()), btn('gear', 'Menú', () => handlers.menu()));
+  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('scroll', 'Misiones', () => handlers.journal()), btn('map', 'Mapa', () => import('./worldmap').then((m) => m.openWorldMap())), btn('gear', 'Menú', () => handlers.menu()));
   actBtn = h('button', { class: 'hud-interact', onclick: () => world?.tryInteract() }) as HTMLButtonElement;
   actBtn.style.display = 'none';
   questEl = h('div', { class: 'hud-quest', title: 'Tocá para achicar', onclick: () => { questEl.classList.toggle('mini'); try { localStorage.setItem('mm_questmini', questEl.classList.contains('mini') ? '1' : ''); } catch { /* ignore */ } } });
