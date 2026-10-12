@@ -906,6 +906,14 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /** Footstep sound for the surface Sofi is walking on. */
+  private stepSound(): string {
+    if (!this.zone.def.outdoor) return 'step_wood';
+    if (this.zoneId === 'beach') return 'step_sand';
+    if (['plaza', 'market', 'station'].includes(this.zoneId)) return 'step_stone';
+    return 'step_grass';
+  }
+
   private updatePlayer(dt: number) {
     const p = this.player;
     let vx = 0;
@@ -942,7 +950,7 @@ export class WorldScene extends Phaser.Scene {
       this.stepT -= dt;
       if (this.stepT <= 0) {
         this.stepT = 0.32;
-        audio.sfxPlay('step');
+        audio.sfxPlay(this.stepSound());
       }
     }
     if (`${p.tx},${p.ty}` !== wasTile || (p.moving && p.manual)) this.checkWalkDoor();
@@ -979,6 +987,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     audio.sfxPlay('door');
+    if (d.to.startsWith('shop_') || (this.zoneId.startsWith('shop_') && d.to === 'plaza')) audio.sfxPlay('bell');
     p.stop();
     this.enterZone(d.to, d.tx, d.ty, d.dir);
   }
