@@ -55,6 +55,7 @@ class Builder {
   /** interior box: walltop border, wall face row with windows */
   room(x: number, y: number, w: number, h: number, windows: number[] = []) {
     this.rect(x, y, w, h, '#');
+    this.rect(x + 1, y, w - 2, 1, 'U');
     this.rect(x + 1, y + 1, w - 2, 1, 'W');
     for (const wx of windows) this.set(x + wx, y + 1, 'V');
     this.rect(x + 1, y + 2, w - 2, h - 3, 'f');

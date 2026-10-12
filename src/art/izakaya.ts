@@ -106,6 +106,22 @@ export const izakayaFloor: TileDraw = (c, x, y, r) => {
   if (r() < 2) px(c, x + 9, y + 5, shade(IZ.plankD, -0.1), 1, 1);
 };
 
+/** Continuous wooden boards in any colour (bedrooms, halls). */
+export function plankFloor(base: string, line: string): TileDraw {
+  return (c, x, y) => {
+    const tones = [base, shade(base, 0.08), shade(base, -0.06), shade(base, 0.03)];
+    const joints = [4, 12, 8, 1];
+    for (let row = 0; row < 4; row++) {
+      const y0 = y + row * 4;
+      px(c, x, y0, tones[row], 16, 4);
+      px(c, x, y0, shade(tones[row], 0.1), 16, 1);
+      px(c, x, y0 + 3, line, 16, 1);
+      px(c, x + ((joints[row] + 6) % 16), y0 + 2, shade(tones[row], -0.07), 4, 1);
+      if (row % 2 === 1) px(c, x + joints[row], y0, line, 1, 3);
+    }
+  };
+}
+
 /** Behind-the-counter floor: darker, tighter boards. */
 export const barFloor: TileDraw = (c, x, y, r) => {
   for (let row = 0; row < 4; row++) {
