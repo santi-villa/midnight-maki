@@ -615,3 +615,8 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
   .book-page { justify-content: center; }
   .book-pic { margin-top: 0; }
 }
+.fitting { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.fit-preview { flex: 0 0 auto; padding: 4px; border: 10px solid transparent; border-image: var(--tx-logframe) 8 / 10px round; background: linear-gradient(#9fd8f6 0 60%, #7ccb59 60%); }
+.fit-preview canvas { image-rendering: pixelated; display: block; max-width: 46vw; height: auto; }
+.slot { cursor: pointer; }
+.fitting { position: sticky; top: -12px; z-index: 2; box-shadow: 0 4px 0 rgba(120,80,40,.25); }

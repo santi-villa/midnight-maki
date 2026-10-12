@@ -3,6 +3,7 @@ import { iconElement } from '../art/icons';
 import { drawObject } from '../art/objects';
 import { FLOOR_STYLES, WALL_STYLES } from '../art/tiles';
 import { audio } from '../audio/audio';
+import { bus } from '../core/events';
 import { game } from '../core/state';
 import { CLOTHES, CLOTHES_BY_ID } from '../data/clothes';
 import { FURNITURE, FURN_BY_ID } from '../data/furniture';
@@ -159,26 +160,51 @@ export async function openShop(id: string) {
   const coins = h('span', { class: 'coin' });
   const tabNames = [...s.tabs.map((t) => t.name), ...(s.sell ? ['Vender'] : [])];
   let current = 0;
+  // fitting room: tap clothes to try them on before buying
+  const tryLook = { ...game.save.player.appearance };
+  const fitPreview = h('div', { class: 'fit-preview' });
+  const fitInfo = h('div', { class: 'hint' }, 'Tocá una prenda para probártela.');
+  const drawFit = () => {
+    fitPreview.innerHTML = '';
+    fitPreview.append(previewCanvas(tryLook, ['down', 'right', 'up'], 3));
+  };
+  const fitting = h('div', { class: 'fitting card' }, fitPreview, h('div', { class: 'col', style: { gap: '6px' } }, h('b', null, 'Probador'), fitInfo,
+    h('button', { class: 'btn small', onclick: () => { Object.assign(tryLook, game.save.player.appearance); fitInfo.textContent = 'Volviste a tu ropa.'; drawFit(); } }, 'Mi ropa')));
+  drawFit();
+  const tryOn = (id: string) => {
+    const c = CLOTHES_BY_ID[id];
+    (tryLook as any)[c.slot] = c.id;
+    fitInfo.textContent = `Probándote: ${c.name}`;
+    audio.sfxPlay('tap');
+    drawFit();
+  };
+  const wear = (id: string) => {
+    const c = CLOTHES_BY_ID[id];
+    (game.save.player.appearance as any)[c.slot] = c.id;
+    game.touch('wear');
+    bus.emit('appearance:changed', {});
+    toast(`Te pusiste: ${c.name}`);
+  };
   const render = () => {
     coins.textContent = `${game.coins} monedas`;
     body.innerHTML = '';
     if (current >= s.tabs.length) return renderSell();
     const list = s.tabs[current].list();
+    if (list.some((e) => e.kind === 'cloth')) body.append(fitting);
     const grid = h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' } });
     if (!list.length) grid.append(h('p', { class: 'muted' }, '¡Ya tenés todo de acá!'));
     for (const e of list) {
       const info = entryInfo(e);
       const single = e.kind === 'cloth' || e.kind === 'floor' || e.kind === 'wall';
-      grid.append(
-        h('div', { class: 'slot', title: info.desc },
+      const slot = h('div', { class: 'slot', title: info.desc, onclick: (ev: Event) => { if (e.kind === 'cloth' && !(ev.target as HTMLElement).closest('button')) tryOn(e.id); } },
           info.owned ? h('span', { class: 'qty' }, single ? '✓' : info.owned) : null,
           info.icon,
           h('span', null, info.name),
           h('span', { class: 'price' }, `${e.price} ●`),
           h('div', { class: 'row', style: { gap: '4px' } },
-            h('button', { class: 'btn small', disabled: game.coins < e.price, onclick: () => { if (buy(e)) render(); } }, 'Comprar'),
-            e.kind === 'item' ? h('button', { class: 'btn small', disabled: game.coins < e.price * 5, onclick: () => { if (buy(e, 5)) render(); } }, '×5') : null)),
-      );
+            h('button', { class: 'btn small', disabled: game.coins < e.price, onclick: () => { if (buy(e)) { if (e.kind === 'cloth') wear(e.id); render(); } } }, e.kind === 'cloth' ? 'Comprar y poner' : 'Comprar'),
+            e.kind === 'item' ? h('button', { class: 'btn small', disabled: game.coins < e.price * 5, onclick: () => { if (buy(e, 5)) render(); } }, '×5') : null));
+      grid.append(slot);
     }
     body.append(grid);
   };
