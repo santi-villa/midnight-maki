@@ -109,4 +109,5 @@ export interface Settings {
   reduceMotion: boolean;
   joystick: boolean;
   cookMode: 'relaxed' | 'normal' | 'challenge';
+  settingsVersion?: number;
 }
