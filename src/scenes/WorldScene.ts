@@ -17,7 +17,7 @@ import { charactersIn } from '../systems/npcs';
 import { clock } from '../systems/time';
 import { nextDoor, questTarget } from '../world/guide';
 import { buildZone, condOk, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture } from './textures';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture } from './textures';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 
@@ -361,7 +361,7 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat'; vx: number; vy: number; t: number; flying: boolean }[] = [];
+  private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat' | 'butterfly'; vx: number; vy: number; t: number; flying: boolean; ox?: number; oy?: number }[] = [];
   /** birds hop around by day and fly off when you get close; a cat strolls through the plaza */
   spawnCritters() {
     for (const c of this.critters) c.s.destroy();
@@ -369,18 +369,19 @@ export class WorldScene extends Phaser.Scene {
     const def = this.zone.def;
     if (!def.outdoor || game.flag('weather') === 'rain' || ['market', 'station'].includes(this.zoneId)) return;
     const night = clock.isNight();
-    const add = (kind: 'bird' | 'cat') => {
+    const add = (kind: 'bird' | 'cat' | 'butterfly') => {
       for (let k = 0; k < 20; k++) {
         const x = 2 + Math.floor(Math.random() * (def.w - 4));
         const y = 2 + Math.floor(Math.random() * (def.h - 4));
         if (this.zone.grid.isSolid(x, y)) continue;
-        const s = this.add.sprite(x * TILE + 8, y * TILE + 12, critterTexture(this, kind), 0).setOrigin(0.5, 1);
-        this.critters.push({ s, kind, vx: 0, vy: 0, t: Math.random() * 2, flying: false });
+        const s = this.add.sprite(x * TILE + 8, y * TILE + 12, critterTexture(this, kind, Math.floor(Math.random() * 4)), 0).setOrigin(0.5, 1);
+        this.critters.push({ s, kind, vx: 0, vy: 0, t: Math.random() * 2, flying: false, ox: s.x, oy: s.y });
         return;
       }
     };
     if (!night) for (let i = 0; i < (this.zoneId === 'beach' ? 2 : 3); i++) add('bird');
     if (this.zoneId === 'plaza' || this.zoneId === 'garden') add('cat');
+    if (!night && ['plaza', 'garden', 'forest'].includes(this.zoneId)) for (let i = 0; i < (this.zoneId === 'garden' ? 5 : 3); i++) add('butterfly');
   }
 
   private updateCritters(dt: number) {
@@ -388,6 +389,15 @@ export class WorldScene extends Phaser.Scene {
       const s = c.s;
       c.t -= dt;
       const d = Math.hypot(s.x - this.player.x, s.y - this.player.y);
+      if (c.kind === 'butterfly') {
+        // lazy fluttering loops around a home spot, a little above the ground
+        const tt = performance.now() / 1000 + (c.ox ?? 0);
+        s.x = (c.ox ?? s.x) + Math.sin(tt * 0.7) * 22 + Math.sin(tt * 1.9) * 6;
+        s.y = (c.oy ?? s.y) - 10 + Math.cos(tt * 0.9) * 10 + Math.sin(tt * 3.1) * 3;
+        s.setFrame(Math.floor(tt * 8) % 2);
+        s.setDepth(200000);
+        continue;
+      }
       if (c.kind === 'bird') {
         if (!c.flying && d < 28) {
           c.flying = true;
@@ -665,6 +675,22 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     const night = clock.isNight();
+    // smoke curling from the chimneys of homes and cabins
+    const smoke = dotTexture(this, 'smoke', '#e8e4ee', 3, 3);
+    for (const p of this.zone.props) {
+      if (p.def.kind !== 'building' || (p.def.variant !== 2 && p.def.variant !== 3)) continue;
+      const bx = p.x * TILE + (p.def.w * TILE) / 2 - p.def.sw / 2;
+      const by = (p.y + p.def.h) * TILE - p.def.sh;
+      const em = this.add.particles(bx + p.def.sw - 18, by + 2, smoke, { speedY: { min: -10, max: -6 }, speedX: { min: 2, max: 6 }, lifespan: 3200, frequency: 520, alpha: { start: 0.5, end: 0 }, scale: { start: 0.7, end: 2.2 } });
+      em.setDepth(160000);
+      this.ambient.push(em);
+    }
+    // big soft cloud shadows drifting by on sunny days
+    if (!rain && !night && clock.period < 2 && ['plaza', 'garden', 'forest', 'beach', 'station'].includes(this.zoneId)) {
+      const cs = this.add.particles(-120, 0, cloudShadowTexture(this), { y: { min: 0, max: H }, speedX: { min: 7, max: 11 }, lifespan: ((W + 260) / 8) * 1000, frequency: 9000, scale: { min: 2, max: 3.2 }, advance: ((W + 260) / 8) * 1000 } as any);
+      cs.setDepth(149000);
+      this.ambient.push(cs);
+    }
     if (night && ['forest', 'garden', 'plaza', 'market'].includes(this.zoneId)) {
       const ff = dotTexture(this, 'firefly', '#f4f0a0', 1, 1);
       const em = this.add.particles(0, 0, ff, {
@@ -1143,7 +1169,7 @@ export class WorldScene extends Phaser.Scene {
       vig = 0.05;
     } else if (per === 2) {
       tint = def.outdoor ? mix(0xffe2c2, 0xb0a2de, prog) : mix(0xffe8cc, 0xd6c4e4, prog);
-      glow = prog > 0.25 ? 0.4 + 0.5 * prog : 0;
+      glow = 0.35 + 0.6 * prog;
       vig = 0.3;
     } else {
       tint = def.outdoor ? 0x4c4e94 : 0x9a86b8;

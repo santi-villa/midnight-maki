@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
 import { drawObject } from '../art/objects';
-import { ctx2d, makeCanvas } from '../art/pixel';
+import { ctx2d, makeCanvas, outline, shade } from '../art/pixel';
 import { buildTileset } from '../art/tiles';
 import { buildRaccoonSheet, type RaccoonBuild } from '../art/raccoon';
 import { iconCanvas, type IconSpec } from '../art/icons';
@@ -139,35 +139,64 @@ export function dotTexture(scene: Phaser.Scene, key: string, color: string, w = 
   return key;
 }
 
-/** Tiny ambient critters: 'bird' (2 frames) and 'cat' (2 frames), drawn as small pixel templates. */
-export function critterTexture(scene: Phaser.Scene, kind: 'bird' | 'cat'): string {
-  const key = 'cr_' + kind;
+/** Tiny ambient critters (2 frames each), outlined like the rest of the art. */
+export function critterTexture(scene: Phaser.Scene, kind: 'bird' | 'cat' | 'butterfly', variant = 0): string {
+  const key = 'cr_' + kind + variant;
   if (scene.textures.exists(key)) return key;
-  const B: Record<string, string> = { O: '#3a2a2a', b: '#8a6a50', w: '#f3e6c8', y: '#f2c66d', g: '#a59f9a', k: '#2a2230', p: '#e8a5ae' };
+  const wings = ['#f4a6c0', '#ffd36a', '#9fd8f6', '#ffffff'][variant % 4];
+  const B: Record<string, string> = { b: '#a8714a', d: '#7a4c30', w: '#f6f1e6', y: '#f2b33a', k: '#2b1d17', g: '#a59f9a', G: '#7a7480', p: '#f08aa0', W: wings, V: shade(wings, -0.2) };
   const frames =
     kind === 'bird'
       ? [
-          ['........', '...Obb..', '..Obbbk.', '.Obbwwy.', '.Obbbb..', '..O.O...'],
-          ['..O..O..', '.Obbbbb.', '..Obbbk.', '...Owwy.', '....bb..', '...O.O..'],
+          ['..........', '....bbb...', '...bbbbk..', '..dbwwwy..', '..dbbbb...', '...k.k....'],
+          ['.d.....d..', '..dbbbd...', '...bbbbk..', '...bwwwy..', '....bb....', '...k.k....'],
         ]
-      : [
-          ['O.....O.....', 'gO...Og.....', 'ggggggg.....', 'gkggkgg..g..', 'gggpggggg...', '.ggggggg....', '.g.g..g.g...'],
-          ['O.....O.....', 'gO...Og.....', 'ggggggg...g.', 'gkggkgg..g..', 'gggpggggg...', '.ggggggg....', '..g.gg.g....'],
-        ];
+      : kind === 'cat'
+        ? [
+            ['g.....g......', 'gg...gg......', 'ggggggg......', 'gkggkgg...g..', 'gggpgggg.g...', '.ggggggggg...', '.GGGGGGGG....', '.g.g...g.g...'],
+            ['g.....g......', 'gg...gg......', 'ggggggg....g.', 'gkggkgg...g..', 'gggpgggggg...', '.ggggggggg...', '.GGGGGGGG....', '..g.gg..g.g..'],
+          ]
+        : [
+            ['WW.k.WW', 'WWVkVWW', '.WVkVW.', '.WW.WW.'],
+            ['.......', '.WVkVW.', '..VkV..', '.......'],
+          ];
   const w = frames[0][0].length;
   const h = frames[0].length;
-  const c = makeCanvas(w * 2, h);
+  const c = makeCanvas((w + 2) * 2, h + 2);
   const g = ctx2d(c);
-  frames.forEach((rows, i) => rows.forEach((r, y) => [...r].forEach((ch, x) => {
-    if (B[ch]) {
-      g.fillStyle = B[ch];
-      g.fillRect(i * w + x, y, 1, 1);
-    }
-  })));
+  frames.forEach((rows, i) => {
+    const f = makeCanvas(w + 2, h + 2);
+    const fg = ctx2d(f);
+    rows.forEach((r, y) => [...r].forEach((ch, x) => {
+      if (B[ch]) {
+        fg.fillStyle = B[ch];
+        fg.fillRect(x + 1, y + 1, 1, 1);
+      }
+    }));
+    outline(f, '#2b1d17');
+    g.drawImage(f, i * (w + 2), 0);
+  });
   const tex = scene.textures.addCanvas(key, c)!;
-  tex.add(0, 0, 0, 0, w, h);
-  tex.add(1, 0, w, 0, w, h);
+  tex.add(0, 0, 0, 0, w + 2, h + 2);
+  tex.add(1, 0, w + 2, 0, w + 2, h + 2);
   return key;
+}
+
+/** Soft cloud shadow that drifts over outdoor zones. */
+export function cloudShadowTexture(scene: Phaser.Scene): string {
+  if (!scene.textures.exists('cloudshadow')) {
+    const c = makeCanvas(96, 48);
+    const g = c.getContext('2d')!;
+    for (const [x, y, r] of [[30, 26, 20], [52, 20, 24], [72, 28, 18], [46, 32, 18]] as const) {
+      const grad = g.createRadialGradient(x, y, 0, x, y, r);
+      grad.addColorStop(0, 'rgba(20,30,60,0.22)');
+      grad.addColorStop(1, 'rgba(20,30,60,0)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 96, 48);
+    }
+    scene.textures.addCanvas('cloudshadow', c);
+  }
+  return 'cloudshadow';
 }
 
 export function hashStr(s: string): number {
