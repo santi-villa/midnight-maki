@@ -527,11 +527,51 @@ export const NATURE_KINDS: Record<string, DrawFn> = {
     const wy = wallY + 7;
     for (let x = 9; x + 12 < dx - 3; x += 20) cottageWindow(c, x, wy, 11, 9);
     for (let x = dx + doorW + 7; x + 12 < W - 6; x += 20) cottageWindow(c, x, wy, 11, 9);
+    // stone door step and potted plants
+    px(c, dx - 2, H - 5, '#6f6a72', doorW + 4, 3);
+    px(c, dx - 1, H - 5, '#c6c2cc', doorW + 2, 1);
+    if (rot !== 5 && rot !== 0) for (const ppx of [dx - 7, dx + doorW + 2]) {
+      px(c, ppx, H - 9, '#2b1d17', 5, 5);
+      px(c, ppx + 1, H - 8, '#b0533f', 3, 3);
+      ellipse(c, ppx + 2.5, H - 11, 3, 2.5, NAT.leaf);
+      px(c, ppx + 1, H - 12, '#f4a6c0');
+      px(c, ppx + 3, H - 11, '#ffd36a');
+    }
+    // front gable with a round attic window on homes and shops
+    if (rot >= 2 && rot !== 5) {
+      const gw = Math.min(30, Math.floor(W * 0.32));
+      const gy = roofH - 3;
+      for (let j = 0; j < gw / 2; j++) {
+        const hw = gw / 2 - j;
+        px(c, Math.round(W / 2 - hw), gy - j, '#2b1d17', Math.round(hw * 2), 1);
+        if (hw > 1) px(c, Math.round(W / 2 - hw + 1), gy - j, wall, Math.round(hw * 2 - 2), 1);
+      }
+      ellipse(c, W / 2, gy - gw / 5, 3, 3, '#2b1d17');
+      ellipse(c, W / 2, gy - gw / 5, 2.2, 2.2, '#f7dc8f');
+      px(c, Math.round(W / 2 - 0.5), gy - gw / 5 - 2, '#7a4a2f', 1, 5);
+      // eave boards along the gable
+      for (let j = 0; j < gw / 2; j++) {
+        px(c, Math.round(W / 2 - gw / 2 + j - 1), gy - j - 1, shade(c2, -0.4), 2, 1);
+        px(c, Math.round(W / 2 + gw / 2 - j - 1), gy - j - 1, shade(c2, -0.4), 2, 1);
+      }
+    }
+    if (rot === 6) {
+      // general store: produce crates by the door
+      for (const [bx2, col] of [[dx - 16, '#e0424f'], [dx + doorW + 8, '#7fbf4f']] as const) {
+        px(c, bx2, H - 10, '#2b1d17', 9, 6);
+        px(c, bx2 + 1, H - 9, NAT.woodL, 7, 4);
+        for (let i = 0; i < 3; i++) ellipse(c, bx2 + 2 + i * 2.5, H - 10, 1.4, 1.4, col);
+      }
+    }
+    if (rot === 7) {
+      // bakery: striped awning and a bread sign
+      for (let x = dx - 8; x < dx + doorW + 8; x += 4) px(c, x, H - 30, (x - dx) % 8 ? '#f6f1e6' : '#c25a4a', 4, 4);
+      px(c, dx - 8, H - 31, '#7a2a2a', doorW + 16, 1);
+      ellipse(c, dx + doorW + 13, wallY + 12, 4, 2.5, '#c98a3c');
+      px(c, dx + doorW + 11, wallY + 11, '#e8b46a', 4, 1);
+    }
     if (rot === 0) {
-      // Midnight Maki: hanging sign, maki emblem on the noren, lanterns by the door
-      px(c, W / 2 - 22, wallY + 1, '#3a2418', 44, 9);
-      px(c, W / 2 - 21, wallY + 2, '#e2c08c', 42, 7);
-      for (let i = 0; i < 6; i++) px(c, W / 2 - 17 + i * 6, wallY + 4, '#3a2418', 4, 3);
+      // Midnight Maki: maki emblem on the noren, lanterns by the door
       ellipse(c, W / 2, H - 19, 2, 2, '#f6f1e6');
       px(c, W / 2, H - 19, '#d9485a');
       for (const lx of [dx - 6, dx + doorW + 4]) {
@@ -554,9 +594,15 @@ export const NATURE_KINDS: Record<string, DrawFn> = {
     }
     if (rot === 5) {
       px(c, 8, H - 10, '#6f6a72', W - 16, 2);
-      px(c, W / 2 - 16, wallY + 1, '#3a2418', 32, 6);
-      px(c, W / 2 - 15, wallY + 2, '#f6ecd6', 30, 4);
     }
+  },
+  /** Wooden signpost (the board with the text is painted by drawObject from the prop label). */
+  signpost(c, W, H) {
+    const cx = Math.floor(W / 2);
+    px(c, cx - 2, H - 22, '#2b1d17', 4, 22);
+    px(c, cx - 1, H - 22, NAT.wood, 2, 21);
+    px(c, cx - 1, H - 22, NAT.woodL, 1, 21);
+    ellipse(c, cx, H - 1, 4, 1.5, shade(NAT.grass, -0.25));
   },
   stall(c, W, H, c1, c2, _rot, r) {
     const goods = ['#d9485a', '#f2a03c', '#7fbf4f', '#f2c66d', '#9b6ad0', '#e86a9a'];

@@ -11,6 +11,8 @@ export interface PropDef {
   variant?: number;
   light?: string;
   anim?: 'sway' | 'flicker' | 'water';
+  /** text painted on the sprite (shop plaques, signposts) */
+  label?: string;
 }
 
 const P = (kind: string, w: number, h: number, sw: number, sh: number, c1 = '', c2 = '', extra: Partial<PropDef> = {}): PropDef => ({
@@ -93,14 +95,25 @@ export const PROPS: Record<string, PropDef> = {
   door_storage_open: P('walldoor', 1, 1, 16, 16, '', '', { variant: 1 }),
   mechanism: P('mechanism', 3, 1, 48, 44),
   // buildings (variant selects details)
-  bld_restaurant: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0 }),
-  bld_clothes: P('building', 6, 3, 96, 80, '#f6e2d6', '#c25a6a', { variant: 1 }),
-  bld_store: P('building', 6, 3, 96, 80, '#f3e3c3', '#2f6b4f', { variant: 2 }),
-  bld_bakery: P('building', 6, 3, 96, 80, '#f6e8cc', '#b0533f', { variant: 2 }),
-  bld_library: P('building', 6, 3, 96, 80, '#ece2f2', '#45507f', { variant: 4 }),
+  bld_restaurant: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI' }),
+  bld_clothes: P('building', 6, 3, 96, 80, '#f6e2d6', '#c25a6a', { variant: 1, label: 'ROPA DE YUKI' }),
+  bld_store: P('building', 6, 3, 96, 80, '#f3e3c3', '#2f6b4f', { variant: 6, label: 'ALMACÉN DE TARO' }),
+  bld_bakery: P('building', 6, 3, 96, 80, '#f6e8cc', '#b0533f', { variant: 7, label: 'PANADERÍA' }),
+  bld_library: P('building', 6, 3, 96, 80, '#ece2f2', '#45507f', { variant: 4, label: 'BIBLIOTECA' }),
   bld_house: P('building', 5, 3, 80, 72, '#f3e3c3', '#2f6b4f', { variant: 2 }),
   bld_cabin: P('building', 5, 3, 80, 72, '#a8734d', '#4f6b52', { variant: 3 }),
-  bld_station: P('building', 8, 3, 128, 80, '#a59f9a', '#5d5864', { variant: 5 }),
-  bld_gallery: P('building', 5, 3, 80, 72, '#f6ecd6', '#7a5fb0', { variant: 2 }),
+  bld_station: P('building', 8, 3, 128, 80, '#d8d0c4', '#5d5864', { variant: 5, label: 'ESTACIÓN VILLA NORI' }),
+  bld_gallery: P('building', 5, 3, 80, 72, '#f6ecd6', '#7a5fb0', { variant: 2, label: 'GALERÍA' }),
   lighthouse: P('lighthouse', 3, 2, 48, 112),
+  // wooden signposts naming where each exit leads
+  sign_forest: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'BOSQUE ↑' }),
+  sign_beach: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'PLAYA ↓' }),
+  sign_garden: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'JARDÍN →' }),
+  sign_station: P('signpost', 2, 1, 56, 30, '', '', { solid: false, label: '← ESTACIÓN' }),
+  sign_market: P('signpost', 2, 1, 52, 30, '', '', { solid: false, label: 'MERCADO ↑' }),
+  sign_plaza_up: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'PLAZA ↑' }),
+  sign_plaza_down: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'PLAZA ↓' }),
+  sign_plaza_left: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: '← PLAZA' }),
+  sign_plaza_right: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'PLAZA →' }),
+  sign_lighthouse: P('signpost', 2, 1, 44, 30, '', '', { solid: false, label: 'FARO ↑' }),
 };

@@ -7,6 +7,7 @@ import { ctx2d, ellipse, makeCanvas, outline, px, rng, shade, type Ctx } from '.
 import { volumize } from './shade';
 import { IZAKAYA_KINDS } from './izakaya';
 import { NATURE_KINDS } from './nature';
+import { drawPlaque } from './pixfont';
 
 const OUT = '#3a2a2a';
 
@@ -789,7 +790,7 @@ const K: Record<string, DrawFn> = {
 
 Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS);
 
-export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7): HTMLCanvasElement {
+export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string): HTMLCanvasElement {
   const c = makeCanvas(w, h);
   const ctx = ctx2d(c);
   const fn = K[kind];
@@ -797,6 +798,11 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   else {
     // never leave a broken sprite: visible placeholder crate
     K.crate(ctx, w, h, c1, c2, 0, rng(seed));
+  }
+  if (label) {
+    // shop plaque on the facade, or the board of a signpost
+    if (kind === 'building') drawPlaque(ctx, w / 2, Math.floor(h * 0.46) - 2, label);
+    else drawPlaque(ctx, w / 2, 1, label, { wood: '#d9a970' });
   }
   // flat ground decals stay flat; everything else gets lit volume
   if (!FLAT.has(kind)) volumize(c, kind === 'building' || kind === 'lighthouse' ? 0.7 : 1);
