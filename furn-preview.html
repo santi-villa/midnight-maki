@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Muebles e íconos</title>
+<style>body{background:#e8d6b0;margin:0;padding:8px;font:11px sans-serif}canvas{image-rendering:pixelated;margin:2px;vertical-align:bottom;background:#c9a97a}</style>
+</head><body><div id="out"></div>
+<script type="module">
+import { drawObject } from './src/art/objects.ts';
+import { FURNITURE } from './src/data/furniture.ts';
+import { ITEMS } from './src/data/items.ts';
+import { iconCanvas } from './src/art/icons.ts';
+const S = Number(new URLSearchParams(location.search).get('s') ?? 3);
+const out = document.getElementById('out');
+const mode = new URLSearchParams(location.search).get('mode') ?? 'furn';
+const up = (src) => { const c = document.createElement('canvas'); c.width = src.width * S; c.height = src.height * S; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0, c.width, c.height); return c; };
+if (mode === 'furn') for (const d of FURNITURE) { const c = up(drawObject(d.kind, d.w * 16, d.sh, d.c1, d.c2 || d.c1, d.variant ?? 0, 7)); c.title = d.id; out.append(c); }
+else for (const it of ITEMS) { const c = up(iconCanvas(it.icon)); c.title = it.id; out.append(c); }
+</script></body></html>

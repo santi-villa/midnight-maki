@@ -401,16 +401,39 @@ const K: Record<string, DrawFn> = {
     px(c, W / 2 - 1, H - 8, c2, 2, 2);
   },
   bed(c, W, H, c1, c2) {
-    box(c, 0, H - H + 2, W, H - 2, PAL.woodL);
-    box(c, 1, 4, W - 2, 8, PAL.white);
-    box(c, 1, 12, W - 2, H - 15, c1);
-    for (let y = 16; y < H - 4; y += 6) px(c, 2, y, c2, W - 4, 1);
-    px(c, 1, H - 3, PAL.woodD, W - 2, 2);
+    const o = '#2b1d17';
+    // wooden frame with a tall headboard
+    px(c, 0, 0, o, W, H);
+    px(c, 1, 1, PAL.woodL, W - 2, 6);
+    px(c, 1, 1, shade(PAL.woodL, 0.2), W - 2, 1);
+    px(c, 3, 3, PAL.wood, W - 6, 2);
+    px(c, 1, 7, PAL.woodD, W - 2, H - 8);
+    // pillow
+    px(c, 2, 7, o, W - 4, 7);
+    px(c, 3, 8, '#fbf6ea', W - 6, 5);
+    px(c, 3, 8, '#ffffff', W - 6, 1);
+    px(c, 4, 12, '#e6dccb', W - 8, 1);
+    // quilt with a folded top edge and a patchwork pattern
+    px(c, 1, 14, o, W - 2, H - 17);
+    px(c, 2, 15, c1, W - 4, H - 19);
+    px(c, 2, 15, '#fbf6ea', W - 4, 2);
+    px(c, 2, 17, shade(c1, 0.2), W - 4, 1);
+    for (let y = 20; y < H - 5; y += 5) for (let x = 3 + ((y / 5) % 2) * 3; x < W - 4; x += 6) px(c, x, y, c2, 2, 2);
+    px(c, 2, H - 5, shade(c1, -0.25), W - 4, 1);
+    // footboard
+    px(c, 0, H - 3, o, W, 3);
+    px(c, 1, H - 3, PAL.woodL, W - 2, 2);
   },
   futon(c, W, H, c1, c2) {
-    box(c, 1, 2, W - 2, H - 3, PAL.white);
-    box(c, 1, 9, W - 2, H - 10, c1);
-    for (let x = 3; x < W - 2; x += 4) px(c, x, 11, c2, 2, H - 14);
+    const o = '#2b1d17';
+    px(c, 1, 2, o, W - 2, H - 3);
+    px(c, 2, 3, '#fbf6ea', W - 4, H - 5);
+    px(c, 3, 4, '#ffffff', W - 6, 4);
+    px(c, 3, 7, '#e6dccb', W - 6, 1);
+    px(c, 2, 9, o, W - 4, 1);
+    px(c, 2, 10, c1, W - 4, H - 12);
+    px(c, 2, 10, shade(c1, 0.2), W - 4, 1);
+    for (let x = 4; x < W - 3; x += 4) for (let y = 13; y < H - 3; y += 5) px(c, x, y, c2, 2, 2);
   },
   shelf(c, W, H, c1, c2, _rot, r) {
     box(c, 0, 0, W, H, c1);

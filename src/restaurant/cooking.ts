@@ -549,12 +549,20 @@ class CookingGame {
     const g = this.g;
     const W = this.W;
     const H = this.H;
-    // counter wood background
-    g.fillStyle = '#8a5a3c';
-    g.fillRect(0, 0, W, H);
-    for (let y = 0; y < H; y += 12) {
-      g.fillStyle = '#7b4f35';
-      g.fillRect(0, y, W, 1);
+    // counter: warm hinoki boards with grain, seams and a soft highlight
+    const tones = ['#c48d5e', '#b98252', '#c9935f', '#bd8656'];
+    for (let y = 0, i = 0; y < H; y += 14, i++) {
+      g.fillStyle = tones[i % tones.length];
+      g.fillRect(0, y, W, 14);
+      g.fillStyle = 'rgba(255,240,210,.18)';
+      g.fillRect(0, y, W, 2);
+      g.fillStyle = '#8e5d3c';
+      g.fillRect(0, y + 13, W, 1);
+      g.fillStyle = 'rgba(120,70,40,.25)';
+      g.fillRect((i * 53) % W, y + 6, 40, 1);
+      g.fillRect((i * 97 + 120) % W, y + 9, 26, 1);
+      g.fillStyle = '#8e5d3c';
+      g.fillRect((i * 71 + 30) % W, y, 1, 13);
     }
     const s = this.step;
     const usesMat = this.r.steps.some((st) => st.t === 'nori' || st.t === 'rice');
@@ -562,12 +570,21 @@ class CookingGame {
     const shapeMode = !usesMat;
     if (!shapeMode) {
       // bamboo mat
-      g.fillStyle = '#cdb27a';
-      g.fillRect(m.x - 6, m.y - 6, m.w + 12, m.h + 12);
+      g.fillStyle = 'rgba(40,24,16,.35)';
+      g.fillRect(m.x - 4, m.y - 2, m.w + 12, m.h + 12);
+      g.fillStyle = '#2b1d17';
+      g.fillRect(m.x - 7, m.y - 7, m.w + 14, m.h + 14);
       for (let x = m.x - 6; x < m.x + m.w + 6; x += 6) {
-        g.fillStyle = '#b39660';
+        g.fillStyle = '#d9bf84';
+        g.fillRect(x, m.y - 6, 5, m.h + 12);
+        g.fillStyle = '#ead39c';
         g.fillRect(x, m.y - 6, 1, m.h + 12);
+        g.fillStyle = '#b39660';
+        g.fillRect(x + 4, m.y - 6, 1, m.h + 12);
       }
+      // binding strings
+      g.fillStyle = '#4f6b47';
+      for (const yy of [m.y + 8, m.y + m.h / 2, m.y + m.h - 8]) g.fillRect(m.x - 6, Math.round(yy), m.w + 12, 2);
       const rollP = this.rolled ? 1 : this.rollProgress;
       const visH = m.h * (1 - rollP * 0.85);
       if (this.noriPlaced && !this.rolled) {

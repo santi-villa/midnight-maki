@@ -1,4 +1,5 @@
 /** 16x16 procedural icons for items, dishes, collectibles and UI. Cached as canvases. */
+import { softVolume } from './shade';
 import { PAL } from './palette';
 import { ctx2d, ellipse, makeCanvas, outline, px, shade, type Ctx } from './pixel';
 
@@ -309,7 +310,8 @@ export function iconCanvas(spec: IconSpec): HTMLCanvasElement {
   const ctx = ctx2d(c);
   const fn = T[spec.type] ?? T.gift;
   fn(ctx, spec.c1 ?? PAL.rose, spec.c2 ?? '', spec.c3 ?? PAL.gold);
-  outline(c, 'rgba(42,34,48,0.85)');
+  softVolume(c);
+  outline(c, '#2b1d17');
   cache.set(key, c);
   return c;
 }
