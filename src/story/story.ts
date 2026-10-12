@@ -60,7 +60,7 @@ defineQuests([
       { text: 'Hablá con Spicy Beacon en la cocina.', done: () => game.has('tut_spicy'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
       { text: 'Prepará tu primer sushi: tocá "Pedidos" en el mostrador y después la tabla de cocina.', done: () => served() >= 1, target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, label: 'Mostrador de pedidos', interactId: 'orders' } },
       { text: 'Visitá el Almacén de Taro en la plaza y comprá algo.', done: () => (game.save.stats.purchases ?? 0) >= 1, target: { kind: 'object', zone: 'plaza', x: 27, y: 18, label: 'Almacén de Taro', interactId: 'taro_shop' } },
-      { text: 'Decorá tu habitación: subí las escaleras y usá Decorar en el menú.', done: () => (game.save.stats.decorMoves ?? 0) >= 1, target: { kind: 'interior', fromZone: 'restaurant', door: { x: 16, y: 2 }, targetZone: 'home', interiorTarget: { x: 4, y: 4, label: 'Tu habitación' }, label: 'Habitación' } },
+      { text: 'Decorá tu habitación: subí las escaleras y tocá Decorar. Solo se puede en tu cuarto.', done: () => (game.save.stats.decorMoves ?? 0) >= 1, target: { kind: 'interior', fromZone: 'restaurant', door: { x: 16, y: 2 }, targetZone: 'home', interiorTarget: { x: 4, y: 4, label: 'Tu habitación' }, label: 'Habitación' } },
       { text: 'Descansá en tu cama para terminar el día.', done: () => game.save.time.day >= 2, target: { kind: 'interior', fromZone: 'restaurant', door: { x: 16, y: 2 }, targetZone: 'home', interiorTarget: { x: 4, y: 4, label: 'Cama' }, label: 'Dormir en tu cama' } },
     ],
     reward: { coins: 100 },

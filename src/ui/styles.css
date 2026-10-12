@@ -659,3 +659,49 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .plate-stars { font-size: 2em; letter-spacing: 4px; color: #d9cbb0; text-shadow: 0 2px 0 #2b1d17; }
 .plate-stars .on { color: #ffc23a; }
 .plate-words { font-weight: 600; color: #a0521f; }
+
+/* ---------- contextual actions ---------- */
+.hud-top { z-index: 5; }
+.room-tag {
+  position: fixed; top: calc(108px + var(--safe-t)); right: calc(12px + var(--safe-r));
+  z-index: 4; pointer-events: none !important;
+  border: 8px solid transparent; border-image: var(--tx-logframe) 8 / 8px round;
+  background: var(--tx-parchment) 0 0 / 32px 32px; color: #6b3a42;
+  font-size: .78em; font-weight: 600; letter-spacing: .3px; padding: 1px 8px 3px;
+  white-space: nowrap;
+}
+.room-tag::before { content: '✦ '; color: #c45b6a; }
+.room-tag.ctx-fade { animation: ctx-fade .22s ease-out; }
+.ctx-dock {
+  position: fixed; right: calc(14px + var(--safe-r)); bottom: calc(22px + var(--safe-b));
+  z-index: 7; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  width: max-content; max-width: min(230px, 72vw); pointer-events: none !important;
+}
+.ctx-dock > * { pointer-events: auto; }
+.ctx-dock .hud-interact { position: relative; right: auto; bottom: auto; flex: 0 0 auto; }
+.ctx-chip {
+  min-height: 52px; min-width: 132px; max-width: 210px; padding: 6px 12px;
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+  font-weight: 700; line-height: 1.05;
+}
+.ctx-chip .skin-icon { width: 28px; height: 28px; image-rendering: pixelated; flex: 0 0 auto; }
+.ctx-chip .ctx-txt { text-align: left; white-space: normal; }
+.ctx-more { min-width: 96px; }
+.ctx-menu {
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  max-height: min(42vh, 260px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  pointer-events: auto;
+}
+.ctx-row {
+  min-height: 52px; width: min(220px, 70vw); padding: 6px 10px;
+  display: flex; align-items: center; gap: 8px; text-align: left; font-weight: 600; line-height: 1.15;
+}
+.ctx-row .skin-icon { width: 26px; height: 26px; image-rendering: pixelated; flex: 0 0 auto; }
+.ctx-pop { animation: ctx-in .18s ease-out; }
+.ctx-leave { animation: ctx-collapse .16s ease-in forwards; overflow: hidden; pointer-events: none; min-height: 0 !important; }
+@keyframes ctx-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes ctx-in { from { opacity: 0; translate: 0 10px } to { opacity: 1; translate: 0 0 } }
+@keyframes ctx-collapse { from { opacity: 1; max-height: 96px } to { opacity: 0; max-height: 0 } }
+@media (prefers-reduced-motion: reduce) {
+  .ctx-pop, .ctx-leave, .room-tag.ctx-fade { animation: none !important; }
+}
