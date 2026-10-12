@@ -18,6 +18,7 @@ import { furnTexture } from '../scenes/textures';
 import { clock } from '../systems/time';
 import { add, h, toast, uiRoot } from '../ui/dom';
 import { showHud } from '../ui/hud';
+import { decorateBlockReason } from '../world/contextActions';
 import { furnitureSolidTiles, placementKeepsPaths, roomAt } from '../world/zoneRuntime';
 
 interface Ghost { id: string; x: number; y: number; rot: number; uid?: number; }
@@ -27,16 +28,13 @@ let active = false;
 export function startDecor() {
   if (active) return;
   const z = world.zone;
-  if (!z?.def.rooms.length) {
-    toast('Para decorar, entrá a tu habitación, a la de un mapache o al salón del restaurante.');
+  const room = z ? roomAt(z.def, world.player.tx, world.player.ty) : undefined;
+  const reason = decorateBlockReason(room);
+  if (reason) {
+    toast(reason);
     return;
   }
-  const room = roomAt(z.def, world.player.tx, world.player.ty) ?? z.def.rooms[0];
-  if (room.id === 'hall') {
-    toast('Entrá a una de las habitaciones para decorarla.');
-    return;
-  }
-  new DecorEditor(room).open();
+  new DecorEditor(room!).open();
 }
 
 class DecorEditor {
