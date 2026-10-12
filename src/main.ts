@@ -5,7 +5,6 @@ import { installSkin } from './ui/skin';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { WorldScene } from './scenes/WorldScene';
-import { CinematicScene } from './scenes/CinematicScene';
 import { showTitle } from './ui/title';
 import { installErrorGuard } from './core/errors';
 import { registerSW } from './core/pwa';
@@ -56,7 +55,7 @@ const game = new Phaser.Game({
   // ?st forces a setTimeout loop (useful for automated tests in background tabs)
   fps: { target: 60, min: 30, forceSetTimeOut: new URLSearchParams(location.search).has('st') },
   input: { activePointers: 2 },
-  scene: [BootScene, TitleScene, WorldScene, CinematicScene],
+  scene: [BootScene, TitleScene, WorldScene],
   disableContextMenu: true,
 });
 

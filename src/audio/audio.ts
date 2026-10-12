@@ -322,6 +322,8 @@ class AudioEngine {
       case 'splash': noiseHit(0, 0.35, 1200, 0.4); break;
       case 'bite': tone(600, 0, 0.05, 'square', 0.08); tone(600, 0.1, 0.05, 'square', 0.08); break;
       case 'door': noiseHit(0, 0.12, 400, 0.3); tone(180, 0, 0.12, 'sine', 0.2); break;
+      case 'paper': noiseHit(0, 0.25, 2600, 0.18); noiseHit(0.2, 0.18, 3200, 0.12); break;
+      case 'train': for (let i = 0; i < 8; i++) { noiseHit(i * 0.22, 0.08, 500, 0.22); noiseHit(i * 0.22 + 0.09, 0.06, 700, 0.14); } tone(392, 1.9, 0.5, 'triangle', 0.09); tone(330, 1.9, 0.5, 'triangle', 0.08); break;
       case 'step': noiseHit(0, 0.04, 1500, 0.06); break;
       case 'blip': tone(520, 0, 0.035, 'triangle', 0.05); break;
       case 'clue': [784, 988, 1318].forEach((f, i) => tone(f, i * 0.1, 0.3, 'sine', 0.15)); break;
