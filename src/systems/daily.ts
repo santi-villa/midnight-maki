@@ -4,6 +4,7 @@ import { game } from '../core/state';
 import { rng } from '../art/pixel';
 import { clock } from './time';
 import { refreshOrders } from '../restaurant/orders';
+import { closeServiceForNight } from '../restaurant/service';
 import { growGarden } from './garden';
 import { eventToday } from './events';
 
@@ -21,6 +22,7 @@ export function installDaily() {
     game.setFlag('market_night', weekday(day) === 4 || weekday(day) === 5);
     game.setFlag('market_open', false);
     growGarden(day, rain);
+    closeServiceForNight();
     refreshOrders(true);
     if (game.save.restaurant.upgrades.includes('pantry')) {
       game.addItem('rice', 3, 'pantry');
@@ -33,6 +35,8 @@ export function installDaily() {
   clock.onPeriod((p) => {
     // the market opens at night on market nights after it was discovered
     game.setFlag('market_open', p === 3 && ((((!!game.flag('market_night') || game.has('market_force')) && game.has('market_known'))) || game.flag('festival_today') === 'moon'));
+    // Regular orders come from the dining room. Closing is checked against the
+    // clock inside the service, because the night shift ends mid-period.
     if (p === 1 || p === 2) refreshOrders(false);
   });
 }

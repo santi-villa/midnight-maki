@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
 import { ZONES } from '../data/zones';
+import type { FurnPiece } from '../restaurant/floor';
+import { resetService, spawnGuest, stagePlate, stepService, takeOrderAt } from '../restaurant/service';
 import {
   decorateBlockReason,
   isPlayerRoom,
@@ -50,6 +52,7 @@ function bed(room: string, x = 1, y = 2): SenseFurniture {
 
 beforeEach(() => {
   game.load(newSave('Tester'));
+  resetService();
 });
 
 describe('player room', () => {
@@ -190,50 +193,74 @@ describe('restaurant tables', () => {
     { uid: 12, id: 'table_dark', kind: 'table', name: 'Mesa', room: 'dining', x: 12, y: 7, w: 2, h: 1 },
     { uid: 13, id: 'chair_dark', kind: 'chair', name: 'Silla', room: 'dining', x: 12, y: 8, w: 1, h: 1, sit: true },
   ];
+  const pieces: FurnPiece[] = furniture.map((f) => ({
+    uid: f.uid, id: f.id, kind: f.kind, x: f.x, y: f.y, w: f.w, h: f.h, sit: f.sit, rot: f.sit ? 2 : 0,
+  }));
+
+  function seatTourist() {
+    game.setFlag('intro_done');
+    game.save.recipesKnown = ['kappa'];
+    game.save.inventory = { rice: 4, nori: 4, cucumber: 3 };
+    resetService({ timing: { approach: 1, walk: 1, settle: 1, eat: 1, pay: 1, leave: 1 }, rng: () => 0 });
+    game.save.time.period = 1;
+    game.save.time.minutes = 20;
+    spawnGuest(pieces, 'c_tourist');
+    stepService(1);
+    stepService(1);
+    stepService(1);
+  }
 
   beforeEach(() => {
-    game.setFlag('intro_done');
+    seatTourist();
+  });
+
+  it('asks for the order at the table where the guest sat', () => {
+    const actions = all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture })));
+    expect(actions.map((a) => a.id)).toEqual(['take:10']);
+    expect(actions[0].label).toBe('Tomar pedido');
+    expect(actions[0].detail).toMatch(/Turista/);
+    expect(actions[0].intent).toEqual({ type: 'takeOrder', tableId: '10' });
+  });
+
+  it('offers to cook, then to carry the plate', () => {
+    expect(takeOrderAt('10')).toMatch(/Kappa/);
+    const cook = all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture })))[0];
+    expect(cook.id).toBe('cook:1');
+    expect(cook.label).toMatch(/^Cocinar/);
+    expect(cook.detail).toMatch(/Kappa maki/);
+    expect(cook.detail).toMatch(/lista/);
+    expect(cook.intent).toEqual({ type: 'cookOrder', uid: 1 });
+
+    game.save.inventory = { rice: 0, nori: 0, cucumber: 0 };
+    const missing = all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture })))[0];
+    expect(missing.label).toMatch(/^Pedido/);
+    expect(missing.detail).toMatch(/Faltan ingredientes/);
+    expect(missing.intent).toEqual({ type: 'orders' });
+
     game.save.inventory = { rice: 4, nori: 4, cucumber: 3 };
-    game.save.orders = [
-      { uid: 1, recipe: 'kappa', customer: 'c_tourist', reward: 16 },
-      { uid: 2, recipe: 'sake_maki', customer: 'c_student', reward: 20 },
-    ];
+    stagePlate(1, 2, 0);
+    const deliver = all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture })))[0];
+    expect(deliver.label).toBe('Entregar');
+    expect(deliver.intent).toEqual({ type: 'deliver', tableId: '10' });
   });
 
-  it('shows cook when the nearest table can be served', () => {
-    const offer = resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture }));
-    const actions = all(offer);
-    expect(actions.map((a) => a.id)).toEqual(['order:1']);
-    expect(actions[0].label).toMatch(/^Cocinar/);
-    expect(actions[0].detail).toMatch(/Kappa maki/);
-    expect(actions[0].detail).toMatch(/lista/);
-    expect(actions[0].intent).toEqual({ type: 'orders' });
-  });
+  it('hides empty tables, far tables, story orders and pre-intro service', () => {
+    resetService();
+    expect(all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture }))).some((a) => a.id.startsWith('take:'))).toBe(false);
 
-  it('shows a waiting order when ingredients are missing', () => {
-    const offer = resolveContext(sense({ zoneId: 'restaurant', ...at(12, 8), furniture }));
-    const action = all(offer)[0];
-    expect(action.id).toBe('order:2');
-    expect(action.label).toMatch(/^Pedido/);
-    expect(action.detail).toMatch(/Faltan ingredientes/);
-    expect(action.detail).toMatch(/Estudiante/);
-  });
-
-  it('hides empty tables, far tables, special orders and pre-intro service', () => {
-    game.save.orders = [];
-    expect(all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture }))).some((a) => a.id.startsWith('order:'))).toBe(false);
-
-    game.save.orders = [{ uid: 1, recipe: 'kappa', customer: 'c_tourist', reward: 16 }];
+    seatTourist();
     const far = resolveContext(sense({ zoneId: 'restaurant', ...at(2, 3), furniture }));
-    expect(all(far).some((a) => a.id.startsWith('order:'))).toBe(false);
+    expect(all(far).some((a) => a.id.startsWith('take:'))).toBe(false);
 
+    resetService();
     game.save.orders = [{ uid: 7, recipe: 'kappa', customer: 'c_tourist', reward: 16, special: 'tutorial' }];
     const special = resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture }));
-    expect(all(special).some((a) => a.id.startsWith('order:'))).toBe(false);
+    expect(all(special).some((a) => a.icon === 'maki' && a.id !== 'use:orders')).toBe(false);
 
     game.setFlag('intro_done', false);
-    game.save.orders = [{ uid: 1, recipe: 'kappa', customer: 'c_tourist', reward: 16 }];
+    seatTourist();
+    game.setFlag('intro_done', false);
     const early = resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture }));
-    expect(all(early).some((a) => a.id.startsWith('order:'))).toBe(false);
+    expect(all(early).some((a) => a.id.startsWith('take:'))).toBe(false);
   });
 });

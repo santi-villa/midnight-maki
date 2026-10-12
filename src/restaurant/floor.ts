@@ -2,12 +2,13 @@
  * Dining-floor state machine: parties, tables, patience, orders and payment.
  *
  * This does not cook, spawn sprites, or touch the save. `orders.ts` remains
- * the economy (coins, XP, reputation, gifts). A later stage turns a ticket
- * from `takeOrder` into a real Order and pays once, when the dish is served.
+ * the economy (coins, XP, reputation, gifts). `service.ts` turns a ticket
+ * from `takeOrder` into a real Order and pays once, when the party has eaten.
  * Seating is the only automatic help. Taking the order, cooking, delivering
  * and picking up the tip stay manual.
  *
- * Tick this about once a second while the restaurant is open, not every frame.
+ * Tick this about once a second while the restaurant is on screen, not every frame.
+ * After closing time, keep ticking so meals already ordered can finish.
  */
 import { BALANCE } from '../core/balance';
 
@@ -34,7 +35,7 @@ export type TableStatus =
   | 'tip'
   | 'cleanup';
 
-export type LeaveReason = 'patience' | 'done';
+export type LeaveReason = 'patience' | 'done' | 'closed';
 
 export interface ServiceSeat {
   id: string;
@@ -355,6 +356,19 @@ export class DiningFloor {
     return events;
   }
 
+  /**
+   * Last call. Parties that have not ordered leave through the same exit as a
+   * guest who gives up. Meals already ordered keep eating and paying.
+   */
+  windDown(): ServiceEvent[] {
+    const events: ServiceEvent[] = [];
+    for (const party of [...this.guests]) {
+      if (party.phase === 'waiting_food' || party.phase === 'eating' || party.phase === 'paying' || party.phase === 'leaving') continue;
+      this.dismiss(party, 'closed', events);
+    }
+    return events;
+  }
+
   /** Player takes the order at the table. Does not create a saved Order. */
   takeOrder(partyId: string, draft: OrderDraft): OrderTicket | null {
     const party = this.guests.find((p) => p.id === partyId);
@@ -407,6 +421,46 @@ export class DiningFloor {
     table.tip = 0;
     table.status = table.partyId ? 'cleanup' : 'free';
     return { amount, cleared: table.status === 'free' };
+  }
+
+  /**
+   * The kitchen already rolled the real tip and withheld it from the coins.
+   * Replace the preview rolled in `finishPay` so the player picks up that amount.
+   * Only valid while the party is still walking out.
+   */
+  setHeldTip(partyId: string, tip: number): boolean {
+    const party = this.guests.find((p) => p.id === partyId);
+    if (!party || party.phase !== 'leaving' || party.leftReason !== 'done' || !party.tableId) return false;
+    const table = this.tables.find((t) => t.id === party.tableId);
+    if (!table || table.partyId !== party.id) return false;
+    const amount = Math.max(0, Math.round(Number.isFinite(tip) ? tip : 0));
+    party.tip = amount;
+    table.tip = amount;
+    table.status = amount > 0 ? 'tip' : 'cleanup';
+    return true;
+  }
+
+  /** Undo a ticket that never got a saved order, so the party can be asked again. */
+  cancelTicket(partyId: string): boolean {
+    const party = this.guests.find((p) => p.id === partyId);
+    if (!party || party.phase !== 'waiting_food' || party.orderUid !== null) return false;
+    party.phase = 'waiting_order';
+    party.phaseT = 0;
+    party.recipe = null;
+    party.reward = 0;
+    party.ticket = null;
+    this.syncTable(party);
+    return true;
+  }
+
+  /** Chairs assigned to a party, in the order they sit. */
+  partySeats(partyId: string): ServiceSeat[] {
+    const party = this.guests.find((p) => p.id === partyId);
+    if (!party?.tableId) return [];
+    const table = this.tables.find((t) => t.id === party.tableId);
+    if (!table) return [];
+    const want = new Set(party.seatIds);
+    return table.seats.filter((seat) => want.has(seat.id)).map((seat) => ({ ...seat }));
   }
 
   party(id: string): PartyView | null {
@@ -569,6 +623,11 @@ export class DiningFloor {
   }
 
   private abandon(party: Party, events: ServiceEvent[]) {
+    this.dismiss(party, 'patience', events);
+  }
+
+  /** Free the table and walk them out. Patience is the only case that complains. */
+  private dismiss(party: Party, reason: 'patience' | 'closed', events: ServiceEvent[]) {
     const table = this.tables.find((t) => t.id === party.tableId);
     if (table && table.partyId === party.id) {
       table.partyId = null;
@@ -581,8 +640,8 @@ export class DiningFloor {
     party.patience = 0;
     party.phase = 'leaving';
     party.phaseT = 0;
-    party.leftReason = 'patience';
-    events.push({ type: 'impatient', partyId: party.id });
+    party.leftReason = reason;
+    if (reason === 'patience') events.push({ type: 'impatient', partyId: party.id });
   }
 
   private finishPay(party: Party, events: ServiceEvent[]) {

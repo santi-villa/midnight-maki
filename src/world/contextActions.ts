@@ -8,6 +8,7 @@ import type { Dir } from '../core/types';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { ZONES, type DoorDef, type InteractDef, type RoomDef } from '../data/zones';
 import { canCook, customerName } from '../restaurant/orders';
+import { tableJobs, type TableJob } from '../restaurant/service';
 import type { GatherSpot } from '../systems/gather';
 
 export const TILE = 16;
@@ -28,7 +29,11 @@ export type ContextIntent =
   | { type: 'target'; target: Target }
   | { type: 'gift'; npcId: string }
   | { type: 'decorate' }
-  | { type: 'orders' };
+  | { type: 'orders' }
+  | { type: 'takeOrder'; tableId: string }
+  | { type: 'cookOrder'; uid: number }
+  | { type: 'deliver'; tableId: string }
+  | { type: 'tip'; tableId: string };
 
 export interface ContextAction {
   id: string;
@@ -127,51 +132,63 @@ export function doorCopy(zoneId: string, door: DoorDef): { label: string; detail
   return { label: 'Entrar', detail: `Entrar a ${place}` };
 }
 
-function touches(seat: { x: number; y: number }, table: SenseFurniture) {
-  for (let j = 0; j < table.h; j++) {
-    for (let i = 0; i < table.w; i++) {
-      if (Math.max(Math.abs(seat.x - (table.x + i)), Math.abs(seat.y - (table.y + j))) <= 1) return true;
-    }
-  }
-  return false;
-}
-
 function shortWho(name: string) {
   return name.split(/\s+/)[0] || name;
 }
 
+function jobAction(job: TableJob): ContextAction | null {
+  if (job.status === 'tip' && job.tip > 0) {
+    return {
+      id: `tip:${job.tableId}`,
+      label: 'Propina',
+      detail: `Hay ${job.tip} de propina en la mesa.`,
+      icon: 'maki',
+      intent: { type: 'tip', tableId: job.tableId },
+    };
+  }
+  if (job.phase === 'waiting_order') {
+    const who = job.customerId ? customerName(job.customerId) : 'El cliente';
+    return {
+      id: `take:${job.tableId}`,
+      label: 'Tomar pedido',
+      detail: `${who} está listo para pedir.`,
+      icon: 'maki',
+      intent: { type: 'takeOrder', tableId: job.tableId },
+    };
+  }
+  if (job.phase !== 'waiting_food' || !job.recipe) return null;
+  const who = job.customerId ? customerName(job.customerId) : 'el cliente';
+  const dish = RECIPES_BY_ID[job.recipe]?.name ?? 'el pedido';
+  if (job.plated) {
+    return {
+      id: `deliver:${job.tableId}`,
+      label: 'Entregar',
+      detail: `${dish} para ${who}.`,
+      icon: 'maki',
+      intent: { type: 'deliver', tableId: job.tableId },
+    };
+  }
+  const ready = !!job.orderUid && canCook(job.recipe);
+  return {
+    id: ready ? `cook:${job.orderUid}` : `order:${job.orderUid}`,
+    label: `${ready ? 'Cocinar' : 'Pedido'} · ${shortWho(who)}`,
+    detail: ready ? `${dish} para ${who}. La mesa está lista.` : `${dish} para ${who}. Faltan ingredientes.`,
+    icon: 'maki',
+    intent: ready && job.orderUid ? { type: 'cookOrder', uid: job.orderUid } : { type: 'orders' },
+  };
+}
+
 function addTables(bag: Map<string, Scored>, sense: ContextSense) {
   if (sense.zoneId !== 'restaurant' || !game.has('intro_done')) return;
-  const seats = sense.furniture.filter((f) => f.room === 'dining' && f.sit && f.kind !== 'bench');
-  const orders = game.save.orders.filter((o) => !o.special && o.customer.startsWith('c_'));
-  const tables = sense.furniture.filter((f) => f.room === 'dining' && TABLE_KINDS.has(f.kind));
-  orders.forEach((order, i) => {
-    const seat = seats[i];
-    if (!seat) return;
-    let table: SenseFurniture | null = null;
-    let best = Infinity;
-    for (const t of tables) {
-      if (!touches(seat, t)) continue;
-      const d = Math.abs(seat.x - t.x) + Math.abs(seat.y - t.y);
-      if (d < best) {
-        best = d;
-        table = t;
-      }
-    }
-    if (!table) return;
-    const who = customerName(order.customer);
-    const dish = RECIPES_BY_ID[order.recipe]?.name ?? 'el pedido';
-    const ready = canCook(order.recipe);
+  for (const job of tableJobs()) {
+    const table = sense.furniture.find((f) => f.room === 'dining' && TABLE_KINDS.has(f.kind) && String(f.uid) === job.tableId);
+    if (!table) continue;
+    const action = jobAction(job);
+    if (!action) continue;
     const ax = table.x * TILE + (table.w * TILE) / 2;
     const ay = table.y * TILE + 10;
-    consider(bag, {
-      id: `order:${order.uid}`,
-      label: `${ready ? 'Cocinar' : 'Pedido'} · ${shortWho(who)}`,
-      detail: ready ? `${dish} para ${who}. La mesa está lista.` : `${dish} para ${who}. Faltan ingredientes.`,
-      icon: 'maki',
-      intent: { type: 'orders' },
-    }, ax, ay, 28, sense, 4);
-  });
+    consider(bag, action, ax, ay, 28, sense, 4);
+  }
 }
 
 export function resolveContext(sense: ContextSense): ContextOffer {

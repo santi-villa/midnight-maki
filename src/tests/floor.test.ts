@@ -306,6 +306,23 @@ describe('orders, payment and leaving', () => {
     expect(game.save.restaurant.served).toBe(0);
     expect(svc.audit()).toEqual([]);
   });
+
+  it('replaces the rolled tip with the amount the kitchen withheld', () => {
+    const svc = floor([table('t', 1)], () => 0);
+    svc.arrive({ id: 'p', customerId: 'c_tourist', patience: 100 });
+    steps(svc, 3);
+    svc.takeOrder('p', { recipe: 'onigiri', reward: 50 });
+    svc.deliver('p', 2);
+    steps(svc, 2);
+    expect(svc.party('p')?.phase).toBe('leaving');
+    expect(svc.setHeldTip('p', 12)).toBe(true);
+    expect(svc.table('t')).toMatchObject({ status: 'tip', tip: 12 });
+    expect(svc.party('p')?.tip).toBe(12);
+    expect(svc.setHeldTip('p', 0)).toBe(true);
+    expect(svc.table('t')).toMatchObject({ status: 'cleanup', tip: 0 });
+    expect(svc.setHeldTip('missing', 4)).toBe(false);
+    expect(svc.audit()).toEqual([]);
+  });
 });
 
 describe('bill math', () => {

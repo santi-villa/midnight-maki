@@ -3,6 +3,7 @@
  * One stop per period stays the character's place; minutes only change what they do there.
  * Off screen this is the whole simulation: no pathfinding, no per-frame work.
  */
+import { BALANCE } from '../core/balance';
 import type { CharacterDef, RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
 import { doorLeadingTo } from '../world/zoneRuntime';
@@ -63,12 +64,15 @@ export const FESTIVAL_SPOT: Record<string, RoutineStop> = {
 
 const SHOP_ZONES = new Set(['shop_taro', 'shop_yuki', 'shop_bento']);
 
+/** Exclusive end minute of each beat. The next beat starts on that minute. */
+const BEAT = { settle: 12, main: 36, meal: 50, stroll: 70, social: 82 } as const;
+
 export function phaseOf(minutes: number): Phase {
-  if (minutes < 12) return 'settle';
-  if (minutes < 36) return 'main';
-  if (minutes < 50) return 'meal';
-  if (minutes < 70) return 'stroll';
-  if (minutes < 82) return 'social';
+  if (minutes < BEAT.settle) return 'settle';
+  if (minutes < BEAT.main) return 'main';
+  if (minutes < BEAT.meal) return 'meal';
+  if (minutes < BEAT.stroll) return 'stroll';
+  if (minutes < BEAT.social) return 'social';
   return 'depart';
 }
 
@@ -162,10 +166,30 @@ function phaseIn(periods: number[], period: number, minutes: number, openAt: num
   const continues = periods.includes(period - 1);
   const closes = !periods.includes(period + 1);
   const start = continues ? 0 : openAt;
-  const end = closes ? closeAt : 90;
+  const end = closes ? closeAt : BALANCE.periodMinutes;
   if (minutes < start) return 'setup';
   if (minutes >= end) return 'closing';
   return 'open';
+}
+
+/**
+ * Public service at Midnight Maki. This is not a shop: the player hosts, so the
+ * room stays open when Pip, Spicy or Rigg are somewhere else. Morning is the
+ * closed prep period. Afternoon and dusk are open from the first minute. Night
+ * stays open through the meal beat, then closes for the stroll and for the
+ * frozen end of the night (the clock already stops at minute 90).
+ */
+export const RESTAURANT_HOURS = {
+  periods: [1, 2, 3],
+  openAt: 0,
+  closeAt: BEAT.meal,
+  hours: 'Tarde, atardecer y el comienzo de la noche',
+};
+
+export function restaurantPhase(period: number, minutes: number): ShopPhase {
+  const p = Number.isFinite(period) ? Math.floor(period) : 0;
+  const m = Number.isFinite(minutes) ? minutes : RESTAURANT_HOURS.closeAt;
+  return phaseIn([...RESTAURANT_HOURS.periods], p, m, RESTAURANT_HOURS.openAt, RESTAURANT_HOURS.closeAt);
 }
 
 export function shopStatus(id: string, q: ShopQuery): ShopStatus {
