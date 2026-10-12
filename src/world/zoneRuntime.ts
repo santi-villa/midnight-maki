@@ -136,8 +136,11 @@ export function buildZone(id: string, night = false): BuiltZone {
       for (const [x, y] of furnitureSolidTiles(f, fd)) grid.setSolid(x, y, true);
     }
   }
-  // doors are always walkable
-  for (const d of def.doors) grid.setSolid(d.x, d.y, false);
+  // only walk-through doors are cleared; interactable/wall doors remain solid
+  for (const d of def.doors) {
+    if (d.walk) grid.setSolid(d.x, d.y, false);
+    else grid.setSolid(d.x, d.y, true);
+  }
   return { def, tiles, grid, props, furniture };
 }
 
@@ -184,4 +187,48 @@ function buildZoneWithout(zoneId: string, ignoreUid?: number): BuiltZone {
     }
   }
   return b;
+}
+
+/** Returns the door in fromZone that guides the player towards toZone. */
+export function doorLeadingTo(fromZone: string, toZone: string): { x: number; y: number; to: string } | null {
+  if (fromZone === toZone) return null;
+  const def = ZONES[fromZone];
+  if (!def || !def.doors.length) return null;
+
+  // Direct door
+  const direct = def.doors.find((d) => d.to === toZone);
+  if (direct) return { x: direct.x, y: direct.y, to: direct.to };
+
+  // Interiors routing
+  if (fromZone === 'home' || fromZone === 'storage') {
+    const d = def.doors.find((dd) => dd.to === 'restaurant');
+    if (d) return { x: d.x, y: d.y, to: d.to };
+  }
+  if (fromZone === 'restaurant') {
+    if (toZone === 'home' || toZone === 'storage') {
+      const d = def.doors.find((dd) => dd.to === toZone);
+      if (d) return { x: d.x, y: d.y, to: d.to };
+    }
+    const d = def.doors.find((dd) => dd.to === 'plaza');
+    if (d) return { x: d.x, y: d.y, to: d.to };
+  }
+  if (fromZone === 'lighthouse') {
+    const d = def.doors.find((dd) => dd.to === 'beach');
+    if (d) return { x: d.x, y: d.y, to: d.to };
+  }
+  if (toZone === 'restaurant' || toZone === 'home' || toZone === 'storage') {
+    if (fromZone === 'plaza') {
+      const d = def.doors.find((dd) => dd.to === 'restaurant');
+      if (d) return { x: d.x, y: d.y, to: d.to };
+    }
+  }
+  if (toZone === 'lighthouse' && fromZone === 'plaza') {
+    const d = def.doors.find((dd) => dd.to === 'beach');
+    if (d) return { x: d.x, y: d.y, to: d.to };
+  }
+  // From any outdoor zone to another outdoor zone: head to plaza
+  const toPlaza = def.doors.find((dd) => dd.to === 'plaza');
+  if (toPlaza) return { x: toPlaza.x, y: toPlaza.y, to: toPlaza.to };
+
+  return { x: def.doors[0].x, y: def.doors[0].y, to: def.doors[0].to };
 }

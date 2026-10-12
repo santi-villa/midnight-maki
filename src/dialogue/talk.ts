@@ -2,23 +2,27 @@
 import { iconElement } from '../art/icons';
 import { audio } from '../audio/audio';
 import { BALANCE } from '../core/balance';
+import { bus } from '../core/events';
 import { game } from '../core/state';
 import { CHAR_BY_ID, RACCOONS } from '../data/characters';
 import { ITEMS, ITEMS_BY_ID } from '../data/items';
-import { world } from '../scenes/WorldScene';
 import { h, panel, toast } from '../ui/dom';
 import { choose, runScene, say } from './dialogue';
 import { GIFT_REACT, LINES, type Line } from './lines';
 import { clock } from '../systems/time';
 
 const lastLine: Record<string, string> = {};
+let currentZone = '';
+bus.on('zone:enter', ({ zone }) => {
+  currentZone = zone;
+});
 
 function pickLine(id: string): Line | null {
   const pool = LINES[id] ?? [];
   const lvl = game.friendLevel(id);
   const per = clock.period;
   const rain = game.flag('weather') === 'rain';
-  const zone = world?.zoneId;
+  const zone = currentZone;
   const valid = pool.filter(
     (l) =>
       (!l.p || l.p.includes(per)) &&
@@ -90,7 +94,11 @@ export async function talkTo(id: string) {
       }
     } else if (pick === 'Regalar algo') {
       const item = await pickGift();
-      if (item) await giveGift(id, item);
+      if (item) {
+        await giveGift(id, item);
+      } else {
+        await say(id, 'No te preocupes, en otro momento.', 'neutral');
+      }
     } else if (pick === 'Cambiar su atuendo') {
       const { openRaccoonOutfit } = await import('../ui/wardrobe');
       openRaccoonOutfit(id);
@@ -243,39 +251,105 @@ async function personalStory(id: string, lvl: number) {
   }
 }
 
-function pickGift(): Promise<string | null> {
+export type GiftReaction = 'love' | 'like' | 'dislike' | 'neutral';
+
+export interface GiftResult {
+  success: boolean;
+  reason?: 'invalid_character' | 'already_gifted_today' | 'missing_item';
+  points: number;
+  reaction: GiftReaction;
+  levelUp: number;
+}
+
+export function evaluateGift(id: string, item: string): { points: number; reaction: GiftReaction } | null {
+  const def = CHAR_BY_ID[id];
+  if (!def) return null;
+  const love = def.loves?.includes(item) ?? false;
+  const like = def.likes?.includes(item) ?? false;
+  const dislike = def.dislikes?.includes(item) ?? false;
+  const bday = game.flag('bday_today_' + id) === game.save.time.day ? 2 : 1;
+  const pts = (love ? BALANCE.giftLoved : like ? BALANCE.giftLiked : dislike ? 2 : BALANCE.giftNeutral) * bday;
+  const reaction: GiftReaction = love ? 'love' : like ? 'like' : dislike ? 'dislike' : 'neutral';
+  return { points: pts, reaction };
+}
+
+export function processGift(id: string, item: string): GiftResult {
+  const def = CHAR_BY_ID[id];
+  if (!def) {
+    return { success: false, reason: 'invalid_character', points: 0, reaction: 'neutral', levelUp: 0 };
+  }
+  const r = game.rel(id);
+  if (r.lastGiftDay === game.save.time.day) {
+    return { success: false, reason: 'already_gifted_today', points: 0, reaction: 'neutral', levelUp: 0 };
+  }
+  if (!game.count(item) || !game.removeItem(item, 1)) {
+    return { success: false, reason: 'missing_item', points: 0, reaction: 'neutral', levelUp: 0 };
+  }
+  r.lastGiftDay = game.save.time.day;
+  const evaluated = evaluateGift(id, item)!;
+  game.setFlag(`gift_${id}_${item}`);
+  game.stat('gifts');
+  const levelUp = game.addFriendship(id, evaluated.points);
+  return {
+    success: true,
+    points: evaluated.points,
+    reaction: evaluated.reaction,
+    levelUp,
+  };
+}
+
+export function pickGift(): Promise<string | null> {
   return new Promise((resolve) => {
     const items = ITEMS.filter((i) => game.count(i.id) > 0 && i.cat !== 'key');
     let chosen: string | null = null;
     const grid = h('div', { class: 'grid' });
-    if (!items.length) grid.append(h('p', { class: 'muted' }, 'No tenés nada para regalar todavía.'));
-    for (const it of items)
+    if (!items.length) {
+      grid.append(h('p', { class: 'muted', style: { padding: '16px', textAlign: 'center', gridColumn: '1 / -1' } }, 'No tenés nada para regalar todavía.'));
+    }
+    for (const it of items) {
       grid.append(
-        h('button', { class: 'slot', onclick: () => { chosen = it.id; p.close(); } }, iconElement(it.icon), h('span', null, it.name), h('span', { class: 'qty' }, game.count(it.id))),
+        h(
+          'button',
+          {
+            class: 'slot',
+            onclick: () => {
+              chosen = it.id;
+              p.close();
+            },
+          },
+          iconElement(it.icon),
+          h('span', null, it.name),
+          h('span', { class: 'qty' }, game.count(it.id)),
+        ),
       );
+    }
     const p = panel({ title: 'Elegí un regalo', body: grid, onClose: () => resolve(chosen) });
   });
 }
 
 export async function giveGift(id: string, item: string) {
   const def = CHAR_BY_ID[id];
+  if (!def) return;
   const r = game.rel(id);
   if (r.lastGiftDay === game.save.time.day) {
     await say(id, 'Ya me diste algo hoy. ¡Guardalo para otro día!', 'happy');
     return;
   }
-  if (!game.removeItem(item, 1)) return;
-  r.lastGiftDay = game.save.time.day;
-  const love = def.loves.includes(item);
-  const like = def.likes.includes(item);
-  const dislike = def.dislikes.includes(item);
-  const bday = game.flag('bday_today_' + id) === game.save.time.day ? 2 : 1;
-  const pts = (love ? BALANCE.giftLoved : like ? BALANCE.giftLiked : dislike ? 2 : BALANCE.giftNeutral) * bday;
-  const pool = love ? GIFT_REACT.love : like ? GIFT_REACT.like : dislike ? GIFT_REACT.dislike : GIFT_REACT.neutral;
-  await say(id, pool[Math.floor(Math.random() * pool.length)], love || like ? 'happy' : dislike ? 'sad' : 'neutral');
-  game.setFlag(`gift_${id}_${item}`);
-  game.stat('gifts');
-  const up = game.addFriendship(id, pts);
-  if (love) toast(`A ${def.name} le encantó.`);
-  if (up) await friendshipUp(id, up);
+  if (!game.count(item)) {
+    await say(id, 'Parece que ya no tenés ese objeto.', 'neutral');
+    return;
+  }
+  const res = processGift(id, item);
+  if (!res.success) {
+    if (res.reason === 'already_gifted_today') {
+      await say(id, 'Ya me diste algo hoy. ¡Guardalo para otro día!', 'happy');
+    } else {
+      await say(id, 'Parece que ya no tenés ese objeto.', 'neutral');
+    }
+    return;
+  }
+  const pool = GIFT_REACT[res.reaction];
+  await say(id, pool[Math.floor(Math.random() * pool.length)], res.reaction === 'love' || res.reaction === 'like' ? 'happy' : res.reaction === 'dislike' ? 'sad' : 'neutral');
+  if (res.reaction === 'love') toast(`A ${def.name} le encantó.`);
+  if (res.levelUp) await friendshipUp(id, res.levelUp);
 }

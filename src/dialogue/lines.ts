@@ -110,7 +110,7 @@ export const LINES: Record<string, Line[]> = {
     { t: 'Con lluvia, la masa leva distinto. Todo es más lento. A mí me gusta lento.', rain: true },
     { t: 'Yo... nunca estuve en el faro. Nunca. ¿Por qué preguntás?', flag: 'ch5_started', e: 'surprised' },
   ],
-  mika: [
+  sumi: [
     { t: 'La luz de esta hora es perfecta. Mirá cómo se pone rosa todo.', e: 'happy', p: [2] },
     { t: 'Estoy pintando el pueblo entero, de a un rincón por día.', p: [0, 1] },
     { t: 'Si querés un cuadro para tu restaurante, tengo algunos. Los mejores no están en venta. Todavía.', lvl: 1 },
@@ -167,9 +167,9 @@ const more: Record<string, Line[]> = {
     { t: 'Ya no tengo que guardar secretos. ¡Qué alivio! El pan me sale más esponjoso desde entonces.', flag: 'bento_confessed', weight: 3, set: 'mem_bento_free' },
     { t: 'Akio pasó por la panadería y me pidió un pan de leche. Como antes. Casi lloro en la masa.', flag: 'akio_visit', e: 'happy' },
   ],
-  mika: [
+  sumi: [
     { t: 'Pinté el faro encendido. Esta vez no lo inventé: lo vi. Es todavía más lindo de lo que imaginaba.', flag: 'story_done', e: 'happy' },
-    { t: 'Las fotos que me mandaste me inspiraron. Hay una tuya con los mapaches que quiero pintar.', flag: 'q_sq_mika_photos_done', weight: 3 },
+    { t: 'Las fotos que me mandaste me inspiraron. Hay una tuya con los mapaches que quiero pintar.', flag: 'q_sq_sumi_photos_done', weight: 3 },
   ],
   kiki: [
     { t: '¡Lograste abrir el tocón! Yo lo intenté cien veces. Bueno, tres. Pero fueron tres veces intensas.', flag: 'stump_solved', weight: 3, set: 'mem_kiki_stump' },
@@ -194,6 +194,7 @@ const more: Record<string, Line[]> = {
   ],
 };
 for (const [id, list] of Object.entries(more)) LINES[id] = [...(LINES[id] ?? []), ...list];
+if (LINES.sumi) LINES.mika = LINES.sumi; // legacy save alias
 
 LINES.akio = [
   { t: 'Gracias por encender el faro, {name}. Desde la Ciudad del Puerto se veía la luz. Lloré como Spicy con el wasabi.', e: 'happy', weight: 5, set: 'akio_thanks' },

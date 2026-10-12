@@ -23,7 +23,7 @@ export interface FurnitureDef {
   light?: string;    // emits light at night
   sit?: boolean;
   charm: number;     // restaurant ambience score
-  shop: 'taro' | 'mika' | 'market' | 'event' | 'reward' | 'kit';
+  shop: 'taro' | 'sumi' | 'mika' | 'market' | 'event' | 'reward' | 'kit';
   unlock?: string;
   likes?: string[];  // raccoons that react happily
 }
@@ -38,12 +38,12 @@ export const FURNITURE: FurnitureDef[] = [
   F('table_wood', 'Mesa de madera', 'restaurant', 'natural', 90, 'table', '#a8734d', '', 2, 1, 22),
   F('table_round', 'Mesita redonda', 'restaurant', 'cozy', 70, 'roundtable', '#a8734d', '', 1, 1, 16),
   F('table_dark', 'Mesa de nogal', 'restaurant', 'dark', 180, 'table', '#5e3f30', '', 2, 1, 22),
-  F('table_pink', 'Mesa pastel', 'restaurant', 'pastel', 160, 'table', '#e8b8c0', '', 2, 1, 22, { shop: 'mika' }),
+  F('table_pink', 'Mesa pastel', 'restaurant', 'pastel', 160, 'table', '#e8b8c0', '', 2, 1, 22, { shop: 'sumi' }),
   F('table_low', 'Chabudai', 'restaurant', 'japanese', 150, 'table', '#8a5a3c', '', 2, 1, 14),
   F('kotatsu', 'Kotatsu', 'bedroom', 'japanese', 420, 'kotatsu', '#b2585e', '#f2c66d', 2, 2, 30, { sit: true, likes: ['pip'] }),
   // ---------------- seats
   F('chair_wood', 'Silla de madera', 'restaurant', 'natural', 50, 'chair', '#8a5a3c', '#a8734d', 1, 1, 18, { rotatable: true, sit: true }),
-  F('chair_rose', 'Silla rosa', 'restaurant', 'pastel', 80, 'chair', '#c27f86', '#e8b8c0', 1, 1, 18, { rotatable: true, sit: true, shop: 'mika' }),
+  F('chair_rose', 'Silla rosa', 'restaurant', 'pastel', 80, 'chair', '#c27f86', '#e8b8c0', 1, 1, 18, { rotatable: true, sit: true, shop: 'sumi' }),
   F('chair_sage', 'Silla salvia', 'restaurant', 'cottage', 80, 'chair', '#7c9a7b', '#a9c3a0', 1, 1, 18, { rotatable: true, sit: true }),
   F('chair_dark', 'Silla de nogal', 'restaurant', 'dark', 110, 'chair', '#4e3428', '#6e4a38', 1, 1, 18, { rotatable: true, sit: true }),
   F('stool', 'Banquito', 'kitchen', 'minimal', 50, 'stool', '#a8734d', '', 1, 1, 14, { sit: true }),
@@ -61,7 +61,7 @@ export const FURNITURE: FurnitureDef[] = [
   F('shelf_kitchen', 'Estante de cocina', 'kitchen', 'natural', 180, 'shelf', '#a8734d', '#f6ecd6', 2, 1, 30, { likes: ['spicy'] }),
   F('shelf_dark', 'Biblioteca antigua', 'bedroom', 'dark', 380, 'shelf', '#4e3428', '#b2585e', 2, 1, 30, { likes: ['rigg'] }),
   F('wardrobe_wood', 'Ropero', 'bedroom', 'natural', 300, 'wardrobe', '#a8734d', '', 2, 1, 30),
-  F('wardrobe_white', 'Ropero blanco', 'bedroom', 'minimal', 300, 'wardrobe', '#efe8da', '', 2, 1, 30, { shop: 'mika' }),
+  F('wardrobe_white', 'Ropero blanco', 'bedroom', 'minimal', 300, 'wardrobe', '#efe8da', '', 2, 1, 30, { shop: 'sumi' }),
   F('desk_wood', 'Escritorio', 'bedroom', 'natural', 240, 'desk', '#a8734d', '#3b4470', 2, 1, 26, { likes: ['rigg'] }),
   F('desk_dark', 'Escritorio de nogal', 'bedroom', 'dark', 340, 'desk', '#5e3f30', '#b7a8d6', 2, 1, 26),
   F('chest_wood', 'Baúl', 'bedroom', 'cottage', 120, 'chest', '#8a5a3c', '', 1, 1, 14),
@@ -76,7 +76,7 @@ export const FURNITURE: FurnitureDef[] = [
   F('plant_herbs', 'Macetita de hierbas', 'plant', 'natural', 50, 'plant', '#7fae5f', '#a8734d', 1, 1, 22, { likes: ['spicy'] }),
   // ---------------- lights
   F('lamp_cream', 'Lámpara de pie', 'light', 'cozy', 130, 'floorlamp', '#f3e6c8', '', 1, 1, 32, { light: '#f4d68c' }),
-  F('lamp_rose', 'Lámpara rosada', 'light', 'pastel', 150, 'floorlamp', '#e8b8c0', '', 1, 1, 32, { light: '#f6c6c0', shop: 'mika' }),
+  F('lamp_rose', 'Lámpara rosada', 'light', 'pastel', 150, 'floorlamp', '#e8b8c0', '', 1, 1, 32, { light: '#f6c6c0', shop: 'sumi' }),
   F('lamp_table', 'Velador', 'light', 'cozy', 80, 'tablelamp', '#f2c66d', '', 1, 1, 16, { light: '#f4d68c' }),
   F('lantern_red', 'Farol rojo', 'light', 'japanese', 90, 'paperlantern', '#d9675f', '', 1, 1, 26, { light: '#f4b08c' }),
   F('lantern_cream', 'Farol de papel', 'light', 'japanese', 90, 'paperlantern', '#f3e6c8', '', 1, 1, 26, { light: '#f4d68c' }),
@@ -90,16 +90,16 @@ export const FURNITURE: FurnitureDef[] = [
   F('rug_night', 'Alfombra noche', 'rug', 'night', 160, 'rug', '#2c3358', '#f2c66d', 3, 2, 32, { walkable: true, variant: 2, shop: 'market' }),
   F('rug_indigo', 'Alfombra índigo', 'rug', 'japanese', 120, 'rug', '#3b4470', '#f6ecd6', 2, 2, 32, { walkable: true, variant: 1 }),
   // ---------------- wall
-  F('pt_landscape', 'Cuadro: colinas', 'wall', 'natural', 120, 'painting', '#cfe0ef', '#86a878', 2, 1, 16, { wall: true, variant: 0, shop: 'mika' }),
-  F('pt_sushi', 'Cuadro: sushi', 'wall', 'japanese', 120, 'painting', '#f3e6c8', '', 1, 1, 16, { wall: true, variant: 1, shop: 'mika', likes: ['spicy'] }),
-  F('pt_stars', 'Cuadro: constelación', 'wall', 'night', 160, 'painting', '#2c3358', '', 2, 1, 16, { wall: true, variant: 2, shop: 'mika', likes: ['rigg'] }),
-  F('pt_raccoon', 'Retrato de mapache', 'wall', 'raccoon', 200, 'painting', '#e8b8c0', '', 1, 1, 16, { wall: true, variant: 3, shop: 'mika', likes: ['pip', 'spicy', 'rigg'] }),
+  F('pt_landscape', 'Cuadro: colinas', 'wall', 'natural', 120, 'painting', '#cfe0ef', '#86a878', 2, 1, 16, { wall: true, variant: 0, shop: 'sumi' }),
+  F('pt_sushi', 'Cuadro: sushi', 'wall', 'japanese', 120, 'painting', '#f3e6c8', '', 1, 1, 16, { wall: true, variant: 1, shop: 'sumi', likes: ['spicy'] }),
+  F('pt_stars', 'Cuadro: constelación', 'wall', 'night', 160, 'painting', '#2c3358', '', 2, 1, 16, { wall: true, variant: 2, shop: 'sumi', likes: ['rigg'] }),
+  F('pt_raccoon', 'Retrato de mapache', 'wall', 'raccoon', 200, 'painting', '#e8b8c0', '', 1, 1, 16, { wall: true, variant: 3, shop: 'sumi', likes: ['pip', 'spicy', 'rigg'] }),
   F('clock', 'Reloj de pared', 'wall', 'cottage', 90, 'clock', '', '', 1, 1, 16, { wall: true }),
   F('garland', 'Guirnalda de estrellas', 'wall', 'night', 110, 'garland', '#f2c66d', '', 2, 1, 16, { wall: true, light: '#f8e3a0', likes: ['pip'] }),
   F('windchime', 'Furin', 'wall', 'japanese', 80, 'windchime', '#94c0d2', '', 1, 1, 16, { wall: true }),
   // ---------------- small / special
   F('plush_raccoon', 'Peluche de mapache', 'small', 'raccoon', 0, 'plush', '#8d8a93', '#3a3440', 1, 1, 16, { shop: 'reward', likes: ['pip', 'spicy', 'rigg'] }),
-  F('plush_cat', 'Peluche de gato', 'small', 'pastel', 110, 'plush', '#efe1c4', '#e8b8c0', 1, 1, 16, { shop: 'mika', likes: ['pip'] }),
+  F('plush_cat', 'Peluche de gato', 'small', 'pastel', 110, 'plush', '#efe1c4', '#e8b8c0', 1, 1, 16, { shop: 'sumi', likes: ['pip'] }),
   F('plush_bear', 'Peluche de oso', 'small', 'cozy', 110, 'plush', '#a8734d', '#6b4330', 1, 1, 16, { likes: ['pip'] }),
   F('radio', 'Radio antigua', 'small', 'cottage', 140, 'radio', '#8a5a3c', '', 1, 1, 14, { likes: ['rigg'] }),
   F('bookstack', 'Pila de libros', 'small', 'cozy', 50, 'bookstack', '#b2585e', '#3b4470', 1, 1, 12, { likes: ['rigg'] }),
@@ -108,7 +108,7 @@ export const FURNITURE: FurnitureDef[] = [
   F('telescope', 'Telescopio', 'special', 'night', 520, 'telescope', '', '', 1, 1, 22, { shop: 'market', likes: ['rigg'] }),
   F('aquarium', 'Acuario', 'special', 'natural', 600, 'aquarium', '', '', 2, 1, 26, { likes: ['pip'] }),
   F('piano', 'Piano vertical', 'special', 'dark', 700, 'piano', '#3a2f3a', '', 2, 1, 28),
-  F('easel', 'Atril de pintura', 'special', 'cottage', 180, 'easel', '#b2585e', '', 1, 1, 24, { shop: 'mika' }),
+  F('easel', 'Atril de pintura', 'special', 'cottage', 180, 'easel', '#b2585e', '', 1, 1, 24, { shop: 'sumi' }),
   F('display_case', 'Vitrina de sushi', 'restaurant', 'japanese', 450, 'display', '#a8734d', '', 2, 1, 26, { likes: ['spicy'] }),
   F('chili_wreath', 'Ristra de ajíes', 'kitchen', 'raccoon', 90, 'garland', '#c94a3f', '', 2, 1, 16, { wall: true, likes: ['spicy'] }),
   F('stone_lantern', 'Linterna de piedra', 'garden', 'japanese', 260, 'stonelantern', '', '', 1, 1, 24, { light: '#f4d68c' }),

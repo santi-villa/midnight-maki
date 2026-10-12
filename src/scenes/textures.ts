@@ -167,3 +167,32 @@ export function hashStr(s: string): number {
   }
   return h >>> 0;
 }
+
+export function questMarkerTexture(scene: Phaser.Scene): string {
+  if (!scene.textures.exists('quest_pin')) {
+    const c = makeCanvas(12, 16);
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#46291f';
+    g.beginPath();
+    g.moveTo(6, 0);
+    g.lineTo(12, 6);
+    g.lineTo(6, 15);
+    g.lineTo(0, 6);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = '#f2c66d';
+    g.beginPath();
+    g.moveTo(6, 2);
+    g.lineTo(10, 6);
+    g.lineTo(6, 13);
+    g.lineTo(2, 6);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = '#fff8e8';
+    g.fillRect(5, 4, 2, 3);
+    scene.textures.addCanvas('quest_pin', c);
+  }
+  return 'quest_pin';
+}

@@ -168,6 +168,7 @@ export function choose(options: string[], who = 'player', prompt?: string): Prom
             history.push({ who: '→', text: fmt(o) });
             window.removeEventListener('keydown', key);
             audio.sfxPlay('tap');
+            root.innerHTML = '';
             resolve(i);
           },
         }, `${i + 1}. ${fmt(o)}`),

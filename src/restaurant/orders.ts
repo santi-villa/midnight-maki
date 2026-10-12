@@ -52,7 +52,7 @@ function pickCustomer(r: () => number): string {
 function favoriteOf(customer: string): string | null {
   const fav: Record<string, string> = {
     momo: 'veggie_roll', taro: 'rainbow', yuki: 'sakura_roll', kumo: 'tamago', nami: 'sake_nigiri', hoshi: 'moonlight',
-    bento: 'futomaki', mika: 'rainbow', kiki: 'onigiri', sora: 'california', ume: 'onigiri',
+    bento: 'futomaki', sumi: 'rainbow', mika: 'rainbow', kiki: 'onigiri', sora: 'california', ume: 'onigiri',
   };
   return fav[customer] ?? null;
 }

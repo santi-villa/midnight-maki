@@ -170,7 +170,7 @@ function plaza(): ZoneDef {
       { id: 'mailbox', x: 9, y: 6, label: 'Buzón', action: 'mail' },
       { id: 'fountain', x: 15, y: 13, label: 'Fuente', action: 'fountain' },
       { id: 'sign', x: 4, y: 7, label: 'Cartel del restaurante', action: 'story:sign', cond: '!sign_restored' },
-      { id: 'mika_stall', x: 20, y: 20, label: 'Puesto de Mika', action: 'shop:mika' },
+      { id: 'sumi_stall', x: 20, y: 20, label: 'Puesto de Sumi', action: 'shop:sumi' },
     ],
     rooms: [],
     gather: [

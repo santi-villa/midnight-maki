@@ -38,6 +38,27 @@ export function validateSave(raw: unknown): SaveData {
   for (const k of ['inventory', 'flags', 'relationships', 'decor', 'roomStyle', 'furnitureOwned', 'collections', 'stats', 'recipesCooked', 'raccoonOutfits']) {
     if (!isObj(out[k])) out[k] = {};
   }
+  // legacy save compatibility: mika -> sumi
+  if (out.relationships.mika) {
+    if (!out.relationships.sumi) out.relationships.sumi = out.relationships.mika;
+  }
+  if (out.quests?.active?.sq_mika_photos && !out.quests.active.sq_sumi_photos) {
+    out.quests.active.sq_sumi_photos = out.quests.active.sq_mika_photos;
+    delete out.quests.active.sq_mika_photos;
+  }
+  if (Array.isArray(out.quests?.done)) {
+    const idx = out.quests.done.indexOf('sq_mika_photos');
+    if (idx >= 0) out.quests.done[idx] = 'sq_sumi_photos';
+  }
+  if (out.quests?.tracked === 'sq_mika_photos') {
+    out.quests.tracked = 'sq_sumi_photos';
+  }
+  for (const [k, v] of Object.entries(out.flags)) {
+    if (k.includes('mika')) {
+      const newKey = k.replace(/mika/g, 'sumi');
+      if (out.flags[newKey] === undefined) out.flags[newKey] = v;
+    }
+  }
   out.player.appearance = { ...base.player.appearance, ...(s.player?.appearance ?? {}) };
   // sanity
   out.coins = Math.max(0, Math.floor(Number(out.coins) || 0));

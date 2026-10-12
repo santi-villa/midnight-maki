@@ -139,7 +139,7 @@ class DecorEditor {
     this.actions.innerHTML = '';
     if (this.tab === 0) {
       const ids = Object.entries(game.save.furnitureOwned).filter(([, n]) => n > 0);
-      if (!ids.length) this.list.append(h('div', { class: 'hint', style: { color: '#f6ecd6', padding: '8px' } }, 'No tenés muebles guardados. Comprá en el Almacén de Taro, el puesto de Mika o el Mercado Nocturno.'));
+      if (!ids.length) this.list.append(h('div', { class: 'hint', style: { color: '#f6ecd6', padding: '8px' } }, 'No tenés muebles guardados. Comprá en el Almacén de Taro, el puesto de Sumi o el Mercado Nocturno.'));
       for (const [id, n] of ids) {
         const f = FURN_BY_ID[id];
         if (!f) continue;
