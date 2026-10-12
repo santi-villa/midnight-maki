@@ -21,7 +21,7 @@ function show(t: Tip) {
 
 function pump() {
   if (current || !queue.length || !game.loaded) return;
-  if (inDialogue() || modalOpen()) {
+  if (inDialogue() || modalOpen() || document.querySelector('.plate-show, .cook, .book, .letter-wrap, .mg')) {
     setTimeout(pump, 800);
     return;
   }
