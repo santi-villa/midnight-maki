@@ -1,5 +1,6 @@
 import { settings, updateSettings } from '../core/settings';
 import { game } from '../core/state';
+import { resetAutoPerf } from '../core/perf';
 import { exportSave, importSaveFile, saveCode, saveFromCode, saveGame, shareSave } from '../persistence/storage';
 import { h, panel, toast } from './dom';
 
@@ -66,6 +67,7 @@ export function openSettings(inGame: boolean) {
     choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Desafío']], () => settings.cookMode, (v) => updateSettings({ cookMode: v })),
     toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
     toggle('Joystick virtual', 'joystick', 'Además de tocar el suelo para caminar.'),
+    choice<'auto' | 'high' | 'low'>('Efectos', [['auto', 'Automático'], ['high', 'Lindos'], ['low', 'Ahorro de batería']], () => settings.perf ?? 'auto', (v) => { if (v === 'auto') resetAutoPerf(); updateSettings({ perf: v }); }),
     toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),
     inGame
       ? h(

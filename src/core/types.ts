@@ -112,4 +112,6 @@ export interface Settings {
   settingsVersion?: number;
   /** objective arrow towards the tracked quest */
   guide?: boolean;
+  /** effects quality: auto-detect, always high, or battery saver */
+  perf?: 'auto' | 'high' | 'low';
 }

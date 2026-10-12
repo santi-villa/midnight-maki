@@ -15,6 +15,7 @@ import { ZONES, type DoorDef, type InteractDef } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { charactersIn } from '../systems/npcs';
 import { clock } from '../systems/time';
+import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
 import { buildZone, condOk, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture } from './textures';
@@ -104,6 +105,7 @@ export class WorldScene extends Phaser.Scene {
       if (this.zoneId === 'restaurant' && (reason === 'serve' || reason === 'orders' || reason === 'order')) this.spawnCustomers();
     });
     bus.on('appearance:changed', () => this.refreshLooks());
+    bus.on('settings:changed', () => this.enterLowFx());
     bus.on('settings:changed', () => this.setupAmbient());
     this.layout();
   }
@@ -223,7 +225,7 @@ export class WorldScene extends Phaser.Scene {
       const onWall = def.ground[p.y]?.[p.x] === 'W' || def.ground[p.y]?.[p.x] === 'V';
       // awnings and posters sit on building fronts; puddles lie on the ground
       img.setDepth(onWall ? -5 : p.def.kind === 'awning' || p.def.kind === 'poster' ? py + 18 : p.def.kind === 'puddle' ? -8 : py - (p.def.solid ? 0 : 8));
-      if (p.def.anim === 'sway' && !settings.reduceMotion) {
+      if (p.def.anim === 'sway' && !lowFx()) {
         this.tweens.add({ targets: img, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
       if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 84 : p.def.kind === 'stall' ? 70 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: 0.55 });
@@ -237,7 +239,7 @@ export class WorldScene extends Phaser.Scene {
         for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 22, flicker: false, color: 0xffb867, glow: 0.35, spill: true } as Light);
         this.lamps.push({ x: px, y: py - 10, r: 34, flicker: true, color: 0xff9f5a, glow: 0.5 });
       }
-      if (p.def.anim === 'water' && !settings.reduceMotion) this.addFountainSpray(px, py - p.def.sh + 6);
+      if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - p.def.sh + 6);
     }
     this.placeFurnitureSprites();
     // windows glow at night
@@ -336,7 +338,7 @@ export class WorldScene extends Phaser.Scene {
       if (!item) continue;
       const img = this.add.image(spot.x * TILE + 8, spot.y * TILE + 12, iconTexture(this, item.icon)).setOrigin(0.5, 1).setScale(0.75);
       img.setDepth(spot.y * TILE + 4);
-      if (!settings.reduceMotion) this.tweens.add({ targets: img, y: img.y - 2, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      if (!lowFx()) this.tweens.add({ targets: img, y: img.y - 2, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       this.gatherSprites.push({ spot, img });
     }
   }
@@ -642,7 +644,7 @@ export class WorldScene extends Phaser.Scene {
     this.ambient = [];
     this.weather?.destroy();
     this.weather = null;
-    if (!this.zone || settings.reduceMotion) return;
+    if (!this.zone || lowFx()) return;
     const def = this.zone.def;
     const W = def.w * TILE;
     const H = def.h * TILE;
@@ -862,6 +864,7 @@ export class WorldScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ main loop
   update(_t: number, dms: number) {
+    if (sampleFrame(dms)) this.enterLowFx(true);
     const dt = Math.min(0.05, dms / 1000);
     if (!this.player || !this.zone) return;
     if (!this.transitioning) clock.tick(dt);
@@ -1032,7 +1035,7 @@ export class WorldScene extends Phaser.Scene {
     this.waterT += dt;
     if (this.waterT < 0.5) return;
     this.waterT = 0;
-    if (settings.reduceMotion) return;
+    if (lowFx()) return;
     this.waterFrame = (this.waterFrame + 1) % 3;
     for (const w of this.waterTiles) this.layer.putTileAt(WATER_FRAMES[w.deep ? 1 : 0][this.waterFrame], w.x, w.y);
   }
@@ -1051,7 +1054,7 @@ export class WorldScene extends Phaser.Scene {
   private dustT = 0;
   /** small dust puffs under the feet while walking */
   private dust(dt: number) {
-    if (!this.player.moving || settings.reduceMotion) return;
+    if (!this.player.moving || lowFx()) return;
     this.dustT -= dt;
     if (this.dustT > 0) return;
     this.dustT = 0.28;
@@ -1083,7 +1086,7 @@ export class WorldScene extends Phaser.Scene {
           this.objs.push(b);
         }
       }
-    if (def.outdoor && !settings.reduceMotion && this.zoneId !== 'market') {
+    if (def.outdoor && !lowFx() && this.zoneId !== 'market') {
       for (let i = 0; i < 3; i++) {
         const c = this.add.image(Math.random() * def.w * TILE, Math.random() * def.h * TILE, glow).setScale(3.5, 2.2).setTint(0x1a1428).setAlpha(0.1).setDepth(150001);
         this.clouds.push(c);
@@ -1191,7 +1194,7 @@ export class WorldScene extends Phaser.Scene {
     rt.setVisible(true);
     if (alpha) rt.fill(tint, 1);    const t = performance.now() / 1000;
     const visible = this.lamps.filter((l) => l.x > view.x - 70 && l.x < view.right + 70 && l.y > view.y - 70 && l.y < view.bottom + 70);
-    const flick = (l: Light) => (l.flicker && !settings.reduceMotion ? 1 + Math.sin(t * 7 + l.x) * 0.05 + Math.sin(t * 13 + l.y) * 0.03 : 1);
+    const flick = (l: Light) => (l.flicker && !lowFx() ? 1 + Math.sin(t * 7 + l.x) * 0.05 + Math.sin(t * 13 + l.y) * 0.03 : 1);
     if (glow > 0) {
       for (const l of visible) {
         this.lightStamp.setScale((l.r * 2 * flick(l)) / 64);
@@ -1211,9 +1214,9 @@ export class WorldScene extends Phaser.Scene {
     if (!this.vignette) this.vignette = this.make.image({ key: vignetteTexture(this) }, false);
     this.vignette.setDisplaySize(rt.width, rt.height).setAlpha(vig);
     rt.draw(this.vignette, rt.width / 2, rt.height / 2);
-    // additive warm bloom around each light
+    // additive warm bloom around each light (skipped in battery mode)
     let i = 0;
-    if (glow > 0) {
+    if (glow > 0 && !lowFx()) {
       for (const l of visible) {
         let g = this.glowPool[i];
         if (!g) {
@@ -1231,6 +1234,17 @@ export class WorldScene extends Phaser.Scene {
     }
     for (; i < this.glowPool.length; i++) this.glowPool[i].setVisible(false);
   }
+  /** Applies battery mode: caps the frame rate and rebuilds ambience without heavy effects. */
+  enterLowFx(announce = false) {
+    const loop = this.game.loop as any;
+    const low = lowFx();
+    loop.fpsLimit = low ? 30 : 0;
+    loop._limitRate = low ? 1000 / 30 : 0;
+    loop.hasFpsLimit = low;
+    this.setupAmbient();
+    if (announce) import('../ui/dom').then(({ toast }) => toast('Activé el modo batería para que el juego vaya más fluido.'));
+  }
+
   // ------------------------------------------------------------------ objective guide
   private guideArrow: Phaser.GameObjects.Image | null = null;
   private guideMark: Phaser.GameObjects.Image | null = null;
@@ -1289,7 +1303,7 @@ export class WorldScene extends Phaser.Scene {
 
   private quirks(dt: number) {
     this.quirkT -= dt;
-    if (this.quirkT > 0 || this.inputLocked || settings.reduceMotion) return;
+    if (this.quirkT > 0 || this.inputLocked || lowFx()) return;
     this.quirkT = 25 + Math.random() * 35;
     const raccoons = [...this.npcs.entries()].filter(([id]) => CHAR_BY_ID[id]?.raccoon || Math.random() < 0.3);
     if (!raccoons.length) return;
