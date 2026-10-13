@@ -28,9 +28,9 @@ export interface ShopPlace {
 }
 
 export const SHOP_PLACES: ShopPlace[] = [
-  { id: 'taro', title: 'Almacén de Taro', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_taro', keeper: 'taro', sign: { x: 5, y: 6 }, outdoor: { zone: 'plaza', x: 27, y: 19 } },
-  { id: 'yuki', title: 'Ropa de Yuki', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_yuki', keeper: 'yuki', sign: { x: 5, y: 6 }, outdoor: { zone: 'plaza', x: 26, y: 7 } },
-  { id: 'bento', title: 'Panadería de Bento', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_bento', keeper: 'bento', sign: { x: 5, y: 6 }, outdoor: { zone: 'plaza', x: 5, y: 19 } },
+  { id: 'taro', title: 'Almacén de Taro', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_taro', keeper: 'taro', sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 25, y: 17 } },
+  { id: 'yuki', title: 'Ropa de Yuki', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_yuki', keeper: 'yuki', sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 24, y: 5 } },
+  { id: 'bento', title: 'Panadería de Bento', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_bento', keeper: 'bento', sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 3, y: 17 } },
   { id: 'sumi', title: 'Puesto de Sumi', periods: [0], openAt: 12, closeAt: 78, hours: 'Mañanas', zone: 'plaza', keeper: 'sumi', sign: { x: 20, y: 21 } },
   { id: 'nami', title: 'Puesto de pescado', periods: [1], openAt: 12, closeAt: 78, hours: 'Tardes', zone: 'beach', keeper: 'nami', sign: { x: 6, y: 9 } },
   { id: 'shells', title: 'Puesto de conchas', periods: [1, 2], openAt: 12, closeAt: 78, hours: 'Tarde y atardecer', zone: 'beach', sign: { x: 10, y: 9 } },
@@ -197,7 +197,7 @@ export function shopStatus(id: string, q: ShopQuery): ShopStatus {
   if (!place) return { tracked: false, open: true, phase: 'open', hours: '', title: '', detail: '' };
   const base = { tracked: true, hours: place.hours, title: place.title };
   const closed = (detail: string): ShopStatus => ({ ...base, open: false, phase: 'closed', detail });
-  if (q.shut) return closed(`${place.title} hoy no abre.`);
+  if (q.shut) return closed(`${place.title} hoy no abre. Horario: ${place.hours}.`);
   if (q.force || q.storyHere) return { ...base, open: true, phase: 'open', detail: '' };
   const periods = [...place.periods];
   if (q.festival && q.keeperZone === place.zone && q.period <= 2 && !periods.includes(q.period)) periods.push(q.period);
@@ -211,17 +211,23 @@ export function shopStatus(id: string, q: ShopQuery): ShopStatus {
   return closed(`${place.title} está cerrado. Horario: ${place.hours}.`);
 }
 
+/** Short status near an interaction; full hours belong in the opened UI. */
 export function shopButtonLabel(status: ShopStatus, fallback: string): string {
   if (!status.tracked || status.open) return fallback;
-  if (status.phase === 'setup') return `Abre pronto · ${status.hours}`;
-  if (status.phase === 'closing') return `Cerrando · ${status.hours}`;
-  return `Cerrado · ${status.hours}`;
+  const head = status.phase === 'setup' ? 'Abre pronto' : status.phase === 'closing' ? 'Cerrando' : 'Cerrado';
+  return `${fallback} · ${head}`;
 }
 
+/** Tiny single-line wooden plaque; an open façade needs no indicator. */
 export function shopSignText(status: ShopStatus): string {
+  if (!status.tracked || status.open) return '';
+  return status.phase === 'setup' ? 'PRONTO' : status.phase === 'closing' ? 'CIERRA' : 'CERRADO';
+}
+
+export function shopInteractionText(status: ShopStatus, entrance = false): string {
   if (!status.tracked) return '';
-  const head = status.phase === 'open' ? 'Abierto' : status.phase === 'setup' ? 'Abre pronto' : status.phase === 'closing' ? 'Cerrando' : 'Cerrado';
-  return `${head}\n${status.hours}`;
+  const info = status.open ? `${status.title} está atendiendo. Horario: ${status.hours}.` : status.detail;
+  return entrance && !status.open ? `${info} Podés entrar al edificio, pero la tienda no está atendiendo.` : info;
 }
 
 export function signSpots(zoneId: string): { shopId: string; x: number; y: number }[] {

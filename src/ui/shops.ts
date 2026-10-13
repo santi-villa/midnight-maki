@@ -10,6 +10,7 @@ import { FURNITURE, FURN_BY_ID } from '../data/furniture';
 import { ITEMS_BY_ID, type ItemCat } from '../data/items';
 import { runScene, say } from '../dialogue/dialogue';
 import { shopGate } from '../systems/npcs';
+import { shopInteractionText } from '../systems/schedule';
 import { clock } from '../systems/time';
 import { previewCanvas } from './creator';
 import { h, panel, toast } from './dom';
@@ -147,15 +148,13 @@ function buy(e: Entry, qty = 1): boolean {
 export async function openShop(id: string) {
   const s = SHOPS[id];
   if (!s) return;
-  const gate = shopGate(id);
-  if (gate.tracked && !gate.open) {
-    toast(gate.detail);
-    return;
-  }
-  if (s.open && !s.open()) {
-    toast(s.closedMsg ?? 'Está cerrado ahora.');
-    return;
-  }
+  const canTrade = (notify = true): boolean => {
+    const gate = shopGate(id);
+    const detail = gate.tracked && !gate.open ? gate.detail : s.open && !s.open() ? s.closedMsg ?? 'Está cerrado ahora.' : '';
+    if (detail && notify) toast(detail);
+    return !detail;
+  };
+  if (!canTrade()) return;
   if (s.keeper && !game.has('met_shop_' + id)) {
     game.setFlag('met_shop_' + id);
     await runScene('shop_' + id, async () => {
@@ -163,10 +162,13 @@ export async function openShop(id: string) {
     });
     game.addFriendship(s.keeper, 4);
   }
+  if (!canTrade()) return; // the greeting may have yielded while service changed
+  const hours = h('p', { class: 'hint' });
   const body = h('div');
   const coins = h('span', { class: 'coin' });
   const tabNames = [...s.tabs.map((t) => t.name), ...(s.sell ? ['Vender'] : [])];
   let current = 0;
+  let serviceKey = '';
   // fitting room: tap clothes to try them on before buying
   const tryLook = { ...game.save.player.appearance };
   const fitPreview = h('div', { class: 'fit-preview' });
@@ -193,6 +195,9 @@ export async function openShop(id: string) {
     toast(`Te pusiste: ${c.name}`);
   };
   const render = () => {
+    serviceKey = serviceStamp();
+    const trading = canTrade(false);
+    hours.textContent = shopInteractionText(shopGate(id));
     coins.textContent = `${game.coins} monedas`;
     body.innerHTML = '';
     if (current >= s.tabs.length) return renderSell();
@@ -209,8 +214,8 @@ export async function openShop(id: string) {
           h('span', null, info.name),
           h('span', { class: 'price' }, `${e.price} ●`),
           h('div', { class: 'row', style: { gap: '4px' } },
-            h('button', { class: 'btn small', disabled: game.coins < e.price, onclick: () => { if (buy(e)) { if (e.kind === 'cloth') wear(e.id); render(); } } }, e.kind === 'cloth' ? 'Comprar y poner' : 'Comprar'),
-            e.kind === 'item' ? h('button', { class: 'btn small', disabled: game.coins < e.price * 5, onclick: () => { if (buy(e, 5)) render(); } }, '×5') : null));
+            h('button', { class: 'btn small', disabled: !trading || game.coins < e.price, onclick: () => { if (!canTrade()) { render(); return; } if (buy(e)) { if (e.kind === 'cloth') wear(e.id); render(); } } }, e.kind === 'cloth' ? 'Comprar y poner' : 'Comprar'),
+            e.kind === 'item' ? h('button', { class: 'btn small', disabled: !trading || game.coins < e.price * 5, onclick: () => { if (!canTrade()) { render(); return; } if (buy(e, 5)) render(); } }, '×5') : null));
       grid.append(slot);
     }
     body.append(grid);
@@ -221,7 +226,7 @@ export async function openShop(id: string) {
     if (!sellable.length) grid.append(h('p', { class: 'muted' }, 'No tenés nada que te compren acá.'));
     for (const id of sellable) {
       const it = ITEMS_BY_ID[id];
-      grid.append(h('div', { class: 'slot' }, h('span', { class: 'qty' }, game.count(id)), iconElement(it.icon), h('span', null, it.name), h('span', { class: 'price' }, `${it.sell} ●`), h('button', { class: 'btn small', onclick: () => { if (game.removeItem(id, 1)) { game.addCoins(it.sell, 'sell'); audio.sfxPlay('coin'); render(); } } }, 'Vender')));
+      grid.append(h('div', { class: 'slot' }, h('span', { class: 'qty' }, game.count(id)), iconElement(it.icon), h('span', null, it.name), h('span', { class: 'price' }, `${it.sell} ●`), h('button', { class: 'btn small', disabled: !canTrade(false), onclick: () => { if (!canTrade()) { render(); return; } if (game.removeItem(id, 1)) { game.addCoins(it.sell, 'sell'); audio.sfxPlay('coin'); render(); } } }, 'Vender')));
     }
     body.append(h('p', { class: 'hint' }, 'Lo que ya registraste en tu colección queda guardado aunque lo vendas.'), grid);
   };
@@ -229,5 +234,16 @@ export async function openShop(id: string) {
   const btns = tabNames.map((n, i) => h('button', { class: 'tab' + (i === 0 ? ' active' : ''), onclick: () => { current = i; btns.forEach((b, j) => b.classList.toggle('active', j === i)); render(); } }, n));
   bar.append(...btns);
   render();
-  panel({ title: s.title, wide: true, tabs: bar, body: h('div', null, h('div', { style: { marginBottom: '8px' } }, coins), body) });
+  function serviceStamp() {
+    const gate = shopGate(id);
+    return `${gate.phase}:${gate.open}:${gate.detail}:${canTrade(false)}`;
+  }
+  const refreshService = () => {
+    const key = serviceStamp();
+    if (key === serviceKey) return;
+    serviceKey = key;
+    render();
+  };
+  const off = [bus.on('time:changed', refreshService), bus.on('state:changed', refreshService)];
+  panel({ title: s.title, wide: true, tabs: bar, body: h('div', null, hours, h('div', { style: { marginBottom: '8px' } }, coins), body), onClose: () => { for (const unhook of off) unhook(); } });
 }

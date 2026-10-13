@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
 import { ZONES } from '../data/zones';
 import { shopGate, stopFor, whereIs } from '../systems/npcs';
-import { phaseOf } from '../systems/schedule';
+import { buildZone } from '../world/zoneRuntime';
+import { phaseOf, shopSignText, shopButtonLabel, shopInteractionText, signSpots } from '../systems/schedule';
 
 function at(period: number, minutes: number, day = 4) {
   game.save.time.period = period;
@@ -167,5 +168,56 @@ describe('shop hours', () => {
     at(0, 30);
     expect(shopGate('taro').open).toBe(false);
     expect(shopGate('taro').detail).toMatch(/hoy no abre/i);
+  });
+});
+
+describe('consistent storefront indicators', () => {
+  it.each(['taro', 'bento', 'yuki'])('%s follows setup, morning, afternoon, closing, dusk and night', (id) => {
+    const cases: [number, number, string][] = [[0, 0, 'setup'], [0, 12, 'open'], [0, 89, 'open'], [1, 0, 'open'], [1, 77, 'open'], [1, 78, 'closing'], [2, 20, 'closed'], [3, 20, 'closed']];
+    for (const [period, minutes, phase] of cases) {
+      at(period, minutes);
+      const status = shopGate(id);
+      expect(status.phase).toBe(phase);
+      expect(shopSignText(status)).toBe(phase === 'open' ? '' : phase === 'setup' ? 'PRONTO' : phase === 'closing' ? 'CIERRA' : 'CERRADO');
+      expect(shopButtonLabel(status, 'Tienda')).not.toContain(status.hours);
+      expect(shopInteractionText(status)).toContain(status.hours);
+    }
+  });
+
+  it('uses the same service rules for the legacy Sumi alias', () => {
+    at(3, 20);
+    expect(shopGate('mika')).toEqual(shopGate('sumi'));
+    expect(shopGate('mika').open).toBe(false);
+  });
+
+  it('keeps physical entrance distinct from public service and respects story exceptions', () => {
+    at(3, 20);
+    expect(shopInteractionText(shopGate('taro'), true)).toContain('Podés entrar al edificio');
+    game.setFlag('at_taro', 'shop_taro,5,3,work');
+    expect(shopSignText(shopGate('taro'))).toBe('');
+    game.setFlag('shop_shut_taro');
+    expect(shopSignText(shopGate('taro'))).toBe('CERRADO');
+    expect(shopInteractionText(shopGate('taro'))).toContain('Mañana y tarde');
+  });
+
+  it('places shop plaques against walls away from the walk-through door tiles', () => {
+    for (const zoneId of ['plaza', 'shop_taro', 'shop_yuki', 'shop_bento']) {
+      const zone = buildZone(zoneId, false);
+      for (const spot of signSpots(zoneId).filter((s) => ['taro', 'bento', 'yuki'].includes(s.shopId))) {
+        expect(zone.grid.isSolid(spot.x, spot.y)).toBe(true);
+        const cx = spot.x * 16;
+        const bottom = spot.y * 16 + 14;
+        for (const prop of zone.props.filter((p) => p.def.kind !== 'building')) {
+          const px = prop.x * 16 + prop.def.w * 8;
+          const py = (prop.y + prop.def.h) * 16;
+          const overlaps = cx + 14.5 > px - prop.def.sw / 2 && cx - 14.5 < px + prop.def.sw / 2 && bottom > py - prop.def.sh && bottom - 11 < py;
+          expect(overlaps, `${zoneId}: plaque should not cover ${prop.key}`).toBe(false);
+        }
+        for (const door of zone.def.doors) {
+          const overlaps = cx + 14.5 > door.x * 16 && cx - 14.5 < (door.x + 1) * 16 && bottom > door.y * 16 && bottom - 11 < (door.y + 1) * 16;
+          expect(overlaps).toBe(false);
+        }
+      }
+    }
   });
 });

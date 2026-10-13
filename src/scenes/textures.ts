@@ -1,5 +1,7 @@
 /** Lazily converts generated canvases into Phaser textures (cached by key). */
 import Phaser from 'phaser';
+import { drawPlaque, pixTextWidth } from '../art/pixfont';
+import type { ShopPhase } from '../systems/schedule';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
 import { buildFolkSheet, FOLK_PAD } from '../art/folk';
 import { buildingLayout } from '../art/nature';
@@ -331,4 +333,15 @@ export function questMarkerTexture(scene: Phaser.Scene): string {
     scene.textures.addCanvas('quest_pin', c);
   }
   return 'quest_pin';
+}
+
+/** Native pixel font: at most 29×11 logical pixels, cached by service phase. */
+export function shopSignTexture(scene: Phaser.Scene, text: string, phase: ShopPhase): string {
+  const key = 'shop_sign_' + phase;
+  if (!scene.textures.exists(key)) {
+    const canvas = makeCanvas(pixTextWidth(text) + 2, 11);
+    drawPlaque(ctx2d(canvas), canvas.width / 2, 0, text, { pad: 0, ink: phase === 'closed' ? '#843e3a' : '#765029' });
+    scene.textures.addCanvas(key, canvas);
+  }
+  return key;
 }
