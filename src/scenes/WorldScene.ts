@@ -8,7 +8,7 @@ import { WaterFx } from './waterFx';
 import { lightState, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
-import { runTask } from '../core/errors';
+import { reportError, runTask } from '../core/errors';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
 import type { Dir } from '../core/types';
@@ -32,6 +32,7 @@ import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, ligh
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife } from '../systems/townLife';
+import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
 import { CUSTOMER_IDS } from '../art/customerSheet';
 import type { CustomerId } from '../art/customers';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
@@ -188,40 +189,77 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------------ zones
-  async enterZone(id: string, tx: number, ty: number, dir: Dir = 'down', withFade = true) {
-    if (this.transitioning) return;
+  async enterZone(id: string, tx: number, ty: number, dir: Dir = 'down', withFade = true): Promise<boolean> {
+    if (this.transitioning) return false;
     this.transitioning = true;
+    const previous = this.zone;
+    const position = this.player ? { zone: this.zoneId, x: this.player.tx, y: this.player.ty, dir: this.player.dir } : null;
     try {
-      const { fade } = await import('../ui/dom');
-      const bigMove = withFade && this.zoneId && (ZONES[id]?.outdoor || ZONES[this.zoneId]?.outdoor) && !['home', 'storage'].includes(id);
-      if (withFade && this.zoneId) await fade(true, bigMove ? 260 : 200, bigMove ? ZONES[id]?.name : undefined);
-      if (bigMove) await new Promise((r) => setTimeout(r, 420));
-      this.buildZoneObjects(id);
-      if (!this.player) {
-        this.player = new Actor(this, 'player', charTexture(this, 'player'), tx, ty);
-        this.player.speed = 72;
-      } else this.player.teleport(tx, ty);
-      this.player.face(dir);
-      this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, 8);
-      this.cameras.main.centerOn(this.player.x, this.player.y);
-      const p = game.save.player;
-      p.zone = id;
-      p.x = tx;
-      p.y = ty;
-      p.dir = dir;
-      this.spawnNpcs(false);
-      this.npcKey = this.npcStamp();
-      this.shopKey = this.shopStamp();
-      this.refreshShopSigns();
-      this.playZoneAudio();
-      if (id.startsWith('shop_')) bus.emit('toast', { text: shopInteractionText(shopGate(id.slice(5)), true) });
-      if (withFade) await fade(false, 220);
+      if (!ZONES[id] || !['up', 'down', 'left', 'right'].includes(dir)) throw new Error('Invalid zone destination');
+      const prepared = buildZone(id, clock.isNight() || clock.period === 2);
+      const arrival = safeArrival(prepared, tx, ty);
+      const load = async () => {
+        try {
+          this.mountZone(prepared, arrival.x, arrival.y, dir);
+          await this.waitForRender();
+        } catch (err) {
+          if (previous && position) {
+            try {
+              this.mountZone(previous, position.x, position.y, position.dir);
+              await this.waitForRender();
+            } catch (recovery) { reportError('world:zone-recovery', recovery); }
+          }
+          throw err;
+        }
+      };
+      if (withFade && this.zoneId && this.zoneId !== id) {
+        const { screenTransition } = await import('../ui/dom');
+        await screenTransition(zoneTransitionKind(this.zoneId, id), load);
+      } else await load();
       this.transitioning = false;
+      if (id.startsWith('shop_')) bus.emit('toast', { text: shopInteractionText(shopGate(id.slice(5)), true) });
       bus.emit('zone:enter', { zone: id });
       void runTask('world:zone-story', () => this.onEnterZone(id));
-    } finally {
-      this.transitioning = false;
-    }
+      return true;
+    } finally { this.transitioning = false; }
+  }
+
+  private mountZone(built: BuiltZone, tx: number, ty: number, dir: Dir) {
+    this.buildZoneObjects(built.def.id, built);
+    if (!this.player || !this.player.sprite.active) {
+      this.player = new Actor(this, 'player', charTexture(this, 'player'), tx, ty);
+      this.player.speed = 72;
+    } else this.player.teleport(tx, ty);
+    this.player.face(dir);
+    this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, 8);
+    this.cameras.main.centerOn(this.player.x, this.player.y);
+    Object.assign(game.save.player, { zone: built.def.id, x: tx, y: ty, dir });
+    this.spawnNpcs(false);
+    this.npcKey = this.npcStamp();
+    this.shopKey = this.shopStamp();
+    this.refreshShopSigns();
+    this.playZoneAudio();
+  }
+
+  /** Two completed frames settle the new camera and its existing lighting before revelation. */
+  private waitForRender(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      let frames = 0, timer = 0;
+      const clean = () => {
+        clearTimeout(timer);
+        this.game.events.off(Phaser.Core.Events.POST_RENDER, rendered);
+        document.removeEventListener('visibilitychange', visibility);
+      };
+      const rendered = () => { if (++frames < 2) return; clean(); resolve(); };
+      const visibility = () => {
+        clearTimeout(timer);
+        // Backgrounding a mobile browser pauses rendering; resume the deadline when visible.
+        if (!document.hidden) timer = window.setTimeout(() => { clean(); reject(new Error('Zone render did not complete')); }, 2000);
+      };
+      this.game.events.on(Phaser.Core.Events.POST_RENDER, rendered);
+      document.addEventListener('visibilitychange', visibility);
+      visibility();
+    });
   }
 
   private clearZone() {
@@ -259,11 +297,11 @@ export class WorldScene extends Phaser.Scene {
     this.overMap = null;
   }
 
-  buildZoneObjects(id: string) {
+  buildZoneObjects(id: string, prepared?: BuiltZone) {
+    const built = prepared ?? buildZone(id, clock.isNight() || clock.period === 2);
     this.clearZone();
     this.zoneId = id;
-    const night = clock.isNight() || clock.period === 2;
-    this.zone = buildZone(id, night);
+    this.zone = built;
     const def = this.zone.def;
     this.map = this.make.tilemap({ data: this.zone.tiles, tileWidth: TILE, tileHeight: TILE });
     const ts = this.map.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0)!;

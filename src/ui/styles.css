@@ -778,3 +778,14 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 }
 @media (max-height: 460px) { .tt-btn { min-height: 44px; font-size: 15px; } .tt-menu { bottom: calc(8px + var(--safe-b)); } }
 .tt-calm .tt-menu { transition: opacity .25s; }
+
+/* Interior shutters cover HUD and canvas together. Only transform is animated. */
+.door-curtain { position: fixed; inset: 0; z-index: 10000; visibility: hidden; pointer-events: none; overflow: hidden; }
+.door-curtain.active { visibility: visible; pointer-events: auto; }
+.door-panel { position: absolute; top: 0; bottom: 0; width: calc(50% + 1px); background: #000; transition: transform 240ms cubic-bezier(.4, 0, .2, 1); }
+.door-curtain.active .door-panel { will-change: transform; }
+.door-left { left: 0; transform: translateX(-100%); }
+.door-right { right: 0; transform: translateX(100%); }
+.door-curtain.closed .door-panel { transform: translateX(0); }
+#ui .fade.busy { pointer-events: auto !important; }
+@media (prefers-reduced-motion: reduce) { .door-panel { transition: none; } }

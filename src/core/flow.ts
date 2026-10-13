@@ -36,39 +36,50 @@ export async function continueGame(s: SaveData) {
 }
 
 async function startWorld(isNew: boolean) {
-  stopAutosave();
-  clock.resetPause();
-  ensureDefaultDecor();
-  installDaily();
-  phaser.scene.stop('title');
-  phaser.scene.start('world');
-  await new Promise<void>((r) => {
-    const check = () => (world && world.sys.isActive() ? r() : setTimeout(check, 30));
-    check();
-  });
-  await import('../systems/handlers');
-  installActions();
-  const story = await import('../story/story');
-  world.lockHook = (to) => story.onLockedDoor(to);
-  world.onEnterZone = (z) => {
-    return story.onEnterZone(z);
-  };
-  mountHud(hudHandlers());
-  (await import('../ui/coach')).installCoach();
-  const p = game.save.player;
-  if (isNew) {
+  try {
+    stopAutosave();
+    clock.resetPause();
+    ensureDefaultDecor();
+    installDaily();
+    phaser.scene.stop('title');
+    phaser.scene.start('world');
+    await new Promise<void>((r) => {
+      const check = () => (world && world.sys.isActive() ? r() : setTimeout(check, 30));
+      check();
+    });
+    await import('../systems/handlers');
+    installActions();
+    const story = await import('../story/story');
+    world.lockHook = (to) => story.onLockedDoor(to);
+    world.onEnterZone = (z) => {
+      return story.onEnterZone(z);
+    };
+    mountHud(hudHandlers());
+    (await import('../ui/coach')).installCoach();
+    const p = game.save.player;
+    if (isNew) {
+      showHud(false);
+      const { playIntro } = await import('../story/intro');
+      await playIntro();
+    } else {
+      let zone = p.zone;
+      if (zone === 'arrival' || !zone) zone = 'restaurant';
+      await world.enterZone(zone, p.x || 8, p.y || 10, p.dir, false);
+      const { onContinue } = await import('../story/story');
+      onContinue();
+    }
+    startAutosave();
+    void runTask('flow:backup', backupHousekeeping, false);
+  } catch (err) {
+    stopAutosave();
     showHud(false);
-    const { playIntro } = await import('../story/intro');
-    await playIntro();
-  } else {
-    let zone = p.zone;
-    if (zone === 'arrival' || !zone) zone = 'restaurant';
-    await world.enterZone(zone, p.x || 8, p.y || 10, p.dir, false);
-    const { onContinue } = await import('../story/story');
-    onContinue();
+    clock.resetPause();
+    phaser.scene.stop('world');
+    phaser.scene.start('title');
+    audio.crossfade('title');
+    await (await import('../ui/title')).showTitle(phaser);
+    throw err;
   }
-  startAutosave();
-  void runTask('flow:backup', backupHousekeeping, false);
 }
 
 /** Keeps saves safe: asks for persistent storage and gently reminds to back up once a week. */

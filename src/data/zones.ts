@@ -157,6 +157,7 @@ function plaza(): ZoneDef {
       { x: 26, y: 6, to: 'shop_yuki', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Ropa de Yuki' },
       { x: 27, y: 18, to: 'shop_taro', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Almacén de Taro' },
       { x: 5, y: 18, to: 'shop_bento', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Panadería' },
+      { x: 11, y: 24, to: 'library', tx: 6, ty: 7, dir: 'up', walk: true, label: 'Biblioteca' },
       { x: 5, y: 6, to: RESTAURANT_ENTRY.zone, tx: RESTAURANT_ENTRY.x, ty: RESTAURANT_ENTRY.y, dir: RESTAURANT_ENTRY.dir, walk: true, label: 'Midnight Maki' },
       { x: 15, y: 0, to: 'forest', tx: 14, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Kiki dice que el sendero al bosque todavía está lleno de ramas.' } },
       { x: 16, y: 0, to: 'forest', tx: 15, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Kiki dice que el sendero al bosque todavía está lleno de ramas.' } },
@@ -170,7 +171,6 @@ function plaza(): ZoneDef {
       { x: 30, y: 0, to: 'market', tx: 13, ty: 16, dir: 'up', walk: true, lock: { flag: 'market_open', msg: 'El torii está en silencio. Dicen que algunas noches aparece un mercado del otro lado.' } },
     ],
     interact: [
-      { id: 'library', x: 11, y: 24, label: 'Biblioteca', action: 'library' },
       { id: 'board', x: 11, y: 8, label: 'Cartelera', action: 'board' },
       { id: 'board2', x: 12, y: 8, label: 'Cartelera', action: 'board' },
       { id: 'mailbox', x: 9, y: 6, label: 'Buzón', action: 'mail' },
@@ -266,6 +266,21 @@ const shopBento = () => shopRoom('shop_bento', 'Panadería de Bento', 'cream', '
   b.prop('wallshelf', 1, 1).prop('wallshelf', 7, 1).prop('bread_case', 1, 3).prop('flour_sack', 8, 3).prop('flour_sack', 8, 5)
     .prop('shop_counter', 4, 4).prop('shop_counter_reg', 5, 4).prop('shop_counter', 6, 4).prop('pot_cream', 1, 6).prop('shop_rug', 4, 6).prop('lantern_cream', 3, 2).prop('lantern_cream', 6, 2);
 }, 'shop:bento', 'Panadería de Bento');
+
+// ================================================================== LIBRARY
+function library(): ZoneDef {
+  const b = new Builder(12, 9, '#');
+  b.room(0, 0, 12, 9, [3, 8]).set(6, 8, 'm');
+  b.prop('library_shelf', 1, 2).prop('library_shelf', 8, 2)
+    .prop('library_shelf', 1, 4).prop('library_shelf', 8, 4)
+    .prop('library_table', 5, 4).prop('library_books', 5, 4)
+    .prop('bench', 3, 6).prop('bench', 8, 6)
+    .prop('lantern_cream', 3, 2).prop('lantern_cream', 9, 2).prop('pot_cream', 1, 6);
+  return zone(b, { id: 'library', name: 'Biblioteca de Villa Nori', music: 'home', outdoor: false, walls: 'wood', floor: 'wood',
+    doors: [{ x: 6, y: 8, to: 'plaza', tx: 11, ty: 25, dir: 'down', walk: true }],
+    interact: [{ id: 'library', x: 5, y: 3, label: 'Leer en la biblioteca', action: 'library' }], rooms: [], gather: [],
+  });
+}
 
 // ================================================================== HOME (upstairs)
 function home(): ZoneDef {
@@ -529,9 +544,9 @@ function lighthouse(): ZoneDef {
   });
 }
 
-// ================================================================== ARRIVAL (intro cutscene in plaza at night)
+// ================================================================== REGISTERED WORLD ZONES
 export const ZONES: Record<string, ZoneDef> = {};
-for (const z of [plaza(), shopYuki(), shopTaro(), shopBento(), restaurant(), home(), storage(), beach(), forest(), garden(), station(), market(), lighthouse()]) ZONES[z.id] = z;
+for (const z of [plaza(), shopYuki(), shopTaro(), shopBento(), restaurant(), library(), home(), storage(), beach(), forest(), garden(), station(), market(), lighthouse()]) ZONES[z.id] = z;
 
 /** Wooden signposts next to each exit, so every place says where it leads. */
 const SIGNPOSTS: Record<string, [string, number, number][]> = {

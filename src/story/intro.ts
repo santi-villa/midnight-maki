@@ -5,7 +5,7 @@ import { RESTAURANT_ENTRY } from '../data/zones';
 import { clock } from '../systems/time';
 import { fmt } from '../dialogue/dialogue';
 import { world } from '../scenes/WorldScene';
-import { fade, h, uiRoot } from '../ui/dom';
+import { fade, h, screenTransition, uiRoot } from '../ui/dom';
 import { showHud } from '../ui/hud';
 import { applyIntroCue, stopIntroAudio } from './introAudio';
 import { INTRO_SCENES, LETTER_LINES, LETTER_SIGN, takeCues, type IntroMusic, type IntroScene } from './introScript';
@@ -185,24 +185,24 @@ export async function playIntro() {
       if (skipped) break;
       await showScene(scene);
     }
-    await fade(true, 500);
-  } finally {
-    await stopIntroAudio(0.45);
-    closeBook();
+  } catch (err) {
+    await stopIntroAudio(0); closeBook(); throw err;
   }
-  addClue('letter_inherit', true);
   world.inputLocked++;
+  clock.pause();
   try {
-    audio.crossfade(clock.period >= 2 ? 'restaurant_night' : 'restaurant');
-    const entry = RESTAURANT_ENTRY;
-    await world.enterZone(entry.zone, entry.x, entry.y, entry.dir, false);
-    await fade(false, 500);
+    await screenTransition('doors', async () => {
+      await stopIntroAudio(0);
+      closeBook();
+      addClue('letter_inherit', true);
+      audio.crossfade(clock.period >= 2 ? 'restaurant_night' : 'restaurant');
+      const entry = RESTAURANT_ENTRY;
+      await world.enterZone(entry.zone, entry.x, entry.y, entry.dir, false);
+    });
     game.setFlag('arrived');
     game.touch('intro');
     const { check } = await import('../quests/quests');
     check();
     showHud(true);
-  } finally {
-    world.inputLocked--;
-  }
+  } finally { world.inputLocked--; clock.resume(); }
 }
