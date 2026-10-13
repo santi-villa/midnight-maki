@@ -20,6 +20,7 @@ async function begin(page: Page) {
     g.setFlag('intro_done');
 
     for (const id of ['taro', 'bento', 'yuki']) g.setFlag('met_shop_' + id);
+    (window as any).mmDebug.clock.pause();
   });
   await page.evaluate(async () => (window as any).mmDebug.world.enterZone('plaza', 26, 20, 'up', false));
 }
@@ -39,7 +40,7 @@ test('Bento, Taro and Yuki have small closed/transition plaques and no open faca
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   await begin(page);
-  for (const [period, minutes, phase] of [[0, 0, 'setup'], [0, 30, 'open'], [1, 10, 'open'], [1, 80, 'closing'], [2, 30, 'closed'], [3, 30, 'closed']] as const) {
+  for (const [period, minutes, phase] of [[0, 0, 'closed'], [0, 29.75, 'setup'], [0, 30, 'open'], [1, 10, 'open'], [1, 80, 'open'], [2, 30, 'open'], [3, 59.5, 'open'], [3, 60, 'closing'], [3, 70, 'closed']] as const) {
     await at(page, period, minutes);
     const list = await signs(page);
     expect(list.length).toBe(phase === 'open' ? 0 : 3);
@@ -67,7 +68,7 @@ test('Bento, Taro and Yuki have small closed/transition plaques and no open faca
 test('a closed shop allows physical entry but refuses trade and shows hours on interaction', async ({ page }) => {
   await begin(page);
   for (const id of SHOPS) {
-    await at(page, 3, 30);
+    await at(page, 3, 70);
     await page.evaluate(async (id) => {
       const w = (window as any).mmDebug.world;
       await w.enterZone('shop_' + id, 5, 6, 'up', false);
@@ -76,10 +77,10 @@ test('a closed shop allows physical entry but refuses trade and shows hours on i
     await expect(page.locator('.toast').filter({ hasText: 'Podés entrar al edificio' }).last()).toBeVisible();
     await page.evaluate(async (id) => (await import('/src/ui/shops.ts')).openShop(id), id);
     await expect(page.locator('.panel')).toHaveCount(0);
-    await expect(page.locator('.toast').filter({ hasText: 'Horario: Mañana y tarde' }).last()).toBeVisible();
+    await expect(page.locator('.toast').filter({ hasText: 'Horario: 08:00–23:00' }).last()).toBeVisible();
     await at(page, 0, 30);
     await page.evaluate(async (id) => (await import('/src/ui/shops.ts')).openShop(id), id);
-    await expect(page.locator('.panel')).toContainText('Horario: Mañana y tarde');
+    await expect(page.locator('.panel')).toContainText('Horario: 08:00–23:00');
     await expect(page.locator('.panel .slot button').first()).toBeEnabled();
     await page.keyboard.press('Escape');
   }
@@ -92,14 +93,14 @@ test('purchase and sale callbacks recheck service; open menus react to closure a
   // A queued click must not buy after a silent clock change, even before any UI refresh.
   const buyButton = await rice.getByRole('button', { name: 'Comprar', exact: true }).elementHandle();
   const before = await page.evaluate(() => ({ coins: (window as any).mmDebug.game.coins, rice: (window as any).mmDebug.game.count('rice') }));
-  await page.evaluate(() => { (window as any).mmDebug.game.save.time.period = 3; });
+  await page.evaluate(() => { (window as any).mmDebug.game.save.time.period = 3; (window as any).mmDebug.game.save.time.minutes = 60; });
   await buyButton!.evaluate((el: HTMLButtonElement) => el.click());
   const after = await page.evaluate(() => ({ coins: (window as any).mmDebug.game.coins, rice: (window as any).mmDebug.game.count('rice') }));
   expect(after).toEqual(before);
   await at(page, 0, 30);
   await page.locator('.panel .tab').filter({ hasText: /^Vender$/ }).click();
   const sellButton = await page.locator('.panel .slot').filter({ hasText: /Arroz/ }).first().getByRole('button', { name: 'Vender', exact: true }).elementHandle();
-  await page.evaluate(() => { (window as any).mmDebug.game.save.time.period = 3; });
+  await page.evaluate(() => { (window as any).mmDebug.game.save.time.period = 3; (window as any).mmDebug.game.save.time.minutes = 60; });
   await sellButton!.evaluate((el: HTMLButtonElement) => el.click());
   expect(await page.evaluate(() => ({ coins: (window as any).mmDebug.game.coins, rice: (window as any).mmDebug.game.count('rice') }))).toEqual(before);
   await at(page, 0, 30);

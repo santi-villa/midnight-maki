@@ -17,7 +17,7 @@ import { ITEMS_BY_ID } from '../data/items';
 import { ZONES } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { shopGate, stopFor } from '../systems/npcs';
-import { pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
+import { businessPhase, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
@@ -218,7 +218,7 @@ export class WorldScene extends Phaser.Scene {
         await screenTransition(zoneTransitionKind(this.zoneId, id), load);
       } else await load();
       this.transitioning = false;
-      if (id.startsWith('shop_')) bus.emit('toast', { text: shopInteractionText(shopGate(id.slice(5)), true) });
+      if (id.startsWith('shop_') || id === 'library') bus.emit('toast', { text: shopInteractionText(shopGate(id === 'library' ? id : id.slice(5)), true) });
       bus.emit('zone:enter', { zone: id });
       void runTask('world:zone-story', () => this.onEnterZone(id));
       return true;
@@ -1690,7 +1690,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private npcStamp() {
-    return `${clock.period}:${phaseOf(game.save.time.minutes)}:${game.flag('weather') ?? ''}:${game.flag('festival_today') ?? ''}:${Object.keys(CHAR_BY_ID).map((id) => game.flag('at_' + id) ?? '').join('|')}`;
+    return `${clock.period}:${businessPhase(clock.period, game.save.time.minutes)}:${phaseOf(game.save.time.minutes)}:${game.flag('weather') ?? ''}:${game.flag('festival_today') ?? ''}:${Object.keys(CHAR_BY_ID).map((id) => game.flag('at_' + id) ?? '').join('|')}`;
   }
 
   private shopStamp() {

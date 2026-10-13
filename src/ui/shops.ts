@@ -11,7 +11,6 @@ import { ITEMS_BY_ID, type ItemCat } from '../data/items';
 import { runScene, say } from '../dialogue/dialogue';
 import { shopGate } from '../systems/npcs';
 import { shopInteractionText } from '../systems/schedule';
-import { clock } from '../systems/time';
 import { previewCanvas } from './creator';
 import { h, panel, toast } from './dom';
 
@@ -34,7 +33,6 @@ const styles = (): Entry[] => [
   ...Object.entries(FLOOR_STYLES).filter(([k, s]) => s.price > 0 && !game.has('floor_' + k)).map(([k, s]) => ({ kind: 'floor' as const, id: k, price: s.price })),
   ...Object.entries(WALL_STYLES).filter(([k, s]) => s.price > 0 && !game.has('wall_' + k)).map(([k, s]) => ({ kind: 'wall' as const, id: k, price: s.price })),
 ];
-const marketOnly = () => clock.period === 3;
 
 export const SHOPS: Record<string, ShopDef> = {
   taro: {
@@ -75,22 +73,18 @@ export const SHOPS: Record<string, ShopDef> = {
   },
   market_food: {
     title: 'Dulces de luna', greet: 'Perlas de luna, carambolas y caramelos brillantes.',
-    open: marketOnly,
     tabs: [{ name: 'Puesto', list: () => [...items(['moonpearl', 'starfruit'], 1), ...items(['g_candy'], 0.8)].map((e) => ({ ...e, price: e.id === 'moonpearl' ? 22 : e.id === 'starfruit' ? 18 : e.price })) }],
   },
   market_rare: {
     title: 'Objetos raros', greet: 'Cosas que no se ven de día...',
-    open: marketOnly,
     tabs: [{ name: 'Rarezas', list: () => [...items(['st_amethyst', 'st_quartz', 'sd_sakura'], 1).map((e) => ({ ...e, price: e.id === 'sd_sakura' ? 30 : 45 })), ...furn('market')] }],
   },
   market_clothes: {
     title: 'Ropa de luna', greet: 'Prendas tejidas con hilo de noche.',
-    open: marketOnly,
     tabs: [{ name: 'Prendas', list: () => [...clothes('market'), ...CLOTHES.filter((c) => c.style === 'gothic' && c.price > 0 && !game.save.clothesOwned.includes(c.id)).map((c) => ({ kind: 'cloth' as const, id: c.id, price: Math.round(c.price * 0.9) }))] }],
   },
   market_furn: {
     title: 'Decoración nocturna', greet: 'Lámparas de estrella, telescopios, alfombras de noche.',
-    open: marketOnly,
     tabs: [{ name: 'Deco', list: () => furn('market') }],
   },
 };
