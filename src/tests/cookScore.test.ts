@@ -12,7 +12,12 @@ import {
   platePrecision,
   rollFromDrag,
   swipeCuts,
+  coneDrag,
   cutWidths,
+  fishCutSpeed,
+  fishCutSummary,
+  fishCutVerdict,
+  fishCutZones,
   evenness,
   pressRate,
   pressVerdict,
@@ -121,5 +126,37 @@ describe('rice, pressure and cuts', () => {
     const uneven = cutWidths([20, 40, 190], 0, 200);
     expect(evenness(uneven)).toBeLessThan(0.5);
     expect(cutWidths([300, -5], 0, 100).reduce((a, b) => a + b, 0)).toBe(100);
+  });
+});
+
+describe('fish cutting and cones', () => {
+  it('judges the marker against the gold and green zones', () => {
+    for (const mode of ['relaxed', 'normal', 'challenge'] as const) {
+      expect(fishCutVerdict(0.5, mode).kind).toBe('perfect');
+      expect(fishCutVerdict(0.5 + fishCutZones(mode).good - 0.01, mode).kind).toBe('good');
+      expect(fishCutVerdict(0.95, mode).kind).toBe('miss');
+      expect(fishCutVerdict(0.95, mode).prec).toBeGreaterThan(0);
+    }
+    expect(fishCutZones('relaxed').good).toBeGreaterThan(fishCutZones('challenge').good);
+    expect(fishCutZones('normal', true).good).toBeGreaterThan(fishCutZones('normal').good);
+  });
+
+  it('keeps the marker comfortable on touch screens', () => {
+    for (const mode of ['relaxed', 'normal', 'challenge'] as const) for (let d = 1; d <= 5; d++) for (let i = 0; i < 4; i++) expect(fishCutSpeed(mode, d, i)).toBeLessThanOrEqual(2.4);
+    expect(fishCutSpeed('normal', 4, 2)).toBeGreaterThan(fishCutSpeed('normal', 1, 0));
+  });
+
+  it('summarises a row of cuts and never fails the dish', () => {
+    expect(fishCutSummary(['perfect', 'good', 'perfect'])).toBe('clean');
+    expect(fishCutSummary(['good', 'miss', 'good'])).toBe('ok');
+    expect(fishCutSummary(['miss', 'miss', 'good'])).toBe('ragged');
+    expect(fishCutSummary([])).toBe('ok');
+  });
+
+  it('measures the temaki cone drag', () => {
+    expect(coneDrag(106, -106).progress).toBeCloseTo(1, 1);
+    expect(coneDrag(106, -106).straight).toBeCloseTo(1, 1);
+    expect(coneDrag(100, 100).straight).toBeLessThan(0.1);
+    expect(coneDrag(-50, 50).progress).toBe(0);
   });
 });

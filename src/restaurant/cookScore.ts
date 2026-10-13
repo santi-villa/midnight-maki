@@ -180,3 +180,42 @@ export function evenness(widths: number[]): number {
   const dev = widths.reduce((a, b) => a + Math.abs(b - mean), 0) / widths.length / mean;
   return clamp01(1 - dev * 1.6);
 }
+
+// ------------------------------------------------------------------ fish cutting rhythm
+export type FishCut = 'perfect' | 'good' | 'miss';
+
+/** Half widths (around the centre of the bar) of the gold and the green zones. */
+export function fishCutZones(mode: CookMode, knife = false): { perfect: number; good: number } {
+  const base = mode === 'relaxed' ? { perfect: 0.09, good: 0.26 } : mode === 'challenge' ? { perfect: 0.04, good: 0.12 } : { perfect: 0.06, good: 0.18 };
+  return knife ? { perfect: base.perfect * 1.25, good: base.good * 1.25 } : base;
+}
+
+/** The marker sweeps faster on harder recipes and a little more with every cut. Never uncomfortably fast. */
+export function fishCutSpeed(mode: CookMode, difficulty: number, cutIndex: number): number {
+  const base = mode === 'relaxed' ? 1.05 : mode === 'challenge' ? 1.9 : 1.45;
+  return Math.min(2.4, base * (0.8 + Math.max(1, difficulty) * 0.06 + cutIndex * 0.07));
+}
+
+export function fishCutVerdict(mark: number, mode: CookMode, knife = false): { kind: FishCut; prec: number } {
+  const z = fishCutZones(mode, knife);
+  const d = Math.abs(mark - 0.5);
+  if (d <= z.perfect) return { kind: 'perfect', prec: 1 };
+  if (d <= z.good) return { kind: 'good', prec: 0.75 };
+  return { kind: 'miss', prec: 0.3 };
+}
+
+/** Overall word for a row of cuts. A miss never restarts anything. */
+export function fishCutSummary(cuts: FishCut[]): 'clean' | 'ok' | 'ragged' {
+  if (!cuts.length) return 'ok';
+  const misses = cuts.filter((c) => c === 'miss').length;
+  const perfect = cuts.filter((c) => c === 'perfect').length;
+  if (misses === 0 && perfect * 2 >= cuts.length) return 'clean';
+  return misses * 3 <= cuts.length ? 'ok' : 'ragged';
+}
+
+/** Progress (0..1) of a diagonal drag from the lower-left corner toward the upper right, and how straight it was. */
+export function coneDrag(dx: number, dy: number, length = 150): { progress: number; straight: number } {
+  const along = (dx - dy) / Math.SQRT2;
+  const across = Math.abs(dx + dy) / Math.SQRT2;
+  return { progress: clamp01(along / length), straight: clamp01(1 - across / (length * 0.5)) };
+}

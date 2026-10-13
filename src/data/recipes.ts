@@ -10,6 +10,7 @@ export type CookStep =
   | { t: 'shape'; count: number }
   | { t: 'top'; item: string }
   | { t: 'wrap' }
+  | { t: 'cone' }
   | { t: 'garnish'; items: string[] }
   | { t: 'plate' };
 
@@ -123,7 +124,7 @@ export const RECIPES: RecipeDef[] = [
     id: 'temaki', name: 'Temaki', cat: 'intermediate', difficulty: 2,
     desc: 'Cono de alga relleno, para comer con la mano.',
     ingredients: { rice: 1, nori: 1, tuna: 1, cucumber: 1 },
-    steps: [{ t: 'nori' }, { t: 'rice' }, { t: 'place', items: ['tuna', 'cucumber'] }, { t: 'wrap' }, { t: 'plate' }],
+    steps: [{ t: 'nori' }, { t: 'rice' }, { t: 'place', items: ['tuna', 'cucumber'] }, { t: 'cone' }, { t: 'plate' }],
     price: 40, xp: 16, unlock: { level: 3, text: 'Restaurante nivel 3' }, icon: { type: 'temaki', c1: '#c4505a', c2: '#6f9e5a' },
   }),
   R({
