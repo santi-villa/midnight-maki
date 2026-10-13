@@ -13,6 +13,7 @@ import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, max
 import { guestViews, plateState, serviceBoardNote, stagePlate, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade } from './upgrades';
 import { runScene, say } from '../dialogue/dialogue';
+import { QUICK_STARS, nextStarGoal, quickQuality, recipeStars, mastery, recordMastery, starsText } from './mastery';
 
 const CAT_NAME = { basic: 'Básica', intermediate: 'Intermedia', special: 'Especial' };
 
@@ -107,13 +108,21 @@ export function openOrders() {
           'div',
           { class: 'card col', style: { gap: '6px', borderColor: o.special ? '#f2c66d' : undefined } },
           h('div', { class: 'row', style: { justifyContent: 'space-between' } },
-            h('div', { class: 'row' }, iconElement(r.icon), h('div', null, h('b', null, r.name), h('div', { class: 'hint' }, special || `Para: ${customerName(o.customer)}`))),
+            h('div', { class: 'row' }, iconElement(r.icon), h('div', null, h('b', null, r.name), h('span', { class: 'mastery-stars', title: nextStarGoal(mastery(r.id)) ?? 'Receta dominada' }, ' ' + starsText(recipeStars(r.id))), h('div', { class: 'hint' }, special || `Para: ${customerName(o.customer)}`))),
             h('span', { class: 'coin' }, `${o.reward} ●`)),
           !special && customerAsk(o.customer, o.uid) ? h('div', { class: 'order-ask' }, `“${customerAsk(o.customer, o.uid)}”`) : null,
           held === 'plated' ? h('div', { class: 'hint' }, 'El plato está listo. Llevalo a la mesa.') : ingList(r),
           h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
             held !== 'plated' && !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) render(); else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
             held !== 'plated' && !ready && cost == null ? h('span', { class: 'hint' }, 'Faltan ingredientes que no se compran acá.') : null,
+            held !== 'plated' && ready && quickQuality(recipeStars(r.id))
+              ? h('button', { class: 'btn small', title: 'Receta dominada: se prepara en un toque', onclick: async () => {
+                  p.root.parentElement!.style.display = 'none';
+                  try { await cookOrder(o.uid, true); } finally {
+                    if (p.root.isConnected) { p.root.parentElement!.style.display = ''; render(); }
+                  }
+                } }, 'Rápido')
+              : null,
             h('button', { class: 'btn small primary', disabled: held === 'plated' || !ready, onclick: async () => {
               // the station stays open between dishes: hide it while the board is up, then show the updated list
               p.root.parentElement!.style.display = 'none';
@@ -132,11 +141,25 @@ export function openOrders() {
 }
 
 /** Cook one order. A party that is waiting eats at the table; story orders pay here. */
-export function cookOrder(uid: number) {
-  return startOrder(uid);
+export function cookOrder(uid: number, quick = false) {
+  return startOrder(uid, quick);
 }
 
-async function startOrder(uid: number) {
+/** Result of a one-tap dish (mastered recipes): no board, and it never raises mastery. */
+function quickResult(r: RecipeDef): Awaited<ReturnType<typeof cook>> {
+  const q = quickQuality(recipeStars(r.id)) ?? 1;
+  return { ok: true, quality: q, score: q === 2 ? 100 : 80, variantBonus: 0 };
+}
+
+function celebrate(r: RecipeDef, quality: 0 | 1 | 2) {
+  const { before, after } = recordMastery(r.id, quality);
+  if (after > before) {
+    audio.sfxPlay('sparkle');
+    toast(`¡${r.name}: ${starsText(after)}!${after === QUICK_STARS ? ' Ahora podés hacerla en un toque (Rápido).' : ''}`);
+  }
+}
+
+async function startOrder(uid: number, quick = false) {
   if (plateState(uid) === 'plated') {
     toast('Ese plato ya está listo. Llevalo a la mesa.');
     return;
@@ -149,7 +172,8 @@ async function startOrder(uid: number) {
     toast('Faltan ingredientes.');
     return;
   }
-  const res = await cook(r.id, customerName(o.customer));
+  const res = quick ? quickResult(r) : await cook(r.id, customerName(o.customer));
+  if (res.ok && !quick) celebrate(r, res.quality);
   if (!res.ok) {
     // cancelled: give the ingredients back (no punishment)
     for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund');
@@ -311,6 +335,7 @@ async function freeCook(id: string) {
     for (const [i, q] of Object.entries(r.ingredients)) game.addItem(i, q, 'refund');
     return;
   }
+  celebrate(r, res.quality);
   const first = !game.save.recipesCooked[id];
   game.save.recipesCooked[id] = (game.save.recipesCooked[id] ?? 0) + 1;
   const coins = Math.round(r.price * (0.6 + res.quality * 0.1)) + res.variantBonus;

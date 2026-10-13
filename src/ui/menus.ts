@@ -1,3 +1,4 @@
+import { mastery, nextStarGoal, recipeStars, starsText } from '../restaurant/mastery';
 import { runTask } from '../core/errors';
 /** Main in-game menus: bag, journal (quests, investigation, relations, collections, calendar), and menu. */
 import { iconElement } from '../art/icons';
@@ -168,7 +169,7 @@ function recipesView() {
     for (const r of RECIPES.filter((x) => x.cat === cat)) {
       const k = known.has(r.id);
       const n = game.save.recipesCooked[r.id] ?? 0;
-      g.append(h('div', { class: 'slot' + (k ? '' : ' locked'), title: k ? r.desc : r.unlock.text }, iconElement(k ? r.icon : { type: 'maki', c1: '#8d8790' }), h('span', null, k ? r.name : '???'), h('span', { class: 'hint', style: { fontSize: '.85em' } }, k ? `${r.price} ● · ${n} hechos` : r.unlock.text)));
+      g.append(h('div', { class: 'slot' + (k ? '' : ' locked'), title: k ? r.desc : r.unlock.text }, iconElement(k ? r.icon : { type: 'maki', c1: '#8d8790' }), h('span', null, k ? r.name : '???'), h('span', { class: 'hint', style: { fontSize: '.85em' } }, k ? `${r.price} ● · ${n} hechos` : r.unlock.text), k && n ? h('span', { class: 'mastery-stars', title: nextStarGoal(mastery(r.id)) ?? 'Receta dominada' }, starsText(recipeStars(r.id))) : null));
     }
     grid.append(h('h3', null, cat === 'basic' ? 'Básicas' : cat === 'intermediate' ? 'Intermedias' : 'Especiales'), g);
   }

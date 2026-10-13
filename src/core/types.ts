@@ -105,6 +105,8 @@ export interface SaveData {
   inventory: Record<string, number>;
   recipesKnown: string[];
   recipesCooked: Record<string, number>;
+  /** mastery per recipe (see restaurant/mastery.ts); missing in older saves */
+  recipeMastery?: Record<string, { n: number; g: number; p: number }>;
   restaurant: { level: number; xp: number; reputation: number; upgrades: string[]; served: number };
   orders: Order[];
   nextUid: number;
