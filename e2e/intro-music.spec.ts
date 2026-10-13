@@ -1,3 +1,4 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 
 async function begin(page: Page) {
@@ -28,8 +29,9 @@ async function finished(page: Page) {
   await expect.poll(async () => (await music(page)).track).toBe('restaurant_night');
   await page.waitForTimeout(750);
   expect(await page.evaluate(() => [...(window as any).media].filter((el: any) => el.src.includes('/src/music/') && !el.paused).length)).toBe(0);
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
-  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
+  await expect(page.locator('.hud-quest')).toContainText('Aprendé a preparar sushi');
 }
 
 test('the same custom song loops through seven scenes and the letter, then fades into the restaurant', async ({ page }) => {

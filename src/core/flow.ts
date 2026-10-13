@@ -66,7 +66,7 @@ async function startWorld(isNew: boolean) {
       if (zone === 'arrival' || !zone) zone = 'restaurant';
       await world.enterZone(zone, p.x || 8, p.y || 10, p.dir, false);
       const { onContinue } = await import('../story/story');
-      onContinue();
+      await onContinue();
     }
     startAutosave();
     void runTask('flow:backup', backupHousekeeping, false);

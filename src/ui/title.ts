@@ -117,6 +117,8 @@ export async function showTitle(phaser: Phaser.Game) {
   // ---- artwork, framed so that nothing is ever cropped (the logo is part of the picture)
   const back = h('img', { class: 'tt-back', alt: '', draggable: 'false' }) as HTMLImageElement;
   const img = h('img', { class: 'tt-img', alt: 'Midnight Maki', draggable: 'false' }) as HTMLImageElement;
+  let artworkReady!: () => void;
+  const artwork = new Promise<void>(resolve => { artworkReady = resolve; });
   const fx = h('div', { class: 'tt-fx' });
   const frame = h('div', { class: 'tt-frame' }, img, fx);
   let mode: 'vertical' | 'horizontal' | '' = '';
@@ -156,8 +158,9 @@ export async function showTitle(phaser: Phaser.Game) {
     root.classList.add('has-bg', 'ready');
     // the illustration covers the screen: stop drawing the Phaser fallback scene
     try { phaser.scene.sleep('title'); } catch { /* scene already gone */ }
+    artworkReady();
   };
-  img.onerror = () => root.classList.add('no-bg');
+  img.onerror = () => { root.classList.add('no-bg'); artworkReady(); };
 
   // ---- fallback logo (only visible when the illustration cannot be loaded)
   const logo = h(
@@ -182,7 +185,7 @@ export async function showTitle(phaser: Phaser.Game) {
 
   let revealed = false;
   const reveal = () => {
-    if (revealed) return;
+    if (revealed || !root.classList.contains('ready') && !root.classList.contains('no-bg')) return;
     revealed = true;
     audio.unlock(); // browsers only allow audio after a gesture
     audio.play('title');
@@ -213,6 +216,7 @@ export async function showTitle(phaser: Phaser.Game) {
   refreshCalm();
   layout();
   uiRoot().append(root);
+  await artwork;
   hideBoot();
   // keep the calm / battery flags in sync with the settings panel
   bus.on('settings:changed', () => { if (document.body.contains(root)) refreshCalm(); });
