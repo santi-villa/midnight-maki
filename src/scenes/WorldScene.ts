@@ -33,6 +33,7 @@ import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife } from '../systems/townLife';
 import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
+import { layoutSpeech } from '../ui/speechLayout';
 import { CUSTOMER_IDS } from '../art/customerSheet';
 import type { CustomerId } from '../art/customers';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
@@ -580,7 +581,8 @@ export class WorldScene extends Phaser.Scene {
         const nx = s.x + c.vx * dt;
         if (c.vx && !this.zone.grid.isSolid(Math.floor(nx / TILE), Math.floor((s.y - 1) / TILE))) {
           s.x = nx;
-          s.setFlipX(c.vx < 0);
+          // The cat's unmirrored artwork faces left (birds face right).
+          s.setFlipX(c.vx > 0);
           s.setFrame(Math.floor(performance.now() / 250) % 2);
         } else c.vx = 0;
       }
@@ -898,6 +900,8 @@ export class WorldScene extends Phaser.Scene {
       const wasTraveling = n.traveling;
       n.traveling = !trip.settled;
       n.anchor = [stop.x, stop.y]; n.wander = stop.wander ?? 0; n.act = stop.act;
+      n.actor.seatLift = n.traveling ? 0 : stop.seatLift ?? 0;
+      if (!n.traveling && stop.dir && !n.social) n.actor.face(stop.dir);
       if (n.traveling) { n.actor.stop(); n.actor.setAct('idle'); }
       else if (wasTraveling) {
         n.actor.x = p.x * TILE + TILE / 2;
@@ -1335,6 +1339,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateGuide(dt);
     this.syncLife(dt);
     this.refreshContext();
+    this.layoutBubbles();
   }
 
   /** Footstep sound for the surface Sofi is walking on. */
@@ -1611,8 +1616,18 @@ export class WorldScene extends Phaser.Scene {
       n.social = false;
       if (this.npcs.get(n.actor.id) !== n) continue;
       n.actor.stop(); n.actor.setAct(n.act ?? 'idle'); n.t = 5;
+      n.actor.clearEmote();
     }
     this.conversation = null;
+  }
+
+  private layoutBubbles() {
+    const actors = [this.player, ...[...this.npcs.values()].map(n => n.actor), ...this.extras.values(), ...[...this.guests.values()].map(g => g.actor)];
+    const bubbles = actors.map(a => a?.bubble).filter((b): b is Phaser.GameObjects.Text => !!b?.active && b.visible);
+    if (bubbles.length < 2) return;
+    const rects = bubbles.map(b => ({ x: b.x - b.displayWidth / 2, y: b.y - b.displayHeight, width: b.displayWidth, height: b.displayHeight }));
+    const view = this.cameras.main.worldView;
+    layoutSpeech(rects, view).forEach((r, i) => bubbles[i].setPosition(r.x + r.width / 2, r.y + r.height));
   }
 
   /** One nearby pair takes turns, facing each other. Pauses with the game. */
@@ -1636,7 +1651,9 @@ export class WorldScene extends Phaser.Scene {
       const line = c.lines[c.index++];
       if (!line) { this.endConversation(); return; }
       const speaker = this.npcs.get(line.speaker)?.actor;
-      speaker?.setAct('talk');
+      // A turn replaces the previous speaker, including its fade-out tween.
+      c.a.actor.clearEmote(); c.b.actor.clearEmote();
+      speaker?.setAct(speaker.seatLift ? 'sit' : 'talk');
       speaker?.emote(line.text, 4.3);
       c.wait = 4.8;
       return;
@@ -1667,8 +1684,8 @@ export class WorldScene extends Phaser.Scene {
     this.chatSequence.set(key, sequence + 1);
     this.chatCooldown.set(a.actor.id, 55); this.chatCooldown.set(b.actor.id, 55);
     a.social = true; b.social = true;
-    b.actor.stop(); a.actor.setAct('idle');
-    a.actor.walkTo(this.zone.grid, spot[0], spot[1]);
+    b.actor.stop();
+    if (!a.actor.seatLift) { a.actor.setAct('idle'); a.actor.walkTo(this.zone.grid, spot[0], spot[1]); }
     this.conversation = { a, b, lines, index: 0, wait: 0.5, approach: 8 };
   }
 
@@ -1981,12 +1998,14 @@ export class WorldScene extends Phaser.Scene {
     const lit = visible.map((l) => ({ l, k: this.lampLevel(l, ls) })).filter((e) => e.k > 0.02);
     if (lit.length) {
       for (const { l, k } of lit) {
-        this.lightStamp.setScale((l.r * 2 * flick(l) * (ls.halo > 1 ? 1.08 : 1)) / 64).setAlpha(Math.min(1, k));
+        // Keep the ambient light footprint fixed: pulsing its radius repeatedly uncovers
+        // large patches of daytime colour, especially where plaza lamps overlap.
+        this.lightStamp.setScale((l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64).setAlpha(Math.min(1, k));
         rt.erase(this.lightStamp, l.x - rt.x, l.y - rt.y);
       }
       // tint the lit pools warm (multiply layer: warm colour = warm light on the ground)
       for (const { l, k } of lit) {
-        this.lightStamp.setScale((l.r * 1.7 * flick(l) * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
+        this.lightStamp.setScale((l.r * 1.7 * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
         rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
       }
       this.lightStamp.clearTint().setAlpha(1);
@@ -2015,7 +2034,7 @@ export class WorldScene extends Phaser.Scene {
         g.setVisible(true)
           .setPosition(l.x, l.y)
           .setTint(l.color ?? 0xffc070)
-          .setScale((spill ? 0.9 : (l.r * 1.5 * ls.halo) / 64) * f, (spill ? 0.45 : (l.r * 1.5 * ls.halo) / 64) * f)
+          .setScale(spill ? 0.9 : (l.r * 1.5 * ls.halo) / 64, spill ? 0.45 : (l.r * 1.5 * ls.halo) / 64)
           .setAlpha(Math.min(0.7, (l.glow ?? 0.4) * k * f * 0.9));
         i++;
       }

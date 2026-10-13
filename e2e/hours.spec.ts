@@ -1,3 +1,4 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 
 /** Advances dialogue until it closes (or a choice appears, which is answered with the first option). */
@@ -42,12 +43,11 @@ test('a full day opens, closes, sleeps and can be skipped', async ({ page }) => 
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId)).toBe('restaurant');
-  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
-  // The original encounter is still required; it starts on a deliberate conversation.
-  await page.evaluate(() => { (window as any).mmDebug.world.onInteract({ kind: 'npc', id: 'spicy', label: '' }); });
-  await advance(page);
+  await expect(page.locator('.hud-quest')).toContainText('Aprendé a preparar sushi');
+  // Pip's original encounter already ran without any NPC interaction.
   await expect(page.locator('.hud-quest')).toContainText('Aprendé a preparar sushi');
   await page.keyboard.press('Escape');
 

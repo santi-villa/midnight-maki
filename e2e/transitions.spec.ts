@@ -1,9 +1,11 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 async function begin(page: Page) {
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ music: 0, ambience: 0, sfx: 0, textSpeed: 0, joystick: false })));
   await page.goto('/?debug&st'); await page.locator('.tt').click();
   await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.hud-top')).toBeVisible();
   await page.evaluate(async () => {
     const { world: w, game: g } = (window as any).mmDebug;
@@ -18,7 +20,7 @@ async function begin(page: Page) {
       const curtain = document.querySelector('.door-curtain') as HTMLElement;
       const a = document.querySelector('.door-left')!.getBoundingClientRect();
       const b = document.querySelector('.door-right')!.getBoundingClientRect();
-      (window as any).mounts.push({ to: args[0].def.id, phase: curtain.dataset.phase, covered: a.left <= 0 && b.right >= innerWidth && a.right >= b.left, blocked: !w.canAct() });
+      (window as any).mounts.push({ to: args[0].def.id, phase: curtain.dataset.phase, covered: a.left <= 0 && b.right >= innerWidth && a.right >= b.left, blocked: !w.canAct(), edges: [a.left, a.right, b.left, b.right] });
       w.mountedFrames = 0; return original(...args);
     };
     new MutationObserver(() => {
@@ -114,6 +116,17 @@ test('reduced motion uses a simple cover and retains entry/exit and frame readin
   await walkDoor(page, 'plaza');
 });
 
+test('a delayed compositor is fully covered before loading despite the transition deadline', async ({ page }) => {
+  await begin(page);
+  // Model a slow compositor without sleeping inside the game or changing production durations.
+  await page.addStyleTag({ content: '.door-panel { transition-duration: 900ms !important; } .door-curtain.settled .door-panel { transition: none !important; }' });
+  await page.evaluate(async () => (window as any).mmDebug.world.enterZone('shop_taro', 5, 6, 'up'));
+  const mounts = await page.evaluate(() => (window as any).mounts);
+  for (const m of mounts) expect(m).toMatchObject({ covered: true, blocked: true, phase: 'covered' });
+  await expect(page.locator('.door-curtain')).not.toHaveClass(/active/);
+  expect(await page.evaluate(() => (window as any).mmDebug.world.canAct())).toBe(true);
+});
+
 test('a failed first arrival returns to a usable title and can start again', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ music: 0, ambience: 0, sfx: 0, textSpeed: 0 })));
   await page.goto('/?debug&st'); await page.locator('.tt').click();
@@ -130,6 +143,7 @@ test('a failed first arrival returns to a usable title and can start again', asy
   await page.locator('.tt').click();
   await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.hud-top')).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.canAct())).toBe(true);
 });

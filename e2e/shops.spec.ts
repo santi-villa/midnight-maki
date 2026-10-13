@@ -1,3 +1,4 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 const SHOPS = ['bento', 'taro', 'yuki'];
 async function begin(page: Page) {
@@ -7,8 +8,9 @@ async function begin(page: Page) {
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
-  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
+  await expect(page.locator('.hud-quest')).toContainText('Aprendé a preparar sushi');
   await page.evaluate(() => {
     const g = (window as any).mmDebug.game;
     g.save.time.day = 4;

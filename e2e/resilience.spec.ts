@@ -1,3 +1,4 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 
 async function begin(page: Page) {
@@ -56,6 +57,7 @@ test('mobile audio retries stay handled, recover, and cannot resurrect stopped i
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
   await expect(page.locator('.book')).toHaveCount(0);
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => [...(window as any).audioElements].filter((el: any) => el.getAttribute('src')?.includes('/audio/intro/') && !el.paused).length)).toBe(0);
@@ -65,8 +67,9 @@ test('mobile audio retries stay handled, recover, and cannot resurrect stopped i
 test('IndexedDB abort is reported as failed, preserves progress and successfully retries', async ({ page }) => {
   await begin(page);
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
-  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
+  await expect(page.locator('.hud-quest')).toContainText('Aprendé a preparar sushi');
   const result = await page.evaluate(async () => {
     const { game, storage } = (window as any).mmDebug;
     const oldCoins = game.coins;
@@ -100,8 +103,9 @@ test('IndexedDB abort is reported as failed, preserves progress and successfully
 test('manual save never announces failed writes; failed imports roll back and successful imports preserve their location', async ({ page }) => {
   await begin(page);
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
-  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
+  await expect(page.locator('.hud-quest')).toContainText('Aprendé a preparar sushi');
   const originalCoins = await page.evaluate(async () => {
     const d = (window as any).mmDebug;
     await d.storage.saveGame('baseline');

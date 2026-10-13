@@ -1,9 +1,11 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 async function begin(page: Page) {
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ music: 0, ambience: 0, sfx: 0, textSpeed: 0 })));
   await page.goto('/?debug&st'); await page.locator('.tt').click();
   await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.hud-digital')).toBeVisible();
 }
 test('digital time, hands and period stay in sync across midnight and while paused', async ({ page }) => {

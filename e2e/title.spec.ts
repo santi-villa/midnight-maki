@@ -1,3 +1,4 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 
 const SETTINGS = { textSpeed: 0, music: 0.6, sfx: 0, ambience: 0 };
@@ -81,6 +82,7 @@ test('title: with a save, Continuar loads it into the world', async ({ page }) =
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world?.zoneId), { timeout: 15_000 }).toBe('restaurant');
   await page.evaluate(async () => { await (window as any).mmDebug.storage.saveGame('manual'); });

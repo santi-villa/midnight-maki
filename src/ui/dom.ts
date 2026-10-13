@@ -193,10 +193,17 @@ async function curtain(on: boolean) {
     uiRoot().append(curtains);
   }
   curtains.classList.add('active');
+  curtains.classList.remove('settled');
   // Commit the off-screen starting position before asking CSS to close the panels.
   void getComputedStyle(leftCurtain).transform;
   curtains.dataset.phase = on ? 'closing' : 'opening';
   await waitTransition(leftCurtain, 'transform', 240, () => curtains!.classList.toggle('closed', on));
+  if (on) {
+    // A busy/hidden browser can deliver the deadline before a compositor transition
+    // finishes. Commit both panels' closed positions before mounting any new scene.
+    curtains.classList.add('settled');
+    void getComputedStyle(leftCurtain).transform;
+  }
   curtains.dataset.phase = on ? 'covered' : 'idle';
   if (!on) curtains.classList.remove('active');
 }
