@@ -70,6 +70,7 @@ export function whereIs(id: string): string | null {
 
 /** Whether a counter will sell right now. Market stalls stay on their own night rule. */
 export function shopGate(id: string): ShopStatus {
+  if (id === 'mika') id = 'sumi'; // same service rules for older action/save ids
   const place = shopPlace(id);
   if (!place) return shopStatus(id, { period: 0, minutes: 0, festival: false, force: false, shut: false, storyHere: false, keeperZone: null });
   const keeperZone = place.keeper ? whereIs(place.keeper) : place.zone;

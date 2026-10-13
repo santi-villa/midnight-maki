@@ -17,7 +17,7 @@ import { ITEMS_BY_ID } from '../data/items';
 import { ZONES } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { shopGate, stopFor } from '../systems/npcs';
-import { pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, signSpots } from '../systems/schedule';
+import { pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
@@ -28,7 +28,7 @@ import { canAcceptGuest, collectTipAt, deliverTo, exitGuest, guestViews, hostGue
 import { partySizeFor, type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture } from './textures';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, shopSignTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife } from '../systems/townLife';
@@ -61,7 +61,7 @@ export class WorldScene extends Phaser.Scene {
   private occluders: Occluder[] = [];
   player!: Actor;
   npcs = new Map<string, NpcState>();
-  private shopSigns: Phaser.GameObjects.Text[] = [];
+  private shopSigns: Phaser.GameObjects.Image[] = [];
   private npcKey = '';
   private shopKey = '';
   private lifeTick = 0;
@@ -214,6 +214,7 @@ export class WorldScene extends Phaser.Scene {
       this.shopKey = this.shopStamp();
       this.refreshShopSigns();
       this.playZoneAudio();
+      if (id.startsWith('shop_')) bus.emit('toast', { text: shopInteractionText(shopGate(id.slice(5)), true) });
       if (withFade) await fade(false, 220);
       this.transitioning = false;
       bus.emit('zone:enter', { zone: id });
@@ -1668,18 +1669,14 @@ export class WorldScene extends Phaser.Scene {
       const status = shopGate(spot.shopId);
       const text = shopSignText(status);
       if (!text) continue;
-      const x = spot.x * TILE + TILE / 2;
+      const x = spot.x * TILE;
       const y = spot.y * TILE + TILE - 2;
-      const color = status.phase === 'open' ? '#2f6b3a' : status.phase === 'closed' ? '#8a3030' : '#8a5a20';
-      const sign = this.add.text(x, y, text, {
-        fontFamily: 'Pixelify Sans, sans-serif',
-        fontSize: '16px',
-        color,
-        backgroundColor: '#f6ecd6',
-        align: 'center',
-        padding: { x: 3, y: 1 },
-        resolution: 2,
-      }).setOrigin(0.5, 1).setDepth(y + 2);
+      const facade = this.zone.props.find((p) => p.def.kind === 'building' &&
+        spot.x >= p.x && spot.x < p.x + p.def.w && spot.y >= p.y && spot.y < p.y + p.def.h);
+      const depth = facade ? (facade.y + facade.def.h) * TILE + 0.1 : y + 2.1;
+      const sign = this.add.image(x, y, shopSignTexture(this, text, status.phase))
+        .setOrigin(0.5, 1).setDepth(depth)
+        .setData({ shopId: spot.shopId, phase: status.phase });
       this.shopSigns.push(sign);
     }
   }
