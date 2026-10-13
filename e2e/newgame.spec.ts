@@ -69,13 +69,17 @@ test('new game → restaurant → cook first sushi → progress persists', async
   await dragTo('nori', W / 2, matY + 50);
   await dragTo('rice', W / 2, matY + 50);
   for (let y = matY + 4; y <= matY + 100; y += 8) await swipe(W / 2 - 100, y, W / 2 + 100, y);
+  // the player decides when the rice is right
+  await page.getByRole('button', { name: 'Listo' }).click();
+  await page.waitForTimeout(400);
   await dragTo('cucumber', W / 2, matY + 60);
   for (let i = 0; i < 3; i++) await swipe(W / 2, matY + 90, W / 2, matY + 20);
-  // The cooking mark comes between rolling and cutting. Tap until it advances.
-  for (let i = 0; i < 12 && (await page.locator('.cook-steps .s.now').textContent()) === 'Enrollar'; i++) {
-    await board.click();
-    await page.waitForTimeout(300);
-  }
+  // Rolling ends with a pressure hold: press and release inside the green zone.
+  const c = pt(W / 2, matY + 50);
+  await page.mouse.move(c.x, c.y);
+  await page.mouse.down();
+  await page.waitForTimeout(1100);
+  await page.mouse.up();
   await expect(page.locator('.cook-steps .s.now')).toHaveText('Porciones', { timeout: 12_000 });
   for (const f of [0.2, 0.4, 0.6, 0.8]) await swipe(W * f, matY + 10, W * f, matY + 90);
   await page.getByRole('button', { name: 'Servir todo' }).click();

@@ -12,13 +12,22 @@ import {
   platePrecision,
   rollFromDrag,
   swipeCuts,
+  cutWidths,
+  evenness,
+  pressRate,
+  pressVerdict,
+  pressZone,
+  riceStats,
+  riceVerdict,
 } from '../restaurant/cookScore';
 
 describe('cook quality', () => {
   it('keeps relaxed service generous', () => {
-    expect(judgeCook({ mode: 'relaxed', mistakes: 0, elapsed: 90, steps: 6, timeLimit: 0, precision: 0 })).toMatchObject({ quality: 2, label: '¡Perfecto!' });
-    expect(judgeCook({ mode: 'relaxed', mistakes: 2, elapsed: 90, steps: 6, timeLimit: 0, precision: 0 }).quality).toBe(2);
-    expect(judgeCook({ mode: 'relaxed', mistakes: 3, elapsed: 4, steps: 6, timeLimit: 0, precision: 1 }).quality).toBe(1);
+    expect(judgeCook({ mode: 'relaxed', mistakes: 0, elapsed: 90, steps: 6, timeLimit: 0, precision: 0.8 })).toMatchObject({ quality: 2, label: '¡Perfecto!' });
+    // sloppy work is "good", never a failure, and never depends on how long it took
+    expect(judgeCook({ mode: 'relaxed', mistakes: 9, elapsed: 400, steps: 6, timeLimit: 0, precision: 0 }).quality).toBe(1);
+    expect(judgeCook({ mode: 'relaxed', mistakes: 0, elapsed: 4, steps: 6, timeLimit: 0, precision: 0.2 }).quality).toBe(1);
+    expect(judgeCook({ mode: 'relaxed', mistakes: 3, elapsed: 4, steps: 6, timeLimit: 0, precision: 1 }).quality).toBe(2);
   });
 
   it('scores normal play from mistakes, time and a small precision nudge', () => {
@@ -77,5 +86,40 @@ describe('cook gestures', () => {
     expect(platePrecision(100, 80, 100, 80, 40, 20)).toBeCloseTo(1);
     expect(platePrecision(140, 80, 100, 80, 40, 20)).toBeCloseTo(0);
     expect(platePrecision(200, 80, 100, 80, 40, 20)).toBe(0);
+  });
+});
+
+describe('rice, pressure and cuts', () => {
+  it('measures coverage and thickness', () => {
+    const cells = new Uint8Array(10);
+    cells.fill(2, 0, 8);
+    expect(riceStats(cells)).toEqual({ coverage: 0.8, mean: 2 });
+    expect(riceVerdict(1).kind).toBe('thin');
+    expect(riceVerdict(2).kind).toBe('good');
+    expect(riceVerdict(3).kind).toBe('thick');
+    expect(riceVerdict(2).prec).toBeGreaterThan(riceVerdict(3).prec);
+  });
+
+  it('judges the roll pressure with a wide relaxed zone', () => {
+    for (const mode of ['relaxed', 'normal', 'challenge'] as const) {
+      const z = pressZone(mode);
+      expect(pressVerdict(z.lo - 0.1, mode).kind).toBe('loose');
+      expect(pressVerdict((z.lo + z.hi) / 2, mode).kind).toBe('firm');
+      expect(pressVerdict(z.hi + 0.1, mode).kind).toBe('squeezed');
+      expect(pressRate(mode)).toBeGreaterThan(0);
+    }
+    const r = pressZone('relaxed');
+    const c = pressZone('challenge');
+    expect(r.hi - r.lo).toBeGreaterThan(c.hi - c.lo);
+    expect(pressVerdict(0.1, 'relaxed').prec).toBeGreaterThan(0);
+  });
+
+  it('rates how even the cut pieces are', () => {
+    const even = cutWidths([50, 100, 150], 0, 200);
+    expect(even).toEqual([50, 50, 50, 50]);
+    expect(evenness(even)).toBe(1);
+    const uneven = cutWidths([20, 40, 190], 0, 200);
+    expect(evenness(uneven)).toBeLessThan(0.5);
+    expect(cutWidths([300, -5], 0, 100).reduce((a, b) => a + b, 0)).toBe(100);
   });
 });

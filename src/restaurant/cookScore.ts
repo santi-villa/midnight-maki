@@ -34,8 +34,10 @@ export function challengeLimit(steps: number): number {
 
 export function judgeCook(input: CookJudgeInput): CookJudgement {
   if (input.mode === 'relaxed') {
-    const quality: 0 | 1 | 2 = input.mistakes <= 2 ? 2 : 1;
-    return { quality, score: quality === 2 ? 100 : 70, label: LABELS[quality] };
+    // never below "good", and no clock. Technique still counts, so a careful dish beats a careless one.
+    const score = Math.round(Math.max(55, Math.min(100, 62 + clamp01(input.precision) * 38 - Math.max(0, input.mistakes - 1) * 4)));
+    const quality: 0 | 1 | 2 = score >= 82 ? 2 : 1;
+    return { quality, score, label: LABELS[quality] };
   }
   const par = parSeconds(input.steps);
   const precision = clamp01(input.precision);
@@ -112,4 +114,69 @@ export function platePrecision(x: number, y: number, cx: number, cy: number, rx:
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(1, n));
+}
+
+// ------------------------------------------------------------------ rice, pressure and cuts (pure, shared with the board)
+export const RICE_COLS = 24;
+export const RICE_ROWS = 10;
+export const RICE_MAX_LAYERS = 3;
+
+/** Share of the mat that has rice, and the average number of layers on the covered cells. */
+export function riceStats(cells: ArrayLike<number>): { coverage: number; mean: number } {
+  let covered = 0;
+  let sum = 0;
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i] > 0) {
+      covered++;
+      sum += cells[i];
+    }
+  }
+  return { coverage: cells.length ? covered / cells.length : 0, mean: covered ? sum / covered : 0 };
+}
+
+export type RiceKind = 'thin' | 'good' | 'thick';
+
+/** 2 layers is the ideal; the good band is wide so nobody has to count. */
+export function riceVerdict(mean: number): { kind: RiceKind; prec: number } {
+  const kind: RiceKind = mean < 1.55 ? 'thin' : mean > 2.55 ? 'thick' : 'good';
+  return { kind, prec: clamp01(1 - Math.max(0, Math.abs(mean - 2.05) - 0.5) / 1.1) };
+}
+
+export type PressKind = 'loose' | 'firm' | 'squeezed';
+
+/** Sweet zone of the roll pressure meter (0..1). Relaxed is wide, challenge narrow. */
+export function pressZone(mode: CookMode): { lo: number; hi: number } {
+  if (mode === 'relaxed') return { lo: 0.42, hi: 0.92 };
+  if (mode === 'challenge') return { lo: 0.62, hi: 0.8 };
+  return { lo: 0.52, hi: 0.84 };
+}
+
+/** How fast the meter fills while the finger is down, in units per second. */
+export function pressRate(mode: CookMode): number {
+  return mode === 'challenge' ? 0.9 : mode === 'relaxed' ? 0.55 : 0.72;
+}
+
+export function pressVerdict(p: number, mode: CookMode): { kind: PressKind; prec: number } {
+  const z = pressZone(mode);
+  if (p < z.lo) return { kind: 'loose', prec: clamp01(0.25 + (p / z.lo) * 0.45) };
+  if (p > z.hi) return { kind: 'squeezed', prec: clamp01(0.7 - (p - z.hi) * 2.5) };
+  const mid = (z.lo + z.hi) / 2;
+  return { kind: 'firm', prec: clamp01(0.85 + (1 - Math.abs(p - mid) / ((z.hi - z.lo) / 2)) * 0.15) };
+}
+
+/** Widths of the pieces left by cuts at the given x positions across [x0, x0 + width]. */
+export function cutWidths(cuts: number[], x0: number, width: number): number[] {
+  const xs = [x0, ...[...cuts].sort((a, b) => a - b).map((x) => Math.max(x0, Math.min(x0 + width, x))), x0 + width];
+  const out: number[] = [];
+  for (let i = 1; i < xs.length; i++) out.push(xs[i] - xs[i - 1]);
+  return out;
+}
+
+/** 1 when every piece has the same width, falling toward 0 as they differ. */
+export function evenness(widths: number[]): number {
+  if (widths.length < 2) return 1;
+  const mean = widths.reduce((a, b) => a + b, 0) / widths.length;
+  if (mean <= 0) return 0;
+  const dev = widths.reduce((a, b) => a + Math.abs(b - mean), 0) / widths.length / mean;
+  return clamp01(1 - dev * 1.6);
 }

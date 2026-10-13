@@ -25,9 +25,21 @@ import {
   missCosts,
   nextGuide,
   platePrecision,
+  pressRate,
+  pressVerdict,
+  pressZone,
+  cutWidths,
+  evenness,
+  riceStats,
+  riceVerdict,
   rollFromDrag,
   swipeCuts,
+  RICE_COLS,
+  RICE_MAX_LAYERS,
+  RICE_ROWS,
   type CookJudgement,
+  type PressKind,
+  type RiceKind,
 } from './cookScore';
 
 export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; variant?: string; variantBonus: number; }
@@ -39,10 +51,10 @@ const STEP_NAMES: Record<CookStep['t'], string> = {
 
 const STEP_HELP: Record<CookStep['t'], string> = {
   nori: 'Arrastrá el alga hasta la esterilla.',
-  rice: 'Arrastrá el arroz y frotá, sin apuro, hasta cubrir la esterilla.',
+  rice: 'Arrastrá el arroz y frotá hasta cubrir la esterilla. Si te quedás en un lugar, se acumula más arroz: buscá dos capas parejas.',
   place: 'Arrastrá cada relleno a su lugar sobre el arroz.',
   slice: 'Deslizá el dedo de arriba hacia abajo sobre la línea punteada.',
-  roll: 'Arrastrá hacia arriba, como si cerraras la esterilla.',
+  roll: 'Arrastrá hacia arriba, como si cerraras la esterilla. Después apretá y soltá en la zona verde.',
   cut: 'Deslizá de arriba hacia abajo sobre la siguiente marca.',
   shape: 'Tocá el arroz tres veces para moldear cada pieza.',
   top: 'Arrastrá la cobertura sobre cada bolita.',
@@ -83,7 +95,17 @@ class CookingGame {
   private S = 1; // css px per board px
   // board state
   private noriPlaced = false;
-  private riceCover = new Uint8Array(24 * 10);
+  /** layers of rice on every cell of the mat (0..3): staying on a spot adds more */
+  private riceCover = new Uint8Array(RICE_COLS * RICE_ROWS);
+  private riceTime = new Float64Array(RICE_COLS * RICE_ROWS);
+  private riceBtn: HTMLElement | null = null;
+  private cutXs: number[] = [];
+  private pressOn = false;
+  private pressing = false;
+  private pressP = 0;
+  private asp: { rice?: RiceKind; press?: PressKind; cut?: number } = {};
+  private fillPrec: number[] = [];
+  private finishNow: (() => void) | null = null;
   private riceAdded = false;
   private fillings: { id: string; x: number; y: number }[] = [];
   private needPlace: string[] = [];
@@ -204,6 +226,7 @@ class CookingGame {
         break;
       case 'rice':
         this.addTrayItem('rice');
+        this.riceBtn = null;
         break;
       case 'place':
         this.needPlace = [...s.items];
@@ -220,6 +243,7 @@ class CookingGame {
         break;
       case 'cut':
         this.cutsDone = 0;
+        this.cutXs = [];
         this.cutsNeeded = Math.max(1, Math.floor(s.pieces / 2)) + 1;
         this.pieces = s.pieces;
         break;
@@ -272,6 +296,10 @@ class CookingGame {
     c.style.touchAction = 'none';
     c.addEventListener('pointerdown', (e) => {
       try { c.setPointerCapture(e.pointerId); } catch { /* synthetic or released pointer */ }
+      if (this.verdict) {
+        this.finishNow?.();
+        return;
+      }
       const p = this.toBoard(e);
       this.swipe = { ...p, t: performance.now() };
       this.finger = p;
@@ -286,6 +314,12 @@ class CookingGame {
     });
     c.addEventListener('pointerup', (e) => {
       if (!this.swipe) return;
+      if (this.pressOn) {
+        this.swipe = null;
+        this.finger = null;
+        if (this.pressing) this.releasePress();
+        return;
+      }
       const p = this.toBoard(e);
       this.onSwipe(this.swipe, p);
       this.swipe = null;
@@ -293,6 +327,10 @@ class CookingGame {
       this.rubTravel = 0;
     });
     c.addEventListener('pointercancel', () => {
+      if (this.pressOn) {
+        this.pressing = false;
+        this.pressP = 0;
+      }
       this.swipe = null;
       this.finger = null;
       this.rubTravel = 0;
@@ -368,7 +406,9 @@ class CookingGame {
           list.splice(i, 1);
           if (s.t === 'place') {
             const spot = this.slotAt(this.fillings.length, s.items.length);
-            this.prec.push(Math.max(0, 1 - Math.hypot(x - spot.x, y - spot.y) / 48));
+            const pp = Math.max(0, 1 - Math.hypot(x - spot.x, y - spot.y) / 48);
+            this.prec.push(pp);
+            this.fillPrec.push(pp);
             this.fillings.push({ id, x: spot.x - 9, y: spot.y - 5 });
           } else this.garnish.push({ id, x, y });
           audio.sfxPlay('place');
@@ -402,16 +442,23 @@ class CookingGame {
   private rub(x: number, y: number, r = 1) {
     if (!this.riceAdded) return;
     const m = this.mat;
-    const cx = Math.floor(((x - m.x) / m.w) * 24);
-    const cy = Math.floor(((y - m.y) / m.h) * 10);
+    const cx = Math.floor(((x - m.x) / m.w) * RICE_COLS);
+    const cy = Math.floor(((y - m.y) / m.h) * RICE_ROWS);
+    const now = performance.now();
     let changed = false;
     for (let j = -r; j <= r; j++)
       for (let i = -r - 1; i <= r + 1; i++) {
         const gx = cx + i;
         const gy = cy + j;
-        if (gx < 0 || gy < 0 || gx >= 24 || gy >= 10) continue;
-        if (!this.riceCover[gy * 24 + gx]) {
-          this.riceCover[gy * 24 + gx] = 1;
+        if (gx < 0 || gy < 0 || gx >= RICE_COLS || gy >= RICE_ROWS) continue;
+        const k = gy * RICE_COLS + gx;
+        if (!this.riceCover[k]) {
+          this.riceCover[k] = 1;
+          this.riceTime[k] = now;
+          changed = true;
+        } else if (this.riceCover[k] < RICE_MAX_LAYERS && now - this.riceTime[k] > 520) {
+          this.riceCover[k]++;
+          this.riceTime[k] = now;
           changed = true;
         }
       }
@@ -419,12 +466,43 @@ class CookingGame {
   }
 
   private riceRatio() {
-    let n = 0;
-    for (const v of this.riceCover) n += v;
-    return n / this.riceCover.length;
+    return riceStats(this.riceCover).coverage;
+  }
+
+  /** The player is happy with the rice: judge the thickness and move on. */
+  private finishRice() {
+    const st = riceStats(this.riceCover);
+    const v = riceVerdict(st.mean);
+    this.asp.rice = v.kind;
+    this.prec.push(v.prec);
+    if (v.kind === 'good') audio.sfxPlay('success');
+    this.say(v.kind === 'thin' ? 'Poco arroz: el rollo va a quedar flojo.' : v.kind === 'thick' ? 'Mucho arroz: va a costar cerrarlo.' : '¡El grosor justo!');
+    this.riceBtn?.remove();
+    this.riceBtn = null;
+    this.nextStep();
+  }
+
+  private releasePress() {
+    if (!this.pressOn) return;
+    const v = pressVerdict(this.pressP, settings.cookMode);
+    this.asp.press = v.kind;
+    this.prec.push(v.prec);
+    this.pressOn = false;
+    this.pressing = false;
+    this.heated = true;
+    audio.sfxPlay(v.kind === 'firm' ? 'success' : 'tap');
+    this.puff(this.W / 2, this.mat.y + this.mat.h * 0.5, v.kind === 'squeezed' ? ingColor(this.fillings[0]?.id ?? 'cucumber') : '#f6ecd6');
+    this.say(v.kind === 'loose' ? 'Quedó flojito: puede abrirse al cortar.' : v.kind === 'squeezed' ? '¡Uy! Se apretó de más y el relleno asoma.' : '¡Rollo firme y parejo!');
+    this.nextStep();
   }
 
   private onTap(x: number, y: number) {
+    if (this.pressOn) {
+      this.pressing = true;
+      this.pressP = 0;
+      audio.sfxPlay('tap');
+      return;
+    }
     if (this.heatOn) {
       this.tryHeat();
       return;
@@ -497,6 +575,7 @@ class CookingGame {
         else this.cutsDone++;
         const tol = guideTolerance(settings.cookMode);
         this.prec.push(Math.max(0, 1 - Math.abs(midX - (guide ?? midX)) / tol));
+        if (s.t === 'cut') this.cutXs.push(midX);
         audio.sfxPlay('cut');
         this.sparkles.push({ x: midX, y: (a.y + b.y) / 2, t: 0.4 });
         this.puff(midX, (a.y + b.y) / 2, ingColor(s.t === 'slice' ? this.sliceItem : 'rice'));
@@ -608,9 +687,17 @@ class CookingGame {
     switch (s.t) {
       case 'nori': ok = this.noriPlaced; break;
       case 'rice': {
-        const ratio = this.riceRatio();
-        if (this.riceAdded) this.say(`Arroz esparcido: ${Math.round(Math.min(1, ratio / 0.8) * 100)}%`);
-        ok = ratio >= 0.8;
+        const st = riceStats(this.riceCover);
+        if (this.riceAdded && st.coverage < 0.8) this.say(`Arroz esparcido: ${Math.round(Math.min(1, st.coverage / 0.8) * 100)}%`);
+        if (st.coverage >= 0.8) {
+          const v = riceVerdict(st.mean).kind;
+          this.say(`Cubierto. Grosor: ${v === 'thin' ? 'finito (seguí un poco más)' : v === 'thick' ? 'de más' : 'justo'}. Tocá Listo cuando quieras.`);
+          if (!this.riceBtn) {
+            this.riceBtn = h('button', { class: 'btn primary', onclick: () => this.finishRice() }, 'Listo');
+            this.tray.append(this.riceBtn);
+          }
+        }
+        ok = false; // the player decides when the rice is right
         break;
       }
       case 'place': ok = this.needPlace.length === 0; break;
@@ -623,8 +710,16 @@ class CookingGame {
       case 'garnish': ok = this.needGarnish.length === 0; break;
       case 'plate': ok = this.plated >= this.plateNeeded; break;
     }
-    if (!ok || this.heatOn) return;
-    if ((s.t === 'roll' || s.t === 'shape') && !this.heated) {
+    if (!ok || this.heatOn || this.pressOn) return;
+    if (s.t === 'roll' && !this.heated) {
+      this.pressOn = true;
+      this.pressing = false;
+      this.pressP = 0;
+      this.say('Mantené apretado y soltá cuando la barra esté en la zona verde.');
+      audio.sfxPlay('roll');
+      return;
+    }
+    if (s.t === 'shape' && !this.heated) {
       this.heatOn = true;
       this.heatT = 0;
       this.say('Fuego suave. Tocá cuando la marca esté en el dorado.');
@@ -653,6 +748,7 @@ class CookingGame {
     if (this.done) return;
     this.done = true;
     const mode = settings.cookMode;
+    if (this.cutXs.length) this.asp.cut = evenness(cutWidths(this.cutXs, this.mat.x, this.mat.w));
     const precision = this.prec.length ? this.prec.reduce((sum, n) => sum + n, 0) / this.prec.length : 0.75;
     const judged = judgeCook({
       mode,
@@ -668,7 +764,11 @@ class CookingGame {
     audio.sfxPlay(judged.quality === 2 ? 'success' : 'sparkle');
     this.say(judged.label);
     this.renderSteps();
-    setTimeout(() => {
+    // the verdict stays long enough to read how the dish turned out; a tap skips it
+    let closed = false;
+    const leave = () => {
+      if (closed) return;
+      closed = true;
       this.cleanup();
       this.finish({
         ok: true,
@@ -677,7 +777,12 @@ class CookingGame {
         variant: used ? this.variant!.name : undefined,
         variantBonus: used ? this.variant!.bonus : 0,
       });
-    }, 1200);
+    };
+    const shownAt = performance.now();
+    this.finishNow = () => {
+      if (performance.now() - shownAt > 600) leave();
+    };
+    setTimeout(leave, this.aspectLines().length ? 2600 : 1400);
   }
 
   private abort() {
@@ -713,6 +818,11 @@ class CookingGame {
     const now = performance.now();
     const dt = this.lastFrame ? Math.min(0.05, (now - this.lastFrame) / 1000) : 0;
     this.lastFrame = now;
+    if (this.pressOn && this.pressing && !this.done) {
+      this.pressP += pressRate(settings.cookMode) * dt;
+      if (this.pressP >= 1.08) this.releasePress();
+    }
+    if (this.swipe && this.finger && this.step?.t === 'rice' && this.riceAdded && !this.done) this.rub(this.finger.x, this.finger.y, 1);
     if (this.heatOn && !this.done) {
       this.heatT += dt;
       if (this.heatT >= heatWindow(settings.cookMode).giveUp) this.finishHeat(false);
@@ -787,15 +897,28 @@ class CookingGame {
       }
       // rice coverage
       if (this.riceAdded && !this.rolled) {
-        const cw = m.w / 24;
-        const ch = m.h / 10;
-        for (let j = 0; j < 10; j++)
-          for (let i = 0; i < 24; i++) {
-            if (!this.riceCover[j * 24 + i]) continue;
+        const cw = m.w / RICE_COLS;
+        const ch = m.h / RICE_ROWS;
+        for (let j = 0; j < RICE_ROWS; j++)
+          for (let i = 0; i < RICE_COLS; i++) {
+            const layers = this.riceCover[j * RICE_COLS + i];
+            if (!layers) continue;
             const yy = m.y + j * ch;
             if (yy < m.y + m.h - visH) continue;
-            g.fillStyle = (i + j) % 3 ? RICE : '#efe8d8';
-            g.fillRect(Math.floor(m.x + i * cw), Math.floor(yy), Math.ceil(cw), Math.ceil(ch));
+            const x0 = Math.floor(m.x + i * cw);
+            const y0 = Math.floor(yy);
+            // one layer is thin (the nori shows through), three are a heap with a lit top edge
+            g.fillStyle = layers === 1 ? '#e9e3d2' : (i + j) % 3 ? RICE : '#f1ebdc';
+            g.fillRect(x0, y0, Math.ceil(cw), Math.ceil(ch));
+            if (layers >= 3) {
+              g.fillStyle = '#ffffff';
+              g.fillRect(x0, y0, Math.ceil(cw), 1);
+              g.fillStyle = '#d9d2bf';
+              g.fillRect(x0, y0 + Math.ceil(ch) - 1, Math.ceil(cw), 1);
+            } else if (layers === 1 && (i + j) % 2) {
+              g.fillStyle = 'rgba(47,59,51,.35)';
+              g.fillRect(x0 + 1, y0 + 1, 2, 1);
+            }
           }
         if (s?.t === 'rice' && this.riceRatio() < 0.05) {
           g.fillStyle = RICE;
@@ -832,13 +955,14 @@ class CookingGame {
       }
       // cut pieces
       if (this.rolled && (s?.t === 'cut' || s?.t === 'garnish' || s?.t === 'slice' || s?.t === 'plate' || s?.t === 'wrap') && s?.t !== 'plate') {
-        const n = s?.t === 'cut' ? 1 + this.cutsDone : this.pieces || 6;
-        const total = n;
-        const pw = (m.w - (total - 1) * 4) / total;
-        for (let i = 0; i < total; i++) {
-          const px = m.x + i * (pw + 4);
-          const py = m.y + m.h / 2 - 14;
-          this.drawRollSlice(px, py, pw, 28, s?.t === 'cut' ? this.cutsDone > 0 : true);
+        const total = s?.t === 'cut' ? 1 + this.cutsDone : this.pieces || 6;
+        // while cutting, the pieces take the widths of the cuts the player actually made
+        const widths = s?.t === 'cut' ? cutWidths(this.cutXs, m.x, m.w) : new Array(total).fill(m.w / total);
+        let px = m.x;
+        for (let i = 0; i < widths.length; i++) {
+          const pw = Math.max(4, widths[i] - 3);
+          this.drawRollSlice(px + (i ? 1 : 0), m.y + m.h / 2 - 14, pw, 28, s?.t === 'cut' ? this.cutsDone > 0 : true);
+          px += widths[i];
         }
         if (s?.t === 'cut') {
           g.fillStyle = 'rgba(246,236,214,.7)';
@@ -968,6 +1092,8 @@ class CookingGame {
       g.stroke();
     }
     if (this.heatOn) this.drawHeat();
+    if (this.pressOn) this.drawPress();
+    if (s?.t === 'rice' && this.riceAdded) this.drawRiceMeter();
     for (const bit of this.bits) {
       g.globalAlpha = Math.max(0, bit.t * 2);
       g.fillStyle = bit.c;
@@ -1011,6 +1137,46 @@ class CookingGame {
     g.fillRect(x + mark * w - 2, y - 2, 4, 14);
   }
 
+  private drawMeter(label: string, value: number, lo: number, hi: number) {
+    const g = this.g;
+    const x = 28;
+    const y = this.H - 26;
+    const w = this.W - 56;
+    g.fillStyle = '#4a3428';
+    g.font = '10px sans-serif';
+    g.fillText(label, x, y - 4);
+    g.fillStyle = 'rgba(40,24,16,.35)';
+    g.fillRect(x + 1, y + 2, w, 12);
+    g.fillStyle = '#6b4330';
+    g.fillRect(x, y, w, 10);
+    g.fillStyle = '#7fa356';
+    g.fillRect(x + w * lo, y, w * (hi - lo), 10);
+    g.fillStyle = '#f6ecd6';
+    const fx = x + Math.max(0, Math.min(1, value)) * w;
+    g.fillRect(fx - 2, y - 2, 4, 14);
+  }
+
+  private drawPress() {
+    this.drawMeter(this.pressing ? 'Apretando…' : 'Mantené apretado', this.pressP, pressZone(settings.cookMode).lo, pressZone(settings.cookMode).hi);
+  }
+
+  private drawRiceMeter() {
+    const st = riceStats(this.riceCover);
+    if (st.coverage < 0.05) return;
+    this.drawMeter('Grosor del arroz', st.mean / RICE_MAX_LAYERS, 1.55 / RICE_MAX_LAYERS, 2.55 / RICE_MAX_LAYERS);
+  }
+
+  /** The things the player did well or badly, shown on the finished dish. */
+  private aspectLines(): string[] {
+    const out: string[] = [];
+    const a = this.asp;
+    if (a.rice) out.push(`Arroz: ${a.rice === 'good' ? 'justo' : a.rice === 'thin' ? 'poco' : 'de más'}`);
+    if (this.fillPrec.length) out.push(`Relleno: ${this.fillPrec.reduce((x, y) => x + y, 0) / this.fillPrec.length >= 0.65 ? 'bien acomodado' : 'desprolijo'}`);
+    if (a.press) out.push(`Enrollado: ${a.press === 'firm' ? 'firme' : a.press === 'loose' ? 'flojo' : 'apretado'}`);
+    if (a.cut != null) out.push(`Cortes: ${a.cut >= 0.8 ? 'parejos' : a.cut >= 0.5 ? 'casi parejos' : 'desparejos'}`);
+    return out;
+  }
+
   private drawVerdict() {
     if (!this.verdict) return;
     const g = this.g;
@@ -1031,6 +1197,11 @@ class CookingGame {
       g.fillStyle = i <= this.verdict.quality ? '#ffc23a' : '#b7a48a';
       g.fillRect(this.W / 2 - 26 + i * 18, box.cy - box.ry - 28, 12, 12);
     }
+    g.font = '11px sans-serif';
+    g.textAlign = 'center';
+    g.fillStyle = '#fbf6ea';
+    this.aspectLines().forEach((line, i) => g.fillText(line, this.W / 2, box.cy + box.ry + 22 + i * 15));
+    g.textAlign = 'left';
   }
 
   private drawIng(id: string, x: number, y: number, w: number, hgt: number) {
@@ -1066,13 +1237,24 @@ class CookingGame {
     g.fillStyle = inside ? RICE : NORI;
     g.fillRect(x, y, w, hh);
     if (!cut) return;
+    // the rice layer and the pressure the player used show in the cross-section
+    const margin = this.asp.rice === 'thin' ? 3 : this.asp.rice === 'thick' ? 1 : 2;
     g.fillStyle = inside ? NORI : RICE;
-    g.fillRect(x + 2, y + 2, w - 4, hh - 4);
+    g.fillRect(x + margin, y + margin, w - margin * 2, hh - margin * 2);
+    const squeezed = this.asp.press === 'squeezed';
+    const loose = this.asp.press === 'loose';
     const fills = this.fillings.length ? this.fillings : [{ id: 'cucumber' }];
     const fw = Math.max(1, Math.floor((w - 8) / fills.length));
     fills.forEach((f, i) => {
       g.fillStyle = ingColor(f.id);
-      g.fillRect(x + 4 + i * fw, y + hh / 2 - 3, fw, 6);
+      const bulge = squeezed ? 2 : 0;
+      g.fillRect(x + 4 + i * fw - (i === 0 ? bulge : 0), y + hh / 2 - 3 - bulge, fw + (i === 0 || i === fills.length - 1 ? bulge : 0), 6 + bulge * 2);
     });
+    if (loose) {
+      // a loose roll opens a little seam along the top
+      g.fillStyle = 'rgba(40,24,16,.55)';
+      g.fillRect(x + 2, y + 1, Math.max(2, w - 4), 1);
+      g.fillRect(x + w - 3, y + 1, 1, 4);
+    }
   }
 }
