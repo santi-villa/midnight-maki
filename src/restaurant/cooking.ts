@@ -25,6 +25,11 @@ import {
   missCosts,
   nextGuide,
   platePrecision,
+  coneDrag,
+  fishCutSpeed,
+  fishCutSummary,
+  fishCutVerdict,
+  fishCutZones,
   pressRate,
   pressVerdict,
   pressZone,
@@ -38,6 +43,7 @@ import {
   RICE_MAX_LAYERS,
   RICE_ROWS,
   type CookJudgement,
+  type FishCut,
   type PressKind,
   type RiceKind,
 } from './cookScore';
@@ -46,19 +52,20 @@ export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; va
 
 const STEP_NAMES: Record<CookStep['t'], string> = {
   nori: 'Alga', rice: 'Arroz', place: 'Relleno', slice: 'Cortar', roll: 'Enrollar', cut: 'Porciones',
-  shape: 'Moldear', top: 'Cubrir', wrap: 'Envolver', garnish: 'Decorar', plate: 'Emplatar',
+  shape: 'Moldear', top: 'Cubrir', wrap: 'Envolver', cone: 'Cono', garnish: 'Decorar', plate: 'Emplatar',
 };
 
 const STEP_HELP: Record<CookStep['t'], string> = {
   nori: 'Arrastrá el alga hasta la esterilla.',
   rice: 'Arrastrá el arroz y frotá hasta cubrir la esterilla. Si te quedás en un lugar, se acumula más arroz: buscá dos capas parejas.',
   place: 'Arrastrá cada relleno a su lugar sobre el arroz.',
-  slice: 'Deslizá el dedo de arriba hacia abajo sobre la línea punteada.',
+  slice: 'Tocá cuando la marca pase por el centro dorado: cada toque es un corte.',
   roll: 'Arrastrá hacia arriba, como si cerraras la esterilla. Después apretá y soltá en la zona verde.',
   cut: 'Deslizá de arriba hacia abajo sobre la siguiente marca.',
-  shape: 'Tocá el arroz tres veces para moldear cada pieza.',
+  shape: 'Tocá el arroz tres veces para moldear cada pieza. Después apretá y soltá en la zona verde.',
   top: 'Arrastrá la cobertura sobre cada bolita.',
   wrap: 'Deslizá de izquierda a derecha para envolver con alga.',
+  cone: 'Arrastrá en diagonal, de la esquina de abajo hacia arriba a la derecha, para armar el cono.',
   garnish: 'Arrastrá los ingredientes para decorar.',
   plate: 'Arrastrá cada pieza hasta el centro del plato.',
 };
@@ -103,7 +110,12 @@ class CookingGame {
   private pressOn = false;
   private pressing = false;
   private pressP = 0;
-  private asp: { rice?: RiceKind; press?: PressKind; cut?: number } = {};
+  private asp: { rice?: RiceKind; press?: PressKind; cut?: number; fish?: 'clean' | 'ok' | 'ragged' } = {};
+  private sliceT = 0;
+  private fishCuts: FishCut[] = [];
+  private coneProgress = 0;
+  private coned = false;
+  private coneStraight: number[] = [];
   private fillPrec: number[] = [];
   private finishNow: (() => void) | null = null;
   private riceAdded = false;
@@ -236,6 +248,8 @@ class CookingGame {
       case 'slice':
         this.sliceItem = s.item;
         this.sliceDone = 0;
+        this.sliceT = 0;
+        this.fishCuts = [];
         this.sliceNeeded = game.save.restaurant.upgrades.includes('knife') ? Math.max(1, s.cuts - 1) : s.cuts;
         break;
       case 'roll':
@@ -262,6 +276,11 @@ class CookingGame {
       case 'wrap':
         this.wrapProgress = 0;
         this.wrapped = false;
+        break;
+      case 'cone':
+        this.coneProgress = 0;
+        this.coned = false;
+        this.pieces = 1;
         break;
       case 'garnish':
         this.needGarnish = [...s.items];
@@ -492,8 +511,37 @@ class CookingGame {
     this.heated = true;
     audio.sfxPlay(v.kind === 'firm' ? 'success' : 'tap');
     this.puff(this.W / 2, this.mat.y + this.mat.h * 0.5, v.kind === 'squeezed' ? ingColor(this.fillings[0]?.id ?? 'cucumber') : '#f6ecd6');
-    this.say(v.kind === 'loose' ? 'Quedó flojito: puede abrirse al cortar.' : v.kind === 'squeezed' ? '¡Uy! Se apretó de más y el relleno asoma.' : '¡Rollo firme y parejo!');
+    const shaping = this.step?.t === 'shape';
+    this.say(shaping
+      ? v.kind === 'loose' ? 'El arroz quedó suelto: se desarma un poco.' : v.kind === 'squeezed' ? 'Quedó muy compacto, casi una piedrita.' : '¡Arroz firme y esponjoso!'
+      : v.kind === 'loose' ? 'Quedó flojito: puede abrirse al cortar.' : v.kind === 'squeezed' ? '¡Uy! Se apretó de más y el relleno asoma.' : '¡Rollo firme y parejo!');
     this.nextStep();
+  }
+
+  /** One knife stroke on the fish: judged by where the marker is when the player taps. A miss never restarts anything. */
+  private tapCut() {
+    if (this.sliceDone >= this.sliceNeeded) return;
+    const knife = game.save.restaurant.upgrades.includes('knife');
+    const v = fishCutVerdict(this.sliceMark(), settings.cookMode, knife);
+    this.fishCuts.push(v.kind);
+    this.prec.push(v.prec);
+    this.sliceDone++;
+    const l = this.sliceLayout();
+    const n = this.sliceNeeded + 1;
+    const x = l.x0 + (l.w / n) * this.sliceDone;
+    audio.sfxPlay(v.kind === 'miss' ? 'tap' : 'cut');
+    this.sparkles.push({ x, y: l.y0 + 30, t: v.kind === 'perfect' ? 0.5 : 0.3 });
+    this.puff(x, l.y0 + 30, ingColor(this.sliceItem));
+    this.say(v.kind === 'perfect' ? '¡Corte limpio!' : v.kind === 'good' ? 'Buen corte.' : 'Corte irregular, pero seguimos.');
+    if (this.sliceDone >= this.sliceNeeded) this.asp.fish = fishCutSummary(this.fishCuts);
+    this.checkStep();
+  }
+
+  private sliceMark(): number {
+    const s = this.step;
+    const speed = fishCutSpeed(settings.cookMode, this.r.difficulty, this.sliceDone);
+    void s;
+    return 0.5 + 0.42 * Math.sin(this.sliceT * speed * 2.4);
   }
 
   private onTap(x: number, y: number) {
@@ -509,6 +557,10 @@ class CookingGame {
     }
     const s = this.step;
     if (!s) return;
+    if (s.t === 'slice') {
+      this.tapCut();
+      return;
+    }
     if (s.t === 'shape') {
       const idx = this.balls < this.ballsNeeded ? this.balls : -1;
       if (idx < 0) return;
@@ -547,6 +599,18 @@ class CookingGame {
         }
       }
     }
+    if (s?.t === 'cone' && !this.coned) {
+      const d = coneDrag(x - start.x, y - start.y);
+      this.coneProgress = Math.max(this.coneProgress, d.progress);
+      this.coneStraight.push(d.straight);
+      if (this.coneProgress >= 1) {
+        this.coned = true;
+        this.prec.push(this.coneStraight.reduce((a, b) => a + b, 0) / Math.max(1, this.coneStraight.length));
+        audio.sfxPlay('roll');
+        this.puff(this.W / 2, this.mat.y + this.mat.h / 2, '#2f3b33');
+        this.checkStep();
+      }
+    }
     if (s?.t === 'wrap') {
       const p = Math.max(0, Math.min(1, (x - start.x) / 140));
       this.wrapProgress = Math.max(this.wrapProgress, p);
@@ -563,22 +627,21 @@ class CookingGame {
     if (!s) return;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
-    if (s.t === 'slice' || s.t === 'cut') {
-      const layout = s.t === 'slice' ? this.sliceLayout() : { x0: this.mat.x, w: this.mat.w };
-      const done = s.t === 'slice' ? this.sliceDone : this.cutsDone;
-      const needed = s.t === 'slice' ? this.sliceNeeded : this.cutsNeeded;
+    if (s.t === 'cut') {
+      const layout = { x0: this.mat.x, w: this.mat.w };
+      const done = this.cutsDone;
+      const needed = this.cutsNeeded;
       const guide = nextGuide(done, needed, layout.x0, layout.w);
       const midX = (a.x + b.x) / 2;
       const hit = swipeCuts(dx, dy, midX, guide, guideTolerance(settings.cookMode));
       if (hit === 'hit') {
-        if (s.t === 'slice') this.sliceDone++;
-        else this.cutsDone++;
+        this.cutsDone++;
         const tol = guideTolerance(settings.cookMode);
         this.prec.push(Math.max(0, 1 - Math.abs(midX - (guide ?? midX)) / tol));
-        if (s.t === 'cut') this.cutXs.push(midX);
+        this.cutXs.push(midX);
         audio.sfxPlay('cut');
         this.sparkles.push({ x: midX, y: (a.y + b.y) / 2, t: 0.4 });
-        this.puff(midX, (a.y + b.y) / 2, ingColor(s.t === 'slice' ? this.sliceItem : 'rice'));
+        this.puff(midX, (a.y + b.y) / 2, ingColor('rice'));
         this.checkStep();
       } else if (hit === 'miss') {
         if (missCosts(settings.cookMode)) this.mistakes++;
@@ -707,6 +770,7 @@ class CookingGame {
       case 'shape': ok = this.balls >= this.ballsNeeded; break;
       case 'top': ok = this.toppings.every(Boolean); break;
       case 'wrap': ok = this.wrapped; break;
+      case 'cone': ok = this.coned; break;
       case 'garnish': ok = this.needGarnish.length === 0; break;
       case 'plate': ok = this.plated >= this.plateNeeded; break;
     }
@@ -720,10 +784,11 @@ class CookingGame {
       return;
     }
     if (s.t === 'shape' && !this.heated) {
-      this.heatOn = true;
-      this.heatT = 0;
-      this.say('Fuego suave. Tocá cuando la marca esté en el dorado.');
-      audio.sfxPlay('steam');
+      this.pressOn = true;
+      this.pressing = false;
+      this.pressP = 0;
+      this.say('Mantené apretado y soltá cuando la barra esté en la zona verde.');
+      audio.sfxPlay('roll');
       return;
     }
     this.nextStep();
@@ -818,6 +883,7 @@ class CookingGame {
     const now = performance.now();
     const dt = this.lastFrame ? Math.min(0.05, (now - this.lastFrame) / 1000) : 0;
     this.lastFrame = now;
+    if (this.step?.t === 'slice' && !this.done) this.sliceT += dt;
     if (this.pressOn && this.pressing && !this.done) {
       this.pressP += pressRate(settings.cookMode) * dt;
       if (this.pressP >= 1.08) this.releasePress();
@@ -1002,6 +1068,13 @@ class CookingGame {
             g.closePath();
             g.fill();
           } else g.fillRect(p.x - 18, p.y - 8, 36, 18);
+          if (this.asp.press === 'loose') {
+            g.fillStyle = RICE;
+            for (let k = 0; k < 6; k++) g.fillRect(p.x - 22 + ((k * 13 + i * 7) % 44), p.y + 8 + ((k * 5) % 7), 2, 2);
+          } else if (this.asp.press === 'squeezed') {
+            g.fillStyle = 'rgba(40,24,16,.2)';
+            g.fillRect(p.x - 18, p.y + 6, 36, 4);
+          }
           if (this.toppings[i]) this.drawIng(this.topItem, p.x - 22, p.y - 16, 44, 10);
           if (this.wrapped || (s?.t === 'wrap' && this.wrapProgress > 0)) {
             g.fillStyle = NORI;
@@ -1024,7 +1097,9 @@ class CookingGame {
       const pw = w / n;
       for (let i = 0; i < n; i++) {
         const sep = i <= this.sliceDone ? 3 : 0;
-        this.drawIng(this.sliceItem, x0 + i * pw + i * sep * 0.6, y0 + 10, pw - 2, 40);
+        // a missed cut leaves its piece a little crooked
+        const jag = i > 0 && i <= this.sliceDone && this.fishCuts[i - 1] === 'miss' ? (i % 2 ? 3 : -3) : 0;
+        this.drawIng(this.sliceItem, x0 + i * pw + i * sep * 0.6, y0 + 10 + jag, pw - 2, 40);
       }
       g.fillStyle = 'rgba(246,236,214,.75)';
       for (let i = this.sliceDone + 1; i < n; i++) for (let y = y0; y < y0 + 60; y += 6) g.fillRect(x0 + i * pw, y, 1, 3);
@@ -1083,7 +1158,9 @@ class CookingGame {
       g.lineTo(W - 3, 76);
       g.fill();
     }
-    if ((s?.t === 'slice' || s?.t === 'cut') && this.swipe && this.finger) {
+    if (s?.t === 'slice' && this.sliceDone < this.sliceNeeded) this.drawFishBar();
+    if (s?.t === 'cone' || this.coned) this.drawCone();
+    if (s?.t === 'cut' && this.swipe && this.finger) {
       g.strokeStyle = 'rgba(246,236,214,.9)';
       g.lineWidth = 2;
       g.beginPath();
@@ -1156,6 +1233,44 @@ class CookingGame {
     g.fillRect(fx - 2, y - 2, 4, 14);
   }
 
+  private drawFishBar() {
+    const g = this.g;
+    const z = fishCutZones(settings.cookMode, game.save.restaurant.upgrades.includes('knife'));
+    const x = 28;
+    const y = this.H - 26;
+    const w = this.W - 56;
+    g.fillStyle = '#4a3428';
+    g.font = '10px sans-serif';
+    g.fillText(`Corte ${Math.min(this.sliceDone + 1, this.sliceNeeded)} de ${this.sliceNeeded}`, x, y - 4);
+    g.fillStyle = 'rgba(40,24,16,.35)';
+    g.fillRect(x + 1, y + 2, w, 12);
+    g.fillStyle = '#6b4330';
+    g.fillRect(x, y, w, 10);
+    g.fillStyle = '#7fa356';
+    g.fillRect(x + w * (0.5 - z.good), y, w * z.good * 2, 10);
+    g.fillStyle = '#f2c66d';
+    g.fillRect(x + w * (0.5 - z.perfect), y, w * z.perfect * 2, 10);
+    g.fillStyle = '#f6ecd6';
+    g.fillRect(x + this.sliceMark() * w - 2, y - 2, 4, 14);
+  }
+
+  /** Temaki: a corner of the nori folds over into a cone as the finger travels up and to the right. */
+  private drawCone() {
+    const g = this.g;
+    const m = this.mat;
+    const p = this.coned ? 1 : this.coneProgress;
+    if (p <= 0 || this.step?.t === 'plate') return;
+    g.fillStyle = NORI;
+    g.beginPath();
+    g.moveTo(m.x, m.y + m.h);
+    g.lineTo(m.x + m.w * p * 0.9, m.y + m.h);
+    g.lineTo(m.x + m.w * p * 0.45, m.y + m.h - m.h * p);
+    g.closePath();
+    g.fill();
+    g.fillStyle = '#3d4b40';
+    g.fillRect(m.x, m.y + m.h - 2, Math.max(1, m.w * p * 0.9), 2);
+  }
+
   private drawPress() {
     this.drawMeter(this.pressing ? 'Apretando…' : 'Mantené apretado', this.pressP, pressZone(settings.cookMode).lo, pressZone(settings.cookMode).hi);
   }
@@ -1172,7 +1287,8 @@ class CookingGame {
     const a = this.asp;
     if (a.rice) out.push(`Arroz: ${a.rice === 'good' ? 'justo' : a.rice === 'thin' ? 'poco' : 'de más'}`);
     if (this.fillPrec.length) out.push(`Relleno: ${this.fillPrec.reduce((x, y) => x + y, 0) / this.fillPrec.length >= 0.65 ? 'bien acomodado' : 'desprolijo'}`);
-    if (a.press) out.push(`Enrollado: ${a.press === 'firm' ? 'firme' : a.press === 'loose' ? 'flojo' : 'apretado'}`);
+    if (a.fish) out.push(`Corte del pescado: ${a.fish === 'clean' ? 'limpio' : a.fish === 'ok' ? 'aceptable' : 'irregular'}`);
+    if (a.press) out.push(`${this.r.steps.some((st) => st.t === 'shape') ? 'Arroz moldeado' : 'Enrollado'}: ${a.press === 'firm' ? 'firme' : a.press === 'loose' ? 'flojo' : 'apretado'}`);
     if (a.cut != null) out.push(`Cortes: ${a.cut >= 0.8 ? 'parejos' : a.cut >= 0.5 ? 'casi parejos' : 'desparejos'}`);
     return out;
   }
@@ -1233,6 +1349,50 @@ class CookingGame {
     const g = this.g;
     g.fillStyle = 'rgba(40,24,16,.28)';
     g.fillRect(Math.round(x) + 1, Math.round(y) + 2, Math.round(w), Math.round(hh));
+    const shapeOnly = !this.r.steps.some((st) => st.t === 'nori' || st.t === 'rice');
+    if (shapeOnly) {
+      // nigiri, onigiri and gunkan pieces
+      const topItem = this.topItem || (this.r.steps.find((st) => st.t === 'top') as { item?: string } | undefined)?.item || 'rice';
+      if (this.r.id === 'onigiri') {
+        g.fillStyle = RICE;
+        g.beginPath();
+        g.moveTo(x + w / 2, y);
+        g.lineTo(x, y + hh);
+        g.lineTo(x + w, y + hh);
+        g.closePath();
+        g.fill();
+        g.fillStyle = NORI;
+        g.fillRect(x + w * 0.3, y + hh * 0.62, w * 0.4, hh * 0.38);
+      } else if (this.r.id === 'gunkan') {
+        g.fillStyle = NORI;
+        g.fillRect(x, y + 2, w, hh - 2);
+        g.fillStyle = ingColor(topItem);
+        g.fillRect(x + 1, y, w - 2, 4);
+      } else {
+        g.fillStyle = RICE;
+        g.fillRect(x, y + hh * 0.4, w, hh * 0.6);
+        g.fillStyle = ingColor(topItem);
+        g.fillRect(x - 1, y + hh * 0.1, w + 2, hh * 0.45);
+        g.fillStyle = 'rgba(255,255,255,.4)';
+        g.fillRect(x + 1, y + hh * 0.2, w - 2, 1);
+      }
+      return;
+    }
+    if (this.r.id === 'temaki') {
+      g.fillStyle = NORI;
+      g.beginPath();
+      g.moveTo(x, y + hh);
+      g.lineTo(x + w, y + hh);
+      g.lineTo(x + w * 0.35, y);
+      g.closePath();
+      g.fill();
+      const f = this.fillings[0]?.id ?? 'cucumber';
+      g.fillStyle = ingColor(f);
+      g.fillRect(x + w * 0.2, y - 2, Math.max(2, w * 0.35), 3);
+      g.fillStyle = RICE;
+      g.fillRect(x + w * 0.38, y + hh * 0.45, Math.max(2, w * 0.3), 2);
+      return;
+    }
     const inside = this.r.steps.some((s) => s.t === 'garnish') && this.r.icon.type === 'uramaki';
     g.fillStyle = inside ? RICE : NORI;
     g.fillRect(x, y, w, hh);

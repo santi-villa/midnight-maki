@@ -258,11 +258,30 @@ function showPlate(r: RecipeDef, quality: number): Promise<void> {
     g.fill();
     const ic = iconCanvas(r.icon);
     g.imageSmoothingEnabled = false;
-    for (const x of [12, 24, 36]) g.drawImage(ic, x, 6, 16, 16);
+    // the care put into the dish shows: a plain one sits a bit crooked, a perfect one gets a neat garnish and a shine
+    const rowY = [8, 5, 6];
+    const xs = quality === 0 ? [11, 25, 38] : [12, 24, 36];
+    xs.forEach((x, i) => g.drawImage(ic, x, quality === 0 ? rowY[i] + (i === 1 ? -2 : 1) : 6, 16, 16));
     g.fillStyle = '#f4a6b0';
     g.fillRect(50, 18, 5, 4);
     g.fillStyle = '#8fbf5f';
     g.fillRect(55, 17, 4, 4);
+    if (quality >= 1) {
+      g.fillStyle = '#e8e2d2';
+      g.fillRect(8, 22, 14, 1); // neat line of ginger
+      g.fillStyle = '#f6a3b0';
+      g.fillRect(8, 21, 14, 1);
+    }
+    if (quality === 2) {
+      g.fillStyle = '#7fb25a';
+      g.fillRect(44, 15, 2, 5);
+      g.fillRect(46, 13, 2, 7);
+      g.fillStyle = '#fff6c8';
+      for (const [sx, sy] of [[10, 5], [30, 3], [52, 9], [18, 20]]) {
+        g.fillRect(sx, sy, 1, 3);
+        g.fillRect(sx - 1, sy + 1, 3, 1);
+      }
+    }
     for (let i = 0; i <= quality; i++) {
       g.fillStyle = '#ffc23a';
       g.fillRect(22 + i * 7, 2, 5, 5);
