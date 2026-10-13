@@ -1,9 +1,11 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 async function begin(page: Page) {
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ music: 0, ambience: 0, sfx: 0, textSpeed: 0, joystick: false })));
   await page.goto('/?debug&st'); await page.locator('.tt').click();
   await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.hud-top')).toBeVisible();
   await page.evaluate(async () => {
     const { world: w, game: g } = (window as any).mmDebug;
@@ -130,6 +132,7 @@ test('a failed first arrival returns to a usable title and can start again', asy
   await page.locator('.tt').click();
   await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.hud-top')).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.canAct())).toBe(true);
 });

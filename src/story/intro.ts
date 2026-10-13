@@ -9,7 +9,7 @@ import { fade, h, screenTransition, uiRoot } from '../ui/dom';
 import { showHud } from '../ui/hud';
 import { applyIntroCue, stopIntroAudio } from './introAudio';
 import { INTRO_SCENES, LETTER_LINES, LETTER_SIGN, takeCues, type IntroMusic, type IntroScene } from './introScript';
-import { addClue } from './story';
+import { addClue, startArrivalEncounter } from './story';
 
 let skipped = false;
 let book: HTMLElement | null = null;
@@ -146,8 +146,8 @@ async function showScene(scene: IntroScene): Promise<void> {
     'div',
     { class: 'book-page' },
     pic,
-    h('div', { class: 'book-caption' }, who, text, h('div', { class: 'book-next', 'aria-hidden': 'true' }, '▼')),
   );
+  pic.append(h('div', { class: 'book-caption' }, who, text, h('div', { class: 'book-next', 'aria-hidden': 'true' }, '▼')));
   const prev = book.querySelector('.book-page');
   book.append(pageEl);
   requestAnimationFrame(() => pageEl.classList.add('in'));
@@ -205,4 +205,5 @@ export async function playIntro() {
     check();
     showHud(true);
   } finally { world.inputLocked--; clock.resume(); }
+  await startArrivalEncounter();
 }
