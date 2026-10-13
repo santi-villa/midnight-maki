@@ -960,7 +960,7 @@ function tailLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
 function headLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ctx) {
   const { headCx: cx, headCy: cy, headRx: rx, headRy: ry } = g;
   const p = g.headP;
-  fill(c, boxOf(cx, cy, rx, ry), ell(cx, cy, rx, ry, p), spec.fur);
+  fill(c, boxOf(cx, cy, rx, ry), ell(cx, cy, rx, ry, p), spec.fur, spec.hero ? { lt: shade(spec.fur, 0.05), dk: shade(spec.fur, -0.07) } : {});
   if (spec.humanEars && view !== 'back') {
     const ex = view === 'side' ? cx - 1 : cx + rx - 0.6;
     fill(c, boxOf(ex, cy + 1, 1.8, 2.4), ell(ex, cy + 1, 1.8, 2.4), spec.fur);
@@ -971,7 +971,7 @@ function headLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
     const l = h.look;
     const f: FaceParams = {
       skin: spec.fur, eye: spec.eye, eyeStyle: h.eyeStyle, brow: l.brow, browColor: l.browColor || shade(h.hairColor, -0.12),
-      nose: l.nose, lips: l.lips, freckles: l.freckles, mole: l.mole, blush: l.blush || h.blushItem, facial: l.facial,
+      nose: l.nose, lips: l.lips, piercing: l.piercing ?? 0, freckles: l.freckles, mole: l.mole, blush: l.blush || h.blushItem, facial: l.facial,
       facialColor: shade(h.hairColor, -0.05),
     };
     drawHeroFace(kit(), c, g, view, f, EXPR);

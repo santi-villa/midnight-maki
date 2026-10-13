@@ -1,6 +1,6 @@
 /** Character creator (also reused from the wardrobe for appearance changes). The player is Santiago or Sofi, with lots of options. */
 import { drawCharacter, FH, FW } from '../art/characters';
-import { BROW_STYLES, EARRINGS, EYE_STYLES, FACE_SHAPES, FACIAL_HAIR, HERO_DEFAULTS, HERO_EYE_COLORS, HERO_HAIR, HERO_HAIR_COLORS, HERO_SKINS, NECK, heroLook } from '../art/hero';
+import { BROW_STYLES, EARRINGS, EYE_STYLES, PIERCINGS, FACE_SHAPES, FACIAL_HAIR, HERO_DEFAULTS, HERO_EYE_COLORS, HERO_HAIR, HERO_HAIR_COLORS, HERO_SKINS, NECK, heroLook } from '../art/hero';
 import { drawHero, heroHeadshot, HERO_H, HERO_W, isHeroLook } from '../art/heroRender';
 import { ctx2d, makeCanvas } from '../art/pixel';
 import { audio } from '../audio/audio';
@@ -188,6 +188,7 @@ export function openCreator(o: CreatorOpts) {
     ['Ropa', () => h('div', null, section('Arriba', clothTiles('top')), section('Abajo', clothTiles('bottom')), section('Calzado', clothTiles('shoes')))],
     ['Accesorios', () => h('div', null,
       section('Aros', look('earrings', EARRINGS)),
+      section('Piercings', look('piercing', PIERCINGS)),
       section('Cuello', look('neck', NECK, 'full')),
       section('Cabeza', clothTiles('head')),
       section('Lentes y cara', clothTiles('face')),
@@ -231,6 +232,7 @@ export function openCreator(o: CreatorOpts) {
     l.blush = Math.random() < 0.35;
     l.facial = l.gender === 'm' && Math.random() < 0.4 ? 1 + Math.floor(Math.random() * (FACIAL_HAIR.length - 1)) : 0;
     l.earrings = Math.random() < 0.3 ? 1 + Math.floor(Math.random() * (EARRINGS.length - 1)) : 0;
+    l.piercing = Math.random() < 0.3 ? 1 + Math.floor(Math.random() * (PIERCINGS.length - 1)) : 0;
     l.neck = Math.random() < 0.5 ? 1 + Math.floor(Math.random() * (NECK.length - 1)) : 0;
     for (const sl of ['top', 'bottom', 'shoes', 'head', 'face', 'extra', 'bag'] as ClothingSlot[]) {
       const opts = clothesFor(sl);
