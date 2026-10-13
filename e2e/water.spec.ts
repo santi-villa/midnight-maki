@@ -1,3 +1,4 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Page } from '@playwright/test';
 
 /** Starts a game quickly and returns once the world is on screen. */
@@ -10,6 +11,7 @@ async function boot(page: Page, perf: 'high' | 'low' = 'high', extra: Record<str
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
 }
 

@@ -202,6 +202,7 @@ bus.on('time:changed', ({ period }) => {
 });
 export async function onEnterZone(zone: string) {
   game.setFlag('visited_' + zone);
+  if (zone === 'restaurant' && game.has('arrived') && !game.has('intro_done')) await startArrivalEncounter();
   const moon = game.flag('festival_today') === 'moon';
   game.setFlag('market_open', clock.period === 3 && (((!!game.flag('market_night') || game.has('market_force')) && game.has('market_known')) || moon));
   if (zone === 'garden' && clock.isNight()) game.setFlag('garden_night');
@@ -226,7 +227,8 @@ export async function onEnterZone(zone: string) {
   check();
 }
 
-export function onContinue() {
+export async function onContinue() {
+  await startArrivalEncounter();
   check();
 }
 
@@ -243,8 +245,8 @@ export function onLockedDoor(to: string): boolean {
 type Beat = () => Promise<void>;
 export function storyTalk(id: string): Beat | null {
   const S = (key: string, fn: () => Promise<void>): Beat => () => runScene(key, fn);
-  // Arrival is explorable: the original encounter begins when the player speaks to Spicy.
-  if (id === 'spicy' && !game.has('intro_done') && world.zoneId === 'restaurant') return meetRaccoons;
+  // Fallback for an older unfinished arrival; new games trigger this after the illustrated intro.
+  if (id === 'spicy' && !game.has('intro_done') && world.zoneId === 'restaurant') return startArrivalEncounter;
   // prologue
   if (id === 'spicy' && game.has('intro_done') && !game.has('tut_spicy')) return S('tut_spicy', tutSpicy);
   // chapter 1
@@ -276,6 +278,14 @@ export function storyTalk(id: string): Beat | null {
 }
 
 // ------------------------------------------------------------------ prologue scenes
+let arrivalEncounter: Promise<void> | null = null;
+export function startArrivalEncounter(): Promise<void> {
+  if (arrivalEncounter) return arrivalEncounter;
+  if (game.has('intro_done') || world.zoneId !== 'restaurant') return Promise.resolve();
+  arrivalEncounter = meetRaccoons().finally(() => { arrivalEncounter = null; });
+  return arrivalEncounter;
+}
+
 async function meetRaccoons() {
   await lock(async () => {
     playIntroShotOnce('wooden_door', 0.42, 2.4);
@@ -316,12 +326,13 @@ async function meetRaccoons() {
       game.save.story.decisions.prologue_stay = c === 0 ? 'decidida' : 'aprender';
       await say('rigg', '{Bienvenido|Bienvenida}, {name}. Tu cuarto está arriba. Spicy te va a enseñar la cocina.', 'happy');
     });
-    game.setFlag('intro_done');
+    if (game.save.story.seenScenes.includes('meet')) game.setFlag('intro_done');
     world.releaseActor('pip');
     world.releaseActor('spicy');
     world.releaseActor('rigg');
     world.spawnNpcs(false);
   });
+  check();
 }
 
 async function tutSpicy() {

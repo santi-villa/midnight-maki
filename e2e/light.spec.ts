@@ -1,3 +1,4 @@
+import { finishArrival } from './helpers/arrival';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
 async function boot(page: Page, extra: Record<string, unknown> = {}) {
@@ -9,6 +10,7 @@ async function boot(page: Page, extra: Record<string, unknown> = {}) {
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
 }
 
