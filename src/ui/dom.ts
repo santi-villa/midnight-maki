@@ -2,6 +2,8 @@
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
 import { clock } from '../systems/time';
+import { settings } from '../core/settings';
+import type { TransitionKind } from '../world/zoneTransition';
 
 type Child = Node | string | number | null | undefined | false;
 type Attrs = Record<string, any>;
@@ -159,18 +161,67 @@ export function fade(on: boolean, ms = 250, label?: string): Promise<void> {
         h('div', { class: 'load-tip' }, LOAD_TIPS[Math.floor(Math.random() * LOAD_TIPS.length)])),
     );
   } else if (on) fadeEl.innerHTML = '';
-  fadeEl.style.transitionDuration = ms + 'ms';
-  fadeEl.classList.toggle('on', on);
-  return new Promise((r) => setTimeout(r, ms + 20));
+  const duration = reducedMotion() ? 0 : ms;
+  fadeEl.style.transitionDuration = duration + 'ms';
+  if (fadeEl.classList.contains('on') === on) return Promise.resolve();
+  void getComputedStyle(fadeEl).opacity;
+  return waitTransition(fadeEl, 'opacity', duration, () => fadeEl!.classList.toggle('on', on));
 }
 
-/** hides the HTML boot loader shown before the game scripts were ready */
+function reducedMotion(): boolean {
+  return settings.reduceMotion || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** Wait for the actual CSS transition, with a bounded fallback for interrupted/hidden pages. */
+function waitTransition(el: HTMLElement, property: string, ms: number, change: () => void): Promise<void> {
+  if (ms <= 0) { change(); return Promise.resolve(); }
+  return new Promise((resolve) => {
+    const finish = () => { clearTimeout(timer); el.removeEventListener('transitionend', end); resolve(); };
+    const end = (e: TransitionEvent) => { if (e.target === el && e.propertyName === property) finish(); };
+    const timer = window.setTimeout(finish, ms + 80);
+    el.addEventListener('transitionend', end);
+    change();
+  });
+}
+
+let curtains: HTMLElement | null = null;
+let leftCurtain: HTMLElement;
+async function curtain(on: boolean) {
+  if (!curtains) {
+    leftCurtain = h('div', { class: 'door-panel door-left' });
+    curtains = h('div', { class: 'door-curtain', 'aria-hidden': 'true' }, leftCurtain, h('div', { class: 'door-panel door-right' }));
+    uiRoot().append(curtains);
+  }
+  curtains.classList.add('active');
+  // Commit the off-screen starting position before asking CSS to close the panels.
+  void getComputedStyle(leftCurtain).transform;
+  curtains.dataset.phase = on ? 'closing' : 'opening';
+  await waitTransition(leftCurtain, 'transform', 240, () => curtains!.classList.toggle('closed', on));
+  curtains.dataset.phase = on ? 'covered' : 'idle';
+  if (!on) curtains.classList.remove('active');
+}
+
+/** Covers the old frame, loads/renders while covered, and always releases the overlay on failure. */
+export async function screenTransition<T>(kind: TransitionKind, load: () => Promise<T>): Promise<T> {
+  const panels = kind === 'doors' && !reducedMotion();
+  if (panels) await curtain(true);
+  else { await fade(true, 200); fadeEl!.classList.add('busy'); }
+  try { return await load(); }
+  finally {
+    if (panels) await curtain(false);
+    else { try { await fade(false, 200); } finally { fadeEl!.classList.remove('busy'); } }
+  }
+}
+
+/** Removes the initial loader once the title is mounted; no synthetic progress or extra hold. */
 export function hideBoot() {
   const b = document.getElementById('boot');
-  if (!b) return;
+  if (!b || b.classList.contains('out')) return;
   clearInterval((window as any).__bootTips);
-  b.classList.add('out');
-  setTimeout(() => b.remove(), 700);
+  const ms = reducedMotion() ? 0 : 320;
+  b.setAttribute('aria-busy', 'false');
+  b.style.transitionDuration = ms + 'ms';
+  void waitTransition(b, 'opacity', ms, () => b.classList.add('out')).then(() => b.remove());
 }
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 

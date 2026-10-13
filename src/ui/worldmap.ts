@@ -171,7 +171,7 @@ function paintingURL() {
 function hereZone(): string {
   const z = world?.zoneId ?? 'plaza';
   if (z === 'home' || z === 'storage') return 'restaurant';
-  if (z.startsWith('shop_')) return 'plaza';
+  if (z.startsWith('shop_') || z === 'library') return 'plaza';
   return z;
 }
 
@@ -221,7 +221,7 @@ export function openWorldMap() {
   for (const id of ['spicy', 'rigg', 'pip']) {
     const z = world.characterZone(id);
     if (!z) continue;
-    const key = z === 'home' || z === 'storage' ? 'restaurant' : z.startsWith('shop_') ? 'plaza' : z;
+    const key = z === 'home' || z === 'storage' ? 'restaurant' : (z.startsWith('shop_') || z === 'library') ? 'plaza' : z;
     byZone.set(key, [...(byZone.get(key) ?? []), id]);
   }
   for (const [z, ids] of byZone) {

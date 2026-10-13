@@ -1,5 +1,7 @@
 # Correcciones de errores, música de introducción y comercios
 
+Este informe documenta la revisión `06b5ca9`. La llegada posterior al restaurante y las nuevas transiciones sustituyen el cierre hacia la plaza descrito aquí: ver [Inicio, reloj y transiciones](entrada-reloj-transiciones.md).
+
 ## Rama y alcance
 
 Se inspeccionaron las ramas remotas antes de editar. `master-mgsshv` y `master` apuntaban a `c82e135b09c3b03d67edaa79dcc03c5455e3e67d`; `main`, `menu-principal` y `feat/rutinas-vivas` no aportaban commits posteriores a esa revisión. El trabajo se hizo en `master-mgsshv`, con commits separados y sin force push.

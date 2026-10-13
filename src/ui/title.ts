@@ -39,7 +39,6 @@ const LAYOUTS: Record<'vertical' | 'horizontal', Layout> = {
 
 export async function showTitle(phaser: Phaser.Game) {
   setPhaser(phaser);
-  hideBoot();
   const saved = await hasSave();
   const base = import.meta.env.BASE_URL;
   const root = h('div', { class: 'title-screen tt' });
@@ -214,6 +213,7 @@ export async function showTitle(phaser: Phaser.Game) {
   refreshCalm();
   layout();
   uiRoot().append(root);
+  hideBoot();
   // keep the calm / battery flags in sync with the settings panel
   bus.on('settings:changed', () => { if (document.body.contains(root)) refreshCalm(); });
 }

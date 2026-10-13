@@ -82,6 +82,9 @@ export const PROPS: Record<string, PropDef> = {
   k_register2: P('sushibar', 1, 1, 16, 28),
   // izakaya dressing
   bar_stool: P('stool', 1, 1, 16, 14, '#b8524f', '', { solid: false }),
+  library_shelf: P('shelf', 2, 1, 32, 30, '#8a5a3c', '#3b4470'),
+  library_table: P('table', 2, 1, 32, 20, '#8a5a3c', '#e2b585'),
+  library_books: P('bookstack', 1, 1, 16, 12, '#b2585e', '#3b4470', { solid: false }),
   wallshelf: P('wallshelf', 2, 1, 32, 22, '', '', { solid: false }),
   mm_sign: P('mmsign', 5, 1, 80, 31, '', '', { solid: false }),
   wall_lantern_red: P('paperlantern', 1, 1, 16, 26, '#d9675f', '', { light: '#f4b08c', solid: false, anim: 'sway' }),

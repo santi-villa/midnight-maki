@@ -18,8 +18,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 720 
     });
     expect(initial).toMatchObject({ zone: 'restaurant', x: 8, y: 12, dir: 'up', solid: false, locked: 0, paused: false, step: 0, track: 'restaurant_night' });
     expect(initial.done).not.toContain('prologue');
-    await page.keyboard.down('ArrowUp'); await page.waitForTimeout(300); await page.keyboard.up('ArrowUp');
-    await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.player.ty)).toBeLessThan(initial.y);
+    const key = await page.evaluate(() => {
+      const w = (window as any).mmDebug.world;
+      const p = w.player;
+      return [[1, 0, 'ArrowRight'], [-1, 0, 'ArrowLeft'], [0, -1, 'ArrowUp']].find(([dx, dy]) => !w.zone.grid.isSolid(p.tx + Number(dx), p.ty + Number(dy)))![2] as string;
+    });
+    const feet = await page.evaluate(() => ({ x: (window as any).mmDebug.world.player.x, y: (window as any).mmDebug.world.player.y }));
+    await page.keyboard.down(key); await page.waitForTimeout(300); await page.keyboard.up(key);
+    await expect.poll(() => page.evaluate(({ x, y }) => { const p = (window as any).mmDebug.world.player; return Math.hypot(p.x - x, p.y - y); }, feet)).toBeGreaterThan(5);
     const saved = await page.evaluate(async () => (window as any).mmDebug.storage.saveGame('arrival-test'));
     expect(saved).toBe(true);
     await page.reload();
