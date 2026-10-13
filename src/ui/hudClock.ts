@@ -1,15 +1,7 @@
 /** Small pixel clock, using the same canvas palette as the game's wooden UI. */
-import { BALANCE } from '../core/balance';
 import { ctx2d, ellipse, px } from '../art/pixel';
 
-// The four exploration periods run from morning to midnight.
-const HOURS = [6, 12, 18, 21, 24];
-
-export function hudTime(period: number, minutes: number): number {
-  const p = Math.max(0, Math.min(3, Math.floor(Number.isFinite(period) ? period : 0)));
-  const progress = Math.max(0, Math.min(1, (Number.isFinite(minutes) ? minutes : 0) / BALANCE.periodMinutes));
-  return Math.floor((HOURS[p] + (HOURS[p + 1] - HOURS[p]) * progress) * 60);
-}
+export { dayMinutes as hudTime } from '../systems/daytime';
 
 /** Presentation wraps midnight while leaving the existing period/day clock untouched. */
 export function formatHudTime(minutes: number): string {

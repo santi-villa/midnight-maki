@@ -57,19 +57,11 @@ beforeEach(() => {
 });
 
 describe('restaurant hours', () => {
-  it('uses the town beats: morning closed, afternoon and dusk open, late night closing', () => {
-    expect(RESTAURANT_HOURS.closeAt).toBe(50);
-    expect(RESTAURANT_HOURS.periods).toEqual([1, 2, 3]);
-    expect(restaurantPhase(0, 0)).toBe('closed');
-    expect(restaurantPhase(0, 89)).toBe('closed');
-    expect(restaurantPhase(1, 0)).toBe('open');
-    expect(restaurantPhase(1, 89)).toBe('open');
-    expect(restaurantPhase(2, 0)).toBe('open');
-    expect(restaurantPhase(2, 89)).toBe('open');
-    expect(restaurantPhase(3, 0)).toBe('open');
-    expect(restaurantPhase(3, 49)).toBe('open');
-    expect(restaurantPhase(3, 50)).toBe('closing');
-    expect(restaurantPhase(3, 90)).toBe('closing');
+  it('uses the displayed 08:00–23:00 interval across all four periods', () => {
+    expect(RESTAURANT_HOURS).toMatchObject({ openAt: 480, closeAt: 1380, hours: '08:00–23:00' });
+    for (const [period, minutes, phase] of [[0, 0, 'closed'], [0, 29.75, 'setup'], [0, 30, 'open'], [0, 89, 'open'], [1, 0, 'open'], [2, 89, 'open'], [3, 59.5, 'open'], [3, 60, 'closing'], [3, 65, 'closed'], [3, 90, 'closed']] as const) {
+      expect(restaurantPhase(period, minutes)).toBe(phase);
+    }
     expect(restaurantPhase(Number.NaN, Number.NaN)).toBe('closed');
   });
 
@@ -80,14 +72,15 @@ describe('restaurant hours', () => {
       pumpService(4, room);
       return guestViews().length;
     };
-    expect(arrive(0, 30)).toBe(0);
+    expect(arrive(0, 29.75)).toBe(0);
+    expect(arrive(0, 30)).toBe(1);
     expect(arrive(1, 0)).toBe(1);
     expect(arrive(1, 80)).toBe(1);
     expect(arrive(2, 10)).toBe(1);
     expect(arrive(2, 85)).toBe(1);
     expect(arrive(3, 10)).toBe(1);
-    expect(arrive(3, 49)).toBe(1);
-    expect(arrive(3, 50)).toBe(0);
+    expect(arrive(3, 59.5)).toBe(1);
+    expect(arrive(3, 60)).toBe(0);
     expect(arrive(3, 90)).toBe(0);
   });
 
@@ -105,7 +98,7 @@ describe('restaurant hours', () => {
     expect(spawnGuest(room, 'c_tourist')).toBeTruthy();
     seatArrived();
     expect(guestViews()[0]?.phase).toBe('waiting_order');
-    at(3, 50);
+    at(3, 60);
     expect(pumpService(1, room).notice).toMatch(/cierra/);
     expect(guestViews()).toEqual([]);
     expect(game.save.orders).toEqual([]);
@@ -165,7 +158,7 @@ describe('restaurant hours', () => {
     takeOrderAt('1');
     expect(game.save.orders).toHaveLength(1);
 
-    at(3, 50, 2);
+    at(3, 60, 2);
     expect(pumpService(1, room).notice).toMatch(/cierra/);
     expect(guestViews()[0]?.phase).toBe('waiting_food');
 
@@ -313,9 +306,9 @@ describe('restaurant hours', () => {
     expect(whereIs('rigg')).toBe('home');
     at(3, 70);
     expect(whereIs('pip')).toBe('home');
-    expect(restaurantPhase(3, 70)).toBe('closing');
+    expect(restaurantPhase(3, 70)).toBe('closed');
     expect(shopGate('taro').open).toBe(false);
     expect(shopGate('midnight').tracked).toBe(false);
-    expect(serviceBoardNote().status).toMatch(/Cerrando/);
+    expect(serviceBoardNote().status).toMatch(/Cerrado/);
   });
 });

@@ -24,11 +24,13 @@ describe('continuous town journeys', () => {
     expect(routeDoor('unknown', 'restaurant')).toBeNull();
   });
 
-  it('Bento emerges at his bakery exit before walking to Midnight Maki', () => {
+  it('Bento keeps working at dusk and emerges at his exit after 23:00', () => {
     game.save.time.period = 1;
     const town = new TownLife(); town.sync();
     const bento = town.residents.get('bento')!;
     game.save.time.period = 2; town.sync();
+    expect(bento.trip.settled).toBe(true);
+    game.save.time.period = 3; game.save.time.minutes = 60; town.sync();
     expect(bento.trip.position.zone).toBe('shop_bento');
     expect(bento.trip.settled).toBe(false);
     for (let i = 0; i < 400 && bento.trip.position.zone !== 'plaza'; i++) town.tick(0.05);
@@ -36,7 +38,7 @@ describe('continuous town journeys', () => {
     expect(bento.trip.position).toEqual({ zone: 'plaza', x: door.tx, y: door.ty });
     expect(town.inZone('plaza').some((r) => r.id === 'bento')).toBe(true);
     for (let i = 0; i < 1200 && !bento.trip.settled; i++) town.tick(0.05);
-    expect(bento.trip.position.zone).toBe('restaurant');
+    expect(bento.trip.position.zone).toBe('plaza');
     expect(bento.trip.settled).toBe(true);
   });
 
@@ -44,8 +46,8 @@ describe('continuous town journeys', () => {
     game.save.time.period = 2;
     const town = new TownLife(); town.sync();
     const yuki = town.residents.get('yuki')!;
-    game.save.time.period = 3; town.sync();
-    expect(town.inZone('plaza').some((r) => r.id === 'yuki')).toBe(true);
+    game.save.time.period = 3; game.save.time.minutes = 60; town.sync();
+    expect(town.inZone('shop_yuki').some((r) => r.id === 'yuki')).toBe(true);
     for (let i = 0; i < 800 && !yuki.trip.settled; i++) town.tick(0.05);
     expect(yuki.trip.settled).toBe(true);
     expect(town.inZone('plaza').some((r) => r.id === 'yuki')).toBe(false);

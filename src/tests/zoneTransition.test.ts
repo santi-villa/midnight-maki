@@ -26,6 +26,7 @@ it('provides a free library entrance, exit and reachable reading spot', () => {
   const entrance = ZONES.plaza.doors.find(d => d.to === 'library')!;
   const lib = buildZone('library', false);
   expect(lib.grid.isSolid(entrance.tx, entrance.ty)).toBe(false);
+  expect(buildZone('plaza', false).grid.path(15, 15, entrance.x, entrance.y)).not.toBeNull();
   const reading = lib.def.interact.find(i => i.action === 'library')!;
   expect(lib.grid.path(entrance.tx, entrance.ty, reading.x, reading.y)).not.toBeNull();
   const exit = lib.def.doors[0];
