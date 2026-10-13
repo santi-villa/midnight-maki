@@ -2,14 +2,30 @@
 import { game } from '../core/state';
 import { CHARACTERS, type CharacterDef, type RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
-import { applyBeat, FESTIVAL_SPOT, restaurantPhase, shopPlace, shopStatus, type ShopStatus } from './schedule';
+import { applyBeat, FESTIVAL_SPOT, phaseOf, restaurantPhase, shopPlace, shopStatus, type ShopStatus } from './schedule';
 
 function minutesNow(): number {
   return game.save.time.minutes;
 }
 
 function beat(c: CharacterDef, period: number, base: RoutineStop, hold = false): RoutineStop {
-  return applyBeat(c, period, minutesNow(), base, hold);
+  const stop = applyBeat(c, period, minutesNow(), base, hold);
+  return plazaActivity(c.id, stop, minutesNow());
+}
+
+/** Give resting neighbors an actual bench, and standing neighbors a visible task. */
+const PLAZA_BENCHES: Record<string, [number, number]> = { yuki: [13, 15], taro: [19, 15], ume: [18, 15] };
+export function plazaActivity(id: string, stop: RoutineStop, minutes: number): RoutineStop {
+  if (stop.zone !== 'plaza') return stop;
+  if (phaseOf(minutes) === 'depart') return { ...stop, act: stop.act === 'look' || !stop.act ? 'work' : stop.act }; // keep the exit destination
+  const bench = PLAZA_BENCHES[id];
+  if (bench) return { ...stop, x: bench[0], y: bench[1], wander: 0, seatLift: 12, dir: 'down',
+    act: stop.act === 'eat' || stop.act === 'drink' ? stop.act : 'sit' };
+  if (!stop.act || stop.act === 'look' || stop.act === 'talk') {
+    const act: RoutineStop['act'] = id === 'pip' ? 'play' : id === 'rigg' || id === 'hoshi' || id === 'kumo' ? 'read' : 'work';
+    return { ...stop, act };
+  }
+  return stop;
 }
 
 /** Story/event overrides: flag `at_<id>` = "zone,x,y,act" forces a position until cleared. */

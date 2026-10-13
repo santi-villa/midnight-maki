@@ -1,4 +1,5 @@
 import type { Appearance } from '../core/types';
+import type { Dir } from '../core/types';
 
 /** Poses a character can hold. Walking is separate: it is just moving between these. */
 export type NpcAct = 'sleep' | 'cook' | 'read' | 'sit' | 'play' | 'work' | 'fish' | 'paint' | 'stars' | 'eat' | 'drink' | 'clean' | 'talk' | 'look';
@@ -9,6 +10,9 @@ export interface RoutineStop {
   y: number;
   wander?: number;     // tiles around the anchor the NPC strolls
   act?: NpcAct;
+  /** Visual seating lift; pathfinding still targets the free tile in front of a bench. */
+  seatLift?: number;
+  dir?: Dir;
 }
 
 export interface CharacterDef {
