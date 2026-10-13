@@ -5,6 +5,7 @@ import { TILE_INDEX, TILE_SOLID } from '../art/tiles';
 import { FURN_BY_ID, type FurnitureDef } from '../data/furniture';
 import { PROPS, type PropDef } from '../data/props';
 import { PROJECTS, PROJECT_PROPS } from '../data/projects';
+import { stageForLevel } from '../restaurant/stages';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
 
@@ -24,6 +25,13 @@ export interface BuiltZone {
 export function condOk(cond?: string): boolean {
   if (!cond) return true;
   if (cond === 'rain') return game.flag('weather') === 'rain';
+  // restaurant stage: 'stage=2' exactly, 'stage>=1' from that stage on, 'stage<1' only before it
+  const st = cond.match(/^stage(=|>=|<)(\d)$/);
+  if (st) {
+    const now = stageForLevel(game.save.restaurant.level);
+    const n = Number(st[2]);
+    return st[1] === '=' ? now === n : st[1] === '>=' ? now >= n : now < n;
+  }
   if (cond.startsWith('!')) return !game.has(cond.slice(1));
   return game.has(cond);
 }

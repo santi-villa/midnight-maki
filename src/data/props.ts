@@ -10,6 +10,8 @@ export interface PropDef {
   solid: boolean;
   variant?: number;
   light?: string;
+  /** look of the restaurant facade: 0 inherited .. 3 heart of the village (see restaurant/stages.ts) */
+  stage?: number;
   anim?: 'sway' | 'flicker' | 'water';
   /** text painted on the sprite (shop plaques, signposts) */
   label?: string;
@@ -99,6 +101,10 @@ export const PROPS: Record<string, PropDef> = {
   mechanism: P('mechanism', 3, 1, 48, 44),
   // buildings (variant selects details)
   bld_restaurant: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI' }),
+  bld_restaurant_s0: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI', stage: 0 }),
+  bld_restaurant_s1: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI', stage: 1 }),
+  bld_restaurant_s2: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI', stage: 2 }),
+  bld_restaurant_s3: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI', stage: 3 }),
   bld_clothes: P('building', 6, 3, 96, 80, '#f6e2d6', '#c25a6a', { variant: 1, label: 'ROPA DE YUKI' }),
   bld_store: P('building', 6, 3, 96, 80, '#f3e3c3', '#2f6b4f', { variant: 6, label: 'ALMACÉN DE TARO' }),
   bld_bakery: P('building', 6, 3, 96, 80, '#f6e8cc', '#b0533f', { variant: 7, label: 'PANADERÍA' }),
