@@ -9,11 +9,7 @@ async function boot(page: Page, extra: Record<string, unknown> = {}) {
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
-  await page.getByText('Tocá para continuar').click({ timeout: 8000 }).catch(() => {});
-  for (let i = 0; i < 40; i++) {
-    if (await page.locator('.dlg').isVisible().catch(() => false)) await page.locator('.dlg').click();
-    await page.waitForTimeout(120);
-  }
+  await expect(page.locator('.game-hud .hud-top')).toBeVisible();
 }
 
 interface Scene { zone: string; spot: [number, number]; period: number; minutes?: number; rain?: boolean }

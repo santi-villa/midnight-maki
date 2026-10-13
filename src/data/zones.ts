@@ -33,6 +33,9 @@ export interface ZoneDef {
   floor?: string; // floor style outside decor rooms
 }
 
+// The restaurant's street entrance is also the arrival point after the opening pictures.
+export const RESTAURANT_ENTRY = { zone: 'restaurant', x: 8, y: 12, dir: 'up' } as const;
+
 // ------------------------------------------------------------------ builder
 class Builder {
   g: string[][];
@@ -154,7 +157,7 @@ function plaza(): ZoneDef {
       { x: 26, y: 6, to: 'shop_yuki', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Ropa de Yuki' },
       { x: 27, y: 18, to: 'shop_taro', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Almacén de Taro' },
       { x: 5, y: 18, to: 'shop_bento', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Panadería' },
-      { x: 5, y: 6, to: 'restaurant', tx: 8, ty: 12, dir: 'up', walk: true, label: 'Midnight Maki' },
+      { x: 5, y: 6, to: RESTAURANT_ENTRY.zone, tx: RESTAURANT_ENTRY.x, ty: RESTAURANT_ENTRY.y, dir: RESTAURANT_ENTRY.dir, walk: true, label: 'Midnight Maki' },
       { x: 15, y: 0, to: 'forest', tx: 14, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Kiki dice que el sendero al bosque todavía está lleno de ramas.' } },
       { x: 16, y: 0, to: 'forest', tx: 15, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Kiki dice que el sendero al bosque todavía está lleno de ramas.' } },
       { x: 15, y: 25, to: 'beach', tx: 14, ty: 1, dir: 'down', walk: true, lock: { flag: 'unlock_beach', msg: 'Nami está arreglando el camino a la playa. ¡Pronto!' } },

@@ -42,16 +42,13 @@ test('a full day opens, closes, sleeps and can be skipped', async ({ page }) => 
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await expect(page.locator('.game-hud .hud-top')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId)).toBe('restaurant');
+  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
+  // The original encounter is still required; it starts on a deliberate conversation.
+  await page.evaluate(() => { (window as any).mmDebug.world.onInteract({ kind: 'npc', id: 'spicy', label: '' }); });
   await advance(page);
-  await expect(page.locator('.hud-quest')).toContainText('Entrá a Midnight Maki');
-
-  await page.evaluate(async () => {
-    const w = (window as any).mmDebug.world;
-    w.player.walkTo(w.zone.grid, 5, 6);
-  });
-  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId), { timeout: 15_000 }).toBe('restaurant');
-  await advance(page);
-  await expect(page.locator('.hud-quest')).toContainText('Spicy');
+  await expect(page.locator('.hud-quest')).toContainText('Aprendé a preparar sushi');
   await page.keyboard.press('Escape');
 
   // The prologue leaves us in the restaurant at dusk, which is an open period.

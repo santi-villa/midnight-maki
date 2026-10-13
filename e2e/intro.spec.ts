@@ -29,8 +29,8 @@ test('intro: tap and keyboard advance the lines, and skip closes the letter', as
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
   await expect(page.locator('.book')).toHaveCount(0);
   await expect(page.locator('.letter-wrap')).toHaveCount(0);
-  await page.locator('.dlg').click({ timeout: 15_000 });
-  await expect(page.locator('.hud-quest')).toContainText('Entrá a Midnight Maki', { timeout: 15_000 });
+  await expect(page.locator('.game-hud .hud-top')).toBeVisible();
+  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon', { timeout: 15_000 });
 });
 
 test('intro: the picture and the caption fit a wide window', async ({ page }) => {
@@ -43,6 +43,6 @@ test('intro: the picture and the caption fit a wide window', async ({ page }) =>
   expect(caption!.y + caption!.height).toBeLessThanOrEqual(720);
   expect(photo!.y).toBeGreaterThanOrEqual(0);
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
-  await page.locator('.dlg').click({ timeout: 15_000 });
-  await expect(page.locator('.hud-quest')).toContainText('Entrá a Midnight Maki', { timeout: 15_000 });
+  await expect(page.locator('.game-hud .hud-top')).toBeVisible();
+  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon', { timeout: 15_000 });
 });

@@ -1,7 +1,9 @@
 /** Opening pictures: the letter, the train, and the first sight of Midnight Maki. */
 import { audio } from '../audio/audio';
 import { game } from '../core/state';
-import { fmt, runScene, say } from '../dialogue/dialogue';
+import { RESTAURANT_ENTRY } from '../data/zones';
+import { clock } from '../systems/time';
+import { fmt } from '../dialogue/dialogue';
 import { world } from '../scenes/WorldScene';
 import { fade, h, uiRoot } from '../ui/dom';
 import { showHud } from '../ui/hud';
@@ -187,20 +189,20 @@ export async function playIntro() {
   } finally {
     await stopIntroAudio(0.45);
     closeBook();
-    audio.crossfade('town'); // plaza: fades out the intro song on completion or skip
   }
   addClue('letter_inherit', true);
-  await world.enterZone('plaza', 15, 22, 'up', false);
-  showHud(false);
   world.inputLocked++;
-  await fade(false, 900);
-  await runScene('arrival', async () => {
-    await say('narr', 'Los dos faroles de Midnight Maki están encendidos, al fondo de la plaza. La entrada te espera.');
-  });
-  world.inputLocked--;
-  showHud(true);
-  game.setFlag('arrived');
-  game.touch('intro');
-  const { check } = await import('../quests/quests');
-  check();
+  try {
+    audio.crossfade(clock.period >= 2 ? 'restaurant_night' : 'restaurant');
+    const entry = RESTAURANT_ENTRY;
+    await world.enterZone(entry.zone, entry.x, entry.y, entry.dir, false);
+    await fade(false, 500);
+    game.setFlag('arrived');
+    game.touch('intro');
+    const { check } = await import('../quests/quests');
+    check();
+    showHud(true);
+  } finally {
+    world.inputLocked--;
+  }
 }

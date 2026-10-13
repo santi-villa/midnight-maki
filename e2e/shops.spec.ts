@@ -7,8 +7,8 @@ async function begin(page: Page) {
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
-  await page.locator('.dlg').click();
-  await expect(page.locator('.hud-quest')).toContainText('Entrá a Midnight Maki');
+  await expect(page.locator('.game-hud .hud-top')).toBeVisible();
+  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
   await page.evaluate(() => {
     const g = (window as any).mmDebug.game;
     g.save.time.day = 4;
@@ -16,8 +16,10 @@ async function begin(page: Page) {
     g.save.quests.done = ['prologue'];
     g.save.quests.active = {};
     g.setFlag('intro_done');
+
     for (const id of ['taro', 'bento', 'yuki']) g.setFlag('met_shop_' + id);
   });
+  await page.evaluate(async () => (window as any).mmDebug.world.enterZone('plaza', 26, 20, 'up', false));
 }
 async function at(page: Page, period: number, minutes: number) {
   await page.evaluate(async ({ period, minutes }) => {

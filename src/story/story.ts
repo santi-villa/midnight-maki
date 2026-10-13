@@ -55,11 +55,11 @@ async function lock(fn: () => Promise<void>) {
 defineQuests([
   {
     id: 'prologue', kind: 'main', title: 'Prólogo: Una carta inesperada',
-    desc: 'Llegaste a Villa Nori. Midnight Maki te espera.',
+    desc: 'Llegaste a Midnight Maki. Conocé a sus habitantes y aprendé a cuidar el restaurante.',
     auto: () => game.has('arrived'),
     steps: [
-      { text: 'Entrá a Midnight Maki.', done: () => game.has('intro_done'), target: { kind: 'interior', fromZone: 'plaza', door: { x: 5, y: 6 }, targetZone: 'restaurant', label: 'Midnight Maki' } },
-      { text: 'Hablá con Spicy Beacon en la cocina.', done: () => game.has('tut_spicy'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
+      { text: 'Hablá con Spicy Beacon y conocé a los mapaches.', done: () => game.has('intro_done'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
+      { text: 'Aprendé a preparar sushi con Spicy Beacon en la cocina.', done: () => game.has('tut_spicy'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
       { text: 'Prepará tu primer sushi: tocá "Pedidos" en el mostrador y después la tabla de cocina.', done: () => served() >= 1, target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, label: 'Mostrador de pedidos', interactId: 'orders' } },
       { text: 'Visitá el Almacén de Taro en la plaza y comprá algo.', done: () => (game.save.stats.purchases ?? 0) >= 1, target: { kind: 'object', zone: 'plaza', x: 27, y: 18, label: 'Almacén de Taro', interactId: 'taro_shop' } },
       { text: 'Decorá tu habitación: subí las escaleras y tocá Decorar. Solo se puede en tu cuarto.', done: () => (game.save.stats.decorMoves ?? 0) >= 1, target: { kind: 'interior', fromZone: 'restaurant', door: { x: 16, y: 2 }, targetZone: 'home', interiorTarget: { x: 4, y: 4, label: 'Tu habitación' }, label: 'Habitación' } },
@@ -213,8 +213,7 @@ export async function onEnterZone(zone: string) {
       await say('?Vendedor de luna', 'Bienvenida al Mercado Nocturno. Abrimos los viernes y sábados... y cuando el pueblo lo necesita.');
     });
   }
-  if (zone === 'restaurant' && !game.has('intro_done')) await meetRaccoons();
-  else if (zone === 'lighthouse' && !game.has('lh_entered')) {
+  if (zone === 'lighthouse' && !game.has('lh_entered')) {
     game.setFlag('lh_entered');
     await runScene('lh_enter', async () => {
       await say('narr', 'Adentro del faro hace frío y huele a sal. En el centro, un mecanismo dorado con tres huecos espera en silencio.');
@@ -244,6 +243,8 @@ export function onLockedDoor(to: string): boolean {
 type Beat = () => Promise<void>;
 export function storyTalk(id: string): Beat | null {
   const S = (key: string, fn: () => Promise<void>): Beat => () => runScene(key, fn);
+  // Arrival is explorable: the original encounter begins when the player speaks to Spicy.
+  if (id === 'spicy' && !game.has('intro_done') && world.zoneId === 'restaurant') return meetRaccoons;
   // prologue
   if (id === 'spicy' && game.has('intro_done') && !game.has('tut_spicy')) return S('tut_spicy', tutSpicy);
   // chapter 1
