@@ -543,6 +543,29 @@ const K: Record<string, DrawFn> = {
       px(c, W / 2 - 3, fy + fh / 2, '#3a3440', 7, 1);
     }
   },
+  project_teatable(c, W, H, c1, c2, rot, r) {
+    K.table(c, W, H, c1, c2, rot, r);
+    c.save(); c.translate(8, -9); K.tea(c, 16, H, c2, c1, rot, r); c.restore();
+  },
+  project_teagames(c, W, H, c1, c2, rot, r) {
+    K.project_teatable(c, W, H, c1, '#9bb59a', rot, r);
+    box(c, 3, H - 16, 9, 6, c2);
+    px(c, 5, H - 14, '#f6ecd6', 2, 2);
+  },
+  project_gametable(c, W, H, c1, c2, rot, r) {
+    K.table(c, W, H, c1, c2, rot, r);
+    for (let i = 0; i < 6; i++) box(c, 5 + i % 3 * 7, H - 17 + Math.floor(i / 3) * 5, 5, 4, i % 2 ? '#d9a3a6' : '#9bb59a');
+  },
+  project_workbox(c, W, H, c1, c2, rot, r) {
+    K.crate(c, W, H, c1, c2, rot, r);
+    px(c, 3, H - 15, '#758b8c', 8, 2);
+    px(c, 9, H - 16, '#e6d7b9', 3, 4);
+  },
+  project_plot(c, W, H, c1, c2) {
+    px(c, 0, H - 13, c1, W, 12);
+    px(c, 1, H - 12, c2, W - 2, 10);
+    for (const x of [0, W - 2]) for (const y of [H - 14, H - 3]) px(c, x, y, '#d7b17d', 2, 2);
+  },
   clock(c, W, H) {
     ellipse(c, W / 2, H / 2 - 1, 5, 5, PAL.woodD);
     ellipse(c, W / 2, H / 2 - 1, 4, 4, PAL.cream);
@@ -809,6 +832,6 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   return c;
 }
 
-const FLAT = new Set(['shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds']);
+const FLAT = new Set(['project_plot', 'shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds']);
 
 export const OBJECT_KINDS = Object.keys(K);

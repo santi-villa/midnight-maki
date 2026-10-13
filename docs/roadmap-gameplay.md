@@ -65,13 +65,26 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
     - Comprobación de UI en 1280×800, 390×844 y 320 píxeles de ancho: botones de entrega y premio, estado recibido, recuerdos y persistencia tras recargar la página; sin errores de página ni desbordamiento horizontal. `typecheck` y `build` correctos. Las suites de tests siguen reservadas para el final por pedido del usuario; faltan un celular físico y una partida prolongada para el balance del punto 8.
     - Capturas con progreso de ejemplo: [cartelera en celular](art/encargos/cartelera-celular.png) y [premios semanales en PC](art/encargos/premios-semanales-pc.png).
 
+16. **Ampliación de proyectos del pueblo** (punto 5 de la mejora por etapas):
+    - Seis proyectos y 22 etapas: las cinco restauraciones originales pasan de dos a cuatro etapas, y se suma Rincón de lectura con dos. Se mantienen los IDs, precios, materiales, flags y cambios de mapa de las diez etapas originales.
+    - Las etapas nuevas incluyen participación: cocina manual, regalos, recolección, fotografías guardadas, pesca, bichos, juegos de memoria, riego, cosecha y lectura. **Comenzar colaboración** registra el contador actual sin cobrar; solo cuentan las actividades posteriores. No vence. **Construir etapa** cobra los materiales y monedas cuando todos los requisitos están cumplidos. Índice de etapa y bloqueo de construcción impiden cobros repetidos desde un botón viejo o eventos reentrantes.
+    - Beneficios utilizables: mesa de té y memoria con Pip en la plaza, puesto de materiales y minijuego de ordenar, provisión para cocina en la playa, memoria con Rigg en el bosque y banco de semillas en el jardín. Las provisiones son una vez por día, persistentes al recargar; los juegos reutilizan sus recompensas y límites diarios existentes. El taller también habilita encargos de ordenar.
+    - Orilla cuidada y Sendero de recolección suman dos puntos diarios de recolección por zona. Los índices, semillas y marcas de los puntos anteriores se conservan; los nuevos usan objetos comunes y no modifican la aparición de objetos narrativos.
+    - Bancales nuevos amplía el jardín de seis a ocho parcelas. Las dos nuevas están en posiciones libres de la segunda fila y tienen marcos de madera. Se conservan todas las plantas existentes; plantar, regar, crecer y cosechar utilizan el sistema anterior, con la misma velocidad y condiciones. Una partida que ya tenga el flag de finalización recupera sus parcelas adicionales si le faltan, sin reemplazar cultivos.
+    - El club de lectura añade amistad con Kumo una vez por día al leer, a través del mismo control de atención comercial de 08:00 a 23:00. Los diálogos y las excepciones narrativas de la biblioteca siguen usando el flujo anterior.
+    - La cartelera muestra la próxima etapa, la participación, el costo y el beneficio, con las demás etapas plegadas. Cobrar un encargo actualiza inmediatamente los materiales y botones de construcción de la misma cartelera.
+    - Verificación directa en Chromium: construcción de las 22 etapas con requisitos y cargos exactos, colaboración sin pago ni progreso retroactivo, rechazo de cobros reentrantes y botones viejos, cultivos preservados, nuevas parcelas plantadas/regadas/cosechadas, suministros únicos con reinicio diario, lectura diaria, recolección sin duplicación, exportación/importación y carga de partidas con las diez etapas antiguas completadas. Caminos hacia todas las puertas e interacciones y posiciones de servicios/parcelas comprobados en las cinco zonas de los proyectos.
+    - Recorrido real desde la cartelera en 1280×800 y 390×844: iniciar participación, construir y actualizar el mapa, retirar provisión, visitar plaza/playa/bosque/jardín/biblioteca, respetar el cierre de la biblioteca, plantar y cosechar desde el menú de una parcela adicional, abrir el juego de memoria del claro y conservar proyectos/cultivos al recargar la página. Comprobación de actualización de construcción tras cobrar un encargo. Sin errores de página en estos recorridos.
+    - `typecheck` y `build` correctos. No se ejecutaron las suites de tests por pedido del usuario; se reservan para el final. Pendientes: celular físico, balance de costos/beneficios en una partida prolongada (punto 8) y conexión narrativa de las restauraciones (punto 7).
+    - Capturas de una partida de ejemplo: [colaboración en celular](art/proyectos/colaboracion-celular.png) y [jardín ampliado](art/proyectos/jardin-ocho-parcelas.png).
+
 ## Compatibilidad
 - Guardados viejos: `recipeMastery` es opcional y se completa vacío al cargar (`validateSave`).
 - Sin cambios en los capítulos de la historia ni en los contratos de calidad 0/1/2.
 
 ## Pendiente
-1. Ampliar proyectos por área (punto 5) y conectar sus resultados con pequeñas escenas y recuerdos (punto 7).
-2. Ejecutar las regresiones de los puntos 2, 3 y 6 al finalizar la serie de mejoras (suites pospuestas por pedido del usuario).
+1. Conectar los resultados de las restauraciones con pequeñas escenas y recuerdos (punto 7).
+2. Ejecutar las regresiones de los puntos 2, 3, 6 y 5 al finalizar la serie de mejoras (suites pospuestas por pedido del usuario).
 3. Probar todo en un celular real: hasta ahora solo se probó en un navegador emulado en vertical.
 
 ## Criterios de aceptación de esta etapa

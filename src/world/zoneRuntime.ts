@@ -5,6 +5,7 @@ import { TILE_INDEX, TILE_SOLID } from '../art/tiles';
 import { FURN_BY_ID, type FurnitureDef } from '../data/furniture';
 import { PROPS, type PropDef } from '../data/props';
 import { PROJECTS, PROJECT_PROPS } from '../data/projects';
+import { applyProjectBenefits } from '../restaurant/projects';
 import { applyStageGrants, stageForLevel } from '../restaurant/stages';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
@@ -113,6 +114,7 @@ const DEFAULT_DECOR: Record<string, [string, number, number, number?][]> = {
 };
 
 export function ensureDefaultDecor() {
+  applyProjectBenefits();
   for (const [room, list] of Object.entries(DEFAULT_DECOR)) {
     game.once('decor_' + room, () => {
       const arr = game.room(room);
@@ -130,6 +132,7 @@ export function furnitureSolidTiles(f: PlacedFurniture, def: FurnitureDef): [num
 }
 
 export function buildZone(id: string, night = false): BuiltZone {
+  applyProjectBenefits();
   const def = ZONES[id];
   if (!def) throw new Error('Unknown zone ' + id);
   const tiles: number[][] = [];
@@ -145,7 +148,7 @@ export function buildZone(id: string, night = false): BuiltZone {
   }
   const props: PropInstance[] = [];
   // restoration projects add props once their phase is paid for
-  const projectProps = PROJECTS.filter((pr) => pr.zone === def.id).flatMap((pr) => (PROJECT_PROPS[pr.id] ?? []).flatMap((list, i) => list.map(([id, x, y]) => ({ id, x, y, cond: `proj_${pr.id}_${i + 1}` }))));
+  const projectProps = PROJECTS.filter((pr) => pr.zone === def.id).flatMap((pr) => (PROJECT_PROPS[pr.id] ?? []).flatMap((list, i) => list.filter(([, , , until]) => !until || !game.has(`proj_${pr.id}_${until}`)).map(([id, x, y]) => ({ id, x, y, cond: `proj_${pr.id}_${i + 1}` }))));
   for (const p of [...def.props, ...projectProps]) {
     if (!condOk(p.cond)) continue;
     const pd = PROPS[p.id];
@@ -223,7 +226,7 @@ export function placementKeepsPaths(zoneId: string, room: string, candidate: Pla
     return false;
   };
   for (const [x, y] of essentials) if (!reach(x, y)) return false;
-  for (const i of def.interact) if (!reach(i.x, i.y)) return false;
+  for (const i of def.interact) if (condOk(i.cond) && !reach(i.x, i.y)) return false;
   for (const d of def.doors) if (!d.walk && !reach(d.x, d.y)) return false;
   void room;
   return true;

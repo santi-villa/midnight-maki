@@ -1,5 +1,6 @@
 /** Optional errands follow the game calendar. The saved JSON flag also preserves legacy assignments. */
 import { game } from '../core/state';
+import { activityCount as statNow } from '../core/activityCounters';
 import { CHAR_BY_ID } from '../data/characters';
 import { FURN_BY_ID } from '../data/furniture';
 import { ITEMS_BY_ID } from '../data/items';
@@ -28,7 +29,7 @@ export const TEMPLATES: Template[] = [
   { kind: 'variant', stat: 'variantsPrepared', from: 'Spicy', who: 'spicy', group: 'kitchen', range: [1, 1], weeklyRange: [2, 3], open: () => RECIPES.some((r) => game.save.recipesKnown.includes(r.id) && r.variants?.length), text: (n) => `Preparar ${n} ${n === 1 ? 'plato' : 'platos'} con un ingrediente extra. "¡Un toque personal!"`, hint: 'En una receta con variante, agregá el ingrediente con estrella antes de servir y terminá la preparación.' },
   { kind: 'water', stat: 'plotsWatered', from: 'Momo', who: 'momo', group: 'nature', range: [1, 3], weeklyRange: [4, 6], open: () => game.has('unlock_garden'), text: (n) => `Regar ${n} ${n === 1 ? 'parcela' : 'parcelas'}. "Un poquito de agua, un poquito de cariño."`, hint: 'Plantá semillas y regá en el jardín. Una parcela ya regada no vuelve a contar ese día.' },
   { kind: 'decorate', stat: 'decorMoves', from: 'Yuki', who: 'yuki', group: 'home', range: [1, 2], weeklyRange: [3, 5], open: () => Object.values(game.save.furnitureOwned).some((n) => n > 0) || Object.values(game.save.decor).some((room) => room.length > 0), text: (n) => `Colocar o reorganizar ${n} ${n === 1 ? 'mueble' : 'muebles'}. "Un rincón nuevo cambia la casa."`, hint: 'Usá el modo Decorar para colocar, mover, girar o guardar muebles.' },
-  { kind: 'sort', stat: 'sorted', from: 'Taro', who: 'taro', group: 'home', range: [1, 1], weeklyRange: [2, 3], open: () => game.has('storage_open'), text: (n) => `Ordenar la despensa ${n === 1 ? 'una vez' : `${n} veces`}. "Cada cosa en su cajón."`, hint: 'Completá el minijuego de los cajones del depósito del restaurante.' },
+  { kind: 'sort', stat: 'sorted', from: 'Taro', who: 'taro', group: 'home', range: [1, 1], weeklyRange: [2, 3], open: () => game.has('storage_open') || projectDone('plaza_lights') >= 4, text: (n) => `Ordenar la despensa ${n === 1 ? 'una vez' : `${n} veces`}. "Cada cosa en su cajón."`, hint: 'Completá el minijuego de los cajones del depósito o del taller restaurado de la plaza.' },
   { kind: 'deliver', stat: '', from: 'Taro', who: 'taro', group: 'neighbors', range: [2, 3], weeklyRange: [5, 7], open: always, text: () => '', hint: 'Traé los objetos en la mochila. Al entregar se descuentan; Taro los retira de la cartelera.' },
 ];
 
@@ -56,11 +57,6 @@ export function seeded(seed: number): () => number {
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 export const weekOf = (day: number) => Math.floor((Math.max(1, day) - 1) / 7);
-function statNow(key: string): number {
-  if (key === 'handCooked') return Object.values(game.save.recipeMastery ?? {}).reduce((sum, m) => sum + (m.n || 0), 0);
-  if (key === 'variantsPrepared') return Object.values(game.save.recipeRecords ?? {}).reduce((sum, r) => sum + Object.values(r.variants).reduce((n, v) => n + v.count, 0), 0);
-  return game.save.stats[key] ?? 0;
-}
 export function dailyCount(): number { return game.save.restaurant.level >= 3 ? 3 : 2; }
 
 function rewardFor(t: Template, weekly: boolean, rnd: () => number): ErrandReward {

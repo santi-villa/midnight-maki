@@ -879,6 +879,22 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .errand-stamp.earned { border: 2px solid #bf913e; background: #f4ebd2; }
 .errand-stamp > canvas { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; }
 .errand-stamp .hint { font-size: .8em; }
+.projects-section h3 { margin: 12px 0 4px; color: var(--wood-dark); }
+.project-card { gap: 8px; }
+.project-card p { margin: 0; }
+.project-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.project-benefit, .project-benefits { padding: 8px; border-left: 3px solid #87a66c; background: #e9edda; font-size: .9em; }
+.project-activity { display: flex; flex-direction: column; gap: 5px; padding: 8px; border: 1px solid #c2aa80; background: #f3e9d3; }
+.project-activity .btn { align-self: flex-start; }
+.project-cost { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: .88em; }
+.project-cost span { display: inline-flex; align-items: center; gap: 4px; padding: 4px; background: #eae0ca; border: 1px solid #c7b08b; }
+.project-cost canvas { width: 24px; height: 24px; image-rendering: pixelated; }
+.project-missing { color: #965440; }
+.project-finished { color: #4f6b52; }
+.project-stages { border-top: 1px solid #c7b08b; padding-top: 6px; }
+.project-stages summary { cursor: pointer; min-height: 32px; padding: 4px 0; color: #6c533e; }
+.project-stages > div { padding: 5px 0; }
+.project-stages > div > div { margin-left: 12px; }
 @media (max-width: 440px) {
   .errand-stamps { grid-template-columns: 1fr; }
   .errand-actions .btn { width: 100%; }
