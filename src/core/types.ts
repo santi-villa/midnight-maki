@@ -85,6 +85,16 @@ export interface Photo {
   data: string; // small dataURL thumbnail
 }
 
+export type RecipePresentation = 'classic' | 'indigo' | 'sakura' | 'gold';
+
+export interface RecipeRecord {
+  bestScore?: number;
+  bestQuality?: 0 | 1 | 2;
+  bestDay?: number;
+  variants: Record<string, { count: number; bestScore: number }>;
+  presentation?: RecipePresentation;
+}
+
 export interface SaveData {
   version: number;
   createdAt: number;
@@ -107,6 +117,8 @@ export interface SaveData {
   recipesCooked: Record<string, number>;
   /** mastery per recipe (see restaurant/mastery.ts); missing in older saves */
   recipeMastery?: Record<string, { n: number; g: number; p: number }>;
+  /** Hand-cooked records, discovered variant ingredient IDs and chosen plate style. */
+  recipeRecords?: Record<string, RecipeRecord>;
   restaurant: { level: number; xp: number; reputation: number; upgrades: string[]; served: number };
   orders: Order[];
   nextUid: number;

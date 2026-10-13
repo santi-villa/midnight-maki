@@ -8,6 +8,7 @@
  */
 import { iconElement } from '../art/icons';
 import { cookingIngredient, drawCookingKnife, drawCookingPlate, kitchenOval } from '../art/cooking';
+import { recipePresentation } from './recipeCollection';
 import { audio } from '../audio/audio';
 import type { Track } from '../audio/audio';
 import { settings } from '../core/settings';
@@ -49,7 +50,7 @@ import {
   type RiceKind,
 } from './cookScore';
 
-export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; variant?: string; variantBonus: number; }
+export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; variant?: string; variantItem?: string; variantBonus: number; }
 
 const STEP_NAMES: Record<CookStep['t'], string> = {
   nori: 'Alga', rice: 'Arroz', place: 'Relleno', slice: 'Cortar', roll: 'Enrollar', cut: 'Porciones',
@@ -149,6 +150,7 @@ class CookingGame {
   private raf = 0;
   private done = false;
   private variant: { item: string; name: string; bonus: number } | null = null;
+  private variantUsed = false;
   private timeLimit = 0;
   private sparkles: { x: number; y: number; t: number }[] = [];
   private bits: { x: number; y: number; vx: number; vy: number; t: number; c: string }[] = [];
@@ -278,7 +280,6 @@ class CookingGame {
       case 'place':
         this.needPlace = [...s.items];
         for (const id of new Set(s.items)) this.addTrayItem(id);
-        if (this.variant) this.addTrayItem(this.variant.item, true);
         break;
       case 'slice':
         this.sliceItem = s.item;
@@ -320,7 +321,6 @@ class CookingGame {
       case 'garnish':
         this.needGarnish = [...s.items];
         for (const id of new Set(s.items)) this.addTrayItem(id);
-        if (this.variant && !this.r.steps.some((st) => st.t === 'place')) this.addTrayItem(this.variant.item, true);
         break;
       case 'plate':
         this.plated = 0;
@@ -329,6 +329,8 @@ class CookingGame {
         this.tray.append(h('button', { class: 'btn primary', onclick: () => this.serveAll() }, 'Servir todo'));
         break;
     }
+    // Every recipe can receive its extra before serving, including nigiri with no garnish step.
+    if (this.variant && !this.variantUsed && ['place', 'garnish', 'plate'].includes(s.t)) this.addTrayItem(this.variant.item, true);
   }
 
   private addTrayItem(id: string, optional = false) {
@@ -443,14 +445,19 @@ class CookingGame {
   private onDrop(id: string, x: number, y: number, optional: boolean) {
     const s = this.step;
     if (!s) return;
-    if (optional && this.variant && id === this.variant.item) {
+    if (optional && this.variant && id === this.variant.item && !this.variantUsed) {
+      const box = this.plateBox();
+      if (!(s.t === 'plate' ? inPlate(x, y, box.cx, box.cy, box.rx, box.ry) : this.inMat(x, y))) {
+        this.say(s.t === 'plate' ? 'Soltá el ingrediente extra sobre el plato.' : 'Soltá el ingrediente extra sobre la esterilla.');
+        return;
+      }
       this.garnish.push({ id, x, y });
       audio.sfxPlay('place');
       this.say(`¡Variante ${this.variant.name}!`);
       this.respond(`Variante ${this.variant.name}`);
       this.landed(x, y);
       (this.tray.querySelector(`[data-id="${id}"]`) as HTMLElement)?.classList.add('empty');
-      (this as any).variantUsed = true;
+      this.variantUsed = true;
       return;
     }
     switch (s.t) {
@@ -902,8 +909,7 @@ class CookingGame {
       precision,
     });
     this.verdict = judged;
-    const used = (this as any).variantUsed && this.variant;
-    if (used && this.variant) game.consumeIngredients({ [this.variant.item]: 1 });
+    const used = this.variantUsed && this.variant && game.consumeIngredients({ [this.variant.item]: 1 });
     audio.sfxPlay(judged.quality === 2 ? 'success' : 'sparkle');
     this.say(judged.label);
     this.renderSteps();
@@ -918,6 +924,7 @@ class CookingGame {
         quality: judged.quality,
         score: judged.score,
         variant: used ? this.variant!.name : undefined,
+        variantItem: used ? this.variant!.item : undefined,
         variantBonus: used ? this.variant!.bonus : 0,
       });
     };
@@ -1214,7 +1221,7 @@ class CookingGame {
     // plate
     if (s?.t === 'plate') {
       const box = this.plateBox();
-      drawCookingPlate(g, box.cx, box.cy, box.rx, box.ry);
+      drawCookingPlate(g, box.cx, box.cy, box.rx, box.ry, recipePresentation(this.r.id));
       for (let i = 0; i < this.plated; i++) {
         const pos = this.platedPosition(i, this.plateNeeded, box.cx, box.cy);
         this.drawRollSlice(pos.x, pos.y, 18, 18, true);
@@ -1403,7 +1410,7 @@ class CookingGame {
     g.fillStyle = 'rgba(28,16,12,.72)';
     g.fillRect(0, 0, this.W, this.H);
     const box = { cx: this.W / 2, cy: Math.round(this.H * 0.36) + 8, rx: Math.min(86, this.W / 2 - 16), ry: 30 };
-    drawCookingPlate(g, box.cx, box.cy, box.rx, box.ry);
+    drawCookingPlate(g, box.cx, box.cy, box.rx, box.ry, recipePresentation(this.r.id));
     const n = Math.min(8, Math.max(1, this.pieces || this.plateNeeded || 1));
     for (let i = 0; i < n; i++) {
       const pos = this.platedPosition(i, n, box.cx, box.cy);

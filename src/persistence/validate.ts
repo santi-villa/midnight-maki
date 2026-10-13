@@ -36,9 +36,25 @@ export function validateSave(raw: unknown): SaveData {
   for (const k of ['player', 'restaurant', 'time', 'quests', 'story']) {
     if (isObj(base[k]) && isObj(s[k])) out[k] = { ...base[k], ...s[k] };
   }
-  for (const k of ['inventory', 'flags', 'relationships', 'decor', 'roomStyle', 'furnitureOwned', 'collections', 'stats', 'recipesCooked', 'recipeMastery', 'raccoonOutfits']) {
+  for (const k of ['inventory', 'flags', 'relationships', 'decor', 'roomStyle', 'furnitureOwned', 'collections', 'stats', 'recipesCooked', 'recipeMastery', 'recipeRecords', 'raccoonOutfits']) {
     if (!isObj(out[k])) out[k] = {};
   }
+  // Optional collection data is additive: old saves keep their mastery and served totals.
+  // Do not invent scores or variant discoveries when those were never recorded.
+  out.recipeRecords = Object.fromEntries(Object.entries(out.recipeRecords).filter(([, v]) => isObj(v)).map(([id, v]) => {
+    const raw = v as Record<string, any>;
+    const record = { ...raw, variants: {} } as Record<string, any>;
+    for (const key of ['bestScore', 'bestQuality', 'bestDay']) {
+      if (!Number.isFinite(raw[key])) delete record[key];
+      else record[key] = Math.max(key === 'bestDay' ? 1 : 0, Math.min(key === 'bestScore' ? 100 : key === 'bestQuality' ? 2 : Number.MAX_SAFE_INTEGER, Math.floor(raw[key])));
+    }
+    if (!['classic', 'indigo', 'sakura', 'gold'].includes(raw.presentation)) delete record.presentation;
+    if (isObj(raw.variants)) record.variants = Object.fromEntries(Object.entries(raw.variants).filter(([, v]) => isObj(v) && Number.isFinite(v.count) && v.count >= 1 && Number.isFinite(v.bestScore)).map(([item, v]) => {
+      const variant = v as Record<string, number>;
+      return [item, { count: Math.floor(variant.count), bestScore: Math.max(0, Math.min(100, Math.floor(variant.bestScore))) }];
+    }));
+    return [id, record];
+  }));
   // legacy save compatibility: mika -> sumi
   if (out.relationships.mika) {
     if (!out.relationships.sumi) out.relationships.sumi = out.relationships.mika;
