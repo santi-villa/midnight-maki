@@ -3,6 +3,7 @@
  * soft beige paths that blend into the lawn, sparkling blue water with grassy banks, round leafy trees,
  * fluffy layered pines, log fences, timber-framed cottages with tiled roofs, crates, sacks and stalls.
  */
+import { drawStorefront, type StoreKind } from './storefronts';
 import { ctx2d, ellipse, makeCanvas, mix, px, rng, shade, type Ctx } from './pixel';
 
 export const NAT = {
@@ -224,7 +225,7 @@ export function buildingLayout(W: number, H: number) {
   const wallY = roofH - 3;
   const doorW = 14;
   const dx = Math.floor(W / 2 - doorW / 2);
-  const wy = wallY + 7;
+  const wy = wallY + 13; // below the shop sign
   const windows: { x: number; y: number; w: number; h: number }[] = [];
   for (let x = 9; x + 12 < dx - 3; x += 20) windows.push({ x, y: wy, w: 11, h: 9 });
   for (let x = dx + doorW + 7; x + 12 < W - 6; x += 20) windows.push({ x, y: wy, w: 11, h: 9 });
@@ -573,7 +574,12 @@ export const NATURE_KINDS: Record<string, DrawFn> = {
     logPost(c, W - 7, H - 6, 6);
   },
   building(c, W, H, c1, c2, rot) {
-    // rot encodes variant: 0 restaurant, 1 shop, 2 house, 3 cabin, 4 library, 5 station
+    // rot encodes variant: 0 restaurant, 1 shop, 2 house, 3 cabin, 4 library, 5 station, 6 store, 7 bakery, 8 gallery.
+    // 100..103 are the four stages of the restaurant facade (see art/storefronts.ts).
+    const shop: Record<number, StoreKind> = { 1: 'clothes', 4: 'library', 6: 'store', 7: 'bakery', 8: 'gallery' };
+    if (rot >= 100) return drawStorefront(c, W, H, 'izakaya', rot - 100, c2);
+    if (rot === 0) return drawStorefront(c, W, H, 'izakaya', 1, c2);
+    if (shop[rot]) return drawStorefront(c, W, H, shop[rot]);
     const L = buildingLayout(W, H);
     const wall = rot === 3 ? NAT.woodL : c1;
     const roofH = Math.floor(H * 0.46);

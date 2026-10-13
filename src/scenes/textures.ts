@@ -157,7 +157,7 @@ export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot
       px(g, w.x + Math.floor(w.w / 2), w.y + 1, '#b8661e', 1, w.h - 2); // mullion stays dark
       px(g, w.x + 1, w.y + Math.floor(w.h / 2), '#cf7a26', w.w - 2, 1);
     }
-    if (rot >= 2 && rot !== 5) px(g, Math.round(L.attic.x) - 1, Math.round(L.attic.y) - 1, '#ffd88a', 2, 2);
+    if (rot === 2 || rot === 3) px(g, Math.round(L.attic.x) - 1, Math.round(L.attic.y) - 1, '#ffd88a', 2, 2);
   }
   scene.textures.addCanvas(key, c);
   return key;

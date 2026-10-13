@@ -109,6 +109,12 @@ function plaza(): ZoneDef {
     .prop('bld_restaurant_s1', 2, 4, 'stage=1')
     .prop('bld_restaurant_s2', 2, 4, 'stage=2')
     .prop('bld_restaurant_s3', 2, 4, 'stage=3')
+    // outside the restaurant, more of the street joins in as it grows
+    .prop('sake_barrel', 1, 6, 'stage>=2')
+    .prop('sake_barrel', 1, 5, 'stage>=2')
+    .prop('bamboo', 8, 5, 'stage>=3')
+    .prop('bamboo', 1, 7, 'stage>=3')
+    .prop('flowers', 6, 6, 'stage>=1')
     .prop('bld_clothes', 23, 4)
     .prop('bld_store', 24, 16)
     .prop('bld_bakery', 2, 16)

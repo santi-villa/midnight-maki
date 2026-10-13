@@ -95,3 +95,26 @@ describe('restaurant stages', () => {
     expect([1, 2, 3, 4, 5, 7, 8, 10].map(stageForLevel)).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
   });
 });
+
+describe('restaurant growth', () => {
+  it('adds tables with the stages, once, without touching the player furniture or the door lane', async () => {
+    const { applyStageGrants } = await import('../restaurant/stages');
+    const { ensureDefaultDecor } = await import('../world/zoneRuntime');
+    ensureDefaultDecor();
+    const room = game.room('dining');
+    room.push({ uid: game.uid(), id: 'table_wood', x: 13, y: 10, rot: 0 }); // the player already uses a spot
+    const before = room.length;
+    game.save.restaurant.level = 8;
+    expect(applyStageGrants()).toBe(true);
+    expect(applyStageGrants()).toBe(false);
+    expect(room.length).toBeGreaterThan(before);
+    expect(room.find((f) => f.uid && f.id === 'table_wood' && f.x === 13)).toBeTruthy();
+    const seen = new Set<string>();
+    for (const f of room) {
+      const k = `${f.x},${f.y}`;
+      if (['table_dark', 'chair_dark'].includes(f.id)) expect(seen.has(k) && f.id === 'chair_dark' && room.filter((g) => g.x === f.x && g.y === f.y).length > 1).toBe(false);
+      seen.add(k);
+      expect([8, 9].includes(f.x) && f.y >= 10 ? f.id : '').toBe(''); // door lane stays free
+    }
+  });
+});

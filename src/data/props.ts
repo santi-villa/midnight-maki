@@ -112,7 +112,7 @@ export const PROPS: Record<string, PropDef> = {
   bld_house: P('building', 5, 3, 80, 72, '#f3e3c3', '#2f6b4f', { variant: 2 }),
   bld_cabin: P('building', 5, 3, 80, 72, '#a8734d', '#4f6b52', { variant: 3 }),
   bld_station: P('building', 8, 3, 128, 80, '#d8d0c4', '#5d5864', { variant: 5, label: 'ESTACIÓN VILLA NORI' }),
-  bld_gallery: P('building', 5, 3, 80, 72, '#f6ecd6', '#7a5fb0', { variant: 2, label: 'GALERÍA' }),
+  bld_gallery: P('building', 5, 3, 80, 72, '#f6ecd6', '#7a5fb0', { variant: 8, label: 'GALERÍA' }),
   lighthouse: P('lighthouse', 3, 2, 48, 112),
   // walkable shop interiors
   shop_counter: P('shopcounter', 1, 1, 16, 24, '#a8714a', '#e2b585'),
