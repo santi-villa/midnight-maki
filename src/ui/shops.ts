@@ -38,7 +38,7 @@ const marketOnly = () => clock.period === 3;
 
 export const SHOPS: Record<string, ShopDef> = {
   taro: {
-    title: 'Almacén de Taro', keeper: 'taro', greet: '¡Bienvenida! Arroz, nori, muebles y rumores. Lo último es gratis.',
+    title: 'Almacén de Taro', keeper: 'taro', greet: '¡{Bienvenido|Bienvenida}! Arroz, nori, muebles y rumores. Lo último es gratis.',
     tabs: [
       { name: 'Ingredientes', list: () => items(['rice', 'nori', 'salmon', 'tuna', 'cucumber', 'avocado', 'egg', 'shrimp', 'crab', 'cream', 'sesame', 'wasabi', 'chili', 'tempura', 'mango', 'eel', 'roe', 'scallion', 'carrot', 'ginger', 'umeboshi']) },
       { name: 'Semillas', list: () => items(['sd_scallion', 'sd_cucumber', 'sd_carrot', 'sd_chili', 'sd_flower', ...(game.has('unlock_garden') ? ['sd_sakura'] : [])]) },

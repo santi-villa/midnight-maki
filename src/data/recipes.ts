@@ -219,7 +219,7 @@ export const RECIPES: RecipeDef[] = [
     unlock: { flag: 'recipe_secret', text: 'Experimento de Spicy' }, icon: { type: 'maki', c1: '#3b4470', c2: '#f2c66d' },
   }),
   R({
-    id: 'sofi_maki', name: 'Maki de Sofi', cat: 'special', difficulty: 3,
+    id: 'sofi_maki', name: 'Maki de la casa', cat: 'special', difficulty: 3,
     desc: 'Salmón, palta y mango con un toque de sakura. Hecho con cariño.',
     ingredients: { rice: 1, nori: 1, salmon: 1, avocado: 1, mango: 1, sakura: 1 },
     steps: maki(['salmon', 'avocado', 'mango'], ['sakura']), price: 100, xp: 40,

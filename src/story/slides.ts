@@ -3,6 +3,7 @@
  * Each picture can be replaced by a hand-made image dropped at public/intro/<n>.jpg (or .png).
  */
 import { drawCharacter } from '../art/characters';
+import { drawHero, HERO_H, HERO_W, isHeroLook } from '../art/heroRender';
 import { brightGrass, pathTile } from '../art/nature';
 import { drawObject } from '../art/objects';
 import { ctx2d, ellipse, makeCanvas, px, rng, shade, type Ctx } from '../art/pixel';
@@ -22,9 +23,16 @@ function sky(c: Ctx, stops: [number, string][]) {
 
 /** Character drawn at an integer scale (nearest neighbour). */
 function bigChar(c: Ctx, a: Appearance, dir: 'up' | 'down' | 'left' | 'right', x: number, y: number, scale: number) {
+  c.imageSmoothingEnabled = false;
+  if (isHeroLook(a)) {
+    // the hero frame is a bit bigger than the old one: keep the feet and the centre where the scene expects them
+    const t = makeCanvas(HERO_W, HERO_H);
+    drawHero(ctx2d(t), 0, 0, a, { dir });
+    c.drawImage(t, x + Math.round((20 - HERO_W) * scale / 2), y + (30 - HERO_H) * scale, HERO_W * scale, HERO_H * scale);
+    return;
+  }
   const t = makeCanvas(20, 30);
   drawCharacter(ctx2d(t), 0, 0, a, { dir, legs: 'idle', expr: 'neutral' });
-  c.imageSmoothingEnabled = false;
   c.drawImage(t, x, y, 20 * scale, 30 * scale);
 }
 

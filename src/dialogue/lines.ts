@@ -102,7 +102,7 @@ export const LINES: Record<string, Line[]> = {
     { t: 'Gracias por pasar a saludar. No mucha gente lo hace.', lvl: 2, e: 'happy' },
   ],
   taro: [
-    { t: '¡Bienvenida! Precios justos, rumores gratis. ¿Querés uno? Dicen que de noche aparecen luces en el torii.', e: 'smug' },
+    { t: '¡{Bienvenido|Bienvenida}! Precios justos, rumores gratis. ¿Querés uno? Dicen que de noche aparecen luces en el torii.', e: 'smug' },
     { t: 'Si necesitás arroz, nori o muebles, ya sabés dónde estoy. Siempre estoy.', p: [0, 1] },
     { t: '¿El mercado nocturno? Ah... digamos que algunas noches el pueblo se pone generoso.', p: [2, 3] },
     { t: 'Lluvia: malo para el negocio, bueno para los paraguas. Lástima que no vendo paraguas.', rain: true },
@@ -158,7 +158,7 @@ export const LINES: Record<string, Line[]> = {
     { t: 'Una vez entregué una carta sin remitente al restaurante. Fue hace años. Nunca supe de quién era.', lvl: 1, flag: 'ch1_started' },
   ],
   ume: [
-    { t: 'Ay, querida. Me hacés acordar a alguien que conocí hace mucho.', e: 'happy' },
+    { t: 'Ay, {querido|querida}. Me hacés acordar a alguien que conocí hace mucho.', e: 'happy' },
     { t: 'El té se toma despacio. Las respuestas, también.', p: [0, 1] },
     { t: 'Ese restaurante tuvo días muy alegres. Me alegra que vuelva a tenerlos.', zone: 'restaurant', e: 'happy' },
     { t: 'Las promesas viejas no se rompen: esperan. Como las semillas.', lvl: 2, flag: 'ch3_started' },
@@ -211,7 +211,7 @@ const more: Record<string, Line[]> = {
   ],
   ume: [
     { t: 'El club volvió a reunirse los martes. Esta vez con mapaches. Akio dice que es una mejora.', flag: 'story_done', e: 'happy' },
-    { t: 'Gracias por el té, querida. Me acordé de tardes muy lindas.', flag: 'q_sq_ume_tea_done', weight: 3, set: 'mem_ume_tea' },
+    { t: 'Gracias por el té, {querido|querida}. Me acordé de tardes muy lindas.', flag: 'q_sq_ume_tea_done', weight: 3, set: 'mem_ume_tea' },
   ],
   pip: [
     { t: 'Akio me reconoció enseguida. Dijo "Pip, seguís igual de grandote". ¡Es mi tamaño perfecto para abrazar!', flag: 'akio_visit', e: 'happy', weight: 3, set: 'mem_pip_akio' },

@@ -25,3 +25,15 @@ Oli (cerdito), Toby (koala), Fredi (zorro), Pipo (pingüino), Po (panda), Gigi (
 - `src/art/customerSheet.ts` los convierte al formato de 30 cuadros que ya entiende `Actor`, más 5 cuadros extra: comer (4) y respirar sentado (1).
 - Animaciones: esperar y parpadear, caminar, sentarse y comer. Como solo hay vista frontal y de perfil, caminar hacia abajo usa el frente con un saltito alternado y espejado, y caminar hacia arriba usa el perfil. Sentados miran de perfil y se espejan si la silla mira a la izquierda.
 - Pruebas: `src/tests/customers.test.ts` y `e2e/customers.spec.ts`; captura en `docs/art/clientes-en-juego.png`.
+
+## Protagonistas: Santiago y Sofi
+
+Al empezar una partida se elige a **Santiago** o a **Sofi** (por defecto Santiago). Ambos se dibujan con el motor "folk"
+(`src/art/folk.ts`) y los datos/rutinas humanas de `src/art/hero.ts`; `src/art/heroRender.ts` cachea frames, hojas y retratos.
+
+Personalización (`src/ui/creator.ts`): contextura, 8 tonos de piel, forma de cara, pecas/lunar/rubor, 6 estilos de ojos y 8 colores,
+cejas (estilo y color), nariz, labios, barba/bigote, 26 peinados, 18 colores y mechas, aros, gargantillas/cadenas/dije, ropa
+(buzos, camperas, remeras, camisas, musculosas, jeans, cargo, shorts, polleras, zapatillas, botas…), gorras, vinchas, gorros,
+lentes, bufandas, capa y mochilas. El look extra vive en `Appearance.hero` (`HeroLook`); las partidas viejas siguen funcionando.
+
+Los textos usan `{name}` y `{masculino|femenino}` (ver `src/dialogue/gender.ts`).

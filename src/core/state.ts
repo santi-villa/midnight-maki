@@ -7,27 +7,16 @@ import { BALANCE } from './balance';
 import { bus } from './events';
 import type { Appearance, GameTime, Order, PlacedFurniture, RelationState, SaveData } from './types';
 import { STARTER_CLOTHES } from '../data/clothes';
+import { HERO_DEFAULTS } from '../art/hero';
 import { STARTER_RECIPES } from '../data/recipes';
 import { INGREDIENT_ALIASES } from '../data/items';
 
 export const SAVE_VERSION = 1;
 
-export function defaultAppearance(): Appearance {
-  return {
-    species: 'human',
-    skin: '#f2cfb3',
-    hairStyle: 1,
-    hairColor: '#5b3a2e',
-    eyes: 4,
-    eyeColor: '#5d4037',
-    top: 'top_sweater_rose',
-    bottom: 'bot_skirt_plaid',
-    shoes: 'sh_sneakers',
-    head: '',
-    face: '',
-    extra: '',
-    bag: '',
-  };
+/** The look a new game starts with: Sofi (default) or Santiago, the two playable heroes. */
+export function defaultAppearance(gender: 'm' | 'f' = 'f'): Appearance {
+  const d = HERO_DEFAULTS[gender];
+  return { species: 'human', skin: '#f2cfb3', hairStyle: 1, hairColor: '#5b3a2e', eyes: 0, eyeColor: '#5d4037', top: '', bottom: '', shoes: '', head: '', face: '', extra: '', bag: '', ...d.app, hero: { ...d.look } };
 }
 
 export function newSave(name = 'Sofi', appearance: Appearance = defaultAppearance(), restaurantName = 'Midnight Maki'): SaveData {

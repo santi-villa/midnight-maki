@@ -48,7 +48,7 @@ const bed = (sound: IntroSoundId, volume: number, fade = 1.5): IntroCue => ({ so
 const shot = (sound: IntroSoundId, volume: number, hold?: number): IntroCue => ({ sound, volume, kind: 'shot', hold });
 
 export const LETTER_LINES = [
-  'Querida {name}:',
+  '{Querido|Querida} {name}:',
   'Hace unos meses recibí una postal tuya.',
   'Tal vez no la recuerdes. Era una pregunta sencilla sobre qué hace que un lugar se sienta como un hogar.',
   'Me quedé pensando en tu respuesta mucho más de lo que imaginás.',
@@ -72,13 +72,13 @@ export const INTRO_SCENES: IntroScene[] = [
   {
     id: 'room',
     image: 1,
-    alt: 'Sofi en su habitación, mirando la lluvia',
+    alt: '{name} en su habitación, mirando la lluvia',
     music: 'intro',
     enter: [bed('rain_window', 0.34), bed('city_night', 0.14)],
     lines: [
       { text: 'La lluvia golpeaba suavemente las ventanas de la ciudad.' },
       { text: 'Había sido otro día como cualquier otro. Las mismas calles, la misma sensación de que el tiempo pasaba demasiado rápido.' },
-      { text: 'Sofi no estaba buscando una aventura. Le gustaba su pequeño mundo, sus cosas, sus momentos de tranquilidad.' },
+      { text: '{name} no estaba buscando una aventura. Le gustaba su pequeño mundo, sus cosas, sus momentos de tranquilidad.' },
       { text: 'Pero a veces se preguntaba cómo sería empezar algo completamente diferente.' },
     ],
   },
@@ -101,18 +101,18 @@ export const INTRO_SCENES: IntroScene[] = [
   {
     id: 'reading',
     image: 3,
-    alt: 'Sofi abre y lee la carta en su habitación',
+    alt: '{name} abre y lee la carta en su habitación',
     music: 'intro',
     enter: [bed('city_night', 0)],
     letterAfter: 2,
     lines: [
-      { text: 'Sofi abrió el sobre con curiosidad.', cues: [shot('paper_rustle', 0.5, 1.4)] },
+      { text: '{name} abrió el sobre con curiosidad.', cues: [shot('paper_rustle', 0.5, 1.4)] },
       {
         text: 'Dentro había una carta escrita a mano, unas fotografías de un restaurante y una pequeña llave de metal.',
         cues: [shot('small_key_drop', 0.4, 1.3)],
       },
       { text: 'La carta hablaba de un pueblo llamado Villa Nori, de un restaurante de sushi junto al mar y de una oportunidad que parecía demasiado extraña para ser verdad.' },
-      { text: 'Cuando terminó de leerla, Sofi se quedó mirando las fotografías.' },
+      { text: 'Cuando terminó de leerla, {name} se quedó mirando las fotografías.' },
       { text: '¿Un restaurante? Pero si yo no sé nada de restaurantes...', who: 'player' },
       { text: 'Volvió a mirar la llave.' },
       { text: 'Aunque... podría ir a conocerlo.', who: 'player' },
@@ -121,7 +121,7 @@ export const INTRO_SCENES: IntroScene[] = [
   {
     id: 'packing',
     image: 4,
-    alt: 'Sofi prepara su valija',
+    alt: '{name} prepara su valija',
     music: 'intro',
     enter: [bed('rain_window', 0.16)],
     lines: [
@@ -139,14 +139,14 @@ export const INTRO_SCENES: IntroScene[] = [
   {
     id: 'train',
     image: 5,
-    alt: 'Sofi viaja en tren',
+    alt: '{name} viaja en tren',
     music: 'intro',
     enter: [bed('rain_window', 0, 1.5), shot('steam_train', 0.5)],
     lines: [
       { text: 'El tren partió temprano.' },
       { text: 'Con cada estación, los edificios de la ciudad fueron desapareciendo.' },
       { text: 'Los reemplazaron montañas, bosques, pequeños ríos y casas escondidas entre los árboles.' },
-      { text: 'Sofi miraba el paisaje desde la ventanilla.' },
+      { text: '{name} miraba el paisaje desde la ventanilla.' },
       { text: 'Todavía tenía un montón de preguntas.' },
       { text: 'Pero hacía tiempo que no sentía tanta curiosidad por lo que vendría después.' },
     ],
@@ -154,7 +154,7 @@ export const INTRO_SCENES: IntroScene[] = [
   {
     id: 'village',
     image: 6,
-    alt: 'Sofi llega a Villa Nori',
+    alt: '{name} llega a Villa Nori',
     music: 'intro',
     enter: [
       { sound: 'steam_train', volume: 0, kind: 'shot', fade: 1.5, stop: true },
@@ -166,7 +166,7 @@ export const INTRO_SCENES: IntroScene[] = [
       { text: 'El pueblo parecía salido de un cuento.' },
       { text: 'Había árboles rosados, pequeños comercios de madera, faroles encendidos y una fuente en el centro de la plaza.' },
       { text: 'Algunos vecinos paseaban tranquilamente mientras otros cerraban sus tiendas.' },
-      { text: 'Sofi respiró hondo.' },
+      { text: '{name} respiró hondo.' },
       { text: 'Es... más lindo de lo que imaginaba.', who: 'player' },
       { text: 'Sacó la carta para comprobar la dirección.' },
       { text: 'Midnight Maki debía estar cerca.' },
@@ -175,7 +175,7 @@ export const INTRO_SCENES: IntroScene[] = [
   {
     id: 'midnight',
     image: 7,
-    alt: 'Sofi frente al restaurante Midnight Maki',
+    alt: '{name} frente al restaurante Midnight Maki',
     music: 'intro',
     enter: [bed('water_fountain', 0.07, 1.8)],
     lines: [
@@ -183,7 +183,7 @@ export const INTRO_SCENES: IntroScene[] = [
       { text: 'Sobre la entrada había un cartel antiguo: MIDNIGHT MAKI.' },
       { text: 'El edificio parecía necesitar algunas reparaciones, pero sus faroles estaban encendidos.' },
       { text: 'Y detrás de las ventanas se distinguían pequeñas sombras moviéndose.' },
-      { text: 'Sofi se acercó a la puerta.', cues: [shot('wooden_footsteps', 0.36, 1.6)] },
+      { text: '{name} se acercó a la puerta.', cues: [shot('wooden_footsteps', 0.36, 1.6)] },
       { text: 'Estaba a punto de sacar la llave cuando escuchó voces desde el interior.' },
       { text: '¿Hay alguien adentro...?', who: 'player' },
       { text: 'Respiró hondo y se acercó a la entrada.' },

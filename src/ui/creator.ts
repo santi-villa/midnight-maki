@@ -1,32 +1,31 @@
-/** Character creator (also reused later from the wardrobe for appearance changes). */
-import { drawCharacter, EYE_STYLES, FH, FW, HAIR_STYLES } from '../art/characters';
+/** Character creator (also reused from the wardrobe for appearance changes). The player is Santiago or Sofi, with lots of options. */
+import { drawCharacter, FH, FW } from '../art/characters';
+import { BROW_STYLES, EARRINGS, EYE_STYLES, FACE_SHAPES, FACIAL_HAIR, HERO_DEFAULTS, HERO_EYE_COLORS, HERO_HAIR, HERO_HAIR_COLORS, HERO_SKINS, NECK, heroLook } from '../art/hero';
+import { drawHero, heroHeadshot, HERO_H, HERO_W, isHeroLook } from '../art/heroRender';
 import { ctx2d, makeCanvas } from '../art/pixel';
 import { audio } from '../audio/audio';
 import { defaultAppearance } from '../core/state';
-import type { Appearance, Dir, Species } from '../core/types';
+import type { Appearance, Dir } from '../core/types';
 import { CLOTHES, CLOTHES_BY_ID, type ClothingSlot } from '../data/clothes';
 import { h, panel } from './dom';
 
-export const SPECIES: { id: Species; name: string }[] = [
-  { id: 'human', name: 'Humana' },
-  { id: 'cat', name: 'Gatita' },
-  { id: 'fox', name: 'Zorrita' },
-  { id: 'bunny', name: 'Conejita' },
-  { id: 'raccoon', name: 'Mapache' },
-  { id: 'bear', name: 'Osita' },
-  { id: 'dog', name: 'Perrita' },
-  { id: 'squirrel', name: 'Ardilla' },
-];
+const LIP_COLORS = ['#c9606c', '#a8434f', '#e58f98', '#8e3e4e', '#b8707a'];
+const BROW_COLORS = ['#1f1a22', '#3a281f', '#5a3d2e', '#8a6a44', '#b8a07a', '#8c8a96'];
+const BUILDS = ['Delgada', 'Normal', 'Robusta'];
+const NOSES = ['Chica', 'Normal', 'Marcada'];
+const OPEN_EXTRAS = ['hd_bow', 'hd_flower', 'fc_glasses', 'fc_round', 'fc_sun', 'ex_scarf_red', 'bg_satchel', 'hd_beanie', 'top_kimono_sakura', 'bot_dress_rose', 'top_stripes_navy'];
 
-const SKINS_HUMAN = ['#f7dcc6', '#f2cfb3', '#e3b48e', '#c98e66', '#9c6644', '#6e4630'];
-const FURS = ['#f3e6c8', '#e0c08a', '#d8874f', '#a8734d', '#8d8a93', '#5d5864', '#fbf6ea', '#c9a0a0'];
-const HAIRS = ['#2a2230', '#5b3a2e', '#8a5a3c', '#d8a05a', '#f2dc8a', '#b2585e', '#d9a3a6', '#b7a8d6', '#6f9fb8', '#9bb59a', '#d8d2c8'];
-const EYES = ['#5d4037', '#2a2230', '#4f6b52', '#3b6f9c', '#9686bd', '#c27f86', '#a07116'];
-
+/** Previews of any look (shops, wardrobe): heroes use the new renderer, the old animal species the old one. */
 export function previewCanvas(a: Appearance, dirs: Dir[] = ['down', 'right', 'up'], scale = 4): HTMLCanvasElement {
-  const c = makeCanvas(FW * dirs.length + (dirs.length - 1) * 4, FH);
+  const hero = isHeroLook(a);
+  const fw = hero ? HERO_W : FW;
+  const fh = hero ? HERO_H : FH;
+  const c = makeCanvas(fw * dirs.length + (dirs.length - 1) * 2, fh);
   const g = ctx2d(c);
-  dirs.forEach((d, i) => drawCharacter(g, i * (FW + 4), 0, a, { dir: d, legs: 'idle', expr: 'neutral' }));
+  dirs.forEach((d, i) => {
+    if (hero) drawHero(g, i * (fw + 2), 0, a, { dir: d });
+    else drawCharacter(g, i * (fw + 2), 0, a, { dir: d, legs: 'idle', expr: 'neutral' });
+  });
   c.style.width = c.width * scale + 'px';
   c.style.height = c.height * scale + 'px';
   return c;
@@ -45,8 +44,14 @@ interface CreatorOpts {
 }
 
 export function openCreator(o: CreatorOpts) {
-  const a: Appearance = { ...(o.initial ?? defaultAppearance()) };
-  let name = o.name ?? 'Sofi';
+  // any older (animal) look is turned into the human hero; the clothes are kept
+  const base = o.initial ?? defaultAppearance('m');
+  const a: Appearance = isHeroLook(base) ? { ...base, hero: heroLook(base) } : { ...defaultAppearance(), top: base.top, bottom: base.bottom, shoes: base.shoes };
+  const L = () => a.hero as NonNullable<Appearance['hero']>;
+  const gender = () => L().gender ?? 'f';
+  const defaultName = () => HERO_DEFAULTS[gender() === 'm' ? 'm' : 'f'].name;
+  let name = o.name ?? defaultName();
+  let nameTouched = !!o.name && o.name !== 'Sofi' && o.name !== 'Santiago';
   let rest = o.restaurant ?? 'Midnight Maki';
   let done = false;
 
@@ -55,18 +60,18 @@ export function openCreator(o: CreatorOpts) {
   let dirIdx = 0;
   let walking = false;
   let frame = 0;
-  const stage = makeCanvas(FW + 8, FH + 4);
+  const stage = makeCanvas(HERO_W + 8, HERO_H + 4);
   stage.className = 'cr-stage-canvas';
   const sg = ctx2d(stage);
   const paintStage = () => {
     sg.clearRect(0, 0, stage.width, stage.height);
     sg.fillStyle = 'rgba(30,60,30,.28)';
     sg.beginPath();
-    sg.ellipse(stage.width / 2, stage.height - 3, 7, 2, 0, 0, Math.PI * 2);
+    sg.ellipse(stage.width / 2, stage.height - 3, 8, 2, 0, 0, Math.PI * 2);
     sg.fill();
     const legs = walking ? (['idle', 'a', 'idle', 'b'] as const)[frame % 4] : 'idle';
     const blink = !walking && frame % 18 === 17;
-    drawCharacter(sg, 4, (walking && legs !== 'idle' ? -1 : 0) + 1, a, { dir: DIRS[dirIdx], legs, expr: blink ? 'blink' : 'neutral' });
+    drawHero(sg, 4, 2, a, { dir: DIRS[dirIdx], legs, expr: blink ? 'blink' : 'neutral', bob: walking && legs !== 'idle' ? -1 : 0 });
   };
   const timer = window.setInterval(() => {
     frame++;
@@ -77,7 +82,7 @@ export function openCreator(o: CreatorOpts) {
     audio.sfxPlay('tap');
     paintStage();
   };
-  const walkBtn = h('button', { class: 'btn small', onclick: () => { walking = !walking; walkBtn.textContent = walking ? 'Quieta' : 'Caminar'; } }, 'Caminar');
+  const walkBtn = h('button', { class: 'btn small', onclick: () => { walking = !walking; walkBtn.textContent = walking ? 'Quieto' : 'Caminar'; } }, 'Caminar');
   const stageBox = h(
     'div',
     { class: 'cr-stage' },
@@ -96,10 +101,11 @@ export function openCreator(o: CreatorOpts) {
 
   // ---------------------------------------------------------------- building blocks
   const section = (label: string, ...kids: (HTMLElement | null)[]) => h('div', { class: 'cr-sec' }, h('div', { class: 'cr-label' }, label), ...kids.filter(Boolean) as HTMLElement[]);
-  const swatches = (colors: () => string[], get: () => string, set: (c: string) => void) => {
+  const swatches = (colors: () => string[], get: () => string, set: (c: string) => void, none?: string) => {
     const wrap = h('div', { class: 'cr-swatches' });
     const draw = () => {
       wrap.innerHTML = '';
+      if (none) wrap.append(h('button', { class: 'btn small' + (get() === '' ? ' sel' : ''), style: get() === '' ? { outline: '3px solid var(--gold)' } : {}, onclick: () => { set(''); audio.sfxPlay('tap'); rerender(); } }, none));
       for (const c of colors())
         wrap.append(h('button', { class: 'swatch' + (c === get() ? ' sel' : ''), style: { background: c }, 'aria-label': c, onclick: () => { set(c); audio.sfxPlay('tap'); rerender(); } }));
     };
@@ -107,16 +113,17 @@ export function openCreator(o: CreatorOpts) {
     refreshers.push(draw);
     return wrap;
   };
+  const clone = (): Appearance => ({ ...a, hero: { ...L() } });
   /** grid of tiles; each tile shows a mini preview of the character with that option applied */
   const tiles = (options: () => { key: string; label: string; apply: (x: Appearance) => void; current: boolean }[], crop: 'head' | 'body' | 'full' = 'full') => {
     const wrap = h('div', { class: 'cr-tiles ' + crop });
     const draw = () => {
       wrap.innerHTML = '';
       for (const op of options()) {
-        const look: Appearance = { ...a };
+        const look = clone();
         op.apply(look);
-        const cv = makeCanvas(FW, crop === 'head' ? 18 : FH);
-        drawCharacter(ctx2d(cv), 0, 0, look, { dir: 'down', legs: 'idle', expr: 'neutral' });
+        const cv = crop === 'head' ? heroHeadshot(look) : previewCanvas(look, ['down'], 1);
+        cv.removeAttribute('style');
         wrap.append(h('button', { class: 'cr-tile' + (op.current ? ' sel' : ''), title: op.label, onclick: () => { op.apply(a); audio.sfxPlay('tap'); rerender(); } }, cv, h('span', null, op.label)));
       }
     };
@@ -124,41 +131,71 @@ export function openCreator(o: CreatorOpts) {
     refreshers.push(draw);
     return wrap;
   };
+  const look = <K extends keyof NonNullable<Appearance['hero']>>(key: K, labels: string[], crop: 'head' | 'full' = 'head') =>
+    tiles(() => labels.map((label, i) => ({ key: String(i), label, current: L()[key] === i, apply: (x: Appearance) => { (x.hero as Record<string, unknown>)[key] = i; } })), crop);
+  const flag = (key: 'freckles' | 'mole' | 'blush', yes: string, no: string) =>
+    tiles(() => [false, true].map((v) => ({ key: String(v), label: v ? yes : no, current: !!L()[key] === v, apply: (x: Appearance) => { (x.hero as Record<string, unknown>)[key] = v; } })), 'head');
 
   const clothesFor = (slot: ClothingSlot) => {
-    const list = CLOTHES.filter((c) => c.slot === slot && (o.ownedClothes ? o.ownedClothes.includes(c.id) : c.price === 0 && c.shop === 'yuki' || ['hd_bow', 'hd_flower', 'fc_glasses', 'ex_scarf_red', 'bg_satchel', 'hd_beanie', 'top_kimono_sakura', 'bot_dress_rose', 'top_stripes_navy'].includes(c.id)));
+    const list = CLOTHES.filter((c) => c.slot === slot && (o.ownedClothes ? o.ownedClothes.includes(c.id) : (c.price === 0 && c.shop === 'yuki') || OPEN_EXTRAS.includes(c.id)));
     const ids = list.map((c) => c.id);
-    if (['head', 'face', 'extra', 'bag'].includes(slot)) ids.unshift('');
+    if (slot !== 'top' && slot !== 'bottom' && slot !== 'shoes') ids.unshift('');
     return ids;
   };
   const clothTiles = (slot: ClothingSlot) =>
     tiles(() => clothesFor(slot).map((id) => ({ key: id, label: id ? CLOTHES_BY_ID[id]?.name ?? id : 'Nada', current: a[slot] === id, apply: (x: Appearance) => { x[slot] = id; } })), slot === 'head' || slot === 'face' ? 'head' : 'full');
 
-  const setSpecies = (sp: Species) => {
-    a.species = sp;
-    const pal = sp === 'human' ? SKINS_HUMAN : FURS;
-    if (!pal.includes(a.skin)) a.skin = pal[sp === 'human' ? 1 : sp === 'raccoon' ? 4 : 1];
-  };
-
-  const nameInput = h('input', { type: 'text', value: name, maxlength: '14', 'aria-label': 'Nombre', oninput: (e: Event) => (name = (e.target as HTMLInputElement).value) });
+  const nameInput = h('input', { type: 'text', value: name, maxlength: '14', 'aria-label': 'Nombre', oninput: (e: Event) => { name = (e.target as HTMLInputElement).value; nameTouched = true; } }) as HTMLInputElement;
   const restInput = h('input', { type: 'text', value: rest, maxlength: '20', 'aria-label': 'Nombre del restaurante', oninput: (e: Event) => (rest = (e.target as HTMLInputElement).value) });
 
+  /** switch between the two heroes: starts again from that hero's own look (and name, unless the player typed one) */
+  const pickHero = (g: 'm' | 'f') => {
+    const d = defaultAppearance(g);
+    Object.assign(a, d, o.ownedClothes ? { top: a.top, bottom: a.bottom, shoes: a.shoes, head: a.head, face: a.face, extra: a.extra, bag: a.bag } : {});
+    if (!nameTouched) { name = HERO_DEFAULTS[g].name; nameInput.value = name; }
+  };
+
   // ---------------------------------------------------------------- tabs
-  const pages: [string, () => HTMLElement][] = [
+  const pages: [string, () => HTMLElement][] = [];
+  if (o.askNames)
+    pages.push(['Personaje', () => h('div', null,
+      section('¿Quién sos?', tiles(() => (['m', 'f'] as const).map((g) => ({ key: g, label: HERO_DEFAULTS[g].name, current: gender() === g, apply: (x: Appearance) => { if (x === a) pickHero(g); else Object.assign(x, defaultAppearance(g)); } })), 'full')),
+      h('p', { class: 'hint' }, 'Santiago o Sofi: elegí a quien quieras ser. Después podés cambiarle todo: pelo, cara, ropa y accesorios.'),
+    )]);
+  pages.push(
     ['Cuerpo', () => h('div', null,
-      section('Apariencia', tiles(() => SPECIES.map((sp) => ({ key: sp.id, label: sp.name, current: a.species === sp.id, apply: (x: Appearance) => { x.species = sp.id; const pal = sp.id === 'human' ? SKINS_HUMAN : FURS; if (!pal.includes(x.skin)) x.skin = pal[sp.id === 'human' ? 1 : sp.id === 'raccoon' ? 4 : 1]; } })), 'head')),
-      section(a.species === 'human' ? 'Piel' : 'Pelaje', swatches(() => (a.species === 'human' ? SKINS_HUMAN : FURS), () => a.skin, (c) => (a.skin = c))),
+      section('Contextura', look('build', BUILDS, 'full')),
+      section('Piel', swatches(() => HERO_SKINS, () => a.skin, (c) => (a.skin = c))),
+      section('Forma de cara', look('face', FACE_SHAPES)),
+      section('Pecas', flag('freckles', 'Con pecas', 'Sin pecas')),
+      section('Lunar', flag('mole', 'Con lunar', 'Sin lunar')),
+      section('Rubor', flag('blush', 'Con rubor', 'Sin rubor')),
     )],
-    ['Pelo y ojos', () => h('div', null,
-      section('Peinado', tiles(() => HAIR_STYLES.map((hs, i) => ({ key: String(i), label: hs.name, current: a.hairStyle === i, apply: (x: Appearance) => { x.hairStyle = i; } })), 'head')),
-      section('Color de pelo', swatches(() => HAIRS, () => a.hairColor, (c) => (a.hairColor = c))),
+    ['Cara', () => h('div', null,
       section('Ojos', tiles(() => EYE_STYLES.map((n, i) => ({ key: String(i), label: n, current: a.eyes === i, apply: (x: Appearance) => { x.eyes = i; } })), 'head')),
-      section('Color de ojos', swatches(() => EYES, () => a.eyeColor, (c) => (a.eyeColor = c))),
+      section('Color de ojos', swatches(() => HERO_EYE_COLORS, () => a.eyeColor, (c) => (a.eyeColor = c))),
+      section('Cejas', look('brow', BROW_STYLES)),
+      section('Color de cejas', swatches(() => BROW_COLORS, () => L().browColor ?? '', (c) => (L().browColor = c), 'Como el pelo')),
+      section('Nariz', look('nose', NOSES)),
+      section('Labios', swatches(() => LIP_COLORS, () => L().lips ?? '', (c) => (L().lips = c), 'Naturales')),
+      section('Barba y bigote', look('facial', FACIAL_HAIR)),
+    )],
+    ['Pelo', () => h('div', null,
+      section('Peinado', tiles(() => HERO_HAIR.map((hs, i) => ({ key: String(i), label: hs.name, current: a.hairStyle === i, apply: (x: Appearance) => { x.hairStyle = i; } })), 'head')),
+      section('Color de pelo', swatches(() => HERO_HAIR_COLORS, () => a.hairColor, (c) => (a.hairColor = c))),
+      section('Mechas y reflejos', swatches(() => HERO_HAIR_COLORS, () => L().hairHi ?? '', (c) => (L().hairHi = c), 'Automático')),
     )],
     ['Ropa', () => h('div', null, section('Arriba', clothTiles('top')), section('Abajo', clothTiles('bottom')), section('Calzado', clothTiles('shoes')))],
-    ['Accesorios', () => h('div', null, section('Cabeza', clothTiles('head')), section('Cara', clothTiles('face')), section('Extra', clothTiles('extra')), section('Bolso', clothTiles('bag')))],
-  ];
-  if (o.askNames) pages.push(['Nombre', () => h('div', null, section('Tu nombre', nameInput), section('Nombre del restaurante', restInput), h('p', { class: 'hint' }, 'Podés cambiar tu ropa más adelante desde el ropero de tu habitación.'))]);
+    ['Accesorios', () => h('div', null,
+      section('Aros', look('earrings', EARRINGS)),
+      section('Cuello', look('neck', NECK, 'full')),
+      section('Cabeza', clothTiles('head')),
+      section('Lentes y cara', clothTiles('face')),
+      section('Extra', clothTiles('extra')),
+      section('Bolso', clothTiles('bag')),
+    )],
+  );
+  if (o.askNames) pages.push(['Nombre', () => h('div', null, section('Tu nombre', nameInput), section('Nombre del restaurante', restInput), h('p', { class: 'hint' }, 'Podés cambiar tu ropa y tu look más adelante desde el ropero de tu habitación.'))]);
 
   const content = h('div', { class: 'cr-page' });
   const tabBar = h('div', { class: 'tabs cr-tabs' });
@@ -173,19 +210,31 @@ export function openCreator(o: CreatorOpts) {
   const body = h('div', { class: 'creator2' }, stageBox, h('div', { class: 'cr-side' }, tabBar, content));
   show(0);
   paintStage();
-  void setSpecies;
 
+  const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
   const randomize = () => {
-    setSpecies(SPECIES[Math.floor(Math.random() * SPECIES.length)].id);
-    const pal = a.species === 'human' ? SKINS_HUMAN : FURS;
-    a.skin = pal[Math.floor(Math.random() * pal.length)];
-    a.hairStyle = Math.floor(Math.random() * (HAIR_STYLES.length - 1));
-    a.hairColor = HAIRS[Math.floor(Math.random() * HAIRS.length)];
+    const l = L();
+    a.skin = pick(HERO_SKINS);
+    a.hairStyle = Math.floor(Math.random() * HERO_HAIR.length);
+    a.hairColor = pick(HERO_HAIR_COLORS);
+    l.hairHi = Math.random() < 0.25 ? pick(HERO_HAIR_COLORS) : '';
     a.eyes = Math.floor(Math.random() * EYE_STYLES.length);
-    a.eyeColor = EYES[Math.floor(Math.random() * EYES.length)];
+    a.eyeColor = pick(HERO_EYE_COLORS);
+    l.build = pick([0, 1, 2] as const);
+    l.face = Math.floor(Math.random() * FACE_SHAPES.length);
+    l.brow = Math.floor(Math.random() * BROW_STYLES.length);
+    l.browColor = '';
+    l.nose = Math.floor(Math.random() * NOSES.length);
+    l.lips = Math.random() < 0.4 ? pick(LIP_COLORS) : '';
+    l.freckles = Math.random() < 0.2;
+    l.mole = Math.random() < 0.15;
+    l.blush = Math.random() < 0.35;
+    l.facial = l.gender === 'm' && Math.random() < 0.4 ? 1 + Math.floor(Math.random() * (FACIAL_HAIR.length - 1)) : 0;
+    l.earrings = Math.random() < 0.3 ? 1 + Math.floor(Math.random() * (EARRINGS.length - 1)) : 0;
+    l.neck = Math.random() < 0.5 ? 1 + Math.floor(Math.random() * (NECK.length - 1)) : 0;
     for (const sl of ['top', 'bottom', 'shoes', 'head', 'face', 'extra', 'bag'] as ClothingSlot[]) {
       const opts = clothesFor(sl);
-      a[sl] = opts[Math.floor(Math.random() * opts.length)];
+      a[sl] = sl === 'face' || sl === 'extra' || sl === 'bag' || sl === 'head' ? (Math.random() < 0.6 ? '' : pick(opts)) : pick(opts);
     }
     audio.sfxPlay('tap');
     const active = [...tabBar.children].findIndex((t) => t.classList.contains('active'));
@@ -203,7 +252,7 @@ export function openCreator(o: CreatorOpts) {
         class: 'btn primary',
         onclick: () => {
           done = true;
-          const nm = name.trim().slice(0, 14) || 'Sofi';
+          const nm = name.trim().slice(0, 14) || defaultName();
           const rs = rest.trim().slice(0, 20) || 'Midnight Maki';
           p.close();
           o.onDone(a, nm, rs);

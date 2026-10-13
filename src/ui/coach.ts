@@ -5,6 +5,7 @@
 import { bus } from '../core/events';
 import { game } from '../core/state';
 import { inDialogue } from '../dialogue/dialogue';
+import { fillText } from '../dialogue/gender';
 import { h, modalOpen, uiRoot } from './dom';
 import { portraitURL } from '../systems/appearance';
 
@@ -48,7 +49,7 @@ export function installCoach() {
   if (installed) return;
   installed = true;
   const arrival = () => {
-    show({ id: 'move', who: 'pip', target: '.joystick', text: 'Para caminar, arrastrá la ruedita de madera. También podés tocar el suelo y {name} va sola.'.replace('{name}', game.save.player.name) });
+    show({ id: 'move', who: 'pip', target: '.joystick', text: fillText('Para caminar, arrastrá la ruedita de madera. También podés tocar el suelo y {name} {va solo|va sola}.', game.save.player.name, '', game.save.player.appearance.hero?.gender ?? 'f') });
     show({ id: 'arrow', who: 'rigg', text: 'Si no sabés adónde ir, seguí la flechita dorada que gira a tu alrededor. Siempre apunta a tu misión.' });
   };
   bus.on('flag:set', ({ key }) => {

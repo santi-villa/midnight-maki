@@ -78,7 +78,7 @@ const SCENES: Record<string, { where: string; night?: boolean; play: () => Promi
   flowers: {
     where: 'garden',
     play: async () => {
-      await say('momo', '¡Bienvenida al Festival de las Flores! Hoy el jardín se viste de fiesta.', 'happy');
+      await say('momo', '¡{Bienvenido|Bienvenida} al Festival de las Flores! Hoy el jardín se viste de fiesta.', 'happy');
       await say('momo', 'Hay un concurso: traé la flor más linda que tengas. No importa ganar... bueno, un poquito importa.');
       const flowers = Object.keys(game.save.inventory).filter((id) => id.startsWith('fl_'));
       if (!flowers.length) {
@@ -149,7 +149,7 @@ const SCENES: Record<string, { where: string; night?: boolean; play: () => Promi
   moon: {
     where: 'market',
     play: async () => {
-      await say('?Vendedor de luna', 'Bienvenida al Mercado de la Luna. Hoy todo brilla un poco más.', 'happy');
+      await say('?Vendedor de luna', '{Bienvenido|Bienvenida} al Mercado de la Luna. Hoy todo brilla un poco más.', 'happy');
       await say('narr', 'Los puestos venden cosas que no se ven el resto del año. Te regalan una perla de luna por venir.');
       game.addItem('moonpearl', 2, 'festival');
       game.addItem('starfruit', 1, 'festival');

@@ -19,6 +19,26 @@ export interface Appearance {
   bag: string;
   /** optional fur markings (raccoons and other animals) */
   marks?: { mask?: string; face?: string; belly?: string; arms?: string; stripe?: string; ear?: string };
+  /** extra customization of the playable human heroes (Santiago / Sofi); missing fields fall back to the hero's defaults */
+  hero?: Partial<HeroLook>;
+}
+
+/** Look options of the human heroes that go beyond the classic Appearance fields. */
+export interface HeroLook {
+  gender: 'm' | 'f';
+  build: 0 | 1 | 2;      // slim / regular / broad
+  face: number;          // face shape
+  brow: number;
+  browColor: string;     // '' = follows the hair colour
+  nose: number;
+  lips: string;          // '' = natural
+  freckles: boolean;
+  mole: boolean;
+  blush: boolean;
+  facial: number;        // facial hair style
+  hairHi: string;        // hair highlight colour, '' = automatic
+  earrings: number;
+  neck: number;
 }
 
 export interface PlacedFurniture {

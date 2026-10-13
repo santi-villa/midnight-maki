@@ -1,5 +1,6 @@
 import { buildPortrait, type Expr } from '../art/characters';
 import { buildFolkPortrait, type FolkCustom } from '../art/folk';
+import { heroPortrait, isHeroLook } from '../art/heroRender';
 import { CLOTHES_BY_ID } from '../data/clothes';
 import { FOLK_SPECS } from '../data/folkSpecs';
 import { game } from '../core/state';
@@ -54,7 +55,8 @@ export function portraitURL(id: string, expr: Expr = 'neutral'): string {
   const key = appearanceKey(id) + '|' + expr;
   let url = portraitCache.get(key);
   if (!url) {
-    url = (folk ? buildFolkPortrait(folk, expr, 5, folkCustom(id)) : buildPortrait(appearanceOf(id), expr, dropOf(id))).toDataURL();
+    const a = appearanceOf(id);
+    url = (folk ? buildFolkPortrait(folk, expr, 5, folkCustom(id)) : id === 'player' && isHeroLook(a) ? heroPortrait(a, expr) : buildPortrait(a, expr, dropOf(id))).toDataURL();
     portraitCache.set(key, url);
   }
   return url;
