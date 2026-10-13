@@ -43,7 +43,7 @@ for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 720 }); await plaza(page);
     const seated = await page.evaluate(() => {
       const w = (window as any).mmDebug.world;
-      return ['yuki', 'taro', 'ume'].map(id => { const a = w.npc(id); return { id, act: a.act, lift: a.seatLift, solid: w.zone.grid.isSolid(a.tx, a.ty), spriteY: a.sprite.y, feet: a.y }; });
+      return ['ume'].map(id => { const a = w.npc(id); return { id, act: a.act, lift: a.seatLift, solid: w.zone.grid.isSolid(a.tx, a.ty), spriteY: a.sprite.y, feet: a.y }; });
     });
     for (const n of seated) { expect(n.act).toBe('sit'); expect(n.lift).toBe(12); expect(n.solid).toBe(false); expect(n.feet - n.spriteY).toBe(12); }
     await page.screenshot({ path: info.outputPath(`benches-${width}.png`) });
@@ -59,7 +59,7 @@ for (const width of [390, 1280]) {
     expect(direction.right.x).toBeGreaterThan(direction.left.x); expect(direction.right.flip).toBe(true);
     await page.evaluate(() => {
       const w = (window as any).mmDebug.world;
-      const [a, b] = [w.npc('taro'), w.npc('yuki')];
+      const [a, b] = [w.actor('taro', 15, 14), w.actor('yuki', 16, 14)];
       a.teleport(15, 14); b.teleport(16, 14); a.emote('Vamos a preparar té y leer un rato.', 5); b.emote('¡Me gusta esa idea! Traje un libro.', 5);
     });
     await page.waitForTimeout(300);

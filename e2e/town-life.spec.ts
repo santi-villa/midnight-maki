@@ -107,33 +107,24 @@ test('visitors walk from the station, Pip hosts them, and they return outside af
   expect(errors).toEqual([]);
 });
 
-test('Bento exits the bakery at its actual street door when Sofi follows him', async ({ page }) => {
+test('Bento keeps working at dusk and leaves through the bakery door at 23:00', async ({ page }) => {
   await boot(page, false);
   await page.evaluate(async () => {
     const w = (window as any).mmDebug.world;
-    w.visitorIn = 1e9;
-    await w.enterZone('shop_bento', 7, 5, 'down', false);
-    (window as any).mmDebug.game.save.time.period = 2;
-    (window as any).mmDebug.game.save.time.minutes = 20;
-    w.spawnNpcs(true);
+    w.visitorIn = 1e9; await w.enterZone('shop_bento', 7, 5, 'down', false);
+    const t = (window as any).mmDebug.game.save.time;
+    t.period = 2; t.minutes = 20; w.spawnNpcs(true);
   });
+  expect(await page.evaluate(() => (window as any).mmDebug.world.town.residents.get('bento').stop.zone)).toBe('shop_bento');
   await page.evaluate(() => {
-    const w = (window as any).mmDebug.world;
-    for (let i = 0; i < 160 && w.town.residents.get('bento').trip.position.zone !== 'plaza'; i++) w.update(0, 50);
+    const w = (window as any).mmDebug.world, t = (window as any).mmDebug.game.save.time;
+    t.period = 3; t.minutes = 60; w.spawnNpcs(true);
+    for (let i = 0; i < 240 && w.town.residents.get('bento').trip.position.zone !== 'plaza'; i++) w.update(0, 50);
   });
   const pos = await page.evaluate(() => (window as any).mmDebug.world.town.residents.get('bento').trip.position);
-  expect(pos.zone).toBe('plaza');
-  expect(pos.x).toBeGreaterThanOrEqual(5);
-  expect(pos.y).toBeCloseTo(19, 0);
-  await page.evaluate(async () => (window as any).mmDebug.world.enterZone('plaza', 7, 19, 'down', false));
-  const actor = await page.evaluate(() => {
-    const w = (window as any).mmDebug.world, a = w.npc('bento');
-    return { x: (a.x - 8) / 16, y: (a.y - 14) / 16, position: w.town.residents.get('bento').trip.position };
-  });
-  expect(actor.x).toBeCloseTo(actor.position.x);
-  expect(actor.y).toBeCloseTo(actor.position.y);
-  await step(page, 14);
-  expect(await page.evaluate(() => (window as any).mmDebug.world.town.residents.get('bento').trip.position.zone)).toBe('restaurant');
+  expect(pos).toEqual({ zone: 'plaza', x: 5, y: 19 });
+  await step(page, 1);
+  expect(await page.evaluate(() => (window as any).mmDebug.world.town.residents.get('bento').visible)).toBe(false);
 });
 
 test('neighbors take turns in a contextual conversation, and pause freezes it', async ({ page }) => {

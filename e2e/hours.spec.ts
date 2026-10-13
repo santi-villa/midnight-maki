@@ -92,10 +92,10 @@ test('a full day opens, closes, sleeps and can be skipped', async ({ page }) => 
     g.save.time.period = 3;
     g.save.time.minutes = 90;
   });
-  await expect.poll(async () => (await live(page)).phase, { timeout: 4000 }).toBe('closing');
+  await expect.poll(async () => (await live(page)).phase, { timeout: 4000 }).toBe('closed');
   await page.waitForTimeout(3000);
   const late = await live(page);
-  expect(late.phase).toBe('closing');
+  expect(late.phase).toBe('closed');
   expect(late.guests.every((phase) => phase === 'leaving' || phase === 'waiting_food' || phase === 'eating' || phase === 'paying')).toBe(true);
 
   await page.evaluate(() => {

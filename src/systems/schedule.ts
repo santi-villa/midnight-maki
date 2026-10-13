@@ -3,7 +3,7 @@
  * One stop per period stays the character's place; minutes only change what they do there.
  * Off screen this is the whole simulation: no pathfinding, no per-frame work.
  */
-import { BALANCE } from '../core/balance';
+import { dayMinutes } from './daytime';
 import type { CharacterDef, RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
 import { doorLeadingTo } from '../world/zoneRuntime';
@@ -14,26 +14,28 @@ export type ShopPhase = 'setup' | 'open' | 'closing' | 'closed';
 export interface ShopPlace {
   id: string;
   title: string;
-  /** Periods of the shift, in order. Setup happens once at the start, closing once at the end. */
-  periods: number[];
+  /** Displayed minutes of day, shared with the HUD. */
   openAt: number;
   closeAt: number;
   hours: string;
   zone: string;
   keeper?: string;
+  counter?: Omit<RoutineStop, 'zone'>;
   /** Sign tile inside the local, when the player is there. */
   sign: { x: number; y: number };
   /** Sign by the street door, so a closed shop reads from outside. */
   outdoor?: { zone: string; x: number; y: number };
 }
 
+export const BUSINESS_HOURS = { openAt: 8 * 60, closeAt: 23 * 60, hours: '08:00–23:00' } as const;
 export const SHOP_PLACES: ShopPlace[] = [
-  { id: 'taro', title: 'Almacén de Taro', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_taro', keeper: 'taro', sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 25, y: 17 } },
-  { id: 'yuki', title: 'Ropa de Yuki', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_yuki', keeper: 'yuki', sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 24, y: 5 } },
-  { id: 'bento', title: 'Panadería de Bento', periods: [0, 1], openAt: 12, closeAt: 78, hours: 'Mañana y tarde', zone: 'shop_bento', keeper: 'bento', sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 3, y: 17 } },
-  { id: 'sumi', title: 'Puesto de Sumi', periods: [0], openAt: 12, closeAt: 78, hours: 'Mañanas', zone: 'plaza', keeper: 'sumi', sign: { x: 20, y: 21 } },
-  { id: 'nami', title: 'Puesto de pescado', periods: [1], openAt: 12, closeAt: 78, hours: 'Tardes', zone: 'beach', keeper: 'nami', sign: { x: 6, y: 9 } },
-  { id: 'shells', title: 'Puesto de conchas', periods: [1, 2], openAt: 12, closeAt: 78, hours: 'Tarde y atardecer', zone: 'beach', sign: { x: 10, y: 9 } },
+  { ...BUSINESS_HOURS, id: 'taro', title: 'Almacén de Taro', zone: 'shop_taro', keeper: 'taro', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 25, y: 17 } },
+  { ...BUSINESS_HOURS, id: 'yuki', title: 'Ropa de Yuki', zone: 'shop_yuki', keeper: 'yuki', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 24, y: 5 } },
+  { ...BUSINESS_HOURS, id: 'bento', title: 'Panadería de Bento', zone: 'shop_bento', keeper: 'bento', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 3, y: 17 } },
+  { ...BUSINESS_HOURS, id: 'sumi', title: 'Puesto de Sumi', zone: 'plaza', keeper: 'sumi', counter: { x: 21, y: 21, act: 'paint' }, sign: { x: 20, y: 21 } },
+  { ...BUSINESS_HOURS, id: 'nami', title: 'Puesto de pescado', zone: 'beach', keeper: 'nami', counter: { x: 6, y: 9, act: 'work' }, sign: { x: 6, y: 9 } },
+  { ...BUSINESS_HOURS, id: 'shells', title: 'Puesto de conchas', zone: 'beach', sign: { x: 10, y: 9 } },
+  { ...BUSINESS_HOURS, id: 'library', title: 'Biblioteca', zone: 'library', keeper: 'kumo', counter: { x: 9, y: 7, act: 'read', seatLift: 12, dir: 'down' }, sign: { x: 4, y: 8 }, outdoor: { zone: 'plaza', x: 9, y: 23 } },
 ];
 
 const SHOP_BY_ID: Record<string, ShopPlace> = Object.fromEntries(SHOP_PLACES.map((s) => [s.id, s]));
@@ -145,6 +147,7 @@ export interface ShopQuery {
   /** Story flag placed the keeper, and this is the zone they are actually in. */
   storyHere: boolean;
   keeperZone: string | null;
+  location?: string;
 }
 
 export interface ShopStatus {
@@ -161,48 +164,37 @@ export function shopPlace(id: string): ShopPlace | undefined {
   return SHOP_BY_ID[id];
 }
 
-function phaseIn(periods: number[], period: number, minutes: number, openAt: number, closeAt: number): ShopPhase {
-  if (!periods.includes(period)) return 'closed';
-  const continues = periods.includes(period - 1);
-  const closes = !periods.includes(period + 1);
-  const start = continues ? 0 : openAt;
-  const end = closes ? closeAt : BALANCE.periodMinutes;
-  if (minutes < start) return 'setup';
-  if (minutes >= end) return 'closing';
-  return 'open';
+/** Open throughout the displayed 08:00–23:00 interval; transition notices never shorten service. */
+export function businessPhase(period: number, minutes: number): ShopPhase {
+  if (!Number.isFinite(period) || !Number.isFinite(minutes)) return 'closed';
+  const now = dayMinutes(period, minutes);
+  if (now < BUSINESS_HOURS.openAt) return now >= BUSINESS_HOURS.openAt - 10 ? 'setup' : 'closed';
+  if (now < BUSINESS_HOURS.closeAt) return 'open';
+  return now < BUSINESS_HOURS.closeAt + 10 ? 'closing' : 'closed';
 }
 
-/**
- * Public service at Midnight Maki. This is not a shop: the player hosts, so the
- * room stays open when Pip, Spicy or Rigg are somewhere else. Morning is the
- * closed prep period. Afternoon and dusk are open from the first minute. Night
- * stays open through the meal beat, then closes for the stroll and for the
- * frozen end of the night (the clock already stops at minute 90).
- */
-export const RESTAURANT_HOURS = {
-  periods: [1, 2, 3],
-  openAt: 0,
-  closeAt: BEAT.meal,
-  hours: 'Tarde, atardecer y el comienzo de la noche',
+// Same public hours; existing orders can still be finished after closing.
+export const RESTAURANT_HOURS = BUSINESS_HOURS;
+export const restaurantPhase = businessPhase;
+
+const NIGHT_STALLS: Record<string, string> = {
+  market_food: 'Dulces de luna', market_rare: 'Objetos raros', market_clothes: 'Ropa de luna', market_furn: 'Decoración nocturna',
 };
 
-export function restaurantPhase(period: number, minutes: number): ShopPhase {
-  const p = Number.isFinite(period) ? Math.floor(period) : 0;
-  const m = Number.isFinite(minutes) ? minutes : RESTAURANT_HOURS.closeAt;
-  return phaseIn([...RESTAURANT_HOURS.periods], p, m, RESTAURANT_HOURS.openAt, RESTAURANT_HOURS.closeAt);
-}
-
 export function shopStatus(id: string, q: ShopQuery): ShopStatus {
+  if (NIGHT_STALLS[id] || id === 'shells' && q.location === 'market') {
+    const open = q.period === 3;
+    const title = NIGHT_STALLS[id] ?? 'Puesto de conchas';
+    return { tracked: true, open, phase: open ? 'open' : 'closed', hours: 'Noches especiales (Mercado Nocturno)', title, detail: open ? '' : `${title} abre solamente durante el Mercado Nocturno.` };
+  }
   const place = SHOP_BY_ID[id];
   if (!place) return { tracked: false, open: true, phase: 'open', hours: '', title: '', detail: '' };
   const base = { tracked: true, hours: place.hours, title: place.title };
   const closed = (detail: string): ShopStatus => ({ ...base, open: false, phase: 'closed', detail });
   if (q.shut) return closed(`${place.title} hoy no abre. Horario: ${place.hours}.`);
   if (q.force || q.storyHere) return { ...base, open: true, phase: 'open', detail: '' };
-  const periods = [...place.periods];
-  if (q.festival && q.keeperZone === place.zone && q.period <= 2 && !periods.includes(q.period)) periods.push(q.period);
-  const phase = phaseIn(periods, q.period, q.minutes, place.openAt, place.closeAt);
-  if (place.keeper && q.keeperZone !== place.zone) {
+  const phase = businessPhase(q.period, q.minutes);
+  if (phase === 'open' && place.keeper && q.keeperZone !== place.zone) {
     return closed(`${place.title} está cerrado: no hay nadie atendiendo. Horario: ${place.hours}.`);
   }
   if (phase === 'open') return { ...base, open: true, phase, detail: '' };

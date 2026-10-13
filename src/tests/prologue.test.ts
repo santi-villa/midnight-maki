@@ -15,7 +15,7 @@ it('arrives on a free entry tile, faces inside and does not overlap a resident',
   expect(charactersIn('restaurant', 2).some(({ stop }) => stop.x === x && stop.y === y)).toBe(false);
   expect(dir).toBe('up');
   expect(ZONES.plaza.doors.find(d => d.to === 'restaurant')).toMatchObject({ tx: x, ty: y, dir });
-  expect(shopGate('taro').phase).toBe('closed');
+  expect(shopGate('taro').phase).toBe('open');
 });
 
 it('keeps all six prologue steps and their saved indices, starting with Spicy', () => {

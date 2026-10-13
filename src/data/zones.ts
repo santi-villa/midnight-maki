@@ -104,7 +104,7 @@ function plaza(): ZoneDef {
   b.rect(4, 13, 2, 3, 'p');
   b.rect(10, 19, 3, 2, 'c');
   b.rect(9, 9, 2, 1, 'r').rect(21, 9, 2, 1, 'y').rect(9, 16, 2, 1, 'l').rect(21, 16, 2, 1, 'r');
-  treeBorder(b, [[15, 0], [16, 0], [29, 0], [30, 0], [15, 25], [16, 25], [31, 12], [31, 13], [0, 12], [0, 13]]);
+  treeBorder(b, [[15, 0], [16, 0], [29, 0], [30, 0], [12, 25], [15, 25], [16, 25], [31, 12], [31, 13], [0, 12], [0, 13]]);
   b.prop('bld_restaurant_s0', 2, 4, 'stage=0')
     .prop('bld_restaurant_s1', 2, 4, 'stage=1')
     .prop('bld_restaurant_s2', 2, 4, 'stage=2')

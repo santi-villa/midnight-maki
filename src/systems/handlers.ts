@@ -16,6 +16,8 @@ import { errandsSection } from '../ui/errands';
 import { registerAction } from './actions';
 import { harvest, plant, SEED_INFO, water } from './garden';
 import { clock } from './time';
+import { shopGate } from './npcs';
+import { shopInteractionText } from './schedule';
 import '../restaurant/kitchen';
 import '../story/story';
 import '../quests/side';
@@ -236,6 +238,8 @@ registerAction('minigame', async (name) => {
 });
 
 registerAction('library', async () => {
+  const status = shopGate('library');
+  if (!status.open) { toast(shopInteractionText(status)); return; }
   await runScene('library', async () => {
     if (game.save.quests.active.sq_rigg_book && !game.has('rigg_book_found')) {
       game.setFlag('rigg_book_found');
