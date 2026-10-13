@@ -32,6 +32,16 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
 11. **Locales con estilo propio**: panadería (ladrillo, chimenea, toldo, vitrinas con pan, canasto), ropa de Yuki (techo rosa, prendas en las vidrieras, noren), almacén de Taro (techo verde, estantes con frascos, cajones y barril), biblioteca (ladrillo, ventanas con libros) y galería (cuadros en las vidrieras).
 12. **Corrección**: la cartelera fallaba al mostrarse cuando estaba disponible el pedido heredado de Sumi (alias viejo sin definición).
 
+13. **Presentación del minijuego de cocina** (punto 2 de la mejora por etapas):
+    - Sprites de cocina de 32×24 para arroz, alga, pescados, vegetales, tamago, langostino, shiitake y condimentos; caché compartida entre bandeja, arrastre y mesa. Los ingredientes menos comunes reutilizan su icono.
+    - Cuchillo animado, respuesta al colocar ingredientes y deformación del arroz al presionar; partículas limitadas y alternativa sin animación con movimiento reducido.
+    - Instrucciones y feedback en una repisa separada, contador de pasos y tipografía pixel; la mesa se reajusta al espacio disponible, incluso en pantallas pequeñas y horizontales.
+    - Plato de cerámica con borde verde, piezas por tipo de sushi y presentación según la calidad existente. Resumen de técnica con texto ajustado al ancho.
+    - Un arrastre cancelado o una salida limpian el ingrediente flotante, los listeners y el observador de tamaño. Durante el cambio de paso no se aceptan acciones repetidas.
+    - Comprobación directa en Chromium: maki, nigiri, temaki, gunkan y onigiri en PC; preparaciones táctiles en celular. Verificación adicional en 320×568 (movimiento reducido) y 844×390. Se completaron platos de calidad básica y perfecta y no hubo errores de página en los flujos terminados.
+    - `typecheck` y `build` correctos. No se ejecutó la suite de tests: se pospone al final de las etapas por pedido del usuario. Falta comprobar en un celular físico y ejecutar las suites finales.
+    - Capturas: [plato básico en PC](art/cocina/plato-basico-pc.png) y [plato perfecto en celular](art/cocina/plato-perfecto-celular.png).
+
 ## Compatibilidad
 - Guardados viejos: `recipeMastery` es opcional y se completa vacío al cargar (`validateSave`).
 - Sin cambios en los capítulos de la historia ni en los contratos de calidad 0/1/2.

@@ -6,7 +6,8 @@
  * Modes: relaxed (default, no timer), normal (scored), challenge (optional timer).
  * The board is drawn in board pixels and shown at an integer scale.
  */
-import { iconCanvas, iconElement } from '../art/icons';
+import { iconElement } from '../art/icons';
+import { cookingIngredient, drawCookingKnife, drawCookingPlate, kitchenOval } from '../art/cooking';
 import { audio } from '../audio/audio';
 import type { Track } from '../audio/audio';
 import { settings } from '../core/settings';
@@ -93,6 +94,8 @@ class CookingGame {
   private g!: CanvasRenderingContext2D;
   private tray!: HTMLElement;
   private msg!: HTMLElement;
+  private feedback!: HTMLElement;
+  private progressEl!: HTMLElement;
   private stepsEl!: HTMLElement;
   private timerEl!: HTMLElement;
   private close!: () => void;
@@ -159,6 +162,13 @@ class CookingGame {
   private riceSfx = 0;
   private musicBefore: Track = 'none';
   private lastFrame = 0;
+  private feedbackUntil = 0;
+  private advancing = false;
+  private dragCleanup: (() => void) | null = null;
+  private revealTimer = 0;
+  private knifeStroke: { x: number; y: number; age: number } | null = null;
+  private landing: { x: number; y: number; age: number } | null = null;
+  private stageResize: ResizeObserver | null = null;
 
   constructor(private r: RecipeDef, private title: string, private finish: (r: CookResult) => void) {}
 
@@ -175,9 +185,12 @@ class CookingGame {
     audio.crossfade('kitchen');
     this.stepsEl = h('div', { class: 'cook-steps' });
     this.timerEl = h('div', { class: 'pill' });
-    this.msg = h('div', { class: 'cook-msg' });
-    this.canvas = h('canvas', { class: 'board' }) as HTMLCanvasElement;
-    const stage = h('div', { class: 'cook-stage' }, this.canvas, this.msg);
+    this.msg = h('div', { class: 'cook-msg', id: 'cook-instruction' });
+    this.progressEl = h('b', { class: 'cook-progress' });
+    this.feedback = h('div', { class: 'cook-feedback', role: 'status', 'aria-live': 'polite' });
+    this.canvas = h('canvas', { class: 'board', 'aria-label': 'Mesa de preparación de sushi', 'aria-describedby': 'cook-instruction' }) as HTMLCanvasElement;
+    const stage = h('div', { class: 'cook-stage' }, this.canvas);
+    const instruction = h('div', { class: 'cook-instruction' }, this.progressEl, h('div', { class: 'cook-guidance' }, this.msg, this.feedback));
     this.tray = h('div', { class: 'cook-tray' });
     const head = h(
       'div',
@@ -185,7 +198,7 @@ class CookingGame {
       h('div', { class: 'cook-order' }, iconElement(this.r.icon), h('div', { class: 'col', style: { gap: '2px' } }, h('b', null, this.r.name + (this.title ? ` — ${this.title}` : '')), this.stepsEl)),
       h('div', { class: 'col', style: { alignItems: 'flex-end', gap: '4px' } }, this.timerEl, h('button', { class: 'close-x', 'aria-label': 'Salir', onclick: () => this.abort() }, '✕')),
     );
-    this.root = h('div', { class: 'cook' }, head, stage, this.tray);
+    this.root = h('div', { class: 'cook' }, head, instruction, stage, this.tray);
     this.close = openModal(this.root);
     (this.root as any).__close = () => this.abort();
     this.g = this.canvas.getContext('2d')!;
@@ -196,19 +209,25 @@ class CookingGame {
     const v = this.r.variants?.find((vv) => game.countUsable(vv.item) > 0);
     if (v) this.variant = v;
     this.enterStep();
+    this.resize();
+    this.stageResize = new ResizeObserver(this.resize);
+    this.stageResize.observe(stage);
     this.loop();
   }
 
   private resize = () => {
-    const rect = this.canvas.parentElement!.getBoundingClientRect();
+    const stage = this.canvas.parentElement!;
+    const rect = { width: stage.clientWidth, height: stage.clientHeight };
     const fit = Math.min(rect.width / this.W, rect.height / this.H);
     this.S = Math.max(1, Math.floor(fit) || 1);
+    // Keep native pixels; shrink only when the phone cannot fit a whole board.
+    const displayScale = Math.min(this.S, Math.max(0.1, fit));
     this.canvas.width = this.W * this.S;
     this.canvas.height = this.H * this.S;
-    this.canvas.style.width = this.W * this.S + 'px';
-    this.canvas.style.height = this.H * this.S + 'px';
-    this.canvas.style.left = Math.round((rect.width - this.W * this.S) / 2) + 'px';
-    this.canvas.style.top = Math.round((rect.height - this.H * this.S) / 2) + 'px';
+    this.canvas.style.width = this.W * displayScale + 'px';
+    this.canvas.style.height = this.H * displayScale + 'px';
+    this.canvas.style.left = Math.round((rect.width - this.W * displayScale) / 2) + 'px';
+    this.canvas.style.top = Math.round((rect.height - this.H * displayScale) / 2) + 'px';
     this.g.setTransform(this.S, 0, 0, this.S, 0, 0);
     this.g.imageSmoothingEnabled = false;
   };
@@ -219,14 +238,30 @@ class CookingGame {
 
   private renderSteps() {
     this.stepsEl.innerHTML = '';
-    this.r.steps.forEach((s, i) => this.stepsEl.append(h('span', { class: 's' + (i < this.stepIdx ? ' done' : i === this.stepIdx ? ' now' : '') }, STEP_NAMES[s.t])));
+    this.r.steps.forEach((s, i) => this.stepsEl.append(h('span', { class: 's' + (i < this.stepIdx || this.done ? ' done' : i === this.stepIdx ? ' now' : ''), 'aria-current': i === this.stepIdx && !this.done ? 'step' : null }, STEP_NAMES[s.t])));
+    this.progressEl.textContent = this.done ? '¡Listo!' : `${this.stepIdx + 1}/${this.r.steps.length}`;
   }
 
   private say(t: string) {
     this.msg.textContent = t;
   }
 
+  private respond(text: string, kind: 'good' | 'gentle' = 'good') {
+    this.feedback.textContent = text;
+    this.feedback.dataset.kind = kind;
+    this.feedback.classList.add('visible');
+    this.feedbackUntil = performance.now() + 1100;
+  }
+
+  private landed(x: number, y: number) {
+    if (!settings.reduceMotion) this.landing = { x, y, age: 0 };
+    this.puff(x, y, '#fff1c5');
+  }
+
   private enterStep() {
+    this.advancing = false;
+    this.swipe = null;
+    this.finger = null;
     this.renderSteps();
     const s = this.step;
     if (!s) return this.complete();
@@ -298,7 +333,11 @@ class CookingGame {
 
   private addTrayItem(id: string, optional = false) {
     const it = ITEMS_BY_ID[id];
-    const el = h('div', { class: 'ing', 'data-id': id }, iconElement(it?.icon ?? { type: 'blob' }), h('span', null, (it?.name ?? id).split(' ')[0] + (optional ? ' ★' : '')));
+    const sprite = h('canvas') as HTMLCanvasElement;
+    sprite.width = 32; sprite.height = 24;
+    sprite.getContext('2d')!.drawImage(cookingIngredient(id), 0, 0);
+    const name = (it?.name ?? id) + (optional ? ' ★' : '');
+    const el = h('div', { class: 'ing', 'data-id': id, 'aria-label': name }, sprite, h('span', null, name));
     if (optional) el.title = 'Ingrediente opcional (variante)';
     el.addEventListener('pointerdown', (e) => this.startDrag(e, id, optional));
     this.tray.append(el);
@@ -319,6 +358,7 @@ class CookingGame {
         this.finishNow?.();
         return;
       }
+      if (this.advancing || this.done) return;
       const p = this.toBoard(e);
       this.swipe = { ...p, t: performance.now() };
       this.finger = p;
@@ -357,23 +397,31 @@ class CookingGame {
   }
 
   private startDrag(e: PointerEvent, id: string, optional: boolean) {
+    if (this.done || this.advancing || (e.currentTarget as HTMLElement).classList.contains('empty')) return;
+    this.dragCleanup?.();
     e.preventDefault();
-    const ghost = h('canvas', { class: 'drag-ghost' }) as HTMLCanvasElement;
-    ghost.width = 48;
+    const ghost = h('canvas', { class: 'drag-ghost cook-drag' }) as HTMLCanvasElement;
+    ghost.width = 64;
     ghost.height = 48;
     const gg = ghost.getContext('2d')!;
     gg.imageSmoothingEnabled = false;
-    gg.drawImage(iconCanvas(ITEMS_BY_ID[id]?.icon ?? { type: 'blob' }), 0, 0, 16, 16, 0, 0, 48, 48);
+    gg.drawImage(cookingIngredient(id), 0, 0, 64, 48);
     document.body.append(ghost);
     const move = (ev: PointerEvent) => {
       ghost.style.left = ev.clientX + 'px';
       ghost.style.top = ev.clientY + 'px';
     };
     move(e);
-    const up = (ev: PointerEvent) => {
+    const clear = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', clear);
       ghost.remove();
+      this.dragCleanup = null;
+    };
+    const up = (ev: PointerEvent) => {
+      clear();
+      if (this.done || this.advancing) return;
       const rect = this.canvas.getBoundingClientRect();
       if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) return;
       const p = this.toBoard(ev);
@@ -381,6 +429,8 @@ class CookingGame {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', clear);
+    this.dragCleanup = clear;
   }
 
   private mat = { x: 64, y: 70, w: 192, h: 100 };
@@ -397,6 +447,8 @@ class CookingGame {
       this.garnish.push({ id, x, y });
       audio.sfxPlay('place');
       this.say(`¡Variante ${this.variant.name}!`);
+      this.respond(`Variante ${this.variant.name}`);
+      this.landed(x, y);
       (this.tray.querySelector(`[data-id="${id}"]`) as HTMLElement)?.classList.add('empty');
       (this as any).variantUsed = true;
       return;
@@ -405,6 +457,7 @@ class CookingGame {
       case 'nori':
         if (id === 'nori' && this.inMat(x, y)) {
           this.noriPlaced = true;
+          this.landed(x, y);
           audio.sfxPlay('place');
           this.checkStep();
         } else this.miss('Soltalo sobre la esterilla de bambú.');
@@ -412,7 +465,9 @@ class CookingGame {
       case 'rice':
         if (id === 'rice' && this.inMat(x, y)) {
           this.riceAdded = true;
+          this.landed(x, y);
           audio.sfxPlay('place');
+          this.respond('Ahora esparcí el arroz');
           this.say('¡Ahora frotá para esparcir el arroz!');
           this.rub(x, y, 3);
         }
@@ -431,6 +486,8 @@ class CookingGame {
             this.fillings.push({ id, x: spot.x - 9, y: spot.y - 5 });
           } else this.garnish.push({ id, x, y });
           audio.sfxPlay('place');
+          this.landed(x, y);
+          this.respond(s.t === 'place' ? 'Relleno colocado' : 'Un toque de color');
           if (!list.includes(id)) (this.tray.querySelector(`[data-id="${id}"]`) as HTMLElement)?.classList.add('empty');
           this.checkStep();
         } else if (i < 0) this.miss('Ese ingrediente no va en este paso.');
@@ -441,6 +498,8 @@ class CookingGame {
         const idx = this.ballAt(x, y);
         if (idx >= 0 && !this.toppings[idx]) {
           this.toppings[idx] = true;
+          this.landed(this.ballPos(idx).x, this.ballPos(idx).y);
+          this.respond('Cobertura colocada');
           audio.sfxPlay('place');
           this.checkStep();
         }
@@ -456,6 +515,7 @@ class CookingGame {
     this.mistakes++;
     audio.sfxPlay('error');
     this.say(t);
+    this.respond('Probá otra vez, sin apuro', 'gentle');
   }
 
   private rub(x: number, y: number, r = 1) {
@@ -490,12 +550,14 @@ class CookingGame {
 
   /** The player is happy with the rice: judge the thickness and move on. */
   private finishRice() {
+    if (this.advancing || this.done) return;
     const st = riceStats(this.riceCover);
     const v = riceVerdict(st.mean);
     this.asp.rice = v.kind;
     this.prec.push(v.prec);
     if (v.kind === 'good') audio.sfxPlay('success');
     this.say(v.kind === 'thin' ? 'Poco arroz: el rollo va a quedar flojo.' : v.kind === 'thick' ? 'Mucho arroz: va a costar cerrarlo.' : '¡El grosor justo!');
+    this.respond(v.kind === 'good' ? '¡Arroz en su punto!' : v.kind === 'thin' ? 'Arroz finito' : 'Arroz abundante', v.kind === 'good' ? 'good' : 'gentle');
     this.riceBtn?.remove();
     this.riceBtn = null;
     this.nextStep();
@@ -515,6 +577,7 @@ class CookingGame {
     this.say(shaping
       ? v.kind === 'loose' ? 'El arroz quedó suelto: se desarma un poco.' : v.kind === 'squeezed' ? 'Quedó muy compacto, casi una piedrita.' : '¡Arroz firme y esponjoso!'
       : v.kind === 'loose' ? 'Quedó flojito: puede abrirse al cortar.' : v.kind === 'squeezed' ? '¡Uy! Se apretó de más y el relleno asoma.' : '¡Rollo firme y parejo!');
+    this.respond(v.kind === 'firm' ? '¡Firme y parejo!' : v.kind === 'loose' ? 'Quedó flojito' : 'Un poco apretado', v.kind === 'firm' ? 'good' : 'gentle');
     this.nextStep();
   }
 
@@ -529,10 +592,12 @@ class CookingGame {
     const l = this.sliceLayout();
     const n = this.sliceNeeded + 1;
     const x = l.x0 + (l.w / n) * this.sliceDone;
+    if (!settings.reduceMotion) this.knifeStroke = { x, y: l.y0, age: 0 };
     audio.sfxPlay(v.kind === 'miss' ? 'tap' : 'cut');
     this.sparkles.push({ x, y: l.y0 + 30, t: v.kind === 'perfect' ? 0.5 : 0.3 });
     this.puff(x, l.y0 + 30, ingColor(this.sliceItem));
     this.say(v.kind === 'perfect' ? '¡Corte limpio!' : v.kind === 'good' ? 'Buen corte.' : 'Corte irregular, pero seguimos.');
+    this.respond(v.kind === 'perfect' ? '¡Corte limpio!' : v.kind === 'good' ? 'Buen corte' : 'Corte irregular, seguimos', v.kind === 'miss' ? 'gentle' : 'good');
     if (this.sliceDone >= this.sliceNeeded) this.asp.fish = fishCutSummary(this.fishCuts);
     this.checkStep();
   }
@@ -565,6 +630,7 @@ class CookingGame {
       const idx = this.balls < this.ballsNeeded ? this.balls : -1;
       if (idx < 0) return;
       this.ballTaps[idx]++;
+      this.landed(this.ballPos(idx).x, this.ballPos(idx).y);
       audio.sfxPlay('tap');
       if (this.ballTaps[idx] >= 3) {
         this.balls++;
@@ -579,6 +645,7 @@ class CookingGame {
   }
 
   private onRub(x: number, y: number, start: { x: number; y: number }) {
+    if (this.advancing || this.done) return;
     const s = this.step;
     if (s?.t === 'rice' && this.riceAdded) {
       this.rub(x, y, 1);
@@ -623,6 +690,7 @@ class CookingGame {
   }
 
   private onSwipe(a: { x: number; y: number; t: number }, b: { x: number; y: number }) {
+    if (this.advancing || this.done) return;
     const s = this.step;
     if (!s) return;
     const dx = b.x - a.x;
@@ -639,6 +707,8 @@ class CookingGame {
         const tol = guideTolerance(settings.cookMode);
         this.prec.push(Math.max(0, 1 - Math.abs(midX - (guide ?? midX)) / tol));
         this.cutXs.push(midX);
+        if (!settings.reduceMotion) this.knifeStroke = { x: midX, y: this.mat.y + 8, age: 0 };
+        this.respond('¡Una porción más!');
         audio.sfxPlay('cut');
         this.sparkles.push({ x: midX, y: (a.y + b.y) / 2, t: 0.4 });
         this.puff(midX, (a.y + b.y) / 2, ingColor('rice'));
@@ -668,12 +738,16 @@ class CookingGame {
   }
 
   private serveAll() {
+    if (this.advancing || this.done) return;
     const bump = settings.cookMode === 'challenge' ? 0.4 : 0.72;
     while (this.plated < this.plateNeeded) {
       this.plated++;
       this.prec.push(bump);
     }
     audio.sfxPlay('place');
+    const box = this.plateBox();
+    this.landed(box.cx, box.cy);
+    this.respond('¡Listo para servir!');
     this.checkStep();
   }
 
@@ -682,6 +756,7 @@ class CookingGame {
     const box = this.plateBox();
     this.prec.push(loose ? 0.8 : platePrecision(x, y, box.cx, box.cy, box.rx, box.ry));
     this.plated++;
+    this.landed(x, y);
     audio.sfxPlay('place');
     this.puff(x, y, '#fff6e4');
     this.checkStep();
@@ -744,6 +819,7 @@ class CookingGame {
   }
 
   private checkStep() {
+    if (this.advancing || this.done) return;
     const s = this.step;
     if (!s) return;
     let ok = false;
@@ -795,6 +871,8 @@ class CookingGame {
   }
 
   private async nextStep() {
+    if (this.advancing || this.done) return;
+    this.advancing = true;
     const cur = this.stepIdx;
     audio.sfxPlay('tap');
     this.sparkles.push({ x: this.W / 2, y: this.H / 2, t: 0.5 });
@@ -847,7 +925,7 @@ class CookingGame {
     this.finishNow = () => {
       if (performance.now() - shownAt > 600) leave();
     };
-    setTimeout(leave, this.aspectLines().length ? 2600 : 1400);
+    this.revealTimer = window.setTimeout(leave, this.aspectLines().length ? 2600 : 1400);
   }
 
   private abort() {
@@ -859,6 +937,9 @@ class CookingGame {
 
   private cleanup() {
     cancelAnimationFrame(this.raf);
+    clearTimeout(this.revealTimer);
+    this.dragCleanup?.();
+    this.stageResize?.disconnect();
     window.removeEventListener('resize', this.resize);
     audio.crossfade(this.musicBefore);
     this.close();
@@ -883,6 +964,14 @@ class CookingGame {
     const now = performance.now();
     const dt = this.lastFrame ? Math.min(0.05, (now - this.lastFrame) / 1000) : 0;
     this.lastFrame = now;
+    if (this.feedbackUntil && now > this.feedbackUntil) {
+      this.feedback.classList.remove('visible');
+      this.feedbackUntil = 0;
+    }
+    if (this.knifeStroke && (this.knifeStroke.age += dt) > 0.24) this.knifeStroke = null;
+    if (this.landing && (this.landing.age += dt) > 0.3) this.landing = null;
+    for (const sp of this.sparkles) sp.t -= dt;
+    this.sparkles = this.sparkles.filter(sp => sp.t > 0);
     if (this.step?.t === 'slice' && !this.done) this.sliceT += dt;
     if (this.pressOn && this.pressing && !this.done) {
       this.pressP += pressRate(settings.cookMode) * dt;
@@ -1056,9 +1145,16 @@ class CookingGame {
           g.ellipse(p.x, p.y, r + 4, r, 0, 0, Math.PI * 2);
           g.fill();
           g.fillStyle = 'rgba(42,34,48,.5)';
-          g.font = '10px sans-serif';
+          g.font = '11px "Pixelify Sans", sans-serif';
           g.fillText('toc ' + (3 - taps), p.x - 12, p.y + 30);
         } else if (formed) {
+          g.save();
+          if (this.pressOn && this.pressing && !settings.reduceMotion) {
+            const pressure = Math.min(1, this.pressP);
+            g.translate(p.x, p.y);
+            g.scale(1 + pressure * 0.06, 1 - pressure * 0.1);
+            g.translate(-p.x, -p.y);
+          }
           g.fillStyle = RICE;
           if (this.r.id === 'onigiri') {
             g.beginPath();
@@ -1082,6 +1178,7 @@ class CookingGame {
             if (this.r.id === 'onigiri') g.fillRect(p.x - 12, p.y + 2, 24 * w, 12);
             else g.fillRect(p.x - 19, p.y - 2, 38 * w, 6);
           }
+          g.restore();
         }
       }
       for (const f of this.fillings) this.drawIng(f.id, f.x - 6, f.y - 4, 12, 8);
@@ -1117,32 +1214,16 @@ class CookingGame {
     // plate
     if (s?.t === 'plate') {
       const box = this.plateBox();
-      g.fillStyle = 'rgba(40,24,16,.3)';
-      g.beginPath();
-      g.ellipse(box.cx + 2, box.cy + 3, box.rx, box.ry, 0, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#d8d2c8';
-      g.beginPath();
-      g.ellipse(box.cx, box.cy, box.rx, box.ry, 0, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#fbf6ea';
-      g.beginPath();
-      g.ellipse(box.cx, box.cy - 2, box.rx - 8, box.ry - 5, 0, 0, Math.PI * 2);
-      g.fill();
-      g.strokeStyle = 'rgba(194,127,134,.85)';
-      g.lineWidth = 1;
-      g.beginPath();
-      g.ellipse(box.cx, box.cy - 2, box.rx * 0.45, box.ry * 0.45, 0, 0, Math.PI * 2);
-      g.stroke();
+      drawCookingPlate(g, box.cx, box.cy, box.rx, box.ry);
       for (let i = 0; i < this.plated; i++) {
-        const x = box.cx - 64 + (i % 8) * 16;
-        this.drawRollSlice(x, box.cy - 12, 14, 14, true);
+        const pos = this.platedPosition(i, this.plateNeeded, box.cx, box.cy);
+        this.drawRollSlice(pos.x, pos.y, 18, 18, true);
       }
       const waiting = this.plateNeeded - this.plated;
-      for (let i = 0; i < waiting; i++) this.drawRollSlice(16 + i * 18, 28, 14, 14, true);
+      for (let i = 0; i < waiting; i++) this.drawRollSlice(16 + i * 22, 28, 18, 18, true);
       if (this.finger && waiting > 0) this.drawRollSlice(this.finger.x - 7, this.finger.y - 8, 14, 14, true);
       g.fillStyle = '#4a3428';
-      g.font = '11px sans-serif';
+      g.font = '12px "Pixelify Sans", sans-serif';
       g.fillText(`${this.plated}/${this.plateNeeded}`, box.cx - 12, box.cy - box.ry - 8);
     }
     // roll hint
@@ -1168,6 +1249,23 @@ class CookingGame {
       g.lineTo(Math.round(this.finger.x), Math.round(this.finger.y));
       g.stroke();
     }
+    if (this.knifeStroke && !settings.reduceMotion) {
+      const k = this.knifeStroke;
+      const travel = Math.sin((k.age / 0.24) * Math.PI) * 16;
+      drawCookingKnife(g, k.x, k.y - 15 + travel);
+    } else if ((s?.t === 'slice' || s?.t === 'cut') && !this.advancing) {
+      // Resting tool also identifies the cutting station with reduced motion.
+      drawCookingKnife(g, W - 24, 18);
+    }
+    if (this.landing && !settings.reduceMotion) {
+      const l = this.landing;
+      const d = Math.round(4 + l.age * 25);
+      g.fillStyle = '#fff1c5';
+      for (const dir of [-1, 1]) {
+        g.fillRect(Math.round(l.x) + dir * d, Math.round(l.y) - 2, 2, 4);
+        g.fillRect(Math.round(l.x) - 2, Math.round(l.y) + dir * d, 4, 2);
+      }
+    }
     if (this.heatOn) this.drawHeat();
     if (this.pressOn) this.drawPress();
     if (s?.t === 'rice' && this.riceAdded) this.drawRiceMeter();
@@ -1179,8 +1277,7 @@ class CookingGame {
     }
     if (this.verdict) this.drawVerdict();
     // sparkles
-    for (const sp of this.sparkles) {
-      sp.t -= 1 / 60;
+    for (const sp of settings.reduceMotion ? [] : this.sparkles) {
       g.fillStyle = `rgba(242,198,109,${Math.max(0, sp.t * 2)})`;
       const r = (0.6 - sp.t) * 30;
       for (let a = 0; a < 6; a++) g.fillRect(sp.x + Math.cos(a) * r, sp.y + Math.sin(a) * r, 2, 2);
@@ -1201,7 +1298,7 @@ class CookingGame {
     const y = this.H - 26;
     const w = this.W - 56;
     g.fillStyle = '#4a3428';
-    g.font = '10px sans-serif';
+    g.font = '11px "Pixelify Sans", sans-serif';
     g.fillText('Fuego', x, y - 4);
     g.fillStyle = 'rgba(40,24,16,.35)';
     g.fillRect(x + 1, y + 2, w, 12);
@@ -1220,7 +1317,7 @@ class CookingGame {
     const y = this.H - 26;
     const w = this.W - 56;
     g.fillStyle = '#4a3428';
-    g.font = '10px sans-serif';
+    g.font = '11px "Pixelify Sans", sans-serif';
     g.fillText(label, x, y - 4);
     g.fillStyle = 'rgba(40,24,16,.35)';
     g.fillRect(x + 1, y + 2, w, 12);
@@ -1240,7 +1337,7 @@ class CookingGame {
     const y = this.H - 26;
     const w = this.W - 56;
     g.fillStyle = '#4a3428';
-    g.font = '10px sans-serif';
+    g.font = '11px "Pixelify Sans", sans-serif';
     g.fillText(`Corte ${Math.min(this.sliceDone + 1, this.sliceNeeded)} de ${this.sliceNeeded}`, x, y - 4);
     g.fillStyle = 'rgba(40,24,16,.35)';
     g.fillRect(x + 1, y + 2, w, 12);
@@ -1293,56 +1390,69 @@ class CookingGame {
     return out;
   }
 
+  private platedPosition(i: number, total: number, cx: number, cy: number) {
+    const columns = Math.min(4, total);
+    const row = Math.floor(i / columns);
+    const inRow = Math.min(columns, total - row * columns);
+    return { x: cx - (inRow * 24) / 2 + (i % columns) * 24 + 3, y: cy - (total > 4 ? 20 : 10) + row * 20 };
+  }
+
   private drawVerdict() {
     if (!this.verdict) return;
     const g = this.g;
-    g.fillStyle = 'rgba(28,16,12,.5)';
+    g.fillStyle = 'rgba(28,16,12,.72)';
     g.fillRect(0, 0, this.W, this.H);
-    const box = { cx: this.W / 2, cy: this.H / 2 + 8, rx: Math.min(78, this.W / 2 - 24), ry: 28 };
-    g.fillStyle = 'rgba(40,24,16,.35)';
-    g.beginPath();
-    g.ellipse(box.cx + 2, box.cy + 3, box.rx, box.ry, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = '#fbf6ea';
-    g.beginPath();
-    g.ellipse(box.cx, box.cy, box.rx, box.ry, 0, 0, Math.PI * 2);
-    g.fill();
-    const n = Math.min(6, Math.max(1, this.pieces || this.plateNeeded || 4));
-    for (let i = 0; i < n; i++) this.drawRollSlice(box.cx - (n * 16) / 2 + i * 16, box.cy - 10, 14, 16, true);
-    for (let i = 0; i < 3; i++) {
-      g.fillStyle = i <= this.verdict.quality ? '#ffc23a' : '#b7a48a';
-      g.fillRect(this.W / 2 - 26 + i * 18, box.cy - box.ry - 28, 12, 12);
+    const box = { cx: this.W / 2, cy: Math.round(this.H * 0.36) + 8, rx: Math.min(86, this.W / 2 - 16), ry: 30 };
+    drawCookingPlate(g, box.cx, box.cy, box.rx, box.ry);
+    const n = Math.min(8, Math.max(1, this.pieces || this.plateNeeded || 1));
+    for (let i = 0; i < n; i++) {
+      const pos = this.platedPosition(i, n, box.cx, box.cy);
+      const crooked = this.verdict.quality === 0 ? (i % 2 ? 3 : -2) : 0;
+      this.drawRollSlice(pos.x, pos.y + crooked, 18, 18, true);
     }
-    g.font = '11px sans-serif';
+    // Garnishes reflect the existing quality result; they are not new rewards.
+    if (this.verdict.quality >= 1) {
+      kitchenOval(g, box.cx + box.rx - 19, box.cy + 3, 5, 3, '#f1a6a7');
+      kitchenOval(g, box.cx + box.rx - 22, box.cy + 5, 4, 2, '#f7c8ba');
+      kitchenOval(g, box.cx - box.rx + 18, box.cy + 2, 4, 3, '#91ad64');
+    }
+    if (this.verdict.quality === 2) {
+      g.fillStyle = '#fff1b5';
+      for (const [x, y] of [[box.cx - 42, box.cy - 25], [box.cx + 34, box.cy - 20]]) {
+        g.fillRect(x, y - 2, 1, 5);
+        g.fillRect(x - 2, y, 5, 1);
+      }
+    }
+    g.font = '16px "Pixelify Sans", sans-serif';
     g.textAlign = 'center';
+    for (let i = 0; i < 3; i++) {
+      g.fillStyle = i <= this.verdict.quality ? '#ffd576' : '#8b7b68';
+      g.fillText('★', this.W / 2 - 20 + i * 20, box.cy - box.ry - 14);
+    }
+    g.font = '11px "Pixelify Sans", sans-serif';
     g.fillStyle = '#fbf6ea';
-    this.aspectLines().forEach((line, i) => g.fillText(line, this.W / 2, box.cy + box.ry + 22 + i * 15));
+    const lines = this.aspectLines();
+    lines.push('Tocá para continuar');
+    let y = box.cy + box.ry + 18;
+    for (const line of lines) {
+      const words = line.split(' ');
+      let row = '';
+      for (const word of words) {
+        const next = row ? row + ' ' + word : word;
+        if (row && g.measureText(next).width > this.W - 24) {
+          g.fillText(row, this.W / 2, y);
+          y += 12;
+          row = word;
+        } else row = next;
+      }
+      g.fillText(row, this.W / 2, y);
+      y += 12;
+    }
     g.textAlign = 'left';
   }
 
   private drawIng(id: string, x: number, y: number, w: number, hgt: number) {
-    const g = this.g;
-    const left = Math.round(x);
-    const top = Math.round(y);
-    const ww = Math.max(4, Math.round(w));
-    const hh = Math.max(3, Math.round(hgt));
-    g.fillStyle = 'rgba(40,24,16,.28)';
-    g.fillRect(left + 1, top + 2, ww, hh);
-    g.fillStyle = ingColor(id);
-    g.fillRect(left, top, ww, hh);
-    g.fillStyle = 'rgba(255,248,230,.4)';
-    g.fillRect(left, top, ww, 1);
-    g.fillRect(left, top, 1, hh);
-    if (/salmon|tuna|shrimp|eel|carp|fish|unagi/.test(id)) {
-      g.fillStyle = 'rgba(255,255,255,.4)';
-      g.fillRect(left + 2, top + Math.floor(hh * 0.45), Math.max(1, ww - 4), 1);
-    } else if (/cucumber|avocado|carrot/.test(id)) {
-      g.fillStyle = 'rgba(255,255,255,.55)';
-      for (let i = 3; i < ww; i += 6) g.fillRect(left + i, top + Math.floor(hh / 2), 2, 2);
-    } else if (/roe|sesame|sakura|chili|tempura|berry/.test(id)) {
-      g.fillStyle = 'rgba(42,34,48,.35)';
-      for (let i = 2; i < ww; i += 4) g.fillRect(left + i, top + (i % hh), 2, 2);
-    }
+    this.g.drawImage(cookingIngredient(id), Math.round(x), Math.round(y), Math.max(4, Math.round(w)), Math.max(3, Math.round(hgt)));
   }
 
   private drawRollSlice(x: number, y: number, w: number, hh: number, cut: boolean) {
@@ -1364,15 +1474,13 @@ class CookingGame {
         g.fillStyle = NORI;
         g.fillRect(x + w * 0.3, y + hh * 0.62, w * 0.4, hh * 0.38);
       } else if (this.r.id === 'gunkan') {
-        g.fillStyle = NORI;
-        g.fillRect(x, y + 2, w, hh - 2);
-        g.fillStyle = ingColor(topItem);
-        g.fillRect(x + 1, y, w - 2, 4);
+        kitchenOval(g, x + w / 2, y + hh * 0.55, w / 2, hh * 0.45, NORI);
+        kitchenOval(g, x + w / 2, y + hh * 0.22, w / 2 - 1, hh * 0.22, ingColor(topItem));
+        g.fillStyle = '#ffd58d';
+        for (let i = 2; i < w - 2; i += 3) g.fillRect(Math.round(x + i), Math.round(y + (i % 2) + 2), 1, 1);
       } else {
-        g.fillStyle = RICE;
-        g.fillRect(x, y + hh * 0.4, w, hh * 0.6);
-        g.fillStyle = ingColor(topItem);
-        g.fillRect(x - 1, y + hh * 0.1, w + 2, hh * 0.45);
+        kitchenOval(g, x + w / 2, y + hh * 0.66, w / 2, hh * 0.32, RICE);
+        this.drawIng(topItem, x - 1, y, w + 2, hh * 0.65);
         g.fillStyle = 'rgba(255,255,255,.4)';
         g.fillRect(x + 1, y + hh * 0.2, w - 2, 1);
       }
@@ -1394,13 +1502,20 @@ class CookingGame {
       return;
     }
     const inside = this.r.steps.some((s) => s.t === 'garnish') && this.r.icon.type === 'uramaki';
-    g.fillStyle = inside ? RICE : NORI;
-    g.fillRect(x, y, w, hh);
+    const round = cut && w <= 26;
+    if (round) kitchenOval(g, x + w / 2, y + hh / 2, w / 2, hh / 2, inside ? RICE : NORI);
+    else {
+      g.fillStyle = inside ? RICE : NORI;
+      g.fillRect(x, y, w, hh);
+    }
     if (!cut) return;
     // the rice layer and the pressure the player used show in the cross-section
     const margin = this.asp.rice === 'thin' ? 3 : this.asp.rice === 'thick' ? 1 : 2;
-    g.fillStyle = inside ? NORI : RICE;
-    g.fillRect(x + margin, y + margin, w - margin * 2, hh - margin * 2);
+    if (round) kitchenOval(g, x + w / 2, y + hh / 2, w / 2 - margin, hh / 2 - margin, inside ? NORI : RICE);
+    else {
+      g.fillStyle = inside ? NORI : RICE;
+      g.fillRect(x + margin, y + margin, w - margin * 2, hh - margin * 2);
+    }
     const squeezed = this.asp.press === 'squeezed';
     const loose = this.asp.press === 'loose';
     const fills = this.fillings.length ? this.fillings : [{ id: 'cucumber' }];
@@ -1410,6 +1525,10 @@ class CookingGame {
       const bulge = squeezed ? 2 : 0;
       g.fillRect(x + 4 + i * fw - (i === 0 ? bulge : 0), y + hh / 2 - 3 - bulge, fw + (i === 0 || i === fills.length - 1 ? bulge : 0), 6 + bulge * 2);
     });
+    g.fillStyle = '#ffffff';
+    for (let i = 0; i < Math.floor(w / 5); i++) g.fillRect(Math.round(x + 3 + i * 4), Math.round(y + hh - margin - 2), 2, 1);
+    g.fillStyle = inside ? '#e3dfcb' : '#51634a';
+    g.fillRect(Math.round(x + 1), Math.round(y), Math.max(1, Math.round(w - 2)), 1);
     if (loose) {
       // a loose roll opens a little seam along the top
       g.fillStyle = 'rgba(40,24,16,.55)';
