@@ -14,7 +14,7 @@ import { game } from '../core/state';
 import type { Dir } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
-import { ZONES } from '../data/zones';
+import { ZONES, GARDEN_PLOT_POSITIONS } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { shopGate, stopFor } from '../systems/npcs';
 import { businessPhase, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
@@ -498,9 +498,11 @@ export class WorldScene extends Phaser.Scene {
     this.cropSprites = [];
     if (this.zoneId !== 'garden' || !this.layer) return;
     game.save.garden.forEach((p, i) => {
-      const x = 3 + i;
-      const y = 4;
+      const position = GARDEN_PLOT_POSITIONS[i];
+      if (!position) return;
+      const [x, y] = position;
       this.layer!.putTileAt(p.seed && p.watered ? TILE_INDEX.soilwet : TILE_INDEX.soil, x, y);
+      if (i >= 6) this.cropSprites.push(this.add.image(x * TILE + 8, y * TILE + 16, propTexture(this, 'project_plot')).setOrigin(0.5, 1).setDepth(y * TILE + 1));
       if (!p.seed) return;
       const info = SEED_INFO[p.seed];
       const ready = p.ready;

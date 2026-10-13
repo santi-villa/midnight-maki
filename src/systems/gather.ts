@@ -1,6 +1,7 @@
 /** Daily-varying gathering spots. Deterministic per day so reloading never rerolls loot. */
 import { game } from '../core/state';
 import { ZONES } from '../data/zones';
+import { PROJECT_GATHER } from '../data/projects';
 import { rng } from '../art/pixel';
 
 export interface GatherSpot { zone: string; idx: number; x: number; y: number; item: string; }
@@ -16,9 +17,10 @@ export function gatherSpots(zone: string): GatherSpot[] {
   if (!def) return [];
   const day = game.save.time.day;
   const out: GatherSpot[] = [];
-  def.gather.forEach((g, idx) => {
+  const extra = PROJECT_GATHER.filter((g) => g.zone === zone && game.has(`proj_${g.project}_${g.phase}`));
+  [...def.gather, ...extra].forEach((g, idx) => {
     const r = rng(zoneSeed(zone) + day * 977 + idx * 131);
-    const active = r() < 0.65 || idx === day % Math.max(1, def.gather.length);
+    const active = idx >= def.gather.length || r() < 0.65 || idx === day % Math.max(1, def.gather.length);
     if (!active) return;
     if (game.flag(`g_${zone}_${idx}`) === day) return;
     let item = g.pool[Math.floor(r() * g.pool.length)];

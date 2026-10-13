@@ -3,6 +3,7 @@
  * which keeps them easy to edit. Coordinates are tiles.
  */
 import type { Dir } from '../core/types';
+import { PROJECT_AMENITIES } from './projects';
 
 export interface PropPlace { id: string; x: number; y: number; cond?: string; }
 export interface DoorDef {
@@ -35,6 +36,7 @@ export interface ZoneDef {
 
 // The restaurant's street entrance is also the arrival point after the opening pictures.
 export const RESTAURANT_ENTRY = { zone: 'restaurant', x: 8, y: 12, dir: 'up' } as const;
+export const GARDEN_PLOT_POSITIONS = [[3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [4, 5], [7, 5]] as const;
 
 // ------------------------------------------------------------------ builder
 class Builder {
@@ -70,7 +72,8 @@ class Builder {
 }
 
 function zone(b: Builder, z: Omit<ZoneDef, 'w' | 'h' | 'ground' | 'props'> & { props?: PropPlace[] }): ZoneDef {
-  return { ...z, w: b.w, h: b.h, ground: b.rows(), props: [...b.props, ...(z.props ?? [])] };
+  const amenities = PROJECT_AMENITIES.filter((a) => a.zone === z.id).map((a) => ({ id: 'project_' + a.id, x: a.x, y: a.y, label: a.title, action: 'project:' + a.id, cond: `proj_${a.project}_${a.phase}` }));
+  return { ...z, interact: [...z.interact, ...amenities], w: b.w, h: b.h, ground: b.rows(), props: [...b.props, ...(z.props ?? [])] };
 }
 
 function treeBorder(b: Builder, gaps: [number, number][], kinds = ['tree', 'tree_dark', 'pine']) {
@@ -473,7 +476,7 @@ function garden(): ZoneDef {
       { x: 0, y: 11, to: 'plaza', tx: 30, ty: 13, dir: 'left', walk: true },
     ],
     interact: [
-      ...[0, 1, 2, 3, 4, 5].map((i) => ({ id: 'plot' + i, x: 3 + i, y: 4 + 0, label: 'Parcela', action: 'plot:' + i })),
+      ...GARDEN_PLOT_POSITIONS.map(([x, y], i) => ({ id: 'plot' + i, x, y, label: 'Parcela', action: 'plot:' + i, ...(i >= 6 ? { cond: 'proj_garden_lanterns_4' } : {}) })),
       { id: 'pond', x: 17, y: 7, label: 'Estanque', action: 'fish:lake' },
       { id: 'merge', x: 13, y: 9, label: 'Banco de macetas', action: 'minigame:merge' },
     ],

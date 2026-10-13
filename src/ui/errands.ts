@@ -26,7 +26,7 @@ function rewardText(coins: number, rewards?: ErrandReward): string {
   return [`${coins} monedas`, ...Object.entries(rewards?.items ?? {}).map(([id, n]) => `${n} ${ITEMS_BY_ID[id].name}`), ...Object.entries(rewards?.furniture ?? {}).map(([id, n]) => `${n} ${FURN_BY_ID[id].name}`), ...(rewards?.friendship ? [`+${rewards.friendship.points} amistad con ${CHAR_BY_ID[rewards.friendship.who].name}`] : [])].join(' · ');
 }
 
-export function errandsSection(): HTMLElement {
+export function errandsSection(onClaim?: () => void): HTMLElement {
   const wrap = h('div', { class: 'col errands-section' });
   const render = () => {
     wrap.replaceChildren();
@@ -46,6 +46,7 @@ export function errandsSection(): HTMLElement {
               audio.sfxPlay(receipt.stamps.length ? 'sparkle' : 'pickup');
               toast(`¡Encargo cumplido! ${rewardText(receipt.coins, receipt.rewards)}.`);
               if (receipt.stamps.length) toast(`Gracias del pueblo: ${receipt.stamps.map((id) => FURN_BY_ID[id].name).join(', ')}. Está en Decorar.`);
+              onClaim?.();
             }
             render();
           } }, e.kind === 'deliver' ? `Entregar ${e.goal} y recibir` : 'Recibir premio') : null));
