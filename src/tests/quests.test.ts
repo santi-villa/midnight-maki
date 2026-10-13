@@ -135,3 +135,16 @@ describe('quest objective differentiation', () => {
     expect(gt?.npc).toBe('sumi');
   });
 });
+
+describe('notice board', () => {
+  it('only lists quests that really exist (the legacy sumi alias used to crash it)', async () => {
+    const { game, newSave } = await import('../core/state');
+    const { boardQuests } = await import('../quests/side');
+    game.load(newSave('T'));
+    for (const f of ['unlock_beach', 'unlock_forest', 'unlock_garden', 'intro_done', 'ch1_started']) game.setFlag(f);
+    const ids = boardQuests();
+    expect(ids.length).toBeGreaterThan(5);
+    expect(ids.every((i) => !!questDef(i))).toBe(true);
+    expect(ids).not.toContain('sq_mika_photos');
+  });
+});

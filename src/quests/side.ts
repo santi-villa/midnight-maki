@@ -136,7 +136,8 @@ export function offerableBy(npc: string): string | null {
 }
 
 export function boardQuests(): string[] {
-  return Object.entries(SIDE_META).filter(([id, m]) => !isActive(id) && !isDone(id) && m.avail()).map(([id]) => id);
+  // the legacy alias sq_mika_photos has metadata but no quest of its own: it must never reach the board
+  return Object.entries(SIDE_META).filter(([id, m]) => !!questDef(id) && !isActive(id) && !isDone(id) && m.avail()).map(([id]) => id);
 }
 
 /** Called when talking to an NPC: handles deliveries and "talk to" steps. Returns a line to say or null. */

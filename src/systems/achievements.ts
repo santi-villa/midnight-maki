@@ -3,6 +3,7 @@ import { bus } from '../core/events';
 import { game } from '../core/state';
 import { RECIPES } from '../data/recipes';
 import { FURNITURE } from '../data/furniture';
+import { recipeStars } from '../restaurant/mastery';
 
 export interface Achievement { id: string; name: string; desc: string; check: () => boolean; reward?: { clothes?: string[]; furniture?: string[] }; }
 
@@ -23,6 +24,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'bugs', name: 'Red Suave', desc: 'Atrapaste 5 insectos.', check: () => s('bugsCaught') >= 5 },
   { id: 'gardener', name: 'Manos Verdes', desc: 'Cosechaste 5 veces.', check: () => s('harvests') >= 5 },
   { id: 'photos', name: 'Recuerdos en Pixel', desc: 'Sacaste 5 fotos.', check: () => game.save.photos.length >= 5 },
+  { id: 'mastery_one', name: 'Plato de Honor', desc: 'Dominaste una receta con cinco estrellas.', check: () => Object.keys(game.save.recipeMastery ?? {}).some((id) => recipeStars(id) >= 5) },
+  { id: 'mastery_many', name: 'Manos de Cocinera', desc: 'Llegaste a tres estrellas en cinco recetas.', check: () => Object.keys(game.save.recipeMastery ?? {}).filter((id) => recipeStars(id) >= 3).length >= 5 },
+  { id: 'town_helper', name: 'Vecina del Año', desc: 'Terminaste cinco etapas de proyectos del pueblo.', check: () => s('projectPhases') >= 5 },
+  { id: 'errands', name: 'Siempre Ocupada', desc: 'Cumpliste diez encargos.', check: () => s('errandsDone') >= 10 },
   { id: 'all_recipes', name: 'El Gran Libro', desc: 'Cocinaste todas las recetas.', check: () => RECIPES.every((r) => (game.save.recipesCooked[r.id] ?? 0) > 0) },
   { id: 'rich', name: 'Ahorro de Mapache', desc: 'Juntaste 5000 monedas en total.', check: () => s('coinsEarned') >= 5000 },
   { id: 'story', name: 'Las Tres Estrellas', desc: 'Terminaste la historia principal.', check: () => game.has('story_done') },

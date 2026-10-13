@@ -17,17 +17,23 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
    - El modo Relajado ahora premia la técnica con tolerancias amplias; nunca baja de "bueno".
 3. **Dominio de recetas (0 a 5 estrellas)** por calidad constante, no por repetir. Con 3 estrellas aparece **Rápido** (un toque, calidad fija, no sube el dominio). Las estrellas se ven en pedidos y recetario.
 
+4. **Corte de pescado con ritmo**: en las recetas con pescado o tamago, una marca oscila y se toca cuando pasa por el centro dorado. Fallar deja el corte irregular pero nunca reinicia el plato. Más lento en Relajado, más rápido en recetas difíciles (siempre con tope cómodo en pantallas táctiles).
+5. **Nigiri, onigiri y gunkan**: el arroz se moldea con toques y luego con presión (mantener y soltar en la zona verde). **Temaki**: se arma un cono arrastrando en diagonal. Los platos terminados se dibujan como cada tipo de sushi.
+6. **Plato final según calidad**: más cuidado se ve en el plato (alineación, jengibre, hojas y brillos).
+7. **Recompensas por dominio**: +4 % de pago por estrella, bonus único de 100 monedas al llegar a 5 estrellas, y cuatro logros nuevos.
+8. **Proyectos del pueblo** (cartelera de la plaza): cinco proyectos de dos etapas (plaza, faroles, muelle, claro del bosque, jardín). Cada etapa cuesta monedas y materiales, cambia el mapa (aparecen flores, bancos, faroles, bote, cerezos) y suma encanto al restaurante. Las áreas cerradas no aparecen hasta abrirse.
+9. **Encargos de hoy**: hasta tres encargos diarios de vecinos y una meta semanal, con progreso por contadores del juego, recompensa en monedas, sin castigo ni rachas, y siempre los mismos durante el día.
+10. **Corrección**: la cartelera fallaba al mostrarse cuando estaba disponible el pedido heredado de Sumi (alias viejo sin definición).
+
 ## Compatibilidad
 - Guardados viejos: `recipeMastery` es opcional y se completa vacío al cargar (`validateSave`).
 - Sin cambios en los capítulos de la historia ni en los contratos de calidad 0/1/2.
 
-## Pendiente (en este orden)
-1. Corte de pescado con ritmo (marcador oscilante) solo en recetas con pescado, con el modo relajado ampliado.
-2. Nigiri y temaki con pasos propios (presión del arroz, cono).
-3. Arte del plato final según calidad (cortes dispares, rollo abierto) en la pantalla del plato.
-4. Recompensas por dominio (presentaciones, decoración, clientes habituales).
-5. Un tablón único de proyectos para el restaurante y el pueblo.
-6. Encargos diarios de vecinos, cortos y con historia.
+## Pendiente
+1. Evolución visual del restaurante por etapas (fachada y salón) enlazada con las mejoras existentes.
+2. Más proyectos por área y más tipos de encargo con pequeñas escenas.
+3. Recompensas de dominio visuales (estilos de presentación) además del pago y los logros.
+4. Probar todo en un celular real: hasta ahora solo se probó en un navegador emulado en vertical.
 
 ## Criterios de aceptación de esta etapa
 - Un plato bien hecho y uno descuidado se ven y se pagan distinto, sin llegar nunca a "fallar".

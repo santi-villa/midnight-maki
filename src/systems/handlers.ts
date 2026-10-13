@@ -7,8 +7,12 @@ import { ZONES } from '../data/zones';
 import { choose, runScene, say } from '../dialogue/dialogue';
 import { boardQuests, acceptSide, SIDE_META } from '../quests/side';
 import { questDef } from '../quests/quests';
+import { PROJECTS_BY_ID } from '../data/projects';
+import { buildNextPhase, phaseStatus, projectDone, visibleProjects } from '../restaurant/projects';
+import { ITEMS_BY_ID as ITEMS_BY_ID_P } from '../data/items';
 import { world } from '../scenes/WorldScene';
 import { h, panel, toast } from '../ui/dom';
+import { errandsSection } from '../ui/errands';
 import { registerAction } from './actions';
 import { harvest, plant, SEED_INFO, water } from './garden';
 import { clock } from './time';
@@ -76,6 +80,43 @@ registerAction('board', () => {
         h('button', { class: 'btn small primary', onclick: (e: Event) => { acceptSide(id); (e.target as HTMLButtonElement).replaceWith(h('span', { class: 'pill' }, 'Aceptado')); } }, 'Aceptar')),
     );
   }
+  // restoration projects: paid in phases, with visible changes in the map
+  const projects = h('div', { class: 'col' });
+  const renderProjects = () => {
+    projects.innerHTML = '';
+    projects.append(h('h3', null, 'Proyectos del pueblo'), h('p', { class: 'hint' }, 'Mejoras por etapas. Cada una cambia el lugar y suma encanto al restaurante.'));
+    for (const pr of visibleProjects()) {
+      const st = phaseStatus(pr.id);
+      const done = projectDone(pr.id);
+      const next = st.find((s) => s.state === 'next');
+      projects.append(
+        h('div', { class: 'card col', style: { gap: '4px' } },
+          h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, pr.name), h('span', { class: 'pill' }, `${done}/${pr.phases.length}`)),
+          h('div', { class: 'hint' }, pr.intro),
+          ...st.map((s) => h('div', { style: { opacity: s.state === 'locked' ? '.55' : '1' } },
+            `${s.state === 'done' ? '✓' : s.state === 'next' ? '▸' : '·'} ${s.phase.name}`,
+            h('span', { class: 'hint' }, ` — ${s.phase.desc}`))),
+          next
+            ? h('div', { class: 'col', style: { gap: '4px' } },
+                h('div', { class: 'hint' }, `Cuesta ${next.phase.coins} ●${Object.entries(next.phase.items ?? {}).map(([i, q]) => `, ${q} ${ITEMS_BY_ID_P[i]?.name ?? i}`).join('')}`),
+                next.missing.length ? h('div', { class: 'hint', style: { color: '#a8433a' } }, `Falta: ${next.missing.join(', ')}`) : null,
+                h('button', { class: 'btn small primary', disabled: next.missing.length > 0, onclick: async () => {
+                  if (!buildNextPhase(pr.id)) { toast('Todavía no se puede.'); return; }
+                  audio.sfxPlay('success');
+                  renderProjects();
+                  // rebuild the map so the new props show right away
+                  const p = world.player;
+                  void world.enterZone(world.zoneId, p.tx, p.ty, p.dir, false);
+                  toast(PROJECTS_BY_ID[pr.id].phases[next.index].thanks);
+                } }, 'Construir'))
+            : h('div', { class: 'hint' }, '¡Proyecto terminado!'),
+        ),
+      );
+    }
+  };
+  renderProjects();
+  body.prepend(projects);
+  body.prepend(errandsSection());
   panel({ title: 'Cartelera de Villa Nori', body });
 });
 

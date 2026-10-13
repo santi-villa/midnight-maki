@@ -1,4 +1,6 @@
 /** Order generation, serving and restaurant progression. DOM-free logic. */
+import { townCharm } from './projects';
+import { recipeStars } from './mastery';
 import { BALANCE } from '../core/balance';
 import { bus } from '../core/events';
 import { game } from '../core/state';
@@ -77,7 +79,7 @@ export function charm(): number {
   let c = 0;
   for (const f of game.save.decor.dining ?? []) c += FURN_BY_ID[f.id]?.charm ?? 0;
   for (const u of game.save.restaurant.upgrades) if (['lights', 'display'].includes(u)) c += 5;
-  return c;
+  return c + townCharm();
 }
 
 export function tipBonus(): number {
@@ -160,7 +162,8 @@ export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, op
   s.orders.splice(idx, 1);
   const r = RECIPES_BY_ID[o.recipe];
   const roll = opts?.rng ?? Math.random;
-  let coins = Math.round(o.reward * (1 + BALANCE.qualityBonus[quality] + tipBonus())) + variantBonus;
+  // a dish the cook has mastered is worth a little more (4% per star)
+  let coins = Math.round(o.reward * (1 + BALANCE.qualityBonus[quality] + tipBonus() + recipeStars(o.recipe) * 0.04)) + variantBonus;
   // happy customers sometimes leave a tip, and a perfect dish may earn a little present
   const tip = quality >= 1 && roll() < (quality === 2 ? 0.55 : 0.25) ? Math.round(o.reward * (0.1 + roll() * 0.2)) : 0;
   if (!opts?.holdTip) coins += tip;
@@ -171,6 +174,7 @@ export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, op
   const firstTime = !s.recipesCooked[o.recipe];
   s.recipesCooked[o.recipe] = (s.recipesCooked[o.recipe] ?? 0) + 1;
   s.restaurant.served++;
+  if (quality >= 1) game.stat('goodServed');
   const rep = BALANCE.reputationPerServe + quality;
   s.restaurant.reputation += rep;
   const xp = r.xp + quality * 2;
