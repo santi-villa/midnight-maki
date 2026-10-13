@@ -1,5 +1,6 @@
 /** IndexedDB persistence with a rolling backup, export/import and a localStorage fallback. */
 import { game } from '../core/state';
+import { reportError } from '../core/errors';
 import type { SaveData, Settings } from '../core/types';
 import { SaveError, validateSave } from './validate';
 
@@ -16,7 +17,12 @@ function openDb(): Promise<IDBDatabase | null> {
     try {
       const req = indexedDB.open(DB_NAME, 1);
       req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        const db = req.result;
+        db.onversionchange = () => { db.close(); dbPromise = null; };
+        db.onclose = () => { dbPromise = null; };
+        resolve(db);
+      };
       req.onerror = () => resolve(null);
       req.onblocked = () => resolve(null);
     } catch {
@@ -50,7 +56,7 @@ async function idbPut(key: string, value: unknown): Promise<void> {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).put(value, key);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = tx.onabort = () => reject(tx.error ?? new DOMException('Transaction aborted', 'AbortError'));
   });
 }
 
@@ -83,43 +89,53 @@ export async function loadGame(): Promise<SaveData | null> {
       if (!raw) continue;
       return validateSave(structuredClone(raw));
     } catch (err) {
-      console.warn('[save] slot unreadable', key, err);
+      reportError('save:load:' + key, err, false);
     }
   }
   return null;
 }
 
-let saving: Promise<void> | null = null;
+let writes: Promise<unknown> = Promise.resolve();
 let lastBackup = 0;
+const SAVE_NOTICE = 'No se pudo guardar. Tu progreso sigue en esta sesión; reintentá o exportá una copia antes de salir.';
 
-/** Writes the current state. Validates a deep copy first so a corrupt state is never persisted. */
+/** Capture at the call, then serialize writes. Only a completed transaction counts as saved. */
 export async function saveGame(reason = 'auto'): Promise<boolean> {
   if (!game.loaded) return false;
-  if (saving) await saving;
-  const snapshot = JSON.parse(JSON.stringify(game.save));
+  const source = game.save;
+  const revision = game.revision;
+  let snapshot: SaveData;
   try {
-    validateSave(snapshot);
+    snapshot = validateSave(JSON.parse(JSON.stringify(source)));
   } catch (err) {
-    console.error('[save] refusing to write invalid state', err);
+    reportError('save:snapshot', err, SAVE_NOTICE);
     return false;
   }
-  saving = (async () => {
+  const write = writes.then(async () => {
     try {
-      // keep a backup of the previous good save every few minutes
+      // Rotate only a validated previous save. Never replace a good backup with corrupt data.
       if (Date.now() - lastBackup > 120_000) {
-        const prev = await idbGet(MAIN);
-        if (prev) await idbPut(BACKUP, prev);
+        let prev: unknown;
+        try { prev = await idbGet(MAIN); }
+        catch (err) { reportError('save:backup-read', err, false); }
+        if (prev) {
+          let backup: SaveData | undefined;
+          try { backup = validateSave(structuredClone(prev)); }
+          catch (err) { reportError('save:backup-invalid', err, false); }
+          if (backup) await idbPut(BACKUP, backup);
+        }
         lastBackup = Date.now();
       }
       await idbPut(MAIN, snapshot);
-      game.dirty = false;
+      if (game.save === source && game.revision === revision) game.dirty = false;
+      return true;
     } catch (err) {
-      console.error('[save] write failed', reason, err);
+      reportError('save:write:' + reason, err, SAVE_NOTICE);
+      return false;
     }
-  })();
-  await saving;
-  saving = null;
-  return true;
+  });
+  writes = write;
+  return write;
 }
 
 export async function deleteSave() {

@@ -1,3 +1,4 @@
+import { runTask } from '../core/errors';
 /** Main in-game menus: bag, journal (quests, investigation, relations, collections, calendar), and menu. */
 import { iconElement } from '../art/icons';
 import { audio } from '../audio/audio';
@@ -186,7 +187,7 @@ function calendarView() {
 // ------------------------------------------------------------------ main menu
 export function openMenu() {
   const b = (label: string, hint: string, fn: () => void, cls = '') =>
-    h('button', { class: 'btn ' + cls, style: { textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }, onclick: () => { p.close(); fn(); } }, h('span', null, label), h('span', { class: 'hint', style: { fontWeight: '400' } }, hint));
+    h('button', { class: 'btn ' + cls, style: { textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }, onclick: () => { p.close(); void runTask('ui:menu', fn); } }, h('span', null, label), h('span', { class: 'hint', style: { fontWeight: '400' } }, hint));
   const grid = h(
     'div',
     { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' } },
@@ -202,7 +203,7 @@ export function openMenu() {
     b('Ajustes', 'Sonido, texto, accesibilidad', () => openSettings(true)),
     b('Guardar y salir', 'Volver al título', async () => {
       const { saveGame } = await import('../persistence/storage');
-      await saveGame('exit');
+      if (!(await saveGame('exit'))) return;
       if (await confirmBox('Partida guardada. ¿Volver a la pantalla de título?', 'Salir', 'Seguir jugando')) location.reload();
     }),
   );

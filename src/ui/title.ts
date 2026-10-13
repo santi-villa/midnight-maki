@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { audio } from '../audio/audio';
 import { continueGame, setPhaser, startNewGame } from '../core/flow';
 import { bus } from '../core/events';
+import { runTask } from '../core/errors';
 import { lowFx } from '../core/perf';
 import { settings } from '../core/settings';
 import { hasSave, importSaveFile, loadGame, saveFromCode } from '../persistence/storage';
@@ -56,7 +57,7 @@ export async function showTitle(phaser: Phaser.Game) {
       return;
     }
     close();
-    continueGame(s);
+    await continueGame(s);
   };
   const doNew = async () => {
     if (saved && !(await confirmBox('Ya hay una partida guardada. Si empezás una nueva, se reemplazará. ¿Seguir?', 'Empezar de nuevo'))) return;
@@ -66,7 +67,7 @@ export async function showTitle(phaser: Phaser.Game) {
       confirmLabel: 'Comenzar',
       onDone: (a, name, rest) => {
         close();
-        startNewGame(a, name, rest);
+        void runTask('flow:new', () => startNewGame(a, name, rest));
       },
     });
   };
@@ -78,7 +79,7 @@ export async function showTitle(phaser: Phaser.Game) {
       const s = await importSaveFile(f);
       loadPanel?.close();
       close();
-      continueGame(s);
+      await continueGame(s);
       toast('Partida importada.');
     } catch (err: any) {
       toast(err?.message ?? 'No se pudo importar.');
@@ -94,7 +95,7 @@ export async function showTitle(phaser: Phaser.Game) {
           const s = saveFromCode(codeBox.value);
           loadPanel?.close();
           close();
-          continueGame(s);
+          void runTask('flow:import-code', () => continueGame(s));
           toast('Partida cargada desde el código.');
         } catch (err: any) {
           toast(err?.message ?? 'No se pudo leer el código.');
@@ -105,7 +106,7 @@ export async function showTitle(phaser: Phaser.Game) {
       'div',
       { class: 'col' },
       h('p', { class: 'hint' }, 'Si tenés una copia de seguridad (un archivo o un código), podés cargarla acá.'),
-      saved ? h('button', { class: 'btn primary', onclick: () => { loadPanel?.close(); void doContinue(); } }, 'Seguir con la partida de este dispositivo') : null,
+      saved ? h('button', { class: 'btn primary', onclick: () => { loadPanel?.close(); void runTask('flow:continue', doContinue); } }, 'Seguir con la partida de este dispositivo') : null,
       h('button', { class: 'btn', onclick: () => imp.click() }, 'Abrir archivo de copia'),
       h('button', { class: 'btn', onclick: () => { codeBox.style.display = ''; codeGo.style.display = ''; codeBox.focus(); } }, 'Pegar código de copia'),
       codeBox,
@@ -174,8 +175,8 @@ export async function showTitle(phaser: Phaser.Game) {
     return b;
   };
   const buttons: HTMLButtonElement[] = [];
-  if (saved) buttons.push(btn('Continuar', 'primary', 6, () => void doContinue()));
-  buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', saved ? 6 : 12, () => void doNew()));
+  if (saved) buttons.push(btn('Continuar', 'primary', 6, () => void runTask('flow:continue', doContinue)));
+  buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', saved ? 6 : 12, () => void runTask('flow:new-menu', doNew)));
   buttons.push(btn('Cargar partida', '', 5, doLoad), btn('Opciones', '', 4, () => openSettings(false)), btn('Créditos', '', 3, credits));
   const menu = h('div', { class: 'tt-menu', role: 'menu' }, ...buttons, imp);
   const prompt = h('div', { class: 'tt-prompt' }, 'Tocá para comenzar');

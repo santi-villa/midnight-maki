@@ -2,6 +2,7 @@
 import { iconElement } from '../art/icons';
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
+import { reportError } from '../core/errors';
 import { game } from '../core/state';
 import { ITEMS_BY_ID } from '../data/items';
 import { world, type Target } from '../scenes/WorldScene';
@@ -26,7 +27,7 @@ export function installActions() {
     try {
       await route(t);
     } catch (err) {
-      console.error('[actions]', err);
+      reportError('world:interaction', err);
     } finally {
       busy = false;
     }

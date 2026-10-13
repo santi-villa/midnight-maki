@@ -5,6 +5,7 @@
 import { iconElement } from '../art/icons';
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
+import { runTask } from '../core/errors';
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
@@ -197,7 +198,7 @@ defineQuests([
 // ------------------------------------------------------------------ zone triggers
 // the night without constellations also starts if night falls while you're outside
 bus.on('time:changed', ({ period }) => {
-  if (period === 3 && game.has('ch6_done') && !game.has('dark_night_seen') && world?.zone?.def.outdoor) setTimeout(() => darkNight(), 800);
+  if (period === 3 && game.has('ch6_done') && !game.has('dark_night_seen') && world?.zone?.def.outdoor) setTimeout(() => void runTask('story:dark-night', darkNight), 800);
 });
 export async function onEnterZone(zone: string) {
   game.setFlag('visited_' + zone);

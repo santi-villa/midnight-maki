@@ -6,7 +6,7 @@ import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { WorldScene } from './scenes/WorldScene';
 import { showTitle } from './ui/title';
-import { installErrorGuard } from './core/errors';
+import { errorReports, installErrorGuard, runTask } from './core/errors';
 import { registerSW } from './core/pwa';
 import { installAppShell, onBack } from './core/appShell';
 
@@ -26,9 +26,9 @@ onBack(async () => {
 
 if (new URLSearchParams(location.search).has('debug')) {
   // test hooks: inspect state from the console / automated checks
-  Promise.all([import('./core/state'), import('./scenes/WorldScene'), import('./systems/time'), import('./persistence/storage'), import('./audio/audio')]).then(([s, w, t, st, a]) => {
-    (window as any).mmDebug = { game: s.game, get world() { return w.world; }, clock: t.clock, storage: st, audio: a.audio };
-  });
+  void runTask('boot:debug', () => Promise.all([import('./core/state'), import('./scenes/WorldScene'), import('./systems/time'), import('./persistence/storage'), import('./audio/audio')]).then(([s, w, t, st, a]) => {
+    (window as any).mmDebug = { game: s.game, get world() { return w.world; }, clock: t.clock, storage: st, audio: a.audio, errorReports };
+  }));
 }
 applySettings();
 installSkin();
@@ -61,6 +61,6 @@ const game = new Phaser.Game({
 
 (window as any).__mm = game; // handy for debugging & e2e tests
 
-game.events.once('booted', () => showTitle(game));
+game.events.once('booted', () => void runTask('boot:title', () => showTitle(game)));
 }
 if (!(window as any).Capacitor?.isNativePlatform?.()) registerSW();

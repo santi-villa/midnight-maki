@@ -1,4 +1,5 @@
 /** Minimal typed event bus shared by game systems, scenes and UI. */
+import { reportError } from './errors';
 export interface GameEvents {
   'state:changed': { reason: string };
   'coins:changed': { coins: number; delta: number };
@@ -19,7 +20,7 @@ export interface GameEvents {
   'item:collected': { id: string; source: string };
 }
 
-type Handler<T> = (payload: T) => void;
+type Handler<T> = (payload: T) => void | Promise<void>;
 
 class EventBus {
   private map = new Map<string, Set<Handler<any>>>();
@@ -36,9 +37,10 @@ class EventBus {
     if (!set) return;
     for (const fn of [...set]) {
       try {
-        fn(payload);
+        const result = fn(payload);
+        if (result) void Promise.resolve(result).catch((err) => reportError(`event:${ev}`, err));
       } catch (err) {
-        console.error(`[bus] handler error on ${ev}`, err);
+        reportError(`event:${ev}`, err);
       }
     }
   }

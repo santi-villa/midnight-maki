@@ -8,6 +8,7 @@ import { WaterFx } from './waterFx';
 import { lightState, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
+import { runTask } from '../core/errors';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
 import type { Dir } from '../core/types';
@@ -102,7 +103,7 @@ export class WorldScene extends Phaser.Scene {
   private contextKey = '';
   inputLocked = 0; // cutscenes
   onInteract: (t: Target) => void = () => {};
-  onEnterZone: (id: string) => void = () => {};
+  onEnterZone: (id: string) => void | Promise<void> = () => {};
   /** story hook: may unlock a door when the player tries it (returns true if now open) */
   lockHook: (to: string) => boolean = () => false;
   private quirkT = 20;
@@ -190,32 +191,36 @@ export class WorldScene extends Phaser.Scene {
   async enterZone(id: string, tx: number, ty: number, dir: Dir = 'down', withFade = true) {
     if (this.transitioning) return;
     this.transitioning = true;
-    const { fade } = await import('../ui/dom');
-    const bigMove = withFade && this.zoneId && (ZONES[id]?.outdoor || ZONES[this.zoneId]?.outdoor) && !['home', 'storage'].includes(id);
-    if (withFade && this.zoneId) await fade(true, bigMove ? 260 : 200, bigMove ? ZONES[id]?.name : undefined);
-    if (bigMove) await new Promise((r) => setTimeout(r, 420));
-    this.buildZoneObjects(id);
-    if (!this.player) {
-      this.player = new Actor(this, 'player', charTexture(this, 'player'), tx, ty);
-      this.player.speed = 72;
-    } else this.player.teleport(tx, ty);
-    this.player.face(dir);
-    this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, 8);
-    this.cameras.main.centerOn(this.player.x, this.player.y);
-    const p = game.save.player;
-    p.zone = id;
-    p.x = tx;
-    p.y = ty;
-    p.dir = dir;
-    this.spawnNpcs(false);
-    this.npcKey = this.npcStamp();
-    this.shopKey = this.shopStamp();
-    this.refreshShopSigns();
-    this.playZoneAudio();
-    if (withFade) await fade(false, 220);
-    this.transitioning = false;
-    bus.emit('zone:enter', { zone: id });
-    this.onEnterZone(id);
+    try {
+      const { fade } = await import('../ui/dom');
+      const bigMove = withFade && this.zoneId && (ZONES[id]?.outdoor || ZONES[this.zoneId]?.outdoor) && !['home', 'storage'].includes(id);
+      if (withFade && this.zoneId) await fade(true, bigMove ? 260 : 200, bigMove ? ZONES[id]?.name : undefined);
+      if (bigMove) await new Promise((r) => setTimeout(r, 420));
+      this.buildZoneObjects(id);
+      if (!this.player) {
+        this.player = new Actor(this, 'player', charTexture(this, 'player'), tx, ty);
+        this.player.speed = 72;
+      } else this.player.teleport(tx, ty);
+      this.player.face(dir);
+      this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, 8);
+      this.cameras.main.centerOn(this.player.x, this.player.y);
+      const p = game.save.player;
+      p.zone = id;
+      p.x = tx;
+      p.y = ty;
+      p.dir = dir;
+      this.spawnNpcs(false);
+      this.npcKey = this.npcStamp();
+      this.shopKey = this.shopStamp();
+      this.refreshShopSigns();
+      this.playZoneAudio();
+      if (withFade) await fade(false, 220);
+      this.transitioning = false;
+      bus.emit('zone:enter', { zone: id });
+      void runTask('world:zone-story', () => this.onEnterZone(id));
+    } finally {
+      this.transitioning = false;
+    }
   }
 
   private clearZone() {
@@ -706,7 +711,7 @@ export class WorldScene extends Phaser.Scene {
 
   private enqueueMeal(meal: PaidMeal) {
     this.mealQueue.push(meal);
-    void this.drainMeals();
+    void runTask('world:paid-meal', () => this.drainMeals());
   }
 
   private async drainMeals() {
@@ -775,7 +780,9 @@ export class WorldScene extends Phaser.Scene {
     for (const b of this.bugs) b.sprite.destroy();
     this.bugs = [];
     if (!this.zone.def.bugs) return;
-    import('../systems/collect').then(({ bugsFor }) => {
+    const zone = this.zone;
+    void runTask('world:bugs', () => import('../systems/collect').then(({ bugsFor }) => {
+      if (!this.sys.isActive() || this.zone !== zone) return;
       for (const id of bugsFor(this.zoneId)) {
         const it = ITEMS_BY_ID[id];
         let x = 0;
@@ -788,7 +795,7 @@ export class WorldScene extends Phaser.Scene {
         const s = this.add.image(x * TILE + 8, y * TILE + 4, iconTexture(this, it.icon)).setScale(0.6).setDepth(y * TILE + 40);
         this.bugs.push({ sprite: s, item: id, vx: 0, vy: 0, t: 0 });
       }
-    });
+    }));
   }
 
   removeBug(idx: number) {
@@ -1140,11 +1147,11 @@ export class WorldScene extends Phaser.Scene {
     }
     if (intent.type === 'gift') {
       this.greet(intent.npcId);
-      void this.offerGift(intent.npcId);
+      void runTask('world:gift', () => this.offerGift(intent.npcId));
       return;
     }
     if (intent.type === 'decorate') {
-      void import('../decoration/editor').then((m) => m.startDecor());
+      void runTask('world:decorate', () => import('../decoration/editor').then((m) => m.startDecor()));
       return;
     }
     if (intent.type === 'takeOrder') {
@@ -1154,7 +1161,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     if (intent.type === 'cookOrder') {
-      void import('../restaurant/kitchen').then((m) => m.cookOrder(intent.uid));
+      void runTask('world:cook', () => import('../restaurant/kitchen').then((m) => m.cookOrder(intent.uid)));
       return;
     }
     if (intent.type === 'deliver') {
@@ -1168,11 +1175,11 @@ export class WorldScene extends Phaser.Scene {
       this.contextKey = '';
       return;
     }
-    void import('../restaurant/kitchen').then((m) => m.openOrders());
+    void runTask('world:orders', () => import('../restaurant/kitchen').then((m) => m.openOrders()));
   }
 
   private note(text: string) {
-    void import('../ui/dom').then(({ toast }) => toast(text));
+    void runTask('world:notice', () => import('../ui/dom').then(({ toast }) => toast(text)), false);
   }
 
   private async offerGift(id: string) {
@@ -1494,7 +1501,7 @@ export class WorldScene extends Phaser.Scene {
     audio.sfxPlay('door');
     if (d.to.startsWith('shop_') || (this.zoneId.startsWith('shop_') && d.to === 'plaza')) audio.sfxPlay('bell');
     p.stop();
-    this.enterZone(d.to, d.tx, d.ty, d.dir);
+    void runTask('world:walk-door', () => this.enterZone(d.to, d.tx, d.ty, d.dir));
   }
 
   private updateNpc(n: NpcState, dt: number) {
@@ -2004,7 +2011,7 @@ export class WorldScene extends Phaser.Scene {
     loop._limitRate = low ? 1000 / 30 : 0;
     loop.hasFpsLimit = low;
     this.setupAmbient();
-    if (announce) import('../ui/dom').then(({ toast }) => toast('Activé el modo batería para que el juego vaya más fluido.'));
+    if (announce) void runTask('world:battery-tip', () => import('../ui/dom').then(({ toast }) => toast('Activé el modo batería para que el juego vaya más fluido.')), false);
   }
 
   // ------------------------------------------------------------------ objective guide
@@ -2070,7 +2077,9 @@ export class WorldScene extends Phaser.Scene {
     const raccoons = [...this.npcs.entries()].filter(([id, n]) => !n.social && !n.traveling && n.t < 80 && !n.actor.path.length && !(id === 'pip' && this.hostId) && (CHAR_BY_ID[id]?.raccoon || Math.random() < 0.3));
     if (!raccoons.length) return;
     const [id, n] = raccoons[Math.floor(Math.random() * raccoons.length)];
-    import('../story/quirks').then(({ runQuirk }) => runQuirk(id, n.actor, this));
+    void runTask('world:quirk', () => import('../story/quirks').then(({ runQuirk }) => {
+      if (this.sys.isActive() && this.npcs.get(id) === n && n.actor.sprite.active) runQuirk(id, n.actor, this);
+    }));
   }
 }
 
