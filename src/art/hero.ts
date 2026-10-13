@@ -380,7 +380,7 @@ export function drawHeroFace(k: Kit, c: Ctx, g: HeadGeo, view: View, f: FacePara
     const jaw = front ? [cx - 6, cx + 6] : [cx - 2, cx + 7];
     if (f.facial === 1) {
       // stubble: a sprinkle of dots along the jaw
-      for (let y = ey + 6; y <= ey + 8; y++) for (let x = jaw[0]; x <= jaw[1]; x++) if ((x + y) % 2 === 0 && (y > ey + 6 || Math.abs(x - cx) > 3)) px(c, x, y, mix(fc, sk, 0.72));
+      for (let y = ey + 7; y <= ey + 8; y++) for (let x = jaw[0]; x <= jaw[1]; x++) if ((x + y) % 2 === 0 && (y > ey + 7 || Math.abs(x - cx) > 3)) px(c, x, y, mix(fc, sk, 0.72));
     }
     if (f.facial === 2 || f.facial === 5) px(c, mx - 1, my - 1, fc, 4, 1);
     if (f.facial === 3) px(c, mx, my + 1, fc, 2, 2);
@@ -479,12 +479,12 @@ export const HERO_EYE_COLORS = ['#3a2a22', '#5d4037', '#7a5a2a', '#4f6b52', '#3b
 export const HERO_DEFAULTS: Record<'m' | 'f', { name: string; look: HeroLook; app: Partial<Appearance> }> = {
   m: {
     name: 'Santiago',
-    look: { gender: 'm', build: 1, face: 2, brow: 1, browColor: '#4a3a2c', nose: 1, lips: '', freckles: false, mole: false, blush: false, facial: 1, hairHi: '', earrings: 4, neck: 5, piercing: 1 },
+    look: { gender: 'm', build: 1, face: 2, brow: 1, browColor: '#4a3a2c', nose: 1, lips: '', freckles: false, mole: false, blush: false, facial: 0, hairHi: '', earrings: 0, neck: 5, piercing: 0 },
     app: { species: 'human', skin: '#e3b891', hairStyle: 7, hairColor: '#6a5a46', eyes: 1, eyeColor: '#3a2a22', top: 'top_hoodie_black', bottom: 'bot_cargo', shoes: 'sh_sneakers_white', head: '', face: '', extra: '', bag: '' },
   },
   f: {
     name: 'Sofi',
-    look: { gender: 'f', build: 1, face: 0, brow: 3, browColor: '', nose: 0, lips: '', freckles: false, mole: true, blush: false, facial: 0, hairHi: '', earrings: 0, neck: 1, piercing: 4 },
+    look: { gender: 'f', build: 1, face: 0, brow: 3, browColor: '', nose: 0, lips: '', freckles: false, mole: true, blush: false, facial: 0, hairHi: '', earrings: 0, neck: 1, piercing: 0 },
     app: { species: 'human', skin: '#ebc7a8', hairStyle: 17, hairColor: '#2a1f22', eyes: 4, eyeColor: '#3a2a26', top: 'top_goth_lace', bottom: 'bot_cargo_black', shoes: 'sh_platform_black', head: '', face: '', extra: '', bag: '' },
   },
 };
