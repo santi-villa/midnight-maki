@@ -1,0 +1,121 @@
+{
+  "frameWidth": 28,
+  "frameHeight": 40,
+  "origin": {
+    "x": 0.5,
+    "y": 1
+  },
+  "directions": "Vista frontal en idle. El resto mira a la derecha; usar flipX para izquierda.",
+  "animations": {
+    "idle": {
+      "frames": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    "idleSide": {
+      "frames": [
+        2,
+        2,
+        2,
+        2,
+        3,
+        2
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    "walk": {
+      "frames": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "frameRate": 7,
+      "repeat": -1
+    },
+    "sit": {
+      "frames": [
+        8,
+        9
+      ],
+      "frameRate": 1.5,
+      "repeat": -1
+    },
+    "eat": {
+      "frames": [
+        10,
+        11,
+        12,
+        13
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    }
+  },
+  "characters": [
+    {
+      "id": "oli",
+      "name": "Oli",
+      "species": "Cerdito",
+      "sheet": "oli.png",
+      "frameCount": 14
+    },
+    {
+      "id": "toby",
+      "name": "Toby",
+      "species": "Koala",
+      "sheet": "toby.png",
+      "frameCount": 14
+    },
+    {
+      "id": "fredi",
+      "name": "Fredi",
+      "species": "Zorro",
+      "sheet": "fredi.png",
+      "frameCount": 14
+    },
+    {
+      "id": "pipo",
+      "name": "Pipo",
+      "species": "Pingüino",
+      "sheet": "pipo.png",
+      "frameCount": 14
+    },
+    {
+      "id": "po",
+      "name": "Po",
+      "species": "Panda",
+      "sheet": "po.png",
+      "frameCount": 14
+    },
+    {
+      "id": "gigi",
+      "name": "Gigi",
+      "species": "Jirafa",
+      "sheet": "gigi.png",
+      "frameCount": 14
+    },
+    {
+      "id": "nico",
+      "name": "Nico",
+      "species": "Capibara",
+      "sheet": "nico.png",
+      "frameCount": 14
+    },
+    {
+      "id": "leo",
+      "name": "Leo",
+      "species": "León",
+      "sheet": "leo.png",
+      "frameCount": 14
+    }
+  ]
+}
