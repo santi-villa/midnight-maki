@@ -9,7 +9,6 @@ import { ZONES } from '../data/zones';
 import { world } from '../scenes/WorldScene';
 import { currentQuestTarget } from '../quests/quests';
 import { portraitURL } from '../systems/appearance';
-import { whereIs } from '../systems/npcs';
 import { h, panel } from './dom';
 
 const MW = 240;
@@ -185,7 +184,7 @@ export function openWorldMap() {
   let questTargetZone: string | null = null;
   if (qTarget) {
     if (qTarget.kind === 'npc') {
-      questTargetZone = whereIs(qTarget.npc);
+      questTargetZone = world.characterZone(qTarget.npc);
     } else if (qTarget.kind === 'interior') {
       questTargetZone = qTarget.fromZone;
     } else if (qTarget.kind === 'location' || qTarget.kind === 'object') {
@@ -220,7 +219,7 @@ export function openWorldMap() {
   // raccoons, gathered per zone
   const byZone = new Map<string, string[]>();
   for (const id of ['spicy', 'rigg', 'pip']) {
-    const z = whereIs(id);
+    const z = world.characterZone(id);
     if (!z) continue;
     const key = z === 'home' || z === 'storage' ? 'restaurant' : z.startsWith('shop_') ? 'plaza' : z;
     byZone.set(key, [...(byZone.get(key) ?? []), id]);
@@ -232,7 +231,7 @@ export function openWorldMap() {
     for (const id of ids) row.append(h('img', { src: portraitURL(id), alt: CHARACTERS.find((c) => c.id === id)?.name ?? '' }));
     wrap.append(row);
   }
-  const legend = h('div', { class: 'hint', style: { marginTop: '6px' } }, 'Mapaches: ' + ['pip', 'spicy', 'rigg'].map((r) => `${CHARACTERS.find((c) => c.id === r)!.name} — ${ZONES[whereIs(r) ?? '']?.name ?? 'paseando'}`).join(' · '));
+  const legend = h('div', { class: 'hint', style: { marginTop: '6px' } }, 'Mapaches: ' + ['pip', 'spicy', 'rigg'].map((r) => `${CHARACTERS.find((c) => c.id === r)!.name} — ${ZONES[world.characterZone(r) ?? '']?.name ?? 'paseando'}`).join(' · '));
   const qHint = qTarget?.label ? h('div', { class: 'hint', style: { marginTop: '4px', color: '#b85d19', fontWeight: 'bold' } }, `✦ Objetivo actual: ${qTarget.label}`) : null;
   panel({ title: 'Mapa de Villa Nori', body: h('div', null, wrap, info, legend, qHint) });
 }

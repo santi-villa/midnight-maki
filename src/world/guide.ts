@@ -37,7 +37,7 @@ const PLACE_WORDS: [RegExp, string, string?][] = [
 ];
 
 /** Where the tracked quest currently points to, or null. */
-export function questTarget(): GuideTarget | null {
+export function questTarget(locate: (id: string) => string | null = whereIs): GuideTarget | null {
   const id = game.save.quests.tracked;
   if (!id) return null;
   const step = currentStep(id);
@@ -47,7 +47,7 @@ export function questTarget(): GuideTarget | null {
   if (step.target) {
     const t = step.target;
     if (t.kind === 'npc') {
-      const z = whereIs(t.npc);
+      const z = locate(t.npc);
       return z ? { zone: z, npc: t.npc } : null;
     }
     if (t.kind === 'object') {
@@ -66,7 +66,7 @@ export function questTarget(): GuideTarget | null {
   for (const c of CHARACTERS) {
     const first = c.name.split(' ')[0];
     if (new RegExp(`\\b${first}\\b`, 'i').test(text)) {
-      const z = whereIs(c.id);
+      const z = locate(c.id);
       if (z) return { zone: z, npc: c.id };
     }
   }

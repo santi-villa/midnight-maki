@@ -4,17 +4,20 @@ import { audio } from '../audio/audio';
 import { bus } from '../core/events';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
+import { dayOfSeason, WEEKDAYS, weekday } from '../core/balance';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
 import { idleOffer, type ContextAction, type ContextOffer } from '../world/contextActions';
 import { h, uiRoot } from './dom';
 import { skinIconEl } from './skin';
+import { hudTime, paintHudClock } from './hudClock';
+import './hud.css';
 
 let root: HTMLElement | null = null;
 let timeEl: HTMLElement;
 let dateEl: HTMLElement;
 let coinEl: HTMLElement;
-let timeIcon: HTMLElement;
+let clockEl: HTMLCanvasElement;
 let questEl: HTMLElement;
 let suggestEl: HTMLElement;
 let joyEl: HTMLElement | null = null;
@@ -34,24 +37,46 @@ export interface HudHandlers {
 }
 let handlers: HudHandlers;
 
-const PERIOD_ICON = ['sun', 'afternoon', 'dusk', 'moon'];
-
 export function mountHud(hd: HudHandlers) {
   handlers = hd;
   if (root) root.remove();
   timeEl = h('span');
-  dateEl = h('div', { class: 'hint', style: { fontSize: '.78em' } });
+  dateEl = h('div', { class: 'hud-date' });
   coinEl = h('span', { class: 'coin' });
-  timeIcon = h('span');
-  const status = h('div', { class: 'hud-status' }, h('div', { class: 'time' }, timeIcon, timeEl), dateEl, h('div', { class: 'row', style: { gap: '4px' } }, iconElement({ type: 'coin' }), coinEl));
-  status.querySelector('canvas')!.setAttribute('style', 'width:18px;height:18px;image-rendering:pixelated');
+  const status = h('div', { class: 'hud-status' }, h('div', { class: 'time' }, timeEl), dateEl, h('div', { class: 'hud-coins' }, iconElement({ type: 'coin' }), coinEl));
+  const toggle = h('button', {
+    type: 'button', class: 'hud-status-toggle', 'aria-label': 'Contraer fecha y monedas', 'aria-expanded': 'true',
+    onclick: () => {
+      const collapsed = status.classList.toggle('is-collapsed');
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.setAttribute('aria-label', collapsed ? 'Mostrar fecha y monedas' : 'Contraer fecha y monedas');
+      toggle.textContent = collapsed ? '→' : '←';
+    },
+  }, '←');
+  clockEl = h('canvas', { class: 'hud-clock', width: 32, height: 32, role: 'img', 'aria-label': 'Hora del juego' });
+  const statusWrap = h('div', { class: 'hud-status-wrap' }, status, toggle, clockEl);
   const btn = (icon: string, label: string, fn: () => void) => {
-    const b = h('button', { class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon), h('span', { class: 'lbl' }, label));
+    const b = h('button', { type: 'button', class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon));
     return b;
   };
-  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('scroll', 'Misiones', () => handlers.journal()), btn('map', 'Mapa', () => import('./worldmap').then((m) => m.openWorldMap())), btn('gear', 'Menú', () => handlers.menu()));
-  questEl = h('div', { class: 'hud-quest', title: 'Tocá para achicar', onclick: () => { questEl.classList.toggle('mini'); try { localStorage.setItem('mm_questmini', questEl.classList.contains('mini') ? '1' : ''); } catch { /* ignore */ } } });
-  try { if (localStorage.getItem('mm_questmini')) questEl.classList.add('mini'); } catch { /* ignore */ }
+  const menuButton = btn('menu', 'Menú', () => handlers.menu());
+  menuButton.firstElementChild!.classList.add('hud-menu-mobile');
+  menuButton.append(skinIconEl('wood_gear', 'skin-icon hud-menu-desktop'));
+  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('clipboard', 'Misiones', () => handlers.journal()), btn('map', 'Mapa', () => import('./worldmap').then((m) => m.openWorldMap())), menuButton);
+  questEl = h('div', {
+    class: 'hud-quest', role: 'button', tabindex: 0, title: 'Ver detalles de la misión',
+    onclick: () => {
+      const mini = questEl.classList.toggle('mini');
+      questEl.setAttribute('aria-expanded', String(!mini));
+      try { localStorage.setItem('mm_questmini', mini ? '1' : '0'); } catch { /* ignore */ }
+    },
+    onkeydown: (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); questEl.click(); }
+    },
+  });
+  questEl.classList.add('mini');
+  try { if (localStorage.getItem('mm_questmini') === '0') questEl.classList.remove('mini'); } catch { /* ignore */ }
+  questEl.setAttribute('aria-expanded', String(!questEl.classList.contains('mini')));
   suggestEl = h('div', { class: 'hud-suggest' });
   tagEl = h('div', { class: 'room-tag' });
   tagEl.style.display = 'none';
@@ -60,9 +85,10 @@ export function mountHud(hd: HudHandlers) {
   actionBtns.clear();
   menuOpen = false;
   overflowKey = '';
-  root = h('div', { class: 'passthrough' }, h('div', { class: 'hud-top' }, status, buttons), questEl, tagEl, dock, suggestEl);
+  root = h('div', { class: 'passthrough game-hud' }, h('div', { class: 'hud-top' }, statusWrap, buttons), questEl, tagEl, dock, suggestEl);
   uiRoot().append(root);
   refresh();
+  refreshSuggestions();
   renderContext();
   setupJoystick();
 }
@@ -72,18 +98,14 @@ export function showHud(v: boolean) {
   if (joyEl) joyEl.style.display = v && settings.joystick ? '' : 'none';
 }
 
-let lastIcon = -1;
 export function refresh() {
   if (!root || !game.loaded) return;
   const t = game.save.time;
   timeEl.textContent = clock.label();
-  dateEl.textContent = clock.dateLabel() + (game.flag('weather') === 'rain' ? ' · lluvia' : '');
+  dateEl.textContent = `${WEEKDAYS[weekday(t.day)]} ${dayOfSeason(t.day)}`;
+  dateEl.title = clock.dateLabel() + (game.flag('weather') === 'rain' ? ' · lluvia' : '');
   coinEl.textContent = game.coins.toLocaleString('es-AR');
-  if (lastIcon !== t.period) {
-    lastIcon = t.period;
-    timeIcon.innerHTML = '';
-    timeIcon.append(iconElement({ type: PERIOD_ICON[t.period] }));
-  }
+  paintHudClock(clockEl, hudTime(t.period, t.minutes));
   const q = handlers.questText();
   questEl.style.display = q ? '' : 'none';
   if (q) questEl.innerHTML = q;
@@ -291,7 +313,7 @@ function setupJoystick() {
   }
   if (!settings.joystick || !root) return;
   const knob = h('i');
-  joyEl = h('div', { class: 'joystick' }, knob);
+  joyEl = h('div', { class: 'joystick game-joystick' }, knob);
   uiRoot().append(joyEl);
   let id: number | null = null;
   let cx = 0;

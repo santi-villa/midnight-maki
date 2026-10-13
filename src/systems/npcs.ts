@@ -2,7 +2,7 @@
 import { game } from '../core/state';
 import { CHARACTERS, type CharacterDef, type RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
-import { applyBeat, FESTIVAL_SPOT, shopPlace, shopStatus, type ShopStatus } from './schedule';
+import { applyBeat, FESTIVAL_SPOT, restaurantPhase, shopPlace, shopStatus, type ShopStatus } from './schedule';
 
 function minutesNow(): number {
   return game.save.time.minutes;
@@ -24,6 +24,10 @@ export function stopFor(id: string, period: number): RoutineStop | null {
   }
   // during the prologue tutorial the raccoons stay at the restaurant so they're always reachable
   if (c.raccoon && !game.save.quests.done.includes('prologue') && game.save.time.day < 2) return { zone: 'restaurant', ...introSpot(id) };
+  // Pip hosts the whole public shift, then returns to his own evening routine.
+  if (id === 'pip' && game.has('intro_done') && restaurantPhase(period, minutesNow()) === 'open') {
+    return { zone: 'restaurant', x: 8, y: 9, wander: 0, act: 'work' };
+  }
   const spot = c.routine[period];
   if (game.flag('weather') === 'rain' && period < 3) {
     const outdoor = !!ZONES[spot.zone]?.outdoor;

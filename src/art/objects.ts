@@ -9,6 +9,7 @@ import { IZAKAYA_KINDS } from './izakaya';
 import { NATURE_KINDS } from './nature';
 import { drawPlaque } from './pixfont';
 import { SHOP_KINDS } from './shopart';
+import { drawFountain } from './fountain';
 
 const OUT = '#3a2a2a';
 
@@ -205,12 +206,7 @@ const K: Record<string, DrawFn> = {
     px(c, W / 2 + 4, H - 20, PAL.gold, 1, 4);
   },
   fountain(c, W, H) {
-    ellipse(c, W / 2, H - 12, W / 2 - 1, 10, PAL.stoneD);
-    ellipse(c, W / 2, H - 13, W / 2 - 3, 8, PAL.water);
-    ellipse(c, W / 2 - 4, H - 15, 4, 2, PAL.waterL);
-    box(c, W / 2 - 4, H - 30, 8, 18, PAL.stone);
-    ellipse(c, W / 2, H - 30, 7, 3, PAL.stoneL);
-    px(c, W / 2 - 1, H - 38, PAL.waterL, 2, 8);
+    drawFountain(c, W, H);
   },
   stall(c, W, H, c1, c2, _rot, r) {
     // back wall lit from inside
@@ -806,7 +802,8 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
     else drawPlaque(ctx, w / 2, 1, label, { wood: '#d9a970' });
   }
   // flat ground decals stay flat; everything else gets lit volume
-  if (!FLAT.has(kind)) volumize(c, kind === 'building' || kind === 'lighthouse' ? 0.7 : 1);
+  // The fountain already has its own stone courses, rim highlights and water shading.
+  if (!FLAT.has(kind) && kind !== 'fountain') volumize(c, kind === 'building' || kind === 'lighthouse' ? 0.7 : 1);
   return c;
 }
 

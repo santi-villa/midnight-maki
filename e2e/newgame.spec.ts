@@ -75,6 +75,12 @@ test('new game → restaurant → cook first sushi → progress persists', async
   for (let y = matY + 4; y <= matY + 100; y += 8) await swipe(W / 2 - 100, y, W / 2 + 100, y);
   await dragTo('cucumber', W / 2, matY + 60);
   for (let i = 0; i < 3; i++) await swipe(W / 2, matY + 90, W / 2, matY + 20);
+  // The cooking mark comes between rolling and cutting. Tap until it advances.
+  for (let i = 0; i < 12 && (await page.locator('.cook-steps .s.now').textContent()) === 'Enrollar'; i++) {
+    await board.click();
+    await page.waitForTimeout(300);
+  }
+  await expect(page.locator('.cook-steps .s.now')).toHaveText('Porciones', { timeout: 12_000 });
   for (const f of [0.2, 0.4, 0.6, 0.8]) await swipe(W * f, matY + 10, W * f, matY + 90);
   await page.getByRole('button', { name: 'Servir todo' }).click();
   // the plated dish is shown first; a tap serves it
