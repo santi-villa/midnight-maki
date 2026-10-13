@@ -775,5 +775,6 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .door-left { left: 0; transform: translateX(-100%); }
 .door-right { right: 0; transform: translateX(100%); }
 .door-curtain.closed .door-panel { transform: translateX(0); }
+.door-curtain.settled .door-panel { transition: none; }
 #ui .fade.busy { pointer-events: auto !important; }
 @media (prefers-reduced-motion: reduce) { .door-panel { transition: none; } }

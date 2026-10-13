@@ -1,5 +1,7 @@
 # Inicio dentro del restaurante, reloj y transiciones
 
+Este informe describe la revisión `b49496f`. El encuentro con Pip ahora se reproduce automáticamente al terminar o saltar la intro, y se refuerza la cobertura de los paneles bajo carga: ver [Correcciones de plaza, intro y arranque](plaza-intro-arranque.md).
+
 ## Rama y alcance
 
 Antes de modificar archivos se inspeccionaron las ramas. `master-mgsshv`, en `06b5ca9`, contenía las correcciones más recientes y estaba por delante de `master` y `main`. Las mejoras se realizaron en tres etapas con commits independientes. Antes de publicar se volvió a consultar el remoto: no había cambios nuevos que integrar.

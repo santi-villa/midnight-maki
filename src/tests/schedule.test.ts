@@ -18,6 +18,19 @@ beforeEach(() => {
 });
 
 describe('daily rhythm', () => {
+  it('uses real bench stops and gives plaza residents visible activities in every beat', () => {
+    for (const minutes of [5, 20, 40, 60, 75, 85]) {
+      at(2, minutes);
+      for (const id of ['taro', 'yuki', 'ume']) {
+        const stop = stopFor(id, 2)!;
+        expect(stop.act).not.toBe('look'); expect(stop.act).toBeDefined();
+        if (minutes < 82) {
+          expect(stop.seatLift).toBe(12); expect(stop.wander).toBe(0);
+          expect(buildZone('plaza', false).grid.isSolid(stop.x, stop.y)).toBe(false);
+        }
+      }
+    }
+  });
   it('splits a period into settle, work, meal, stroll, talk and leaving', () => {
     expect(phaseOf(0)).toBe('settle');
     expect(phaseOf(20)).toBe('main');

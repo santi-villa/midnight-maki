@@ -74,6 +74,7 @@ test('visitors walk from the station, Pip hosts them, and they return outside af
   await step(page, 16);
   const seated = await snapshot(page);
   const guest = seated.guests.find((g: any) => g.id === arrival.id)!;
+  expect(guest, JSON.stringify(seated)).toBeDefined();
   expect(guest.phase).toBe('waiting_order');
   expect(seated.visitors.find((v: any) => v.id === arrival.id)!.greeted).toBe(true);
   expect(seated.bodies.find((b: any) => b.id === arrival.id + ':0')!.texture).toBe(originalTexture);
@@ -165,6 +166,7 @@ test('neighbors take turns in a contextual conversation, and pause freezes it', 
   await page.evaluate(() => (window as any).mmDebug.clock.resume());
   await step(page, 4);
   expect(await page.evaluate(() => (window as any).mmDebug.world.npc('yuki').bubble?.text)).toContain('moños');
+  expect(await page.evaluate(() => (window as any).mmDebug.world.npc('taro').bubble)).toBeNull();
   await shot(page, 'test-results/neighbors-talking.png');
   const bounds = await page.evaluate(() => {
     const w = (window as any).mmDebug.world;

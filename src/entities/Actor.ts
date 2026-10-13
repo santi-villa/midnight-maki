@@ -32,11 +32,13 @@ export class Actor {
   path: [number, number][] = [];
   moving = false;
   act: Act = 'idle';
+  seatLift = 0;
   private animT = 0;
   private blinkT = 2 + Math.random() * 3;
   private blinking = 0;
   private actT = 0;
   private bubbleT = 0;
+  private fadingBubble: Phaser.GameObjects.Text | null = null;
   onArrive: (() => void) | null = null;
   /** random offset so groups don't breathe in sync */
   private phase = Math.random() * 2;
@@ -118,7 +120,7 @@ export class Actor {
   }
 
   emote(text: string, seconds = 1.6) {
-    if (this.bubble) this.bubble.destroy();
+    this.clearEmote();
     this.bubble = this.scene.add
       .text(this.x, this.y - 30, text, {
         fontFamily: 'Pixelify Sans, sans-serif',
@@ -136,6 +138,15 @@ export class Actor {
     // pop in with a little overshoot
     this.scene.tweens.add({ targets: this.bubble, scale: 0.33, duration: 220, ease: 'Back.out' });
     this.bubbleT = seconds;
+  }
+
+  clearEmote() {
+    for (const b of [this.bubble, this.fadingBubble]) {
+      if (!b) continue;
+      this.scene.tweens.killTweensOf(b);
+      b.destroy();
+    }
+    this.bubble = this.fadingBubble = null;
   }
 
   update(dt: number) {
@@ -181,7 +192,8 @@ export class Actor {
       if (this.bubbleT <= 0) {
         const b = this.bubble;
         this.bubble = null;
-        this.scene.tweens.add({ targets: b, alpha: 0, y: b.y - 6, duration: 200, onComplete: () => b.destroy() });
+        this.fadingBubble = b;
+        this.scene.tweens.add({ targets: b, alpha: 0, y: b.y - 6, duration: 200, onComplete: () => { b.destroy(); if (this.fadingBubble === b) this.fadingBubble = null; } });
       }
     }
     this.sync();
@@ -267,7 +279,8 @@ export class Actor {
   sync() {
     const rx = Math.round(this.x);
     const ry = Math.round(this.y);
-    this.sprite.setPosition(rx, ry - this.bob);
+    const seated = !this.moving && ['sit', 'read', 'eat', 'drink'].includes(this.act) ? this.seatLift : 0;
+    this.sprite.setPosition(rx, ry - this.bob - seated);
     this.sprite.setDepth(ry);
     this.shadow.setPosition(rx, ry - 1);
     this.shadow.setDepth(ry - 0.5);
@@ -278,7 +291,7 @@ export class Actor {
       const view = this.scene.cameras.main.worldView;
       const half = this.bubble.displayWidth / 2;
       const bx = Math.max(view.x + half + 3, Math.min(rx, view.right - half - 3));
-      const by = Math.max(view.y + this.bubble.displayHeight + 3, Math.min(ry - this.sprite.height + this.pad - 1, view.bottom - 3));
+      const by = Math.max(view.y + this.bubble.displayHeight + 3, Math.min(this.sprite.y - this.sprite.height + this.pad - 1, view.bottom - 3));
       this.bubble.setPosition(bx, by);
     }
   }
@@ -294,6 +307,6 @@ export class Actor {
     this.sprite.destroy();
     this.shadow.destroy();
     this.cast.destroy();
-    this.bubble?.destroy();
+    this.clearEmote();
   }
 }
