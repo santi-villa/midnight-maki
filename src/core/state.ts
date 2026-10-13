@@ -34,6 +34,7 @@ export function newSave(name = 'Sofi', appearance: Appearance = defaultAppearanc
     recipesKnown: [...STARTER_RECIPES],
     recipesCooked: {},
     recipeMastery: {},
+    recipeRecords: {},
     restaurant: { level: 1, xp: 0, reputation: 0, upgrades: [], served: 0 },
     orders: [],
     nextUid: 1,

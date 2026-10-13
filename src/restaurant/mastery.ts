@@ -31,10 +31,11 @@ export function masteryStars(m?: Mastery): Stars {
 export function nextStarGoal(m?: Mastery): string | null {
   const s = masteryStars(m);
   const n = m?.n ?? 0;
+  const g = m?.g ?? 0;
   const p = m?.p ?? 0;
   switch (s) {
     case 0: return 'Preparala una vez.';
-    case 1: return `Hacela ${Math.max(0, 3 - n)} vez/veces más con buen resultado.`;
+    case 1: return `${Math.max(0, 3 - n)} platos más y ${Math.max(0, 2 - g)} buenos o perfectos.`;
     case 2: return `${Math.max(0, 6 - n)} platos más y ${Math.max(0, 3 - p)} perfectos.`;
     case 3: return `${Math.max(0, 12 - n)} platos más y ${Math.max(0, 7 - p)} perfectos.`;
     case 4: return `${Math.max(0, 20 - n)} platos más y ${Math.max(0, 14 - p)} perfectos.`;
