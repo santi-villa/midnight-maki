@@ -88,7 +88,7 @@ registerAction('mail', async () => {
   if (game.has('story_done') && !game.has('akio_visit') && game.save.time.day > Number(game.flag('story_done_day') ?? 0)) {
     await runScene('akio_letter', async () => {
       await say('narr', 'Hay una carta con matasellos de la Ciudad del Puerto. La letra es la misma de la carta de la herencia.');
-      await say('?Akio (carta)', '"Querida {name}: vi la luz del faro desde mi ventana. Mi salud está mejor y mi hija dice que el aire de mar me hará bien. ¿Me guardarían una mesa? Prometo no meterme en la cocina. Mucho. — Akio."');
+      await say('?Akio (carta)', '"{Querido|Querida} {name}: vi la luz del faro desde mi ventana. Mi salud está mejor y mi hija dice que el aire de mar me hará bien. ¿Me guardarían una mesa? Prometo no meterme en la cocina. Mucho. — Akio."');
       game.setFlag('akio_visit');
       await say('narr', 'Desde ahora, Akio visita Villa Nori. Podés encontrarlo en el restaurante, el jardín o la playa.');
     });

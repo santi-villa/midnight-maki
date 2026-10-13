@@ -210,7 +210,7 @@ export async function onEnterZone(zone: string) {
     game.setFlag('market_force', false);
     await runScene('market_first', async () => {
       await say('narr', 'Del otro lado del torii, la noche está llena de faroles, olor a caramelo y música suave. Hay puestos que de día no existen.');
-      await say('?Vendedor de luna', 'Bienvenida al Mercado Nocturno. Abrimos los viernes y sábados... y cuando el pueblo lo necesita.');
+      await say('?Vendedor de luna', '{Bienvenido|Bienvenida} al Mercado Nocturno. Abrimos los viernes y sábados... y cuando el pueblo lo necesita.');
     });
   }
   if (zone === 'lighthouse' && !game.has('lh_entered')) {
@@ -314,7 +314,7 @@ async function meetRaccoons() {
       if (c === 0) await say('pip', '¡SÍ! ¡Se queda! ¡Se queda!', 'happy');
       else await say('spicy', '¡Para eso estoy yo! Te voy a enseñar todo. Bueno, casi todo. Algunos secretos son secretos.', 'smug');
       game.save.story.decisions.prologue_stay = c === 0 ? 'decidida' : 'aprender';
-      await say('rigg', 'Bienvenida, {name}. Tu cuarto está arriba. Spicy te va a enseñar la cocina.', 'happy');
+      await say('rigg', '{Bienvenido|Bienvenida}, {name}. Tu cuarto está arriba. Spicy te va a enseñar la cocina.', 'happy');
     });
     game.setFlag('intro_done');
     world.releaseActor('pip');
@@ -347,7 +347,7 @@ async function pipDrawing() {
 }
 
 async function umeAkio() {
-  await say('ume', 'Así que vos sos la nueva dueña de Midnight Maki. Qué alegría, querida.', 'happy');
+  await say('ume', 'Así que vos sos {el nuevo dueño|la nueva dueña} de Midnight Maki. Qué alegría, {querido|querida}.', 'happy');
   const c = await choose(['¿Conoció al antiguo dueño?', 'Encontramos un dibujo de tres estrellas.']);
   if (c === 1) await say('ume', 'Tres estrellas... hacía mucho que no escuchaba eso.', 'surprised');
   await say('ume', 'El dueño se llamaba Akio. Cocinaba lento, hablaba poco y se reía fuerte.');
@@ -760,7 +760,7 @@ async function sofiDinner() {
   await lock(async () => {
     await say('pip', '¡Llegaste! Cerrá los ojos. No, mejor abrilos, si no te chocás.', 'happy');
     await say('narr', 'Los tres mapaches prepararon una mesa con mantel, velas y un plato que nunca viste: un maki con salmón, palta, mango y pétalos de sakura.');
-    await say('spicy', 'Lo llamamos Maki de Sofi. Tiene todo lo que te gusta. Y nada de wasabi. Bueno, un poquito.', 'happy');
+    await say('spicy', 'Lo llamamos Maki de la casa. Tiene todo lo que te gusta. Y nada de wasabi. Bueno, un poquito.', 'happy');
     await say('rigg', 'Hay algo más. Llegó en el correo. Dice "para abrir en una cena especial". Esta es una cena especial.', 'smug');
     await say('narr', 'Un sobre con una estrella dibujada. Adentro, una carta escrita a mano:');
     await new Promise<void>((resolve) => {
@@ -768,7 +768,7 @@ async function sofiDinner() {
         const paper = h(
           'div',
           { style: { background: '#f6ecd6', border: '4px solid #6b4330', borderRadius: '6px', padding: '24px 20px', maxWidth: '420px', width: '90%', lineHeight: '1.6', fontSize: '1.1em', color: '#2a2230', animation: 'popin .8s ease-out' } },
-          h('p', null, 'Este pequeño mundo es para vos, Sofi.'),
+          h('p', null, 'Este pequeño mundo es para vos, {name}.'),
           h('p', null, 'Para que tengas un lugar al que volver, tres mapaches que siempre te esperen y todas las aventuras que quieras vivir.'),
           h('p', { style: { textAlign: 'right', fontStyle: 'italic' } }, 'Con amor, Santi.'),
           h('p', { class: 'hint', style: { textAlign: 'center' } }, 'Tocá para cerrar'),

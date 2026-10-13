@@ -2,6 +2,7 @@
  * Visual-novel dialogue runner. Scenes are written as async functions using `say` and `choose`,
  * which keeps narrative content in data files (story/*) and the engine here.
  */
+import { fillText } from './gender';
 import type { Expr } from '../art/characters';
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
@@ -24,7 +25,8 @@ let sceneSeen = false;
 
 /** Replace {name}, {restaurant} tokens */
 export function fmt(t: string): string {
-  return t.replace(/\{name\}/g, game.save.player.name).replace(/\{restaurant\}/g, game.save.player.restaurantName);
+  const p = game.save.player;
+  return fillText(t, p.name, p.restaurantName, p.appearance.hero?.gender ?? 'f');
 }
 
 function ensureBox() {

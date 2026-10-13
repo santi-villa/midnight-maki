@@ -9,6 +9,7 @@
 import type { Dir } from '../core/types';
 import { ctx2d, makeCanvas, mix, px, shade, type Ctx } from './pixel';
 import { bodyAcc, headAcc } from './raccoon';
+import { drawHeroAccessories, drawHeroFace, drawHeroHair, type FaceParams, type HeroSpec, type Kit } from './hero';
 
 /**
  * Everything is designed on a 32x52 "design grid" and rasterised at FOLK_SCALE (0.75), so the sprites stay crisp
@@ -33,7 +34,7 @@ export interface FolkPose { dir: Dir; legs: 'idle' | 'a' | 'b'; expr: FolkExpr; 
 // ------------------------------------------------------------------ spec
 export type EarKind = 'pointy' | 'round' | 'long' | 'cat' | 'none';
 export type TailKind = 'bushy' | 'ringed' | 'thin' | 'puff' | 'nub' | 'none';
-export type HatKind = 'none' | 'bandana' | 'straw' | 'witch' | 'chef' | 'cap' | 'beret' | 'bow';
+export type HatKind = 'none' | 'bandana' | 'straw' | 'witch' | 'chef' | 'cap' | 'beret' | 'bow' | 'beanie' | 'headband';
 export type HairKind = 'none' | 'bob' | 'bun' | 'short' | 'bald';
 
 export type Deco =
@@ -47,7 +48,20 @@ export type Deco =
   | { k: 'strap'; c: string; bag?: string }
   | { k: 'shawl'; c: string }
   | { k: 'belt'; c: string }
-  | { k: 'robeTrim'; c: string };
+  | { k: 'robeTrim'; c: string }
+  // heroes
+  | { k: 'hood'; c: string }
+  | { k: 'pocket'; c: string }
+  | { k: 'rib'; c: string }
+  | { k: 'zip'; c: string; inner: string }
+  | { k: 'stripesH'; c: string; vertical?: boolean }
+  | { k: 'kimono'; c: string }
+  | { k: 'tankNeck'; c: string }
+  | { k: 'choker'; c: string }
+  | { k: 'chain'; c: string; pendant?: boolean }
+  | { k: 'scarf'; c: string; c2: string }
+  | { k: 'cape'; c: string; c2: string }
+  | { k: 'bag'; c: string; c2: string; kind: string };
 
 /** Wardrobe override: a hat / body item picked by the player replaces the character's own. */
 export interface FolkCustom {
@@ -85,6 +99,7 @@ export interface FolkSpec {
   belly?: { c: string; rx?: number; ry?: number; y?: number };
   human?: boolean; // human face: no snout, small nose, brows
   humanEars?: boolean;
+  hero?: HeroSpec; // playable hero: detailed hair / face / outfit parameters
 }
 
 // ------------------------------------------------------------------ shading primitives
@@ -132,7 +147,9 @@ const dot = (c: Ctx, x: number, y: number, col: string, w = 1, h = 1) => {
 };
 
 /** each part on its own canvas, 1px contour, stacked */
-function stack(spec: FolkSpec, layers: ((c: Ctx) => void)[], after?: (c: Ctx) => void): HTMLCanvasElement {
+type Layer = ((c: Ctx) => void) & { inner?: string };
+
+function stack(spec: FolkSpec, layers: Layer[], after?: (c: Ctx) => void): HTMLCanvasElement {
   const OW = Math.round(FW * K);
   const out = makeCanvas(OW, FOLK_H);
   const o = ctx2d(out);
@@ -150,8 +167,12 @@ function stack(spec: FolkSpec, layers: ((c: Ctx) => void)[], after?: (c: Ctx) =>
     const pts: number[] = [];
     for (let y = 0; y < FOLK_H; y++)
       for (let x = 0; x < OW; x++) if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) pts.push(x, y);
-    g.fillStyle = ink;
-    for (let i = 0; i < pts.length; i += 2) g.fillRect(pts[i], pts[i + 1], 1, 1);
+    // a layer with `inner` (the hair) only gets the dark ink where it borders empty space; over other parts it uses its own soft colour
+    const under = l.inner ? o.getImageData(0, 0, OW, FOLK_H).data : null;
+    for (let i = 0; i < pts.length; i += 2) {
+      g.fillStyle = under && under[(pts[i + 1] * OW + pts[i]) * 4 + 3] > 0 ? l.inner! : ink;
+      g.fillRect(pts[i], pts[i + 1], 1, 1);
+    }
     o.drawImage(cv, 0, 0);
   }
   o.save();
@@ -171,6 +192,10 @@ function mirrorCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 let CUSTOM: FolkCustom | undefined;
+let EXPR: FolkExpr = 'neutral';
+
+/** primitives handed to the hero drawing routines (hero.ts) */
+const kit = (): Kit => ({ K, AX, fill, ell, rect, tri, boxOf, dot });
 
 // ------------------------------------------------------------------ geometry
 interface Geo {
@@ -183,17 +208,23 @@ interface Geo {
   torsoBot: number;
   hw: number; // torso half width
   legTop: number;
+  headP: number; // head outline squareness
 }
+
+const HERO_RY = [9.6, 10.2, 9.7]; // round / oval / square: the chin stays put, the forehead gets taller
 
 function geo(spec: FolkSpec, pose: FolkPose, side: boolean): Geo {
   const dy = (pose.bob ?? 0) + (pose.sit ? 4 : 0);
+  const h = spec.hero;
+  const face = h?.look.face ?? 1;
   return {
     dy,
     headCx: side ? AX + 0.5 : AX,
-    headCy: 18.4 + dy,
-    headRx: side ? 11 : 12.2,
-    headRy: 9.6,
-    torsoTop: 26.6 + dy,
+    headCy: (h ? 27.1 - (HERO_RY[face] ?? 9.7) : 18.4) + dy,
+    headRx: h ? (side ? 10.2 : [11.8, 11, 11.4][face] ?? 11) : side ? 11 : 12.2,
+    headRy: h ? HERO_RY[face] ?? 9.7 : 9.6,
+    headP: h ? [2.1, 2.3, 3][face] ?? 2.3 : spec.humanEars ? 2.3 : 2.5,
+    torsoTop: (h ? 26.8 : 26.6) + dy,
     torsoBot: 34.6 + (pose.sit ? 3 : 0),
     hw: (side ? 4.8 : 6) + (spec.wide ?? 0) * (side ? 0.6 : 1),
     legTop: 33.8 + (pose.sit ? 3 : 0),
@@ -422,6 +453,11 @@ function faceSide(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
 
 // ------------------------------------------------------------------ hair (people) and hats
 function hairLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ctx) {
+  if (spec.hero) {
+    const hh = spec.hero;
+    drawHeroHair(kit(), c, g, view, hh.hair, hh.hairColor, hh.hairHi, spec.fur);
+    return;
+  }
   const h = spec.hair;
   if (!h || h.kind === 'none') return;
   const { headCx: cx, headCy: cy, headRx: rx, headRy: ry } = g;
@@ -457,10 +493,11 @@ function hairLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
 }
 
 function hatLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ctx) {
+  const item = CUSTOM?.head ?? spec.hero?.headItem;
   const hat = CUSTOM?.head ? undefined : spec.hat;
-  if (CUSTOM?.head) {
+  if (item) {
     const t = g.headCy - g.headRy;
-    headAcc(c, CUSTOM.head.kind, CUSTOM.head.c1, CUSTOM.head.c2, Math.round(g.headCx * K), Math.round(t * K) - 1, 8, view);
+    headAcc(c, item.kind, item.c1, item.c2, Math.round(g.headCx * K), Math.round(t * K) - 1, 8, view);
     return;
   }
   if (!hat || hat.kind === 'none') return;
@@ -513,6 +550,19 @@ function hatLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ct
       dot(c, cx + 1, top - 3, c2, 2, 2);
       break;
     }
+    case 'beanie': {
+      const lim = top + 5.2;
+      fill(c, { x0: cx - rx - 1, y0: top - 3, x1: cx + rx + 1, y1: lim + 2 }, (x, y) => ell(cx, cy - 0.6, rx + 0.9, ry + 1.3, 2.3)(x, y) && y < lim, col, { lt: shade(col, 0.16) });
+      fill(c, { x0: cx - rx - 1, y0: lim - 2.4, x1: cx + rx + 1, y1: lim + 1.2 }, (x, y) => ell(cx, cy - 0.6, rx + 1.1, ry + 1.5, 2.3)(x, y) && y >= lim - 2.4 && y < lim + 1.2, c2, { flat: true });
+      if (view !== 'back') for (let i = 0; i < 4; i++) dot(c, cx - rx + 2 + i * ((rx * 2 - 4) / 3), lim - 2.1, shade(c2, -0.22), 1, 3);
+      break;
+    }
+    case 'headband': {
+      const band: Test = (x, y) => ell(cx, cy, rx + 0.5, ry + 0.5, 2.3)(x, y) && y >= top + 3.4 && y < top + 5.6;
+      fill(c, { x0: cx - rx - 1, y0: top + 3, x1: cx + rx + 1, y1: top + 6 }, band, col, { flat: true });
+      if (view === 'front') dot(c, cx - rx + 1.4, top + 3.6, c2, 1.6, 1);
+      break;
+    }
     case 'bow': {
       const bx = view === 'side' ? cx - 2 : cx + 6.4;
       fill(c, boxOf(bx - 3, top + 2, 3, 2.4), tri(bx, top + 2.4, bx - 6, top - 1, bx - 6, top + 6), col, { flat: true });
@@ -529,7 +579,33 @@ function legsLayer(spec: FolkSpec, g: Geo, pose: FolkPose, view: 'front' | 'side
   const lc = spec.legsColor;
   const bottom = 40.8;
   const sit = !!pose.sit;
-  const mk = (x0: number, w: number, y1: number) => {
+  const hero = spec.hero;
+  const mk = (x0: number, w0: number, y1: number) => {
+    let w = w0;
+    if (hero) {
+      const wide = hero.legMode === 'wide' ? 1.2 : 0;
+      x0 -= wide / 2;
+      w += wide;
+      if (hero.legMode === 'shorts') {
+        fill(c, { x0, y0: top, x1: x0 + w, y1 }, rect(x0, top, x0 + w, y1), spec.fur);
+        fill(c, { x0: x0 - 0.3, y0: top, x1: x0 + w + 0.3, y1: top + 4.4 }, rect(x0 - 0.3, top, x0 + w + 0.3, top + 4.4), lc);
+      } else fill(c, { x0, y0: top, x1: x0 + w, y1 }, rect(x0, top, x0 + w, y1), lc);
+      const k = hero.shoeKind;
+      const sy = k === 'boot' ? y1 - 4.4 : k === 'sandal' ? y1 - 1.2 : Math.max(top + 1, y1 - 1.9);
+      if (k === 'sandal') {
+        fill(c, { x0: x0 - 0.5, y0: y1 - 1, x1: x0 + w + 0.5, y1: y1 + 1 }, rect(x0 - 0.5, y1 - 0.6, x0 + w + 0.5, y1 + 1), spec.shoes);
+        dot(c, x0, y1 - 1.8, hero.shoeAccent, w, 0.9);
+        return;
+      }
+      const ww = k === 'slipper' ? 0.9 : 0.5;
+      fill(c, { x0: x0 - ww, y0: sy, x1: x0 + w + ww, y1: y1 + 1 }, rect(x0 - ww, sy, x0 + w + ww, y1 + 1), spec.shoes);
+      if (k === 'sneaker') {
+        dot(c, x0 - 0.5, y1 + 0.1, hero.shoeAccent, w + 1, 0.9);
+        dot(c, x0 + 0.4, sy + 0.4, shade(spec.shoes, 0.35), w - 0.8, 0.8);
+      } else if (k === 'boot') dot(c, x0 - 0.5, sy, hero.shoeAccent, w + 1, 0.9);
+      else dot(c, x0 - 0.5, sy, hero.shoeAccent, w + 1.8, 1.2);
+      return;
+    }
     fill(c, { x0, y0: top, x1: x0 + w, y1 }, rect(x0, top, x0 + w, y1), lc);
     // shoe
     const sy = Math.max(top + 1, y1 - 2);
@@ -572,7 +648,7 @@ function skirtLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: 
 function torsoLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ctx) {
   const cx = view === 'side' ? AX + 0.3 : AX;
   const hw = g.hw;
-  const pear = (spec.wide ?? 0) > 1;
+  const pear = !spec.hero && (spec.wide ?? 0) > 1;
   const test: Test = (x, y) => {
     if (y < g.torsoTop || y >= g.torsoBot) return false;
     if (pear) {
@@ -599,7 +675,7 @@ function torsoLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: 
   }
   // decorations that live on the torso (hidden from the back unless noted)
   for (const d of spec.deco ?? []) {
-    if (view === 'back' && !(d.k === 'strap' || d.k === 'shawl' || d.k === 'apron' || d.k === 'bib' || d.k === 'vest' || d.k === 'robeTrim' || d.k === 'belt')) continue;
+    if (view === 'back' && !(d.k === 'strap' || d.k === 'shawl' || d.k === 'apron' || d.k === 'bib' || d.k === 'vest' || d.k === 'robeTrim' || d.k === 'belt' || d.k === 'rib' || d.k === 'hood' || d.k === 'stripesH' || d.k === 'cape' || d.k === 'bag' || d.k === 'scarf' || d.k === 'choker')) continue;
     switch (d.k) {
       case 'apron': {
         const ay = g.torsoTop + 2.5;
@@ -672,6 +748,110 @@ function torsoLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: 
           dot(c, cx - 0.5, g.torsoTop + 1, d.c, 1, g.torsoBot - g.torsoTop + 5);
         }
         break;
+      case 'hood': {
+        const hy = g.torsoTop + 0.6;
+        const hr = view === 'side' ? 3.6 : hw - 0.8;
+        const hx = view === 'side' ? cx - 0.8 : cx;
+        fill(c, boxOf(hx, hy + 1, hr, 2.8), (x, y) => ell(hx, hy + 1, hr, 2.8, 2.2)(x, y) && y >= g.torsoTop, d.c, { lt: shade(d.c, 0.12) });
+        if (view === 'front') {
+          dot(c, cx - 2.6, hy + 3, shade(d.c, 0.3), 1, 4.4);
+          dot(c, cx + 1.6, hy + 3, shade(d.c, 0.3), 1, 4.4);
+        }
+        break;
+      }
+      case 'pocket':
+        if (view === 'front') {
+          const py = g.torsoBot - 5.6;
+          fill(c, { x0: cx - hw + 1.4, y0: py, x1: cx + hw - 1.4, y1: g.torsoBot }, (x, y) => y >= py && y < g.torsoBot - 0.4 && Math.abs(x - cx) <= hw - 1.6 - (y < py + 1.2 ? 0 : 0), d.c, { flat: true });
+          dot(c, cx - 0.4, py + 0.4, shade(d.c, -0.22), 0.8, 4.4);
+        }
+        break;
+      case 'rib': {
+        const half = view === 'side' ? 4.2 : hw + 0.2;
+        dot(c, cx - half, g.torsoBot - 1.5, d.c, half * 2, 1.5);
+        if (view === 'front') {
+          fill(c, boxOf(cx, g.torsoTop + 0.4, 3.8, 1.4), (x, y) => ell(cx, g.torsoTop - 0.6, 3.8, 2.2, 2)(x, y) && y >= g.torsoTop, shade(d.c, 0.08), { flat: true });
+        }
+        break;
+      }
+      case 'zip':
+        if (view === 'front') {
+          fill(c, boxOf(cx, g.torsoTop + 1.2, 2.2, 2), tri(cx - 2.4, g.torsoTop, cx + 2.4, g.torsoTop, cx, g.torsoTop + 3.4), d.inner, { flat: true });
+          dot(c, cx - 0.4, g.torsoTop + 3.2, shade(d.c, -0.35), 0.8, g.torsoBot - g.torsoTop - 3.2);
+        }
+        break;
+      case 'stripesH': {
+        const top = g.torsoTop + 1;
+        const half = view === 'side' ? 4.4 : hw;
+        if (d.vertical) {
+          for (let y = top; y < g.torsoBot - 0.5; y += 3.6) dot(c, cx - half + 0.5, y, d.c, half * 2 - 1, 0.9);
+          for (let x = cx - half + 1; x < cx + half - 0.5; x += 3.4) dot(c, x, top, d.c, 0.9, g.torsoBot - top - 0.5);
+        } else {
+          for (let y = top + 1.4; y < g.torsoBot - 0.5; y += 3) dot(c, cx - half + 0.4, y, d.c, half * 2 - 0.8, 1.2);
+        }
+        break;
+      }
+      case 'kimono':
+        if (view === 'front') {
+          for (let i = 0; i < 9; i++) {
+            const t = i / 8;
+            dot(c, cx - hw + 0.8 + t * (hw - 0.8), g.torsoTop + t * 7, d.c, 1.6, 1.4);
+            dot(c, cx + hw - 2.4 - t * (hw - 0.8), g.torsoTop + t * 7, shade(d.c, -0.1), 1.6, 1.4);
+          }
+          dot(c, cx - hw, g.torsoBot - 3.4, d.c, hw * 2, 1.8);
+        }
+        break;
+      case 'tankNeck':
+        if (view !== 'side') fill(c, boxOf(cx, g.torsoTop + 0.8, 4.2, 3), (x, y) => ell(cx, g.torsoTop - 0.8, 4.6, 4.4, 2)(x, y) && y >= g.torsoTop, d.c, { flat: true });
+        break;
+      case 'choker':
+        if (view === 'front') dot(c, cx - 3.4, g.torsoTop + 0.7, d.c, 6.8, 1.1);
+        else if (view === 'side') dot(c, cx - 1.6, g.torsoTop + 0.7, d.c, 4, 1.1);
+        else dot(c, cx - 3.4, g.torsoTop + 0.7, d.c, 6.8, 1.1);
+        break;
+      case 'chain':
+        if (view === 'front') {
+          for (const [dx, dy] of [[-3.4, 0.5], [-2.6, 1.5], [-1.6, 2.4], [-0.5, 2.9], [0.6, 2.9], [1.6, 2.4], [2.6, 1.5], [3.4, 0.5]]) dot(c, cx + dx, g.torsoTop + 0.8 + dy, d.c, 1, 0.9);
+          if (d.pendant) dot(c, cx - 0.6, g.torsoTop + 4.4, shade(d.c, 0.2), 1.4, 1.8);
+        } else if (view === 'side') dot(c, cx + 1.2, g.torsoTop + 1.2, d.c, 1, 2.2);
+        break;
+      case 'scarf': {
+        const sw = view === 'side' ? 4.2 : hw + 0.6;
+        fill(c, { x0: cx - sw, y0: g.torsoTop - 0.4, x1: cx + sw, y1: g.torsoTop + 3.8 }, (x, y) => y >= g.torsoTop - 0.2 && y < g.torsoTop + 3.4 && Math.abs(x - cx) <= sw, d.c, { lt: shade(d.c, 0.14) });
+        if (view !== 'back') {
+          dot(c, cx + 1.2, g.torsoTop + 3, d.c2, 2.6, 6.2);
+          for (let i = 0; i < 2; i++) dot(c, cx + 1.2, g.torsoTop + 5 + i * 2.2, shade(d.c, 0.25), 2.6, 0.8);
+        }
+        break;
+      }
+      case 'cape':
+        if (view === 'back') {
+          fill(c, { x0: cx - hw - 3, y0: g.torsoTop, x1: cx + hw + 3, y1: g.torsoBot + 7 }, (x, y) => y >= g.torsoTop && y < g.torsoBot + 6.4 && Math.abs(x - cx) <= hw + 0.6 + (y - g.torsoTop) * 0.22, d.c, { lt: shade(d.c, 0.12) });
+          dot(c, cx - 0.4, g.torsoTop + 1, d.c2, 0.8, g.torsoBot - g.torsoTop + 4);
+        } else if (view === 'front') {
+          dot(c, cx - hw - 0.4, g.torsoTop + 0.4, d.c, 2.2, 4.4);
+          dot(c, cx + hw - 1.8, g.torsoTop + 0.4, d.c, 2.2, 4.4);
+          dot(c, cx - 3, g.torsoTop + 1, d.c2, 6, 0.9);
+          dot(c, cx - 0.8, g.torsoTop + 1.8, '#f2c66d', 1.6, 1.6);
+        } else dot(c, cx - 5, g.torsoTop + 0.6, d.c, 3, g.torsoBot - g.torsoTop + 2.4);
+        break;
+      case 'bag':
+        if (d.kind === 'satchel') {
+          if (view !== 'side') {
+            const diag: Test = (x, y) => y >= g.torsoTop && y < g.torsoBot && Math.abs(x - (cx - hw + 1 + ((y - g.torsoTop) / (g.torsoBot - g.torsoTop)) * (hw * 2 - 2))) < 0.8;
+            fill(c, { x0: cx - hw, y0: g.torsoTop, x1: cx + hw, y1: g.torsoBot }, diag, d.c2, { flat: true });
+          }
+          if (view !== 'back') fill(c, { x0: cx + hw - 5, y0: g.torsoBot - 4.4, x1: cx + hw + 1.6, y1: g.torsoBot + 2.4 }, rect(cx + hw - 5, g.torsoBot - 4, cx + hw + 1.4, g.torsoBot + 2.2), d.c);
+        } else if (view === 'front') {
+          dot(c, cx - hw + 1.6, g.torsoTop, d.c2, 1.4, g.torsoBot - g.torsoTop - 1);
+          dot(c, cx + hw - 3, g.torsoTop, d.c2, 1.4, g.torsoBot - g.torsoTop - 1);
+        } else if (view === 'back') {
+          fill(c, { x0: cx - hw, y0: g.torsoTop + 0.6, x1: cx + hw, y1: g.torsoBot + 2 }, rect(cx - hw + 0.4, g.torsoTop + 0.6, cx + hw - 0.4, g.torsoBot + 1.6), d.c, { lt: shade(d.c, 0.14) });
+          dot(c, cx - hw + 1.8, g.torsoBot - 3.6, d.c2, hw * 2 - 3.6, 3);
+          dot(c, cx - hw + 0.4, g.torsoTop + 0.6, d.c2, 1.2, 4);
+          dot(c, cx + hw - 1.6, g.torsoTop + 0.6, d.c2, 1.2, 4);
+        } else fill(c, { x0: cx - 8, y0: g.torsoTop, x1: cx - 2, y1: g.torsoBot + 2 }, rect(cx - 7.2, g.torsoTop + 0.8, cx - 2.2, g.torsoBot + 1.6), d.c, { lt: shade(d.c, 0.14) });
+        break;
     }
   }
 }
@@ -679,9 +859,23 @@ function torsoLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: 
 function armLayer(spec: FolkSpec, g: Geo, pose: FolkPose, view: 'front' | 'side' | 'back', c: Ctx, which: 'l' | 'r' | 'both') {
   const top = g.torsoTop + 1.2;
   const swing = pose.legs === 'idle' ? 0 : 1;
-  const sleeve = spec.top;
+  const hero = spec.hero;
+  const sleeve = hero ? hero.sleeveColor : spec.top;
   const hand = spec.fur;
   const mk = (x: number, y0: number, h: number, handUp = false) => {
+    if (hero) {
+      const mode = hero.sleeves;
+      const sl = mode === 'none' ? 0 : mode === 'short' ? 3 : h - 2.6;
+      const w = mode === 'wide' ? 4.2 : 3;
+      const x1 = mode === 'wide' ? x - 0.6 : x;
+      fill(c, { x0: x1, y0, x1: x1 + w, y1: y0 + h }, rect(x1, y0, x1 + w, y0 + h), hand);
+      if (sl > 0) {
+        fill(c, { x0: x1, y0, x1: x1 + w, y1: y0 + sl }, rect(x1, y0, x1 + w, y0 + sl), sleeve);
+        if (hero.cuff && mode === 'long') dot(c, x1, y0 + sl - 1.4, hero.cuff, w, 1.4);
+        if (mode === 'wide') dot(c, x1, y0 + sl - 1.2, shade(sleeve, -0.2), w, 1.2);
+      }
+      return;
+    }
     fill(c, { x0: x, y0, x1: x + 3, y1: y0 + h }, rect(x, y0, x + 3, y0 + h - 1.6), sleeve);
     fill(c, { x0: x, y0: y0 + h - 2.6, x1: x + 3, y1: y0 + h }, rect(x, y0 + h - 2.6, x + 3, y0 + h), hand);
     void handUp;
@@ -765,18 +959,29 @@ function tailLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
 // ------------------------------------------------------------------ head
 function headLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ctx) {
   const { headCx: cx, headCy: cy, headRx: rx, headRy: ry } = g;
-  const p = spec.humanEars ? 2.3 : 2.5;
+  const p = g.headP;
   fill(c, boxOf(cx, cy, rx, ry), ell(cx, cy, rx, ry, p), spec.fur);
   if (spec.humanEars && view !== 'back') {
     const ex = view === 'side' ? cx - 1 : cx + rx - 0.6;
     fill(c, boxOf(ex, cy + 1, 1.8, 2.4), ell(ex, cy + 1, 1.8, 2.4), spec.fur);
     if (view === 'front') fill(c, boxOf(cx - rx + 0.6, cy + 1, 1.8, 2.4), ell(cx - rx + 0.6, cy + 1, 1.8, 2.4), spec.fur);
   }
+  const h = spec.hero;
+  if (h && view !== 'back') {
+    const l = h.look;
+    const f: FaceParams = {
+      skin: spec.fur, eye: spec.eye, eyeStyle: h.eyeStyle, brow: l.brow, browColor: l.browColor || shade(h.hairColor, -0.12),
+      nose: l.nose, lips: l.lips, freckles: l.freckles, mole: l.mole, blush: l.blush || h.blushItem, facial: l.facial,
+      facialColor: shade(h.hairColor, -0.05),
+    };
+    drawHeroFace(kit(), c, g, view, f, EXPR);
+  }
 }
 
 // ------------------------------------------------------------------ one frame
 export function folkFrame(spec: FolkSpec, pose: FolkPose, custom?: FolkCustom): HTMLCanvasElement {
   CUSTOM = custom;
+  EXPR = pose.expr;
   FW = spec.frameW ?? DW;
   AX = FW / 2;
   const side = pose.dir === 'left' || pose.dir === 'right';
@@ -788,7 +993,9 @@ export function folkFrame(spec: FolkSpec, pose: FolkPose, custom?: FolkCustom): 
       legsLayer({ ...spec, legsColor: spec.fur }, g, pose, view, c);
     } else legsLayer(spec, g, pose, view, c);
   };
-  const layers: ((c: Ctx) => void)[] = [
+  const hairL: Layer = (c) => hairLayer(spec, g, view, c);
+  if (spec.hero) hairL.inner = shade(spec.hero.hairColor, -0.42);
+  const layers: Layer[] = [
     (c) => tailLayer(spec, g, view, c, true),
     bodyLegs,
     (c) => skirtLayer(spec, g, view, c),
@@ -796,13 +1003,16 @@ export function folkFrame(spec: FolkSpec, pose: FolkPose, custom?: FolkCustom): 
     (c) => armLayer(spec, g, pose, view, c, view === 'side' ? 'r' : 'both'),
     (c) => earsLayer(spec, g, view, c),
     (c) => headLayer(spec, g, view, c),
-    (c) => hairLayer(spec, g, view, c),
+    hairL,
     (c) => hatLayer(spec, g, view, c),
     (c) => tailLayer(spec, g, view, c, false),
   ];
   // the face sits inside the head silhouette, drawn after the contour pass of the head
   const canvas = stack(spec, layers, (o) => {
-    if (spec.human && view !== 'back') faceHuman(spec, g, pose.expr, o, view);
+    if (spec.hero) {
+      const hh = spec.hero;
+      drawHeroAccessories(kit(), o, g, view, { earrings: hh.look.earrings, glasses: hh.glasses, glassColor: hh.glassColor, skin: spec.fur });
+    } else if (spec.human && view !== 'back') faceHuman(spec, g, pose.expr, o, view);
     else if (view === 'front') faceFront(spec, g, pose.expr, o);
     else if (view === 'side') faceSide(spec, g, pose.expr, o);
     if (pose.arms === 'read') {

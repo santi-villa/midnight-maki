@@ -138,7 +138,7 @@ async function showScene(scene: IntroScene): Promise<void> {
   const pic = h('div', { class: 'book-pic' });
   const src = await findImage(scene.image);
   if (skipped || !book) return;
-  if (src) pic.append(h('img', { class: 'book-photo', src, alt: scene.alt }));
+  if (src) pic.append(h('img', { class: 'book-photo', src, alt: fmt(scene.alt) }));
   else pic.append(h('div', { class: 'book-missing' }, `Falta la ilustración public/intro/${scene.image}.jpg`));
   const who = h('div', { class: 'book-who' });
   const text = h('div', { class: 'book-text' });

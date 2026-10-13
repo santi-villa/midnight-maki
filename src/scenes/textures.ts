@@ -4,6 +4,7 @@ import { drawPlaque, pixTextWidth } from '../art/pixfont';
 import type { ShopPhase } from '../systems/schedule';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
 import { buildFolkSheet, FOLK_PAD } from '../art/folk';
+import { heroSheet, isHeroLook } from '../art/heroRender';
 import { buildingLayout } from '../art/nature';
 import { buildCustomerSheet } from '../art/customerSheet';
 import type { CustomerId } from '../art/customers';
@@ -33,8 +34,8 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
   if (!scene.textures.exists(key)) {
     const build = RACCOON_BUILD[id];
     const folk = FOLK_SPECS[id];
-    if (folk) {
-      const { canvas, fw, fh } = buildFolkSheet(folk, folkCustom(id));
+    if (folk || (id === 'player' && isHeroLook(appearanceOf(id)))) {
+      const { canvas, fw, fh } = folk ? buildFolkSheet(folk, folkCustom(id)) : heroSheet(appearanceOf(id));
       const tex = scene.textures.addCanvas(key, canvas)!;
       for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
       tex.customData = { pad: FOLK_PAD };
