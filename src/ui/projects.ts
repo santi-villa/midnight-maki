@@ -7,11 +7,14 @@ import { ITEMS_BY_ID } from '../data/items';
 import { PROJECT_AMENITIES, PROJECTS_BY_ID } from '../data/projects';
 import { buildNextPhase, phaseStatus, projectDone, startProjectPhase, visibleProjects, amenityOpen, amenitySuppliesAvailable, claimProjectSupplies } from '../restaurant/projects';
 import { h, panel, toast } from './dom';
+import { openTownMemories } from './townMemories';
+import { TOWN_MEMORIES, townMemoryReady, townMemorySeen } from '../story/restoration';
 
 export function projectsSection(onBuilt: () => Promise<boolean>): HTMLElement & { refresh: () => void } {
   const root = h('div', { class: 'col projects-section' });
   const render = () => {
     root.replaceChildren(h('h3', null, 'Proyectos del pueblo'), h('p', { class: 'hint' }, 'Colaborá, reuní materiales y construí a tu ritmo. Las etapas completadas suman encanto y abren servicios en el pueblo.'));
+    root.append(h('button', { class: 'btn small', onclick: openTownMemories }, 'Álbum del pueblo · Recuerdos de las restauraciones'));
     for (const project of visibleProjects()) {
       const stages = phaseStatus(project.id), done = projectDone(project.id), next = stages.find((s) => s.state === 'next');
       const card = h('article', { class: 'card col project-card', 'data-project-id': project.id },
@@ -36,6 +39,8 @@ export function projectsSection(onBuilt: () => Promise<boolean>): HTMLElement & 
             audio.sfxPlay('success'); render();
             if (!await onBuilt()) toast('La mejora se guardó. Volvé a entrar a la zona para verla.');
             toast(next.phase.thanks);
+            const memory = TOWN_MEMORIES.find((m) => m.project === project.id);
+            if (memory && townMemoryReady(memory) && !townMemorySeen(memory.id)) toast('Hay un recuerdo nuevo en el Álbum del pueblo.');
           }) }, 'Construir etapa'));
       } else card.append(h('b', { class: 'project-finished' }, '¡Proyecto terminado!'));
       card.append(h('details', { class: 'project-stages' }, h('summary', null, 'Ver todas las etapas'), ...stages.map((s) => h('div', { class: 'hint' }, `${s.state === 'done' ? '✓' : s.state === 'next' ? '▸' : '·'} ${s.phase.name}${s.phase.level ? ` · Nivel ${s.phase.level}` : ''}`, s.phase.benefit ? h('div', null, s.phase.benefit) : null))));
@@ -72,6 +77,8 @@ export function openProjectAmenity(id: string) {
       } }, amenity.game === 'sort' ? 'Ordenar en el taller' : `Juego de memoria con ${amenity.opponent === 'rigg' ? 'Rigg' : 'Pip'}`));
     }
     body.append(h('p', { class: 'hint' }, 'Restaurado: ' + PROJECTS_BY_ID[amenity.project].name));
+    const memory = TOWN_MEMORIES.find((m) => m.project === amenity.project);
+    if (memory && townMemoryReady(memory)) body.append(h('button', { class: 'btn small', onclick: () => { close(); openTownMemories(); } }, 'Recuerdos de este rincón · Álbum del pueblo'));
   };
   render(); close = panel({ title: amenity.title, body }).close;
 }
