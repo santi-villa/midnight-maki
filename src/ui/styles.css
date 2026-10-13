@@ -719,7 +719,8 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 }
 
 /* ---------- title v3: illustration + "tap to start" + menu that fades in ---------- */
-.title-screen.tt { display: block; padding: 0; background: #0e1236; overflow: hidden; opacity: 0; transition: opacity .7s; touch-action: manipulation; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.title-screen.tt { display: block; padding: 0; background: #0e1236; overflow: hidden; opacity: 1; touch-action: manipulation; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.tt:not(.ready):not(.no-bg) .tt-prompt { visibility: hidden; }
 .title-screen.tt.ready, .title-screen.tt.no-bg { opacity: 1; }
 .title-screen.tt.no-bg { background: transparent; }
 .title-screen.tt.no-bg .tt-bg { display: none; }

@@ -1981,12 +1981,14 @@ export class WorldScene extends Phaser.Scene {
     const lit = visible.map((l) => ({ l, k: this.lampLevel(l, ls) })).filter((e) => e.k > 0.02);
     if (lit.length) {
       for (const { l, k } of lit) {
-        this.lightStamp.setScale((l.r * 2 * flick(l) * (ls.halo > 1 ? 1.08 : 1)) / 64).setAlpha(Math.min(1, k));
+        // Keep the ambient light footprint fixed: pulsing its radius repeatedly uncovers
+        // large patches of daytime colour, especially where plaza lamps overlap.
+        this.lightStamp.setScale((l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64).setAlpha(Math.min(1, k));
         rt.erase(this.lightStamp, l.x - rt.x, l.y - rt.y);
       }
       // tint the lit pools warm (multiply layer: warm colour = warm light on the ground)
       for (const { l, k } of lit) {
-        this.lightStamp.setScale((l.r * 1.7 * flick(l) * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
+        this.lightStamp.setScale((l.r * 1.7 * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
         rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
       }
       this.lightStamp.clearTint().setAlpha(1);
@@ -2015,7 +2017,7 @@ export class WorldScene extends Phaser.Scene {
         g.setVisible(true)
           .setPosition(l.x, l.y)
           .setTint(l.color ?? 0xffc070)
-          .setScale((spill ? 0.9 : (l.r * 1.5 * ls.halo) / 64) * f, (spill ? 0.45 : (l.r * 1.5 * ls.halo) / 64) * f)
+          .setScale(spill ? 0.9 : (l.r * 1.5 * ls.halo) / 64, spill ? 0.45 : (l.r * 1.5 * ls.halo) / 64)
           .setAlpha(Math.min(0.7, (l.glow ?? 0.4) * k * f * 0.9));
         i++;
       }
