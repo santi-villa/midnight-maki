@@ -66,6 +66,7 @@ export interface GuestView {
   seats: { id: string; x: number; y: number; rot: number }[];
   recipe: string | null;
   orderUid: number | null;
+  tableId: string | null;
 }
 
 export interface TableJob {
@@ -295,6 +296,7 @@ export function guestViews(): GuestView[] {
     seats: salon!.partySeats(party.id),
     recipe: party.recipe,
     orderUid: party.orderUid,
+    tableId: party.tableId,
   }));
 }
 
@@ -331,14 +333,15 @@ export function serviceAudit(): string[] {
 }
 
 /** One party walks in from the door. Returns null when the room cannot take another group. */
-export function spawnGuest(pieces: FurnPiece[], customerId?: string): string | null {
+export function spawnGuest(pieces: FurnPiece[], customerId?: string, partyId?: string): string | null {
   const floor = ensure(pieces);
   if (!canSpawn(floor)) return null;
   const customer = customerId ?? GENERIC_CUSTOMERS[Math.floor(rng() * GENERIC_CUSTOMERS.length)]?.id;
   if (!customer) return null;
-  const id = 'g' + nextId++;
+  const id = partyId ?? 'g' + nextId++;
   const view = floor.arrive({ id, customerId: customer, tipRate: tipBonus() });
   if (!view) return null;
+  openShift();
   noteArrival();
   return id;
 }
@@ -350,12 +353,13 @@ export function stepService(dt: number): PumpResult {
 }
 
 /** Spawn, then advance. Call about once a second while the restaurant is on screen. */
-export function pumpService(dt: number, pieces: FurnPiece[]): PumpResult {
+export function pumpService(dt: number, pieces: FurnPiece[], control?: { physical?: boolean; arrivals?: boolean; present?: boolean }): PumpResult {
   const floor = ensure(pieces);
+  if (control?.physical != null) floor.setPhysical(control.physical);
   if (!game.has('intro_done')) return EMPTY;
-  const hours = applyHours(true);
+  const hours = applyHours(control?.present ?? true);
   const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
-  if (hoursNow() === 'open') {
+  if (hoursNow() === 'open' && control?.arrivals !== false) {
     arriveIn -= step;
     if (arriveIn <= 0) {
       arriveIn = 22 + Math.floor(rng() * 8);
@@ -367,6 +371,12 @@ export function pumpService(dt: number, pieces: FurnPiece[]): PumpResult {
   result.notice = hours.notice;
   return result;
 }
+
+export function canAcceptGuest(pieces: FurnPiece[]): boolean { return canSpawn(ensure(pieces)); }
+export function receiveGuest(id: string) { return salon?.reachReception(id) ?? []; }
+export function hostGuest(id: string) { return salon?.hostParty(id) ?? []; }
+export function seatGuest(id: string) { return salon?.reachSeats(id) ?? []; }
+export function exitGuest(id: string) { return salon?.reachExit(id) ?? []; }
 
 function settle(events: ServiceEvent[]): PumpResult {
   const paid: PaidMeal[] = [];

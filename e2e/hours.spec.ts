@@ -42,7 +42,6 @@ test('a full day opens, closes, sleeps and can be skipped', async ({ page }) => 
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
-  await page.getByText('Tocá para continuar').click();
   await advance(page);
   await expect(page.locator('.hud-quest')).toContainText('Entrá a Midnight Maki');
 
@@ -86,7 +85,7 @@ test('a full day opens, closes, sleeps and can be skipped', async ({ page }) => 
     g.save.time.period = 1;
     g.save.time.minutes = 20;
   });
-  await expect.poll(async () => (await live(page)).guests.length, { timeout: 12_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await live(page)).guests.length, { timeout: 25_000 }).toBeGreaterThan(0);
   const serving = await live(page);
   expect(serving.phase).toBe('open');
 

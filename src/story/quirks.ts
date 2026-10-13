@@ -26,15 +26,8 @@ const QUIRKS: Record<string, { text: string; act?: 'sleep' | 'happy' | 'surprise
 };
 
 export function runQuirk(id: string, actor: Actor, scene: WorldScene) {
-  // villagers chatting with each other
-  const others = [...scene.npcs.entries()].filter(([oid, n]) => oid !== id && Math.hypot(n.actor.x - actor.x, n.actor.y - actor.y) < 48);
-  if (others.length && Math.random() < 0.4) {
-    const [, other] = others[0];
-    const chat = [['¿Viste el cielo anoche?', 'Sí... raro, ¿no?'], ['¿Probaste el sushi nuevo?', '¡Tres veces!'], ['Qué lindo día.', 'Ideal para un té.'], ['♪', '♪♪']][Math.floor(Math.random() * 4)];
-    actor.emote(chat[0], 2.2);
-    setTimeout(() => other.actor.emote(chat[1], 2.2), 1400);
-    return;
-  }
+  // Conversations are coordinated by the world, with context and safe lifetimes.
+  if (scene.npcs.get(id)?.social || scene.npcs.get(id)?.traveling) return;
   const list = QUIRKS[id];
   if (!list) return;
   const q = list[Math.floor(Math.random() * list.length)];
@@ -46,6 +39,9 @@ export function runQuirk(id: string, actor: Actor, scene: WorldScene) {
   if (q.act) {
     const prev = actor.act;
     actor.setAct(q.act);
-    setTimeout(() => actor.act === q.act && actor.setAct(prev === q.act ? 'idle' : prev), q.act === 'sleep' ? 9000 : 1800);
+    scene.time.delayedCall(q.act === 'sleep' ? 9000 : 1800, () => {
+      const current = scene.npcs.get(id);
+      if (current?.actor === actor && !current.social && !current.traveling && actor.sprite.active && actor.act === q.act) actor.setAct(prev === q.act ? 'idle' : prev);
+    });
   }
 }

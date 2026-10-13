@@ -48,7 +48,7 @@ export const PROPS: Record<string, PropDef> = {
   barrel: P('barrel', 1, 1, 16, 16),
   well: P('well', 2, 1, 32, 34),
   mailbox: P('mailbox', 1, 1, 16, 20),
-  fountain: P('fountain', 3, 2, 48, 42, '', '', { anim: 'water' }),
+  fountain: P('fountain', 3, 2, 48, 56, '', '', { anim: 'water' }),
   stall_rose: P('stall', 3, 1, 48, 48, '#e04a4a', '#f8f4ec', { light: '#ffc070' }),
   stall_sage: P('stall', 3, 1, 48, 48, '#3fae55', '#8fd86a', { light: '#ffc070' }),
   stall_night: P('stall', 3, 1, 48, 48, '#3b4470', '#b7a8d6', { light: '#ffc070' }),

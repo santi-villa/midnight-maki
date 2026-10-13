@@ -4,8 +4,8 @@
  * This does not cook, spawn sprites, or touch the save. `orders.ts` remains
  * the economy (coins, XP, reputation, gifts). `service.ts` turns a ticket
  * from `takeOrder` into a real Order and pays once, when the party has eaten.
- * Seating is the only automatic help. Taking the order, cooking, delivering
- * and picking up the tip stay manual.
+ * In physical mode the world reports arrival, Pip's seating decision, chairs
+ * and the exit. Taking the order, cooking, delivering and the tip stay manual.
  *
  * Tick this about once a second while the restaurant is on screen, not every frame.
  * After closing time, keep ticking so meals already ordered can finish.
@@ -286,6 +286,8 @@ export function layoutTables(pieces: FurnPiece[]): ServiceTable[] {
 export interface ServiceOptions {
   rng?: () => number;
   timing?: Partial<ServiceTiming>;
+  /** The world reports arrival, Pip's seating decision, chairs and the exit. */
+  physical?: boolean;
 }
 
 export class DiningFloor {
@@ -294,8 +296,10 @@ export class DiningFloor {
   private readonly rng: () => number;
   private readonly timing: ServiceTiming;
   private nextTicket = 1;
+  private physical: boolean;
 
   constructor(tables: ServiceTable[], opts: ServiceOptions = {}) {
+    this.physical = opts.physical ?? false;
     this.rng = opts.rng ?? Math.random;
     this.timing = { ...DEFAULT_TIMING, ...opts.timing };
     const seen = new Set<string>();
@@ -352,7 +356,45 @@ export class DiningFloor {
     const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
     const events: ServiceEvent[] = [];
     for (const party of [...this.guests]) this.advance(party, step, events);
-    this.seatQueued(events);
+    if (!this.physical) this.seatQueued(events);
+    return events;
+  }
+
+  setPhysical(value: boolean) { this.physical = value; }
+
+  reachReception(id: string): ServiceEvent[] {
+    const party = this.guests.find((p) => p.id === id);
+    if (!party || party.phase !== 'outside') return [];
+    party.phase = 'reception';
+    party.phaseT = 0;
+    return [{ type: 'reception', partyId: id }];
+  }
+
+  /** Pip can greet a party without a free table; they then wait in order. */
+  hostParty(id: string): ServiceEvent[] {
+    const party = this.guests.find((p) => p.id === id);
+    if (!party || (party.phase !== 'reception' && party.phase !== 'queued')) return [];
+    const first = this.guests.find((p) => p.phase === 'reception' || p.phase === 'queued');
+    if (first !== party) return [];
+    const events: ServiceEvent[] = [];
+    if (party.phase === 'reception') this.receive(party, events);
+    else this.trySeat(party, events);
+    return events;
+  }
+
+  reachSeats(id: string): ServiceEvent[] {
+    const party = this.guests.find((p) => p.id === id);
+    if (!party || party.phase !== 'walking') return [];
+    const events: ServiceEvent[] = [];
+    this.complete(party, events);
+    return events;
+  }
+
+  reachExit(id: string): ServiceEvent[] {
+    const party = this.guests.find((p) => p.id === id);
+    if (!party || party.phase !== 'leaving') return [];
+    const events: ServiceEvent[] = [];
+    this.finishLeave(party, events);
     return events;
   }
 
@@ -527,7 +569,7 @@ export class DiningFloor {
   }
 
   private advance(party: Party, dt: number, events: ServiceEvent[]) {
-    if (dt > 0 && (party.phase === 'queued' || party.phase === 'waiting_order')) {
+    if (dt > 0 && (party.phase === 'queued' || party.phase === 'waiting_order' || this.physical && party.phase === 'reception')) {
       party.patience -= dt;
       if (party.patience <= 0) {
         this.abandon(party, events);
@@ -535,6 +577,7 @@ export class DiningFloor {
       }
     }
     if (party.phase === 'queued') return;
+    if (this.physical && (party.phase === 'outside' || party.phase === 'reception' || party.phase === 'walking' || party.phase === 'leaving')) return;
     if (party.phase === 'reception') {
       this.receive(party, events);
       return;

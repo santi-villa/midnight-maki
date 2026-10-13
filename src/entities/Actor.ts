@@ -126,6 +126,8 @@ export class Actor {
         color: '#2a2230',
         backgroundColor: '#f6ecd6',
         padding: { x: 4, y: 1 },
+        wordWrap: { width: 330, useAdvancedWrap: true },
+        align: 'center',
         resolution: 2,
       })
       .setOrigin(0.5, 1)
@@ -272,7 +274,13 @@ export class Actor {
     const sun = Actor.sun;
     this.cast.setPosition(rx + sun.dx * 0.6, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, 0.34 * (sun.sy / 0.3)).setAlpha(0.3 * sun.alpha);
     if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
-    if (this.bubble) this.bubble.setPosition(rx, ry - this.sprite.height + this.pad - 1);
+    if (this.bubble) {
+      const view = this.scene.cameras.main.worldView;
+      const half = this.bubble.displayWidth / 2;
+      const bx = Math.max(view.x + half + 3, Math.min(rx, view.right - half - 3));
+      const by = Math.max(view.y + this.bubble.displayHeight + 3, Math.min(ry - this.sprite.height + this.pad - 1, view.bottom - 3));
+      this.bubble.setPosition(bx, by);
+    }
   }
 
   setVisible(v: boolean) {

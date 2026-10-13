@@ -97,6 +97,28 @@ function plankButton(col: string): HTMLCanvasElement {
 // ------------------------------------------------------------------ icons (16x16)
 type IconFn = (g: Ctx) => void;
 const ICONS: Record<string, IconFn> = {
+  menu(g) {
+    for (const y of [3, 7, 11]) {
+      px(g, 2, y, '#513722', 12, 3);
+      px(g, 3, y, '#efd7ae', 10, 1);
+    }
+  },
+  clipboard(g) {
+    px(g, 3, 2, INK, 11, 14);
+    px(g, 4, 3, '#d0a574', 9, 12);
+    px(g, 5, 4, '#f4e8c9', 7, 10);
+    px(g, 6, 0, INK, 5, 4);
+    px(g, 7, 1, '#c1c1aa', 3, 2);
+    for (const y of [6, 9, 12]) {
+      px(g, 6, y, '#7b694e'); px(g, 8, y, '#a28d67', 3, 1);
+    }
+  },
+  wood_gear(g) {
+    for (const [x, y, w, hh] of [[6, 1, 4, 14], [1, 6, 14, 4], [3, 3, 10, 10]]) px(g, x, y, INK, w, hh);
+    for (const [x, y, w, hh] of [[7, 2, 2, 12], [2, 7, 12, 2], [4, 4, 8, 8]]) px(g, x, y, '#dcc098', w, hh);
+    ellipse(g, 7.5, 7.5, 3.2, 3.2, INK);
+    ellipse(g, 7.5, 7.5, 1.8, 1.8, '#a77b55');
+  },
   talk(g) {
     px(g, 1, 2, INK, 14, 10);
     px(g, 2, 1, INK, 12, 12);

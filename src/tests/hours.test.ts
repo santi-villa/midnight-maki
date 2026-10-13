@@ -298,7 +298,7 @@ describe('restaurant hours', () => {
     expect(serviceAudit()).toEqual([]);
   });
 
-  it('leaves raccoon routines and shop gates alone', () => {
+  it('keeps Pip hosting until closing, then sends him home without changing other shifts', () => {
     at(0, 20);
     expect(restaurantPhase(0, 20)).toBe('closed');
     expect(whereIs('spicy')).toBe('restaurant');
@@ -308,10 +308,11 @@ describe('restaurant hours', () => {
     expect(whereIs('pip')).toBe('restaurant');
     at(3, 15);
     expect(restaurantPhase(3, 15)).toBe('open');
-    expect(whereIs('pip')).toBe('home');
+    expect(whereIs('pip')).toBe('restaurant');
     expect(whereIs('spicy')).toBe('home');
     expect(whereIs('rigg')).toBe('home');
     at(3, 70);
+    expect(whereIs('pip')).toBe('home');
     expect(restaurantPhase(3, 70)).toBe('closing');
     expect(shopGate('taro').open).toBe(false);
     expect(shopGate('midnight').tracked).toBe(false);

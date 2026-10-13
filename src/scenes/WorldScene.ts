@@ -15,19 +15,22 @@ import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
 import { ZONES } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
-import { charactersIn, shopGate, stopFor } from '../systems/npcs';
-import { arrivalTile, cameFrom, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, signSpots } from '../systems/schedule';
+import { shopGate, stopFor } from '../systems/npcs';
+import { pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
 import { currentQuestTarget } from '../quests/quests';
-import { customerAsk } from '../restaurant/orders';
-import { collectTipAt, deliverTo, guestViews, pumpService, syncRestaurantHours, takeOrderAt, type GuestView, type PaidMeal } from '../restaurant/service';
-import type { FurnPiece, PartyPhase } from '../restaurant/floor';
+import { customerAsk, GENERIC_CUSTOMERS } from '../restaurant/orders';
+import { canAcceptGuest, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
+import { partySizeFor, type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture } from './textures';
+import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
+import { Journey, type Position } from '../systems/journeys';
+import { TownLife } from '../systems/townLife';
 import { CUSTOMER_IDS } from '../art/customerSheet';
 import type { CustomerId } from '../art/customers';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
@@ -35,7 +38,7 @@ import { SEED_INFO } from '../systems/garden';
 
 export type { Target };
 
-interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; }
+interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; }
 /** kind: lamp (default, follows lamp level), spill = light from windows / doors, window = interior window light, ambient = soft room fill */
 interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window' | 'ambient'; facade?: boolean }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
@@ -61,6 +64,10 @@ export class WorldScene extends Phaser.Scene {
   private npcKey = '';
   private shopKey = '';
   private lifeTick = 0;
+  private town = new TownLife();
+  private townMembers = '';
+  private townSave = game.save;
+  private townDay = game.save.time.day;
   private floorTick = 0;
   private hoursTick = 0;
   private busOff: Array<() => void> = [];
@@ -133,7 +140,11 @@ export class WorldScene extends Phaser.Scene {
     this.lightStamp = this.make.image({ key: lightTexture(this) }, false);
     this.busOff.push(
       bus.on('time:changed', () => this.onPeriodChange()),
-      bus.on('decor:changed', () => this.refreshFurniture()),
+      bus.on('decor:changed', () => {
+        this.town.invalidate(); this.diningCache = null;
+        for (const v of this.visitors.values()) for (const trip of v.trips) trip.replan();
+        this.refreshFurniture();
+      }),
       bus.on('coins:changed', ({ delta }) => {
         if (delta > 0 && this.sys.isActive()) this.floatText('+' + delta + ' ●');
       }),
@@ -219,6 +230,8 @@ export class WorldScene extends Phaser.Scene {
     this.shadowKey = '';
     for (const f of this.furnSprites) f.destroy();
     this.furnSprites = [];
+    this.endConversation();
+    this.rememberResidents();
     for (const n of this.npcs.values()) n.actor.destroy();
     this.npcs.clear();
     for (const e of this.extras.values()) e.destroy();
@@ -537,6 +550,12 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private guests = new Map<string, { actor: Actor; phase: PartyPhase }>();
+  private visitors = new Map<string, { id: string; customer: string; origin: Position; trips: Journey[]; stage: 'arriving' | 'dining' | 'departing'; phase?: PartyPhase; greeted: boolean }>();
+  private visitorId = 1;
+  private visitorIn = 4;
+  private hostId: string | null = null;
+  private hostWait = 0;
+  private diningCache: FurnPiece[] | null = null;
 
   private clearGuests() {
     for (const g of this.guests.values()) g.actor.destroy();
@@ -544,32 +563,134 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private diningPieces(): FurnPiece[] {
-    if (!this.zone) return [];
-    return this.zone.furniture.filter((fi) => fi.room === 'dining').map((fi) => ({
-      uid: fi.f.uid,
-      id: fi.f.id,
-      kind: fi.def.kind,
-      x: fi.f.x,
-      y: fi.f.y,
-      w: fi.def.w,
-      h: fi.def.h,
-      rot: fi.f.rot,
-      sit: fi.def.sit,
+    if (this.diningCache) return this.diningCache;
+    const zone = this.zoneId === 'restaurant' ? this.zone : buildZone('restaurant');
+    return this.diningCache = zone.furniture.filter((fi) => fi.room === 'dining').map((fi) => ({
+      uid: fi.f.uid, id: fi.f.id, kind: fi.def.kind,
+      x: fi.f.x, y: fi.f.y, w: fi.def.w, h: fi.def.h,
+      rot: fi.f.rot, sit: fi.def.sit,
     }));
   }
 
-  /** One step of the dining room: arrivals, patience, eating and payment. Sprites follow the phase. */
+  /** Visitors keep walking and meals finish even while Sofi is in another map. */
   private pumpFloor(dt: number) {
-    if (this.zoneId !== 'restaurant' || !game.has('intro_done') || !this.zone) return;
-    if (this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
+    if (!game.has('intro_done') || !this.zone || this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
+    const pieces = this.diningPieces();
+    const open = restaurantPhase(clock.period, game.save.time.minutes) === 'open';
+    this.visitorIn -= dt;
+    if (open && this.visitorIn <= 0 && ![...this.visitors.values()].some((v) => v.stage === 'arriving') && canAcceptGuest(pieces)) {
+      this.visitorIn = 26 + Math.random() * 8;
+      const id = 'v' + this.visitorId++;
+      const customer = GENERIC_CUSTOMERS[Math.floor(Math.random() * GENERIC_CUSTOMERS.length)].id;
+      const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
+      const trips = Array.from({ length: partySizeFor(customer) }, (_, i) => {
+        const trip = new Journey({ ...origin, x: origin.x + i }, this.town.grid, 2.5);
+        trip.go({ zone: 'restaurant', x: 8 + i, y: 10 });
+        return trip;
+      });
+      this.visitors.set(id, { id, customer, origin, trips, stage: 'arriving', greeted: false });
+    }
     this.floorTick += dt;
-    if (this.floorTick < 1) return;
-    const step = Math.min(1.25, this.floorTick);
-    this.floorTick = 0;
-    const { paid, notice } = pumpService(step, this.diningPieces());
-    if (notice) this.note(notice);
+    if (this.floorTick >= 1) {
+      const { paid, notice } = pumpService(Math.min(1.25, this.floorTick), pieces, { physical: true, arrivals: false, present: this.zoneId === 'restaurant' });
+      this.floorTick = 0;
+      if (notice) this.note(notice);
+      for (const meal of paid) {
+        if (this.zoneId === 'restaurant') this.enqueueMeal(meal);
+      }
+    }
+    const views = guestViews();
+    for (const v of this.visitors.values()) {
+      const g = views.find((g) => g.id === v.id);
+      if (v.stage === 'arriving' && !open) this.sendVisitorHome(v);
+      if (v.stage === 'arriving' && v.trips.every((t) => t.settled)) {
+        if (spawnGuest(pieces, v.customer, v.id)) {
+          receiveGuest(v.id);
+          v.stage = 'dining';
+        } else this.sendVisitorHome(v);
+      }
+      if (v.stage === 'dining' && g && v.phase !== g.phase) {
+        v.phase = g.phase;
+        if (g.phase === 'walking') {
+          v.trips.forEach((t, i) => t.go({ zone: 'restaurant', x: g.seats[i].x, y: g.seats[i].y }));
+        } else if (g.phase === 'leaving') {
+          v.trips.forEach((t) => t.go(v.origin));
+          this.sayVisitor(v.id, '¡Hasta pronto!');
+        } else if (g.phase === 'waiting_order') {
+          const ask = customerAsk(g.customerId, guestHash(g.id));
+          if (ask) this.sayVisitor(v.id, ask);
+        }
+      }
+      for (const t of v.trips) t.tick(dt);
+      if (v.stage === 'dining' && g?.phase === 'walking' && v.trips.every((t) => t.settled) && (this.hostId !== v.id || this.town.residents.get('pip')?.trip.settled)) {
+        seatGuest(v.id);
+        if (this.hostId === v.id) {
+          this.npc('pip')?.emote('¡Que estén cómodos!', 3);
+          this.hostId = null;
+          this.town.duty('pip', null);
+        }
+      }
+      if (v.stage === 'dining' && g?.phase === 'leaving' && v.trips.every((t) => t.position.zone !== 'restaurant')) {
+        exitGuest(v.id);
+        v.stage = 'departing';
+      }
+      if (v.stage === 'dining' && !g && v.phase) this.sendVisitorHome(v);
+      if (v.stage === 'departing' && v.trips.every((t) => t.settled)) this.visitors.delete(v.id);
+    }
+    this.updateHost(dt);
     this.syncGuests();
-    for (const meal of paid) this.enqueueMeal(meal);
+  }
+
+  private sendVisitorHome(v: { trips: Journey[]; origin: Position; stage: string }) {
+    v.stage = 'departing';
+    for (const trip of v.trips) trip.go(v.origin);
+  }
+
+  private sayVisitor(id: string, text: string) {
+    this.guests.get(id + ':0')?.actor.emote(text, 4);
+  }
+
+  private updateHost(dt: number) {
+    const pip = this.town.residents.get('pip');
+    if (!pip || pip.trip.position.zone !== 'restaurant' || pip.stop.zone !== 'restaurant' || typeof game.flag('at_pip') === 'string') return;
+    const views = guestViews();
+    const serving = this.hostId ? views.find((v) => v.id === this.hostId) : null;
+    if (serving?.phase === 'walking') return;
+    const party = views.find((v) => v.phase === 'reception' || v.phase === 'queued');
+    if (!party) {
+      this.hostId = null;
+      this.town.duty('pip', null);
+      return;
+    }
+    const visitor = this.visitors.get(party.id);
+    if (!visitor) return;
+    if (this.hostId !== party.id) {
+      this.hostId = party.id;
+      this.hostWait = 0;
+      this.rememberResidents();
+      this.town.duty('pip', { zone: 'restaurant', x: 7, y: 10, wander: 0, act: 'work' });
+    }
+    if (!pip.trip.settled) return;
+    if (!visitor.greeted) {
+      visitor.greeted = true;
+      this.hostWait = 3.5;
+      this.npc('pip')?.emote(party.size > 1 ? '¡Bienvenidos! ¿Mesa para dos?' : '¡Hola! Bienvenido a Midnight Maki.', 3.5);
+      this.sayVisitor(party.id, party.size > 1 ? 'Sí, gracias. Venimos a comer juntos.' : '¡Hola! ¿Tenés una mesa libre?');
+      return;
+    }
+    this.hostWait -= dt;
+    if (this.hostWait > 0) return;
+    const events = hostGuest(party.id);
+    if (events.some((e) => e.type === 'queued')) {
+      this.npc('pip')?.emote('Esperá acá. Enseguida queda una mesa.', 4);
+      this.hostWait = 3;
+    }
+    if (events.some((e) => e.type === 'assigned')) {
+      const seated = guestViews().find((g) => g.id === party.id)!;
+      const seat = seated.seats[0];
+      this.npc('pip')?.emote('¡Por acá! Esta es tu mesa.', 4);
+      this.town.duty('pip', { zone: 'restaurant', x: seat.x - 1, y: seat.y, wander: 0, act: 'work' });
+    }
   }
 
   /** Closing still announces outside the restaurant. The door check itself is cheap. */
@@ -602,116 +723,43 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Match sprites to the parties already in the room. One actor per chair, not one per order. */
+  /** The same visitors appear on the road, at reception, seated, and on the way home. */
   private syncGuests() {
-    if (!this.zone || this.zoneId !== 'restaurant' || !game.has('intro_done')) {
-      this.clearGuests();
-      return;
-    }
-    const views = guestViews();
+    if (!this.zone || !game.has('intro_done')) { this.clearGuests(); return; }
     const live = new Set<string>();
-    views.forEach((g, gi) => {
-      const n = g.seats.length || g.size;
-      for (let i = 0; i < n; i++) {
-        const key = `${g.id}:${i}`;
+    const views = guestViews();
+    for (const v of this.visitors.values()) {
+      const g = views.find((g) => g.id === v.id);
+      const phase = g?.phase ?? 'outside';
+      v.trips.forEach((trip, i) => {
+        const p = trip.position;
+        if (p.zone !== this.zoneId) return;
+        const key = `${v.id}:${i}`;
         live.add(key);
-        const seat = g.seats[i];
         let body = this.guests.get(key);
         if (!body) {
-          body = this.createGuest(g, i, gi, seat);
+          const actor = new Actor(this, v.customer, customerTexture(this, guestCustomer(v.id, i)), p.x, p.y);
+          actor.manual = true;
+          body = { actor, phase };
           this.guests.set(key, body);
-          continue;
         }
-        if (body.phase === g.phase) continue;
-        this.moveGuest(body.actor, g, i, gi, seat);
-        body.phase = g.phase;
-      }
-    });
+        const a = body.actor;
+        const sitting = ['seated', 'waiting_order', 'waiting_food', 'eating', 'paying'].includes(phase);
+        const seat = g?.seats[i];
+        a.x = (sitting && seat ? seat.x : p.x) * TILE + TILE / 2;
+        a.y = (sitting && seat ? seat.y : p.y) * TILE + TILE - 2 - (sitting ? 3 : 0);
+        a.moving = trip.moving && !sitting;
+        a.dir = sitting && seat ? (seat.rot === 2 ? 'up' : seat.rot === 1 ? 'right' : seat.rot === 3 ? 'left' : 'down') : trip.dir;
+        const act = sitting ? (phase === 'eating' || phase === 'paying' ? 'eat' : 'sit') : 'idle';
+        if (a.act !== act) a.setAct(act);
+        body.phase = phase;
+        a.sync();
+      });
+    }
     for (const [key, body] of this.guests) {
       if (live.has(key)) continue;
-      body.actor.destroy();
-      this.guests.delete(key);
+      body.actor.destroy(); this.guests.delete(key);
     }
-  }
-
-  private createGuest(g: GuestView, i: number, gi: number, seat?: { x: number; y: number; rot: number }) {
-    const sitting = !!seat && (g.phase === 'seated' || g.phase === 'waiting_order' || g.phase === 'waiting_food' || g.phase === 'eating' || g.phase === 'paying');
-    const tile = sitting ? [seat!.x, seat!.y] as [number, number] : this.guestTile(g.phase === 'queued' ? 'line' : g.phase === 'reception' ? 'host' : 'door', gi + i);
-    const actor = new Actor(this, g.customerId, customerTexture(this, guestCustomer(g.id, i)), tile[0], tile[1]);
-    actor.speed = 40;
-    if (sitting && seat) this.poseGuest(actor, seat, g.phase === 'eating' || g.phase === 'paying' ? 'eat' : 'sit');
-    else if (g.phase === 'leaving' && seat) {
-      this.poseGuest(actor, seat, 'idle');
-      const door = this.guestTile('door', i);
-      this.walkGuest(actor, door[0], door[1]);
-    } else if (g.phase === 'walking' && seat) this.walkGuest(actor, seat.x, seat.y);
-    else {
-      const goal = g.phase === 'outside' ? this.guestTile('host', gi + i) : this.guestGoal(g, i, gi, seat);
-      this.walkGuest(actor, goal[0], goal[1]);
-    }
-    return { actor, phase: g.phase };
-  }
-
-  private moveGuest(actor: Actor, g: GuestView, i: number, gi: number, seat?: { x: number; y: number; rot: number }) {
-    if ((g.phase === 'seated' || g.phase === 'waiting_order' || g.phase === 'waiting_food') && seat) {
-      this.poseGuest(actor, seat, 'sit');
-      if (g.phase === 'waiting_order' && i === 0) {
-        const ask = customerAsk(g.customerId, guestHash(g.id));
-        if (ask) actor.emote(ask.length > 36 ? ask.slice(0, 34) + '…' : ask, 2.6);
-      }
-      return;
-    }
-    if ((g.phase === 'eating' || g.phase === 'paying') && seat) {
-      if (actor.tx !== seat.x || actor.ty !== seat.y) this.poseGuest(actor, seat, 'eat');
-      else actor.setAct('eat');
-      return;
-    }
-    if (g.phase === 'leaving') {
-      actor.setAct('idle');
-      const door = this.guestTile('door', i);
-      this.walkGuest(actor, door[0], door[1]);
-      return;
-    }
-    if (g.phase === 'walking' && seat) {
-      actor.setAct('idle');
-      this.walkGuest(actor, seat.x, seat.y);
-      return;
-    }
-    if (g.phase === 'reception' || g.phase === 'queued') {
-      actor.setAct('idle');
-      const goal = this.guestGoal(g, i, gi, seat);
-      this.walkGuest(actor, goal[0], goal[1]);
-    }
-  }
-
-  private guestGoal(g: GuestView, i: number, gi: number, seat?: { x: number; y: number }): [number, number] {
-    if (seat && (g.phase === 'walking' || g.phase === 'leaving')) return g.phase === 'leaving' ? this.guestTile('door', i) : [seat.x, seat.y];
-    if (g.phase === 'reception') return this.guestTile('host', gi + i);
-    if (g.phase === 'queued') return this.guestTile('line', gi + i);
-    return this.guestTile('door', gi + i);
-  }
-
-  /** Door, host stand and queue. A blocked tile steps to the nearest free one. */
-  private guestTile(kind: 'door' | 'host' | 'line', index: number): [number, number] {
-    const spots = kind === 'door' ? [[8, 12], [9, 12]] : kind === 'host' ? [[8, 6], [7, 6], [9, 6], [6, 6]] : [[8, 11], [9, 11], [10, 11], [7, 11], [8, 10], [9, 10]];
-    const spot = spots[Math.abs(index) % spots.length];
-    const tx = spot[0];
-    const ty = spot[1];
-    if (!this.zone.grid.isSolid(tx, ty)) return [tx, ty];
-    return this.zone.grid.nearestWalkable(tx, ty) ?? [tx, ty];
-  }
-
-  private poseGuest(actor: Actor, seat: { x: number; y: number; rot: number }, act: Act) {
-    actor.stop();
-    actor.teleport(seat.x, seat.y);
-    actor.y -= 3;
-    actor.face(seat.rot === 2 ? 'up' : seat.rot === 1 ? 'right' : seat.rot === 3 ? 'left' : 'down');
-    actor.setAct(act);
-    actor.sync();
-  }
-
-  private walkGuest(actor: Actor, tx: number, ty: number) {
-    if (!actor.walkTo(this.zone.grid, tx, ty)) actor.teleport(tx, ty);
   }
 
   removeGather(spot: GatherSpot) {
@@ -754,53 +802,63 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------------ npcs
-  spawnNpcs(animate: boolean) {
-    const present = charactersIn(this.zoneId, clock.period);
+  private rememberResidents() {
+    for (const [id, n] of this.npcs) {
+      if (n.traveling) continue;
+      this.town.residents.get(id)?.trip.remember((n.actor.x - TILE / 2) / TILE, (n.actor.y - TILE + 2) / TILE);
+    }
+  }
+
+  private tickTown(dt: number) {
+    if (this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
+    if (this.townSave !== game.save || this.townDay !== clock.day) {
+      if (this.townSave !== game.save) resetService();
+      this.visitors.clear(); this.clearGuests(); this.endConversation();
+      this.chatSequence.clear(); this.chatCooldown.clear(); this.chatIn = 8;
+      this.hostId = null; this.visitorIn = 4;
+      this.diningCache = null;
+      this.townSave = game.save; this.townDay = clock.day;
+      this.town.sync(); this.spawnNpcs(false);
+    }
+    this.rememberResidents();
+    this.town.tick(dt);
+    const members = this.town.inZone(this.zoneId).map((r) => r.id + ':' + r.trip.settled).join('|');
+    if (members !== this.townMembers) {
+      this.townMembers = members;
+      this.spawnNpcs(false);
+    }
+  }
+
+  spawnNpcs(_animate: boolean) {
+    this.rememberResidents();
+    this.town.sync();
+    const present = this.town.inZone(this.zoneId);
     const keep = new Set(present.map((p) => p.id));
     for (const [id, n] of this.npcs) {
-      if (keep.has(id) || n.leaving) continue;
-      if (animate) this.npcLeave(id, n);
-      else {
-        n.actor.destroy();
-        this.npcs.delete(id);
-      }
+      if (keep.has(id)) continue;
+      n.actor.destroy(); this.npcs.delete(id);
     }
-    for (const { id, stop } of present) {
-      const existing = this.npcs.get(id);
-      if (existing && !existing.leaving) {
-        const same = existing.anchor[0] === stop.x && existing.anchor[1] === stop.y;
-        existing.anchor = [stop.x, stop.y];
-        existing.wander = stop.wander ?? 0;
-        existing.act = stop.act;
-        // a cutscene parked this actor; remember the new spot and don't drag them
-        if (existing.t > 80) continue;
-        if (!same) this.walkNpc(existing, stop.x, stop.y);
-        else if (!existing.actor.path.length && stop.act && existing.actor.act !== stop.act) existing.actor.setAct(stop.act);
-        continue;
+    for (const resident of present) {
+      const { id, stop, trip } = resident;
+      const p = trip.position;
+      let n = this.npcs.get(id);
+      if (!n) {
+        const actor = new Actor(this, id, charTexture(this, id), p.x, p.y);
+        actor.speed = (CHAR_BY_ID[id]?.raccoon ? 46 : 40) * pace(id);
+        n = { actor, anchor: [stop.x, stop.y], wander: stop.wander ?? 0, act: stop.act, t: 2 + Math.random() * 4 };
+        this.npcs.set(id, n);
+        if (stop.act) actor.setAct(stop.act);
       }
-      if (existing?.leaving) continue;
-      let sx = stop.x;
-      let sy = stop.y;
-      if (animate) {
-        const who = CHAR_BY_ID[id];
-        const from = who ? cameFrom(who, clock.period) : '';
-        const arrived = from && from !== this.zoneId ? arrivalTile(this.zoneId, from) : null;
-        const gate = arrived ?? this.nearestDoor(stop.x, stop.y);
-        if (gate) {
-          sx = Array.isArray(gate) ? gate[0] : gate.x;
-          sy = Array.isArray(gate) ? gate[1] : gate.y;
-        }
+      const wasTraveling = n.traveling;
+      n.traveling = !trip.settled;
+      n.anchor = [stop.x, stop.y]; n.wander = stop.wander ?? 0; n.act = stop.act;
+      if (n.traveling) { n.actor.stop(); n.actor.setAct('idle'); }
+      else if (wasTraveling) {
+        n.actor.x = p.x * TILE + TILE / 2;
+        n.actor.y = p.y * TILE + TILE - 2;
+        n.actor.moving = false;
+        n.actor.setAct(stop.act ?? 'idle');
       }
-      if (this.zone.grid.isSolid(sx, sy)) {
-        const n = this.zone.grid.nearestWalkable(sx, sy);
-        if (n) [sx, sy] = n;
-      }
-      const actor = new Actor(this, id, charTexture(this, id), sx, sy);
-      actor.speed = (CHAR_BY_ID[id]?.raccoon ? 46 : 40) * pace(id);
-      const st: NpcState = { actor, anchor: [stop.x, stop.y], wander: stop.wander ?? 0, act: stop.act, t: 1 + Math.random() * 4 };
-      this.npcs.set(id, st);
-      if (animate) this.walkNpc(st, stop.x, stop.y);
-      else if (stop.act) actor.setAct(stop.act);
     }
   }
 
@@ -815,35 +873,14 @@ export class WorldScene extends Phaser.Scene {
     if (n.act) a.setAct(n.act);
   }
 
-  private npcLeave(id: string, n: NpcState) {
-    n.leaving = true;
-    const dest = stopFor(id, clock.period)?.zone ?? CHAR_BY_ID[id]?.routine[clock.period]?.zone;
-    const aimed = dest && dest !== this.zoneId ? doorLeadingTo(this.zoneId, dest) : null;
-    const door = aimed ? [aimed.x, aimed.y] as [number, number] : this.nearestDoor(n.actor.tx, n.actor.ty);
-    n.actor.setAct('idle');
-    const gone = () => {
-      n.actor.destroy();
-      if (this.npcs.get(id) === n) this.npcs.delete(id);
-    };
-    if (!door || !n.actor.walkTo(this.zone.grid, door[0], door[1], gone)) gone();
-  }
-
-  private nearestDoor(x: number, y: number): [number, number] | null {
-    let best: [number, number] | null = null;
-    let bd = Infinity;
-    for (const d of this.zone.def.doors) {
-      if (!d.walk) continue;
-      const dist = Math.abs(d.x - x) + Math.abs(d.y - y);
-      if (dist < bd) {
-        bd = dist;
-        best = [d.x, d.y];
-      }
-    }
-    return best;
-  }
-
   npc(id: string): Actor | undefined {
     return this.npcs.get(id)?.actor ?? this.extras.get(id);
+  }
+
+  /** Map and quest guides follow the person during a trip, including intermediate maps. */
+  characterZone(id: string): string | null {
+    const resident = this.town.residents.get(id);
+    return resident ? (resident.visible || !resident.trip.settled ? resident.trip.position.zone : null) : stopFor(id, clock.period)?.zone ?? null;
   }
 
   /** cutscene helper: get an actor, spawning a temporary one if needed */
@@ -856,7 +893,11 @@ export class WorldScene extends Phaser.Scene {
       this.extras.set(id, a);
     } else if (tx != null && ty != null) a.teleport(tx, ty);
     const st = this.npcs.get(id);
-    if (st) st.t = 9999; // pause wandering while scripted
+    if (st) {
+      st.t = 9999; // pause wandering and journeys while scripted
+      st.traveling = false;
+      this.town.residents.get(id)?.trip.place({ zone: this.zoneId, x: (a.x - 8) / TILE, y: (a.y - 14) / TILE });
+    }
     return a;
   }
 
@@ -1143,6 +1184,7 @@ export class WorldScene extends Phaser.Scene {
   private greet(id: string) {
     const a = this.npc(id);
     if (!a) return;
+    if (this.conversation && [this.conversation.a.actor.id, this.conversation.b.actor.id].includes(id)) this.endConversation();
     a.faceTowards(this.player.x, this.player.y);
     this.player.faceTowards(a.x, a.y);
     const st = this.npcs.get(id);
@@ -1228,10 +1270,12 @@ export class WorldScene extends Phaser.Scene {
     if (!this.transitioning) clock.tick(dt);
     this.pollHours(dt);
     this.updatePlayer(dt);
+    this.tickTown(dt);
+    this.updateConversation(dt);
     for (const [, n] of this.npcs) this.updateNpc(n, dt);
     for (const e of this.extras.values()) e.update(dt);
     this.pumpFloor(dt);
-    for (const g of this.guests.values()) g.actor.update(dt);
+    for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
@@ -1323,6 +1367,7 @@ export class WorldScene extends Phaser.Scene {
     const actors: Actor[] = [this.player];
     for (const [, n] of this.npcs) if (n.actor.sprite.visible) actors.push(n.actor);
     for (const e of this.extras.values()) if (e.sprite.visible) actors.push(e);
+    for (const g of this.guests.values()) if (g.actor.sprite.visible) actors.push(g.actor);
 
     const lerp = Math.min(1, dt * 10);
     for (const occ of this.occluders) {
@@ -1368,7 +1413,9 @@ export class WorldScene extends Phaser.Scene {
         }
       }
     } else if (target.kind === 'npc') {
-      const stop = stopFor(target.npc, clock.period);
+      const resident = this.town.residents.get(target.npc);
+      const zone = this.characterZone(target.npc);
+      const stop = zone ? resident?.trip.position ?? stopFor(target.npc, clock.period) : null;
       if (stop && stop.zone === this.zoneId) {
         const actor = this.npcs.get(target.npc)?.actor;
         if (actor && actor.sprite.visible) {
@@ -1452,7 +1499,18 @@ export class WorldScene extends Phaser.Scene {
 
   private updateNpc(n: NpcState, dt: number) {
     const a = n.actor;
-    a.update(dt);
+    if (clock.paused && n.t < 80 || this.transitioning || this.decorMode) { a.update(0); return; }
+    const trip = this.town.residents.get(a.id)?.trip;
+    if (trip && !trip.settled && n.t < 80 && !this.inputLocked) {
+      const p = trip.position;
+      a.stop(); a.manual = true; a.moving = trip.moving; a.dir = trip.dir;
+      a.x = p.x * TILE + TILE / 2; a.y = p.y * TILE + TILE - 2;
+      a.update(clock.paused ? 0 : dt);
+      return;
+    }
+    a.manual = false;
+    a.update(clock.paused && n.t < 80 ? 0 : dt);
+    if (clock.paused || this.transitioning || this.decorMode || n.social || (a.id === 'pip' && this.hostId)) return;
     if (n.leaving || this.inputLocked || n.t > 80) return;
     if (a.path.length) return;
     const held = n.act === 'sleep' || n.act === 'eat' || n.act === 'drink' || n.act === 'read' || n.act === 'sit' || n.act === 'fish' || n.act === 'stars' || n.act === 'paint' || n.act === 'cook';
@@ -1474,22 +1532,7 @@ export class WorldScene extends Phaser.Scene {
       n.t = 5 + Math.random() * 4;
       return;
     }
-    if (n.act === 'talk') {
-      const pal = this.nearestPal(n);
-      if (pal) {
-        a.faceTowards(pal.actor.x, pal.actor.y);
-        pal.actor.faceTowards(a.x, a.y);
-        a.setAct('talk');
-        if (pal.act !== 'sleep' && pal.act !== 'cook' && pal.act !== 'fish') pal.actor.setAct('talk');
-        if (!a.bubble) a.emote('...', 2);
-        n.t = 6 + Math.random() * 4;
-        pal.t = Math.max(pal.t, 4);
-        return;
-      }
-      a.setAct('look');
-      n.t = 3 + Math.random() * 3;
-      return;
-    }
+    if (n.act === 'talk') { a.setAct('look'); n.t = 4; return; }
     n.t = 7 + Math.random() * 8;
     const [ax, ay] = n.anchor;
     if (n.wander > 0 && Math.random() < 0.55) {
@@ -1510,24 +1553,81 @@ export class WorldScene extends Phaser.Scene {
     else if (Math.random() < 0.4) a.face((['up', 'down', 'left', 'right'] as const)[Math.floor(Math.random() * 4)]);
   }
 
-  /** Someone close enough to talk to, and not in the middle of a job. Checked only when a timer expires. */
-  private nearestPal(n: NpcState): NpcState | null {
-    let best: NpcState | null = null;
-    let bd = 48;
-    for (const o of this.npcs.values()) {
-      if (o === n || o.leaving || o.t > 80) continue;
-      if (o.actor.path.length || o.act === 'sleep' || o.act === 'cook' || o.act === 'fish' || o.act === 'eat' || o.act === 'drink' || o.act === 'read' || o.act === 'stars') continue;
-      const d = Math.hypot(o.actor.x - n.actor.x, o.actor.y - n.actor.y);
-      if (d < bd) {
-        bd = d;
-        best = o;
-      }
+  private conversation: { a: NpcState; b: NpcState; lines: AmbientLine[]; index: number; wait: number; approach: number } | null = null;
+  private chatIn = 8;
+  private chatSequence = new Map<string, number>();
+  private chatCooldown = new Map<string, number>();
+
+  private endConversation() {
+    const c = this.conversation;
+    if (!c) return;
+    for (const n of [c.a, c.b]) {
+      n.social = false;
+      if (this.npcs.get(n.actor.id) !== n) continue;
+      n.actor.stop(); n.actor.setAct(n.act ?? 'idle'); n.t = 5;
     }
-    return best;
+    this.conversation = null;
+  }
+
+  /** One nearby pair takes turns, facing each other. Pauses with the game. */
+  private updateConversation(dt: number) {
+    if (this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
+    for (const [id, left] of this.chatCooldown) this.chatCooldown.set(id, Math.max(0, left - dt));
+    const c = this.conversation;
+    if (c) {
+      if ([c.a, c.b].some((n) => this.npcs.get(n.actor.id) !== n || n.traveling || n.t > 80 || n.actor.id === 'pip' && this.hostId)) {
+        this.endConversation(); return;
+      }
+      if (c.a.actor.path.length) {
+        c.approach -= dt;
+        if (c.approach <= 0) this.endConversation();
+        return;
+      }
+      c.a.actor.faceTowards(c.b.actor.x, c.b.actor.y);
+      c.b.actor.faceTowards(c.a.actor.x, c.a.actor.y);
+      c.wait -= dt;
+      if (c.wait > 0) return;
+      const line = c.lines[c.index++];
+      if (!line) { this.endConversation(); return; }
+      const speaker = this.npcs.get(line.speaker)?.actor;
+      speaker?.setAct('talk');
+      speaker?.emote(line.text, 4.3);
+      c.wait = 4.8;
+      return;
+    }
+    this.chatIn -= dt;
+    if (this.chatIn > 0) return;
+    this.chatIn = 12 + Math.random() * 8;
+    const neighbors = [...this.npcs.values()].filter((n) => !n.traveling && n.t < 80 && !n.actor.path.length && !n.actor.bubble &&
+      !['sleep', 'eat', 'drink', 'cook', 'fish', 'stars'].includes(n.act ?? '') &&
+      !(n.actor.id === 'pip' && this.hostId) && !(this.chatCooldown.get(n.actor.id) ?? 0) &&
+      !this.zoneId.startsWith('shop_'));
+    const pairs: [NpcState, NpcState][] = [];
+    for (let i = 0; i < neighbors.length; i++) for (let j = i + 1; j < neighbors.length; j++) {
+      const a = neighbors[i], b = neighbors[j];
+      if (Math.hypot(a.actor.x - b.actor.x, a.actor.y - b.actor.y) <= 80) pairs.push([a, b]);
+    }
+    if (!pairs.length) return;
+    const [a, b] = pairs[Math.floor(Math.random() * pairs.length)];
+    const nearby = [[b.actor.tx - 1, b.actor.ty], [b.actor.tx + 1, b.actor.ty], [b.actor.tx, b.actor.ty + 1], [b.actor.tx, b.actor.ty - 1]]
+      .filter(([x, y]) => !this.zone.grid.isSolid(x, y) && (x !== this.player.tx || y !== this.player.ty))
+      .sort((p, q) => Math.abs(p[0] - a.actor.tx) + Math.abs(p[1] - a.actor.ty) - Math.abs(q[0] - a.actor.tx) - Math.abs(q[1] - a.actor.ty));
+    const spot = nearby.find(([x, y]) => this.zone.grid.path(a.actor.tx, a.actor.ty, x, y) !== null);
+    if (!spot) return;
+    const key = [a.actor.id, b.actor.id].sort().join(':');
+    const sequence = this.chatSequence.get(key) ?? 0;
+    const lines = ambientExchange(a.actor.id, b.actor.id, { zone: this.zoneId, period: clock.period, rain: game.flag('weather') === 'rain', festival: !!game.flag('festival_today') }, sequence);
+    if (!lines.length) return;
+    this.chatSequence.set(key, sequence + 1);
+    this.chatCooldown.set(a.actor.id, 55); this.chatCooldown.set(b.actor.id, 55);
+    a.social = true; b.social = true;
+    b.actor.stop(); a.actor.setAct('idle');
+    a.actor.walkTo(this.zone.grid, spot[0], spot[1]);
+    this.conversation = { a, b, lines, index: 0, wait: 0.5, approach: 8 };
   }
 
   private npcStamp() {
-    return `${clock.period}:${phaseOf(game.save.time.minutes)}:${game.flag('weather') ?? ''}:${game.flag('festival_today') ?? ''}`;
+    return `${clock.period}:${phaseOf(game.save.time.minutes)}:${game.flag('weather') ?? ''}:${game.flag('festival_today') ?? ''}:${Object.keys(CHAR_BY_ID).map((id) => game.flag('at_' + id) ?? '').join('|')}`;
   }
 
   private shopStamp() {
@@ -1922,7 +2022,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.guideT <= 0) {
       this.guideT = 0.5;
       this.guideGoal = null;
-      const t = settings.guide !== false && !this.inputLocked ? questTarget() : null;
+      const t = settings.guide !== false && !this.inputLocked ? questTarget((id) => this.characterZone(id)) : null;
       if (t) {
         if (t.zone === this.zoneId || (t.zone === 'home' && this.zoneId === 'home')) {
           if (t.npc) this.guideGoal = { x: 0, y: 0, npc: t.npc };
@@ -1967,7 +2067,7 @@ export class WorldScene extends Phaser.Scene {
     this.quirkT -= dt;
     if (this.quirkT > 0 || this.inputLocked || lowFx()) return;
     this.quirkT = 25 + Math.random() * 35;
-    const raccoons = [...this.npcs.entries()].filter(([id]) => CHAR_BY_ID[id]?.raccoon || Math.random() < 0.3);
+    const raccoons = [...this.npcs.entries()].filter(([id, n]) => !n.social && !n.traveling && n.t < 80 && !n.actor.path.length && !(id === 'pip' && this.hostId) && (CHAR_BY_ID[id]?.raccoon || Math.random() < 0.3));
     if (!raccoons.length) return;
     const [id, n] = raccoons[Math.floor(Math.random() * raccoons.length)];
     import('../story/quirks').then(({ runQuirk }) => runQuirk(id, n.actor, this));
