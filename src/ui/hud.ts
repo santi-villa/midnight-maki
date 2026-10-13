@@ -10,11 +10,12 @@ import { clock } from '../systems/time';
 import { idleOffer, type ContextAction, type ContextOffer } from '../world/contextActions';
 import { h, uiRoot } from './dom';
 import { skinIconEl } from './skin';
-import { hudTime, paintHudClock } from './hudClock';
+import { formatHudTime, hudTime, paintHudClock } from './hudClock';
 import './hud.css';
 
 let root: HTMLElement | null = null;
 let timeEl: HTMLElement;
+let digitalEl: HTMLTimeElement;
 let dateEl: HTMLElement;
 let coinEl: HTMLElement;
 let clockEl: HTMLCanvasElement;
@@ -43,18 +44,20 @@ export function mountHud(hd: HudHandlers) {
   timeEl = h('span');
   dateEl = h('div', { class: 'hud-date' });
   coinEl = h('span', { class: 'coin' });
-  const status = h('div', { class: 'hud-status' }, h('div', { class: 'time' }, timeEl), dateEl, h('div', { class: 'hud-coins' }, iconElement({ type: 'coin' }), coinEl));
+  clockEl = h('canvas', { class: 'hud-clock', width: 32, height: 32, role: 'img', 'aria-label': 'Hora del juego' });
+  digitalEl = h('time', { class: 'hud-digital' });
+  const status = h('div', { class: 'hud-status' }, h('div', { class: 'hud-time-row' }, clockEl, digitalEl), h('div', { class: 'time' }, timeEl), dateEl, h('div', { class: 'hud-coins' }, iconElement({ type: 'coin' }), coinEl));
   const toggle = h('button', {
     type: 'button', class: 'hud-status-toggle', 'aria-label': 'Contraer fecha y monedas', 'aria-expanded': 'true',
     onclick: () => {
       const collapsed = status.classList.toggle('is-collapsed');
+      root?.classList.toggle('hud-status-collapsed', collapsed);
       toggle.setAttribute('aria-expanded', String(!collapsed));
       toggle.setAttribute('aria-label', collapsed ? 'Mostrar fecha y monedas' : 'Contraer fecha y monedas');
       toggle.textContent = collapsed ? '→' : '←';
     },
   }, '←');
-  clockEl = h('canvas', { class: 'hud-clock', width: 32, height: 32, role: 'img', 'aria-label': 'Hora del juego' });
-  const statusWrap = h('div', { class: 'hud-status-wrap' }, status, toggle, clockEl);
+  const statusWrap = h('div', { class: 'hud-status-wrap' }, status, toggle);
   const btn = (icon: string, label: string, fn: () => void) => {
     const b = h('button', { type: 'button', class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon));
     return b;
@@ -105,7 +108,12 @@ export function refresh() {
   dateEl.textContent = `${WEEKDAYS[weekday(t.day)]} ${dayOfSeason(t.day)}`;
   dateEl.title = clock.dateLabel() + (game.flag('weather') === 'rain' ? ' · lluvia' : '');
   coinEl.textContent = game.coins.toLocaleString('es-AR');
-  paintHudClock(clockEl, hudTime(t.period, t.minutes));
+  const minute = hudTime(t.period, t.minutes);
+  const label = formatHudTime(minute);
+  digitalEl.textContent = label;
+  digitalEl.dateTime = label;
+  digitalEl.setAttribute('aria-label', `Hora del juego: ${label}`);
+  paintHudClock(clockEl, minute);
   const q = handlers.questText();
   questEl.style.display = q ? '' : 'none';
   if (q) questEl.innerHTML = q;

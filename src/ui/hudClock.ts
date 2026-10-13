@@ -1,17 +1,25 @@
 /** Small pixel clock, using the same canvas palette as the game's wooden UI. */
+import { BALANCE } from '../core/balance';
 import { ctx2d, ellipse, px } from '../art/pixel';
 
 // The four exploration periods run from morning to midnight.
 const HOURS = [6, 12, 18, 21, 24];
 
 export function hudTime(period: number, minutes: number): number {
-  const p = Math.max(0, Math.min(3, Math.floor(period)));
-  const progress = Math.max(0, Math.min(1, minutes / 90));
+  const p = Math.max(0, Math.min(3, Math.floor(Number.isFinite(period) ? period : 0)));
+  const progress = Math.max(0, Math.min(1, (Number.isFinite(minutes) ? minutes : 0) / BALANCE.periodMinutes));
   return Math.floor((HOURS[p] + (HOURS[p + 1] - HOURS[p]) * progress) * 60);
 }
 
+/** Presentation wraps midnight while leaving the existing period/day clock untouched. */
+export function formatHudTime(minutes: number): string {
+  const value = Number.isFinite(minutes) ? Math.floor(minutes) : 0;
+  const dayMinute = ((value % 1440) + 1440) % 1440;
+  return `${String(Math.floor(dayMinute / 60)).padStart(2, '0')}:${String(dayMinute % 60).padStart(2, '0')}`;
+}
+
 export function paintHudClock(canvas: HTMLCanvasElement, minutes: number) {
-  const label = `${String(Math.floor(minutes / 60) % 24).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  const label = formatHudTime(minutes);
   canvas.setAttribute('aria-label', `Hora del juego: ${label}`);
   canvas.title = label;
   if (canvas.dataset.time === label) return;
