@@ -3,6 +3,8 @@ import Phaser from 'phaser';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
 import { buildFolkSheet, FOLK_PAD } from '../art/folk';
 import { buildingLayout } from '../art/nature';
+import { buildCustomerSheet } from '../art/customerSheet';
+import type { CustomerId } from '../art/customers';
 import { FOLK_SPECS } from '../data/folkSpecs';
 import { drawObject } from '../art/objects';
 import { ctx2d, makeCanvas, outline, px, shade } from '../art/pixel';
@@ -59,6 +61,18 @@ export function lookTexture(scene: Phaser.Scene, a: import('../core/types').Appe
   if (!scene.textures.exists(key)) {
     const tex = scene.textures.addCanvas(key, buildCharacterSheet(a))!;
     for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * FW, 0, FW, FH);
+  }
+  return key;
+}
+
+/** Texture of a restaurant customer (the 28x40 animal customers). Side-seated: Actor flips it for seats facing left. */
+export function customerTexture(scene: Phaser.Scene, id: CustomerId): string {
+  const key = 'cust_' + id;
+  if (!scene.textures.exists(key)) {
+    const { canvas, fw, fh, count } = buildCustomerSheet(id);
+    const tex = scene.textures.addCanvas(key, canvas)!;
+    for (let i = 0; i < count; i++) tex.add(i, 0, i * fw, 0, fw, fh);
+    tex.customData = { sideSit: true };
   }
   return key;
 }

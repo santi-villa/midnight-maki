@@ -21,6 +21,8 @@ export class Actor {
   shadow: Phaser.GameObjects.Ellipse;
   /** transparent rows above the figure in this texture (detailed folk sprites) */
   pad = 0;
+  /** customer sheets: seated frames are side views (see customerSheet.ts) */
+  sideSit = false;
   cast: Phaser.GameObjects.Sprite;
   bubble: Phaser.GameObjects.Text | null = null;
   x: number; // feet position in px
@@ -48,6 +50,7 @@ export class Actor {
     this.y = ty * TILE + TILE - 2;
     const fw = scene.textures.get(texture).get(0)?.width ?? 16;
     this.pad = (scene.textures.get(texture).customData as { pad?: number } | undefined)?.pad ?? 0;
+    this.sideSit = !!(scene.textures.get(texture).customData as { sideSit?: boolean } | undefined)?.sideSit;
     this.shadow = scene.add.ellipse(this.x, this.y, Math.max(11, Math.round(fw * 0.62)), fw > 30 ? 6 : 4, 0x2a2230, 0.25);
     this.sprite = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 1);
     // silhouette cast shadow that follows the current animation frame
@@ -64,6 +67,7 @@ export class Actor {
 
   setTexture(key: string) {
     this.pad = (this.scene.textures.get(key).customData as { pad?: number } | undefined)?.pad ?? 0;
+    this.sideSit = !!(this.scene.textures.get(key).customData as { sideSit?: boolean } | undefined)?.sideSit;
     this.sprite.setTexture(key, this.sprite.frame.name);
     this.cast.setTexture(key, this.sprite.frame.name);
   }
@@ -219,6 +223,10 @@ export class Actor {
         case 'eat':
         case 'drink':
           frame = FRAMES.sit;
+          if (this.sideSit) {
+            // customers: breathing while seated, chewing while eating (frames 30..33 / 34 of their sheet)
+            frame = this.act === 'eat' ? 30 + (Math.floor(this.actT * 3) % 4) : Math.floor(this.actT * 1.5) % 2 ? 34 : 29;
+          }
           if (!this.bubble && this.act !== 'sit' && this.actT > 0.35 && this.actT < 0.5) this.emote(this.act === 'eat' ? 'ñam' : 'té', 1.3);
           break;
         case 'wave':
@@ -246,6 +254,12 @@ export class Actor {
       }
     }
     if (this.sprite.frame.name !== String(frame)) this.sprite.setFrame(frame);
+    // side-view seated frames look right: mirror them for seats that face left
+    const flip = this.sideSit && (this.act === 'sit' || this.act === 'eat' || this.act === 'drink') && this.dir === 'left';
+    if (this.sprite.flipX !== flip) {
+      this.sprite.setFlipX(flip);
+      this.cast.setFlipX(flip);
+    }
   }
 
   sync() {
