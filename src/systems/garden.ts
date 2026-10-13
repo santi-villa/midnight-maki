@@ -36,6 +36,7 @@ export function water(plot: number): boolean {
   const p = game.save.garden[plot];
   if (!p?.seed || p.ready || p.watered) return false;
   p.watered = 1;
+  game.stat('plotsWatered');
   game.touch('garden');
   return true;
 }

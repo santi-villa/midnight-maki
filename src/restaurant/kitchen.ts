@@ -1,6 +1,6 @@
 /** Restaurant UI: order board, kitchen station, free cooking, experiments, upgrades. */
-import { iconCanvas, iconElement } from '../art/icons';
-import { ctx2d, makeCanvas } from '../art/pixel';
+import { iconElement } from '../art/icons';
+import { recipeIllustration } from '../art/cooking';
 import { audio } from '../audio/audio';
 import { game } from '../core/state';
 import { ITEMS_BY_ID } from '../data/items';
@@ -8,7 +8,8 @@ import { EXPERIMENTS, RECIPES, RECIPES_BY_ID, type RecipeDef } from '../data/rec
 import { BALANCE } from '../core/balance';
 import { add, h, panel, toast, uiRoot } from '../ui/dom';
 import { registerAction } from '../systems/actions';
-import { cook } from './cooking';
+import { cook, type CookResult } from './cooking';
+import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeCollection';
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { guestViews, plateState, serviceBoardNote, stagePlate, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade } from './upgrades';
@@ -152,11 +153,14 @@ function quickResult(r: RecipeDef): Awaited<ReturnType<typeof cook>> {
   return { ok: true, quality: q, score: q === 2 ? 100 : 80, variantBonus: 0 };
 }
 
-function celebrate(r: RecipeDef, quality: 0 | 1 | 2) {
-  const { before, after } = recordMastery(r.id, quality);
+function celebrate(r: RecipeDef, result: CookResult) {
+  const collected = recordRecipeResult(r.id, result);
+  if (collected.discovered) toast(`Variante descubierta: ${r.name} ${collected.discovered}. ¡Anotada en el recetario!`);
+  const { before, after } = recordMastery(r.id, result.quality);
   if (after > before) {
     audio.sfxPlay('sparkle');
-    toast(`¡${r.name}: ${starsText(after)}!${after === QUICK_STARS ? ' Ahora podés hacerla en un toque (Rápido).' : ''}`);
+    const styles = PRESENTATIONS.filter((p) => p.stars > before && p.stars <= after);
+    toast(`¡${r.name}: ${starsText(after)}!${after === QUICK_STARS ? ' Ahora podés hacerla en un toque (Rápido).' : ''}${styles.length ? ` Nueva presentación: ${styles.map((p) => p.name).join(', ')}. Elegila en el recetario.` : ''}`);
     // mastering a dish pays a one-time bonus (never twice, even if the save is reloaded)
     if (after === 5) game.once('mastered_' + r.id, () => { game.addCoins(100, 'mastery'); toast(`Plato de honor: ${r.name}. +100 monedas.`); });
   }
@@ -176,7 +180,7 @@ async function startOrder(uid: number, quick = false) {
     return;
   }
   const res = quick ? quickResult(r) : await cook(r.id, customerName(o.customer));
-  if (res.ok && !quick) celebrate(r, res.quality);
+  if (res.ok && !quick) celebrate(r, res);
   if (!res.ok) {
     // cancelled: give the ingredients back (no punishment)
     for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund');
@@ -184,7 +188,7 @@ async function startOrder(uid: number, quick = false) {
     return;
   }
   if (forTable && stagePlate(uid, res.quality, res.variantBonus, res.variant)) {
-    await showPlate(r, res.quality);
+    await showPlate(r, res.quality, res.variant);
     toast(`Listo. Llevá ${r.name} a la mesa.`);
     return;
   }
@@ -213,7 +217,7 @@ export async function presentPaidMeal(meal: PaidMeal) {
 
 async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof serveOrder>>, quality: number, who: string, customer: string, variant?: string, tipOnTable = false) {
   const generic = GENERIC_CUSTOMERS.find((c) => c.id === customer);
-  if (!tipOnTable) await showPlate(r, quality);
+  if (!tipOnTable) await showPlate(r, quality, variant);
   await runScene('serve', async () => {
     if (out.firstTime) {
       audio.sfxPlay('sparkle');
@@ -247,58 +251,14 @@ async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof 
   if ((game.save.stats.spicyServed ?? 0) >= 5) game.setFlag('many_spicy');
 }
 
-/** Plated dish showcase: the finished sushi on a wooden board with 1-3 stars. Tap to continue. */
-function showPlate(r: RecipeDef, quality: number): Promise<void> {
+/** Finished sushi on the recipe's selected ceramic, with its variant and 1–3 stars. */
+function showPlate(r: RecipeDef, quality: number, variant?: string): Promise<void> {
   return new Promise((resolve) => {
-    const scale = 4;
-    const cv = makeCanvas(64, 40);
-    const g = ctx2d(cv);
-    // wooden geta board + white plate
-    g.fillStyle = '#2b1d17';
-    g.fillRect(4, 24, 56, 12);
-    g.fillStyle = '#c48d5e';
-    g.fillRect(6, 24, 52, 9);
-    g.fillStyle = '#e2b585';
-    g.fillRect(6, 24, 52, 1);
-    g.fillStyle = '#7a4c30';
-    g.fillRect(10, 33, 5, 4);
-    g.fillRect(49, 33, 5, 4);
-    g.fillStyle = 'rgba(0,0,0,.18)';
-    g.beginPath();
-    g.ellipse(32, 24, 18, 5, 0, 0, Math.PI * 2);
-    g.fill();
-    const ic = iconCanvas(r.icon);
-    g.imageSmoothingEnabled = false;
-    // the care put into the dish shows: a plain one sits a bit crooked, a perfect one gets a neat garnish and a shine
-    const rowY = [8, 5, 6];
-    const xs = quality === 0 ? [11, 25, 38] : [12, 24, 36];
-    xs.forEach((x, i) => g.drawImage(ic, x, quality === 0 ? rowY[i] + (i === 1 ? -2 : 1) : 6, 16, 16));
-    g.fillStyle = '#f4a6b0';
-    g.fillRect(50, 18, 5, 4);
-    g.fillStyle = '#8fbf5f';
-    g.fillRect(55, 17, 4, 4);
-    if (quality >= 1) {
-      g.fillStyle = '#e8e2d2';
-      g.fillRect(8, 22, 14, 1); // neat line of ginger
-      g.fillStyle = '#f6a3b0';
-      g.fillRect(8, 21, 14, 1);
-    }
-    if (quality === 2) {
-      g.fillStyle = '#7fb25a';
-      g.fillRect(44, 15, 2, 5);
-      g.fillRect(46, 13, 2, 7);
-      g.fillStyle = '#fff6c8';
-      for (const [sx, sy] of [[10, 5], [30, 3], [52, 9], [18, 20]]) {
-        g.fillRect(sx, sy, 1, 3);
-        g.fillRect(sx - 1, sy + 1, 3, 1);
-      }
-    }
-    for (let i = 0; i <= quality; i++) {
-      g.fillStyle = '#ffc23a';
-      g.fillRect(22 + i * 7, 2, 5, 5);
-    }
-    cv.style.width = cv.width * scale + 'px';
-    cv.style.height = cv.height * scale + 'px';
+    const cv = h('canvas', { width: 96, height: 64, 'aria-label': r.name });
+    const extra = r.variants?.find((v) => v.name === variant)?.item;
+    cv.getContext('2d')!.drawImage(recipeIllustration(r, recipePresentation(r.id), quality as 0 | 1 | 2, extra), 0, 0);
+    cv.style.width = '288px';
+    cv.style.height = 'auto';
     cv.style.maxWidth = '86vw';
     const stars = h('div', { class: 'plate-stars' }, ...[0, 1, 2].map((i) => h('span', { class: i <= quality ? 'on' : '' }, '★')));
     const words = ['¡Listo para servir!', '¡Muy bien hecho!', '¡Perfecto!'][quality];
@@ -365,7 +325,7 @@ async function freeCook(id: string) {
     for (const [i, q] of Object.entries(r.ingredients)) game.addItem(i, q, 'refund');
     return;
   }
-  celebrate(r, res.quality);
+  celebrate(r, res);
   const first = !game.save.recipesCooked[id];
   game.save.recipesCooked[id] = (game.save.recipesCooked[id] ?? 0) + 1;
   const coins = Math.round(r.price * (0.6 + res.quality * 0.1)) + res.variantBonus;
