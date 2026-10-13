@@ -116,6 +116,10 @@ export const FURNITURE: FurnitureDef[] = [
   F('chili_wreath', 'Ristra de ajíes', 'kitchen', 'raccoon', 90, 'garland', '#c94a3f', '', 2, 1, 16, { wall: true, likes: ['spicy'] }),
   F('stone_lantern', 'Linterna de piedra', 'garden', 'japanese', 260, 'stonelantern', '', '', 1, 1, 24, { light: '#f4d68c' }),
   F('star_corner', 'Rincón de estrellas', 'special', 'night', 0, 'stars', '#f2c66d', '', 2, 1, 16, { shop: 'reward', light: '#f8e3a0', walkable: true }),
+  // Keepsakes earned from weekly errands, stored until the player chooses where to put them.
+  F('errand_thanks', 'Cuadro de agradecimiento', 'wall', 'cozy', 0, 'painting', '#f3e6c8', '#9bb59a', 1, 1, 16, { wall: true, variant: 0, shop: 'reward' }),
+  F('errand_furin', 'Furin del vecindario', 'wall', 'japanese', 0, 'windchime', '#8db7c4', '#f2c66d', 1, 1, 16, { wall: true, shop: 'reward' }),
+  F('errand_bonsai', 'Bonsái de los vecinos', 'plant', 'japanese', 0, 'bonsai', '#6f9e5a', '#c9a24a', 1, 1, 18, { shop: 'reward' }),
 ];
 
 export const FURN_BY_ID: Record<string, FurnitureDef> = Object.fromEntries(FURNITURE.map((f) => [f.id, f]));

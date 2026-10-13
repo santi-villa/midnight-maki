@@ -53,13 +53,25 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
     - UI comprobada en 1280×800, 390×844 y 320×568, sin desbordamiento horizontal. `typecheck` y `build` correctos; no se ejecutaron las suites de tests, reservadas para el final por pedido del usuario. Sigue pendiente un celular físico y las regresiones finales del guardado, la cocina libre y el servicio completo de mesas.
     - Capturas con progreso de ejemplo: [ficha en PC](art/recetario/ficha-pc.png) y [presentaciones en celular](art/recetario/presentaciones-celular.png).
 
+15. **Encargos y recompensas** (punto 6 de la mejora por etapas):
+    - Quince actividades disponibles según el progreso: las nueve existentes, más cocina manual, variantes, riego, decoración, ordenar la despensa y entregas concretas. Los encargos diarios priorizan grupos de actividades distintos y mantienen el límite anterior de dos o tres encargos.
+    - Una meta semanal estable durante los siete días del juego, con temas que rotan entre cocina, vecinos, naturaleza y hogar. Se omiten áreas cerradas, el depósito cerrado y encargos de proyectos cuando ya no queda una etapa accesible. Abrir nuevas áreas no cambia un encargo ya asignado.
+    - Recompensas fijas desde la asignación y visibles en la cartelera: monedas, ingredientes, materiales, semillas cuando el jardín está abierto, amistad y un mueble en las metas semanales. Se mantiene la fórmula anterior de monedas; el balance completo queda para el punto 8.
+    - Las entregas descuentan los objetos de la mochila al recibir el premio. Los contadores de cocina manual y variantes usan el dominio y los registros existentes del punto 3; cancelar o usar Rápido no los incrementa. El riego solo cuenta cuando una parcela pasa a estar regada.
+    - Premios de encargos completados pendientes de cobrar se conservan al cambiar el día o la semana. Los progresos completados por contadores quedan congelados; una entrega pendiente sigue necesitando los objetos. No hay castigos ni rachas consecutivas.
+    - Tres recuerdos decorativos de uso libre en Decorar: cuadro de agradecimiento al recibir una meta semanal, furin del vecindario a las tres y bonsái de los vecinos a las seis. Cada recuerdo se entrega una sola vez y queda en el depósito, sin modificar la distribución de los muebles del jugador.
+    - Compatible con el JSON `daily_state` de partidas anteriores: conserva IDs, progreso, estado cobrado y monedas de encargos activos. Los premios nuevos aparecen en nuevas asignaciones y los hitos semanales se cuentan desde esta actualización. Marcador de cobro único para impedir premios o entregas duplicados, incluso ante eventos de inventario durante el cobro.
+    - Comprobación directa en Chromium: generación determinista y rotación de ocho semanas; quince tipos y bloqueo por áreas; cocina manual, variantes y riego sin contar dos veces; entregas con descuento y rechazo de cobros repetidos/reentrantes; contrato numérico antiguo de cobro; premio pendiente al cambio real de día sin abrir la cartelera; hitos de una, tres y seis metas sin duplicar ni colocar muebles; proyectos terminados excluidos; exportación/importación, guardado y recarga.
+    - Comprobación de UI en 1280×800, 390×844 y 320 píxeles de ancho: botones de entrega y premio, estado recibido, recuerdos y persistencia tras recargar la página; sin errores de página ni desbordamiento horizontal. `typecheck` y `build` correctos. Las suites de tests siguen reservadas para el final por pedido del usuario; faltan un celular físico y una partida prolongada para el balance del punto 8.
+    - Capturas con progreso de ejemplo: [cartelera en celular](art/encargos/cartelera-celular.png) y [premios semanales en PC](art/encargos/premios-semanales-pc.png).
+
 ## Compatibilidad
 - Guardados viejos: `recipeMastery` es opcional y se completa vacío al cargar (`validateSave`).
 - Sin cambios en los capítulos de la historia ni en los contratos de calidad 0/1/2.
 
 ## Pendiente
-1. Más proyectos por área y más tipos de encargo con pequeñas escenas.
-2. Ejecutar las regresiones de las etapas 2 y 3 al finalizar la serie de mejoras (suites pospuestas por pedido del usuario).
+1. Ampliar proyectos por área (punto 5) y conectar sus resultados con pequeñas escenas y recuerdos (punto 7).
+2. Ejecutar las regresiones de los puntos 2, 3 y 6 al finalizar la serie de mejoras (suites pospuestas por pedido del usuario).
 3. Probar todo en un celular real: hasta ahora solo se probó en un navegador emulado en vertical.
 
 ## Criterios de aceptación de esta etapa
