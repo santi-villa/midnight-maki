@@ -10,7 +10,7 @@ import { add, h, panel, toast, uiRoot } from '../ui/dom';
 import { registerAction } from '../systems/actions';
 import { cook } from './cooking';
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
-import { plateState, serviceBoardNote, stagePlate, type PaidMeal } from './service';
+import { guestViews, plateState, serviceBoardNote, stagePlate, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade } from './upgrades';
 import { runScene, say } from '../dialogue/dialogue';
 
@@ -78,6 +78,22 @@ export function openOrders() {
         ...note.summary.map((line) => h('div', null, line)),
       ),
     );
+    // the tray: dishes that are done and wait to be carried to their tables
+    const ready = game.save.orders.filter((o) => plateState(o.uid) === 'plated');
+    if (ready.length)
+      body.append(
+        h('div', { class: 'card col kitchen-tray', style: { gap: '6px', borderColor: '#7fa356' } },
+          h('b', null, `Bandeja de salida (${ready.length})`),
+          h('div', { class: 'row', style: { flexWrap: 'wrap', gap: '8px' } },
+            ...ready.map((o) => {
+              const r = RECIPES_BY_ID[o.recipe];
+              const view = guestViews().find((g) => g.orderUid === o.uid);
+              const q = ['Aceptable', 'Muy bueno', 'Perfecto'][o.plate?.quality ?? 0];
+              return h('div', { class: 'tray-plate', title: q }, r ? iconElement(r.icon) : null, h('div', { class: 'hint' }, `${view?.tableId ? 'Mesa ' + (view.tableId.match(/\d+/)?.[0] ?? view.tableId) : customerName(o.customer)} · ${q}`));
+            })),
+          h('div', { class: 'hint' }, 'Cuando termines acá, llevalos a sus mesas.'),
+        ),
+      );
     if (!game.save.orders.length) body.append(h('p', { class: 'muted' }, 'No hay pedidos en el mostrador. Cuando un cliente se siente, tomá el pedido en su mesa.'));
     for (const o of game.save.orders) {
       const r = RECIPES_BY_ID[o.recipe];
@@ -98,7 +114,13 @@ export function openOrders() {
           h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
             held !== 'plated' && !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) render(); else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
             held !== 'plated' && !ready && cost == null ? h('span', { class: 'hint' }, 'Faltan ingredientes que no se compran acá.') : null,
-            h('button', { class: 'btn small primary', disabled: held === 'plated' || !ready, onclick: () => { p.close(); cookOrder(o.uid); } }, held === 'plated' ? 'En la mesa' : 'Cocinar'),
+            h('button', { class: 'btn small primary', disabled: held === 'plated' || !ready, onclick: async () => {
+              // the station stays open between dishes: hide it while the board is up, then show the updated list
+              p.root.parentElement!.style.display = 'none';
+              try { await cookOrder(o.uid); } finally {
+                if (p.root.isConnected) { p.root.parentElement!.style.display = ''; render(); }
+              }
+            } }, held === 'plated' ? 'En la mesa' : 'Cocinar'),
           ),
         ),
       );
@@ -106,7 +128,7 @@ export function openOrders() {
     body.append(h('p', { class: 'hint' }, `Hasta ${maxOrders()} pedidos a la vez. Tomá cada pedido en la mesa. Los de la historia siguen en el mostrador.`));
   };
   render();
-  const p = panel({ title: 'Pedidos', body });
+  const p = panel({ title: 'Cocina · Pedidos', body, foot: [h('button', { class: 'btn', onclick: () => p.close() }, 'Volver al salón')] });
 }
 
 /** Cook one order. A party that is waiting eats at the table; story orders pay here. */
