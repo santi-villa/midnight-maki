@@ -42,13 +42,24 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
     - `typecheck` y `build` correctos. No se ejecutó la suite de tests: se pospone al final de las etapas por pedido del usuario. Falta comprobar en un celular físico y ejecutar las suites finales.
     - Capturas: [plato básico en PC](art/cocina/plato-basico-pc.png) y [plato perfecto en celular](art/cocina/plato-perfecto-celular.png).
 
+14. **Recetario coleccionable** (punto 3 de la mejora por etapas):
+    - Las 23 recetas tienen una ficha ilustrada, ingredientes, secuencia de preparación, estrellas de dominio y totales de platos preparados a mano y vendidos. Buscador, categorías y filtros por recetas conocidas, preparadas, por descubrir y dominadas. Las recetas ocultas conservan su pista de desbloqueo y no revelan su nombre ni descripción.
+    - Puntaje máximo, mejor calidad y día del récord por receta. Se registran al completar el minijuego en pedidos o cocina libre; Rápido y cancelaciones no generan récords ni variantes.
+    - Las tres variantes existentes se coleccionan por ingrediente: sésamo en kappa, salmón en onigiri y wasabi en nigiri. Su ficha incluye ilustración, contador y récord. El extra puede agregarse antes de servir, de modo que el nigiri sin paso de decoración también permite usar wasabi. Solo se consume al completar el plato.
+    - Presentaciones por receta: cerámica del pueblo desde el inicio, porcelana índigo a las 2 estrellas, flor de sakura a las 3 y plato de honor a las 5. Selección persistente desde la ficha; la vajilla se utiliza en el minijuego y al servir. Son premios visuales: mantienen los precios, puntajes y requisitos de dominio anteriores.
+    - Campo opcional `recipeRecords`, con validación de los datos nuevos. Las partidas anteriores mantienen dominio, dinero e inventario; no se inventan puntajes ni variantes que antes no se registraban. También pueden elegir las presentaciones que ya les corresponden por dominio.
+    - Acceso directo a **Recetario** desde el menú, además de la pestaña Recetas del Diario.
+    - Comprobación directa en Chromium: un pedido de kappa con sésamo en PC y uno de nigiri con wasabi con gestos táctiles; registro, consumo único del extra, aumento de dominio, selección de sakura y vajilla al servir; exclusión de Rápido y cancelaciones; devolución de ingredientes; guardado y recarga con persistencia de récords, variantes y selección; compatibilidad con partidas sin el campo nuevo y limpieza de datos inválidos. Verificación de búsqueda, filtros, recetas ocultas, recompensas bloqueadas, plato de honor a 5 estrellas y conservación de un récord frente a un resultado peor.
+    - UI comprobada en 1280×800, 390×844 y 320×568, sin desbordamiento horizontal. `typecheck` y `build` correctos; no se ejecutaron las suites de tests, reservadas para el final por pedido del usuario. Sigue pendiente un celular físico y las regresiones finales del guardado, la cocina libre y el servicio completo de mesas.
+    - Capturas con progreso de ejemplo: [ficha en PC](art/recetario/ficha-pc.png) y [presentaciones en celular](art/recetario/presentaciones-celular.png).
+
 ## Compatibilidad
 - Guardados viejos: `recipeMastery` es opcional y se completa vacío al cargar (`validateSave`).
 - Sin cambios en los capítulos de la historia ni en los contratos de calidad 0/1/2.
 
 ## Pendiente
 1. Más proyectos por área y más tipos de encargo con pequeñas escenas.
-2. Recompensas de dominio visuales (estilos de presentación) además del pago y los logros.
+2. Ejecutar las regresiones de las etapas 2 y 3 al finalizar la serie de mejoras (suites pospuestas por pedido del usuario).
 3. Probar todo en un celular real: hasta ahora solo se probó en un navegador emulado en vertical.
 
 ## Criterios de aceptación de esta etapa

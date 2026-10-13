@@ -1,4 +1,4 @@
-import { mastery, nextStarGoal, recipeStars, starsText } from '../restaurant/mastery';
+import { recipeCollectionView } from './recipes';
 import { runTask } from '../core/errors';
 /** Main in-game menus: bag, journal (quests, investigation, relations, collections, calendar), and menu. */
 import { iconElement } from '../art/icons';
@@ -7,7 +7,6 @@ import { BALANCE } from '../core/balance';
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
 import { ITEMS, ITEMS_BY_ID, type ItemCat } from '../data/items';
-import { RECIPES } from '../data/recipes';
 import { allQuests, currentStep, questDef, trackedText } from '../quests/quests';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
@@ -62,7 +61,7 @@ export function openBag(start = 0) {
 // ------------------------------------------------------------------ journal
 export function openJournal(start = 0) {
   const body = h('div');
-  const views = [questsView, investigationView, relationsView, collectionsView, recipesView, calendarView];
+  const views = [questsView, investigationView, relationsView, collectionsView, recipeCollectionView, calendarView];
   const show = (i: number) => {
     body.innerHTML = '';
     body.append(views[i]());
@@ -161,21 +160,6 @@ function collectionsView() {
   return wrap;
 }
 
-function recipesView() {
-  const grid = h('div', { class: 'col' });
-  const known = new Set(game.save.recipesKnown);
-  for (const cat of ['basic', 'intermediate', 'special'] as const) {
-    const g = h('div', { class: 'grid' });
-    for (const r of RECIPES.filter((x) => x.cat === cat)) {
-      const k = known.has(r.id);
-      const n = game.save.recipesCooked[r.id] ?? 0;
-      g.append(h('div', { class: 'slot' + (k ? '' : ' locked'), title: k ? r.desc : r.unlock.text }, iconElement(k ? r.icon : { type: 'maki', c1: '#8d8790' }), h('span', null, k ? r.name : '???'), h('span', { class: 'hint', style: { fontSize: '.85em' } }, k ? `${r.price} ● · ${n} hechos` : r.unlock.text), k && n ? h('span', { class: 'mastery-stars', title: nextStarGoal(mastery(r.id)) ?? 'Receta dominada' }, starsText(recipeStars(r.id))) : null));
-    }
-    grid.append(h('h3', null, cat === 'basic' ? 'Básicas' : cat === 'intermediate' ? 'Intermedias' : 'Especiales'), g);
-  }
-  return grid;
-}
-
 function calendarView() {
   const wrap = h('div', { class: 'col' });
   wrap.append(h('p', null, h('b', null, clock.dateLabel()), ` — ${clock.label()}`));
@@ -199,6 +183,7 @@ export function openMenu() {
     b('Investigación', 'Pistas y cuaderno', () => openJournal(1)),
     b('Amigos', 'Relaciones', () => openJournal(2)),
     b('Colecciones', 'Álbum y logros', () => openJournal(3)),
+    b('Recetario', 'Recetas, variantes y dominio', () => openJournal(4)),
     b('Cámara', 'Sacar una foto', () => import('./camera').then((m) => m.takePhoto())),
     b('Descansar un rato', clock.period < 3 ? 'Pasar al siguiente momento del día' : 'Es de noche: andá a dormir a tu cama', () => restPeriod()),
     b('Ajustes', 'Sonido, texto, accesibilidad', () => openSettings(true)),
