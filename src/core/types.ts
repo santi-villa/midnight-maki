@@ -39,6 +39,7 @@ export interface HeroLook {
   hairHi: string;        // hair highlight colour, '' = automatic
   earrings: number;
   neck: number;
+  piercing: number;      // 0 none, 1 nose stud, 2 septum, 3 lip ring, 4 septum + lip ring
 }
 
 export interface PlacedFurniture {

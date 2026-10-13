@@ -232,7 +232,8 @@ export const BROW_STYLES = ['Finas', 'Gruesas', 'En ángulo', 'Suaves'];
 export const FACE_SHAPES = ['Redonda', 'Ovalada', 'Cuadrada'];
 export const FACIAL_HAIR = ['Nada', 'Barba de días', 'Bigote', 'Perilla', 'Barba corta', 'Barba larga'];
 export const EARRINGS = ['Nada', 'Aros dorados', 'Aros plateados', 'Argollas doradas', 'Argollas plateadas', 'Colgantes'];
-export const NECK = ['Nada', 'Gargantilla negra', 'Gargantilla vino', 'Cadena dorada', 'Cadena plateada', 'Dije dorado'];
+export const NECK = ['Nada', 'Gargantilla negra', 'Gargantilla vino', 'Cadena dorada', 'Cadena plateada', 'Cadena con dije'];
+export const PIERCINGS = ['Nada', 'Nariz', 'Septum', 'Labio', 'Septum y labio'];
 
 export interface FaceParams {
   skin: string;
@@ -242,6 +243,7 @@ export interface FaceParams {
   browColor: string;
   nose: number;
   lips: string;
+  piercing: number;
   freckles: boolean;
   mole: boolean;
   blush: boolean;
@@ -352,6 +354,18 @@ export function drawHeroFace(k: Kit, c: Ctx, g: HeadGeo, view: View, f: FacePara
   } else {
     px(c, mx - 1, my, lipC, 4, 1);
     if (f.lips) px(c, mx, my + 1, shade(f.lips, 0.12), 2, 1);
+  }
+  // piercings
+  if (f.piercing > 0) {
+    const ag = '#e6eaf2';
+    if (front) {
+      if (f.piercing === 1) px(c, cx + 1, ey + 4, ag);
+      if (f.piercing === 2 || f.piercing === 4) px(c, cx - 1, ey + 5, ag, 2, 1);
+      if (f.piercing === 3 || f.piercing === 4) px(c, cx, ey + 7, ag);
+    } else {
+      if (f.piercing === 1 || f.piercing === 2 || f.piercing === 4) px(c, cx + 7, ey + 4, ag);
+      if (f.piercing === 3 || f.piercing === 4) px(c, cx + 5, ey + 7, ag);
+    }
   }
   // cheeks and little marks
   if (f.blush) for (const bx of front ? [cx - 8, cx + 6] : [cx + 1]) px(c, bx, ey + 4, mix(sk, '#e8707e', 0.6), 2, 1);
@@ -465,13 +479,13 @@ export const HERO_EYE_COLORS = ['#3a2a22', '#5d4037', '#7a5a2a', '#4f6b52', '#3b
 export const HERO_DEFAULTS: Record<'m' | 'f', { name: string; look: HeroLook; app: Partial<Appearance> }> = {
   m: {
     name: 'Santiago',
-    look: { gender: 'm', build: 1, face: 2, brow: 1, browColor: '', nose: 1, lips: '', freckles: false, mole: false, blush: false, facial: 0, hairHi: '', earrings: 0, neck: 3 },
-    app: { species: 'human', skin: '#dba980', hairStyle: 7, hairColor: '#4a3326', eyes: 1, eyeColor: '#3a2a22', top: 'top_sweatshirt_black', bottom: 'bot_jeans_black', shoes: 'sh_sneakers_white', head: '', face: '', extra: '', bag: '' },
+    look: { gender: 'm', build: 1, face: 2, brow: 1, browColor: '#4a3a2c', nose: 1, lips: '', freckles: false, mole: false, blush: false, facial: 1, hairHi: '', earrings: 4, neck: 5, piercing: 1 },
+    app: { species: 'human', skin: '#e3b891', hairStyle: 7, hairColor: '#6a5a46', eyes: 1, eyeColor: '#3a2a22', top: 'top_hoodie_black', bottom: 'bot_cargo', shoes: 'sh_sneakers_white', head: '', face: '', extra: '', bag: '' },
   },
   f: {
     name: 'Sofi',
-    look: { gender: 'f', build: 1, face: 0, brow: 3, browColor: '', nose: 0, lips: '', freckles: false, mole: false, blush: true, facial: 0, hairHi: '', earrings: 0, neck: 1 },
-    app: { species: 'human', skin: '#e1b38b', hairStyle: 1, hairColor: '#4a3328', eyes: 4, eyeColor: '#4a3226', top: 'top_jacket_black', bottom: 'bot_pants_black', shoes: 'sh_boots_black', head: '', face: '', extra: '', bag: '' },
+    look: { gender: 'f', build: 1, face: 0, brow: 3, browColor: '', nose: 0, lips: '', freckles: false, mole: true, blush: false, facial: 0, hairHi: '', earrings: 0, neck: 1, piercing: 4 },
+    app: { species: 'human', skin: '#ebc7a8', hairStyle: 17, hairColor: '#2a1f22', eyes: 4, eyeColor: '#3a2a26', top: 'top_goth_lace', bottom: 'bot_cargo_black', shoes: 'sh_platform_black', head: '', face: '', extra: '', bag: '' },
   },
 };
 
@@ -529,7 +543,7 @@ export function heroSpec(a: Appearance): FolkSpec {
   if (neck === 2) deco.push({ k: 'choker', c: '#7a2a3e' });
   if (neck === 3) deco.push({ k: 'chain', c: '#f0c04a' });
   if (neck === 4) deco.push({ k: 'chain', c: '#d5dbe6' });
-  if (neck === 5) deco.push({ k: 'chain', c: '#f0c04a', pendant: true });
+  if (neck === 5) deco.push({ k: 'chain', c: '#d5dbe6', pendant: true });
   if (ex) {
     if (ex.kind === 'scarf') deco.push({ k: 'scarf', c: ex.c1, c2: ex.c2 ?? shade(ex.c1, -0.2) });
     else if (ex.kind === 'necklace') deco.push({ k: 'chain', c: ex.c1, pendant: true });
