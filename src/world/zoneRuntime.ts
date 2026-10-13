@@ -4,6 +4,7 @@ import type { PlacedFurniture } from '../core/types';
 import { TILE_INDEX, TILE_SOLID } from '../art/tiles';
 import { FURN_BY_ID, type FurnitureDef } from '../data/furniture';
 import { PROPS, type PropDef } from '../data/props';
+import { PROJECTS, PROJECT_PROPS } from '../data/projects';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
 
@@ -134,7 +135,9 @@ export function buildZone(id: string, night = false): BuiltZone {
     tiles.push(row);
   }
   const props: PropInstance[] = [];
-  for (const p of def.props) {
+  // restoration projects add props once their phase is paid for
+  const projectProps = PROJECTS.filter((pr) => pr.zone === def.id).flatMap((pr) => (PROJECT_PROPS[pr.id] ?? []).flatMap((list, i) => list.map(([id, x, y]) => ({ id, x, y, cond: `proj_${pr.id}_${i + 1}` }))));
+  for (const p of [...def.props, ...projectProps]) {
     if (!condOk(p.cond)) continue;
     const pd = PROPS[p.id];
     if (!pd) {

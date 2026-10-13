@@ -156,6 +156,8 @@ function celebrate(r: RecipeDef, quality: 0 | 1 | 2) {
   if (after > before) {
     audio.sfxPlay('sparkle');
     toast(`¡${r.name}: ${starsText(after)}!${after === QUICK_STARS ? ' Ahora podés hacerla en un toque (Rápido).' : ''}`);
+    // mastering a dish pays a one-time bonus (never twice, even if the save is reloaded)
+    if (after === 5) game.once('mastered_' + r.id, () => { game.addCoins(100, 'mastery'); toast(`Plato de honor: ${r.name}. +100 monedas.`); });
   }
 }
 
