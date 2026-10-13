@@ -778,3 +778,5 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .door-curtain.settled .door-panel { transition: none; }
 #ui .fade.busy { pointer-events: auto !important; }
 @media (prefers-reduced-motion: reduce) { .door-panel { transition: none; } }
+.mastery-stars { color: #e0a32e; letter-spacing: 1px; font-size: .85em; white-space: nowrap; }
+.kitchen-tray .tray-plate { display: flex; align-items: center; gap: 6px; background: #fff7e0; border: 2px solid #c9a24a; border-radius: 8px; padding: 4px 8px; }

@@ -36,7 +36,7 @@ export function validateSave(raw: unknown): SaveData {
   for (const k of ['player', 'restaurant', 'time', 'quests', 'story']) {
     if (isObj(base[k]) && isObj(s[k])) out[k] = { ...base[k], ...s[k] };
   }
-  for (const k of ['inventory', 'flags', 'relationships', 'decor', 'roomStyle', 'furnitureOwned', 'collections', 'stats', 'recipesCooked', 'raccoonOutfits']) {
+  for (const k of ['inventory', 'flags', 'relationships', 'decor', 'roomStyle', 'furnitureOwned', 'collections', 'stats', 'recipesCooked', 'recipeMastery', 'raccoonOutfits']) {
     if (!isObj(out[k])) out[k] = {};
   }
   // legacy save compatibility: mika -> sumi
