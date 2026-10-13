@@ -24,6 +24,11 @@ describe('intro script', () => {
     expect(new Set(INTRO_SCENES.map((s) => s.id)).size).toBe(7);
   });
 
+  it('keeps one music track across all seven pictures and the letter', () => {
+    expect(INTRO_SCENES.map((s) => s.music)).toEqual(Array(7).fill('intro'));
+    expect(INTRO_SCENES.every((s) => s.musicAt == null)).toBe(true);
+  });
+
   it('uses only registered sounds and keeps each cue kind honest', () => {
     const used = new Set<IntroSoundId>();
     for (const s of INTRO_SCENES) {

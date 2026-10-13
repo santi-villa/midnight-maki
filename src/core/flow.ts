@@ -22,6 +22,8 @@ export function setPhaser(g: Phaser.Game) {
 }
 
 export async function startNewGame(a: Appearance, name: string, restaurant: string) {
+  audio.unlock();
+  audio.crossfade('intro'); // begin inside the Comenzar gesture, before asynchronous startup
   const s = newSave(name, a, restaurant);
   s.time = { day: 1, period: 2, minutes: 0 };
   game.load(s);

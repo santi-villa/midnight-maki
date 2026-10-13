@@ -4,7 +4,7 @@
  */
 import { settings } from '../core/settings';
 import { bus } from '../core/events';
-import { runTask } from '../core/errors';
+import { reportError, runTask } from '../core/errors';
 
 type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
 
@@ -104,7 +104,7 @@ class AudioEngine {
   private lastSfx: Record<string, number> = {};
 
   private badSongs = new Set<Track>();
-  private custom: { track: Track; el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode } | null = null;
+  private custom: { track: Track; el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode; starting: boolean; fallback: (err?: unknown) => void } | null = null;
 
   /** Streams the custom song for a track (no big decode in memory). Returns false when there is none. */
   private startCustom(track: Track): boolean {
@@ -118,21 +118,39 @@ class AudioEngine {
     const node = c.createMediaElementSource(el);
     const gain = c.createGain();
     const t = c.currentTime;
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(Math.max(0.0001, settings.music * 0.5), t + 1.5);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(settings.music * 0.5, t + 1.5);
     node.connect(gain).connect(this.master); // straight to the master: no lo-fi filter on a finished song
-    const me = { track, el, node, gain };
+    const me = { track, el, node, gain, starting: false, fallback: (_err?: unknown) => {} };
     this.custom = me;
-    const fallback = () => {
+    const fallback = (err?: unknown) => {
       if (this.custom !== me) return;
+      reportError('audio:custom:' + track, err ?? new Error('Unavailable music file'), false);
       this.badSongs.add(track);
       this.stopCustom(true);
       this.current = 'none'; // unreadable file: bring the generated tune back
       this.play(track);
     };
-    el.addEventListener('error', fallback, { once: true });
-    el.play().catch(fallback);
+    me.fallback = fallback;
+    el.addEventListener('error', () => fallback(), { once: true });
+    this.tryCustom();
     return true;
+  }
+
+  /** Autoplay denial is temporary: retry the same element on the next gesture, without seeking. */
+  private tryCustom() {
+    const cur = this.custom;
+    if (!cur || cur.starting || !cur.el.paused || document.hidden) return;
+    cur.starting = true;
+    const failed = (err: unknown) => {
+      cur.starting = false;
+      if (this.custom !== cur) return;
+      if (err instanceof DOMException && (err.name === 'NotAllowedError' || (err.name === 'AbortError' && document.hidden))) return;
+      cur.fallback(err);
+    };
+    try {
+      void cur.el.play().then(() => { cur.starting = false; }, failed);
+    } catch (err) { failed(err); }
   }
 
   private stopCustom(now = false) {
@@ -148,8 +166,8 @@ class AudioEngine {
     };
     if (now) return done();
     cur.gain.gain.cancelScheduledValues(c.currentTime);
-    cur.gain.gain.setValueAtTime(Math.max(0.0001, cur.gain.gain.value), c.currentTime);
-    cur.gain.gain.linearRampToValueAtTime(0.0001, c.currentTime + 0.5);
+    cur.gain.gain.setValueAtTime(Math.max(0, cur.gain.gain.value), c.currentTime);
+    cur.gain.gain.linearRampToValueAtTime(0, c.currentTime + 0.5);
     window.setTimeout(done, 600);
   }
 
@@ -157,6 +175,7 @@ class AudioEngine {
   unlock() {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') void runTask('audio:resume', () => this.ctx!.resume(), false);
+      this.tryCustom();
       return;
     }
     try {
@@ -197,10 +216,14 @@ class AudioEngine {
     this.applyVolumes();
     this.noise();
     bus.on('settings:changed', () => this.applyVolumes());
+    window.addEventListener('pointerdown', () => this.unlock());
+    window.addEventListener('keydown', () => this.unlock());
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
-      if (document.hidden) void runTask('audio:suspend', () => this.ctx!.suspend(), false);
-      else void runTask('audio:resume', () => this.ctx!.resume(), false);
+      if (document.hidden) {
+        this.custom?.el.pause();
+        void runTask('audio:suspend', () => this.ctx!.suspend(), false);
+      } else this.unlock();
     });
     if (this.pendingTrack !== 'none') this.play(this.pendingTrack);
   }
@@ -208,8 +231,10 @@ class AudioEngine {
   applyVolumes() {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.music.gain.setTargetAtTime(settings.music * 0.35, t, 0.1);
-    this.custom?.gain.gain.setTargetAtTime(Math.max(0.0001, settings.music * 0.5), t, 0.1);
+    this.music.gain.cancelScheduledValues(t);
+    this.music.gain.setTargetAtTime(this.custom ? 0 : settings.music * 0.35, t, 0.1);
+    this.custom?.gain.gain.cancelScheduledValues(t);
+    this.custom?.gain.gain.setTargetAtTime(settings.music * 0.5, t, 0.1);
     this.sfx.gain.setTargetAtTime(settings.sfx * 0.5, t, 0.05);
     this.amb.gain.setTargetAtTime(settings.ambience * 0.35, t, 0.2);
   }
@@ -226,7 +251,13 @@ class AudioEngine {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     if (track === 'none') return;
-    if (this.startCustom(track)) return;
+    if (this.startCustom(track)) {
+      this.music.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.music.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+      return;
+    }
+    this.music.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.music.gain.setTargetAtTime(settings.music * 0.35, this.ctx.currentTime, 0.1);
     this.step = 0;
     this.nextTime = this.ctx.currentTime + 0.3;
     this.timer = window.setInterval(() => this.schedule(), 100);
@@ -240,13 +271,13 @@ class AudioEngine {
     }
     if (track === this.current) return;
     const t = this.ctx.currentTime;
-    const target = settings.music * 0.35;
-    const now = Math.max(0.0001, this.music.gain.value);
+    const now = Math.max(0, this.music.gain.value);
+    this.play(track);
+    const target = this.custom ? 0 : settings.music * 0.35;
     this.music.gain.cancelScheduledValues(t);
     this.music.gain.setValueAtTime(now, t);
-    this.music.gain.linearRampToValueAtTime(0.0001, t + 0.28);
-    this.play(track);
-    this.music.gain.linearRampToValueAtTime(Math.max(0.0001, target), t + 0.9);
+    this.music.gain.linearRampToValueAtTime(0, t + 0.28);
+    this.music.gain.linearRampToValueAtTime(target, t + 0.9);
   }
 
   private schedule() {

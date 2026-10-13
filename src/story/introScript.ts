@@ -1,12 +1,12 @@
 /**
  * Cinematic prologue: one still picture per scene, lines the player advances, and sound cues.
- * Music ids are existing game tracks. Swap the id when a custom song should take that moment.
+ * One continuous music bed accompanies all pictures; effects keep their own scene cues.
  * The jar and the restaurant door are not cues here: they play on the first visit inside.
  */
 import type { IntroSoundId, IntroSoundKind } from './introSounds';
 
 /** Game music beds the intro is allowed to ask for. */
-export const INTRO_MUSIC = ['intro', 'town', 'beach', 'restaurant_night'] as const;
+export const INTRO_MUSIC = ['intro'] as const;
 export type IntroMusic = (typeof INTRO_MUSIC)[number];
 
 export type CueAt = 'enter' | number;
@@ -122,8 +122,7 @@ export const INTRO_SCENES: IntroScene[] = [
     id: 'packing',
     image: 4,
     alt: 'Sofi prepara su valija',
-    music: 'town',
-    musicAt: 4,
+    music: 'intro',
     enter: [bed('rain_window', 0.16)],
     lines: [
       { text: 'Esa noche casi no pudo dormir.' },
@@ -141,7 +140,7 @@ export const INTRO_SCENES: IntroScene[] = [
     id: 'train',
     image: 5,
     alt: 'Sofi viaja en tren',
-    music: 'beach',
+    music: 'intro',
     enter: [bed('rain_window', 0, 1.5), shot('steam_train', 0.5)],
     lines: [
       { text: 'El tren partió temprano.' },
@@ -156,7 +155,7 @@ export const INTRO_SCENES: IntroScene[] = [
     id: 'village',
     image: 6,
     alt: 'Sofi llega a Villa Nori',
-    music: 'town',
+    music: 'intro',
     enter: [
       { sound: 'steam_train', volume: 0, kind: 'shot', fade: 1.5, stop: true },
       bed('small_town', 0.4),
@@ -177,7 +176,7 @@ export const INTRO_SCENES: IntroScene[] = [
     id: 'midnight',
     image: 7,
     alt: 'Sofi frente al restaurante Midnight Maki',
-    music: 'restaurant_night',
+    music: 'intro',
     enter: [bed('water_fountain', 0.07, 1.8)],
     lines: [
       { text: 'Al final de uno de los caminos encontró una pequeña construcción de madera.' },

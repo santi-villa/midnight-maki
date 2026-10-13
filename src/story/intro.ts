@@ -176,13 +176,19 @@ export async function playIntro() {
   await fade(true, 10);
   openBook();
   audio.unlock();
+  playMusic('intro');
   await fade(false, 500);
-  for (const scene of INTRO_SCENES) {
-    if (skipped) break;
-    await showScene(scene);
+  try {
+    for (const scene of INTRO_SCENES) {
+      if (skipped) break;
+      await showScene(scene);
+    }
+    await fade(true, 500);
+  } finally {
+    await stopIntroAudio(0.45);
+    closeBook();
+    audio.crossfade('town'); // plaza: fades out the intro song on completion or skip
   }
-  await Promise.all([fade(true, 500), stopIntroAudio(0.45)]);
-  closeBook();
   addClue('letter_inherit', true);
   await world.enterZone('plaza', 15, 22, 'up', false);
   showHud(false);
