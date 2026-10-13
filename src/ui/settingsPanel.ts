@@ -1,5 +1,6 @@
 import { settings, updateSettings } from '../core/settings';
 import { game } from '../core/state';
+import type { SaveData } from '../core/types';
 import { resetAutoPerf } from '../core/perf';
 import { exportSave, importSaveFile, saveCode, saveFromCode, saveGame, shareSave } from '../persistence/storage';
 import { h, panel, toast } from './dom';
@@ -25,14 +26,27 @@ export function openSettings(inGame: boolean) {
     draw();
     return h('div', { class: 'opt-row' }, h('label', null, label), wrap);
   };
+  async function restore(s: SaveData): Promise<boolean> {
+    const previous = game.save;
+    const wasDirty = game.dirty;
+    game.load(s);
+    if (!(await saveGame('import'))) {
+      game.load(previous);
+      game.dirty = wasDirty;
+      return false;
+    }
+    // Pagehide must not replace the imported coordinates with the old world's position.
+    const { stopAutosave } = await import('../core/flow');
+    stopAutosave();
+    return true;
+  }
   const imp = h('input', { type: 'file', accept: 'application/json,.json', style: { display: 'none' } }) as HTMLInputElement;
   imp.addEventListener('change', async () => {
     const f = imp.files?.[0];
     if (!f) return;
     try {
       const s = await importSaveFile(f);
-      game.load(s);
-      await saveGame('import');
+      if (!(await restore(s))) return;
       toast('Partida importada. Recargando…');
       setTimeout(() => location.reload(), 800);
     } catch (err: any) {
@@ -44,8 +58,7 @@ export function openSettings(inGame: boolean) {
     class: 'btn small rose', style: { display: 'none' }, onclick: async () => {
       try {
         const s = saveFromCode(codeBox.value);
-        game.load(s);
-        await saveGame('import');
+        if (!(await restore(s))) return;
         toast('Partida restaurada. Recargando…');
         setTimeout(() => location.reload(), 800);
       } catch (err: any) {
@@ -75,7 +88,7 @@ export function openSettings(inGame: boolean) {
           { class: 'col' },
           h('h3', null, 'Partida'),
           h('p', { class: 'hint' }, 'El juego guarda solo en este celu. Hacé una copia de vez en cuando por si se borran los datos del navegador o cambiás de teléfono.'),
-          h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: () => { saveGame('manual').then(() => toast('Partida guardada.')); } }, 'Guardar ahora')),
+          h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: async () => { if (await saveGame('manual')) toast('Partida guardada.'); } }, 'Guardar ahora')),
           h('h3', null, 'Copia de seguridad'),
           h('div', { class: 'row', style: { flexWrap: 'wrap' } },
             h('button', { class: 'btn small primary', onclick: async () => { await saveGame('manual'); const r = await shareSave(); if (r === 'shared') toast('¡Copia enviada!'); else if (r === 'downloaded') toast('Se descargó el archivo de tu partida.'); } }, 'Compartir copia'),

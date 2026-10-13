@@ -27,7 +27,7 @@ export function errorReports(): ErrorReport[] {
   return reports.map((r) => ({ ...r, frames: [...r.frames] }));
 }
 
-export function reportError(operation: string, err: unknown, notice: string | false = 'Algo raro pasó. Intentá de nuevo; si sigue pasando, recargá el juego.') {
+export function reportError(operation: string, err: unknown, notice: string | false = 'Algo raro pasó. Intentá de nuevo; podés hacer una copia de tu partida desde Ajustes.') {
   const error = err instanceof Error ? err : null;
   const frames = (error?.stack ?? '').split('\n').slice(1).flatMap((line) => {
     const frame = line.replace(/\?[^)\s]*?(?=:\d+:\d+(?:\)|$))/g, '').match(/\/(?:src|assets)\/[\w./-]+(?::\d+){2}/);
