@@ -10,7 +10,7 @@ import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
-import type { Appearance, Dir } from '../core/types';
+import type { Dir } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
 import { ZONES } from '../data/zones';
@@ -27,7 +27,9 @@ import { collectTipAt, deliverTo, guestViews, pumpService, syncRestaurantHours, 
 import type { FurnPiece, PartyPhase } from '../restaurant/floor';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture } from './textures';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture } from './textures';
+import { CUSTOMER_IDS } from '../art/customerSheet';
+import type { CustomerId } from '../art/customers';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 
@@ -635,7 +637,7 @@ export class WorldScene extends Phaser.Scene {
   private createGuest(g: GuestView, i: number, gi: number, seat?: { x: number; y: number; rot: number }) {
     const sitting = !!seat && (g.phase === 'seated' || g.phase === 'waiting_order' || g.phase === 'waiting_food' || g.phase === 'eating' || g.phase === 'paying');
     const tile = sitting ? [seat!.x, seat!.y] as [number, number] : this.guestTile(g.phase === 'queued' ? 'line' : g.phase === 'reception' ? 'host' : 'door', gi + i);
-    const actor = new Actor(this, g.customerId, lookTexture(this, guestLook(g.id, i)), tile[0], tile[1]);
+    const actor = new Actor(this, g.customerId, customerTexture(this, guestCustomer(g.id, i)), tile[0], tile[1]);
     actor.speed = 40;
     if (sitting && seat) this.poseGuest(actor, seat, g.phase === 'eating' || g.phase === 'paying' ? 'eat' : 'sit');
     else if (g.phase === 'leaving' && seat) {
@@ -1978,26 +1980,7 @@ function guestHash(id: string): number {
   return h >>> 0;
 }
 
-/** A visitor look, stable for the party so a couple doesn't change clothes mid-meal. */
-function guestLook(id: string, n: number): Appearance {
-  const h = guestHash(id + ':' + n);
-  const species = ['human', 'cat', 'fox', 'bunny', 'dog', 'bear', 'otter', 'squirrel'] as const;
-  const sp = species[h % species.length];
-  const hair = ['#2a2230', '#5b3a2e', '#d8a05a', '#b2585e', '#d8d2c8'];
-  const tops = ['top_tee_cream', 'top_tee_sage', 'top_stripes_navy', 'top_sweater_rose', 'top_cardigan_moss', 'top_kimono_indigo', 'top_winter_coat'];
-  return {
-    species: sp,
-    skin: sp === 'human' ? ['#f2cfb3', '#c98e66', '#e3b48e'][h % 3] : ['#d8874f', '#a8734d', '#8d8a93', '#f3e6c8', '#e0c08a'][h % 5],
-    hairStyle: sp === 'human' ? h % 6 : 6,
-    hairColor: hair[h % hair.length],
-    eyes: h % 5,
-    eyeColor: '#2a2230',
-    top: tops[h % tops.length],
-    bottom: ['bot_jeans', 'bot_pants_brown', 'bot_skirt_plaid'][h % 3],
-    shoes: 'sh_sneakers',
-    head: '',
-    face: '',
-    extra: '',
-    bag: '',
-  };
+/** Which of the 8 restaurant customers a seat gets: stable for the party, so a couple does not change faces mid-meal. */
+function guestCustomer(id: string, n: number): CustomerId {
+  return CUSTOMER_IDS[guestHash(id + ':' + n) % CUSTOMER_IDS.length];
 }

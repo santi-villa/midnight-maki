@@ -18,3 +18,10 @@ Los 15 vecinos y mapaches (Pip, Spicy, Rigg, Momo, Taro, Yuki, Kumo, Nami, Hoshi
 ## Pruebas
 - `src/tests/folk.test.ts`: que estén los 15 (ninguno de más ni de menos) y que todos los colores sean válidos.
 - `e2e/folk.spec.ts`: los 15 generan las 30 cuadros sin vacíos, las 4 direcciones y expresiones se diferencian, los pies quedan en las últimas filas.
+
+## Clientes del restaurante (8 animales de 28×40)
+Oli (cerdito), Toby (koala), Fredi (zorro), Pipo (pingüino), Po (panda), Gigi (jirafa), Nico (capibara) y Leo (león), de `src/art/customers.ts` / `src/assets/clientes/`, ya son los clientes que entran al restaurante (antes eran humanos y animales genéricos del estilo viejo).
+- Cada grupo de clientes usa siempre los mismos animales (estable por grupo, así una pareja no cambia de cara a mitad de la comida).
+- `src/art/customerSheet.ts` los convierte al formato de 30 cuadros que ya entiende `Actor`, más 5 cuadros extra: comer (4) y respirar sentado (1).
+- Animaciones: esperar y parpadear, caminar, sentarse y comer. Como solo hay vista frontal y de perfil, caminar hacia abajo usa el frente con un saltito alternado y espejado, y caminar hacia arriba usa el perfil. Sentados miran de perfil y se espejan si la silla mira a la izquierda.
+- Pruebas: `src/tests/customers.test.ts` y `e2e/customers.spec.ts`; captura en `docs/art/clientes-en-juego.png`.
