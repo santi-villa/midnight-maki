@@ -61,7 +61,7 @@ test('water: day, dusk, night and rain look right (and screenshots are saved to 
     }
     expect(seen.day.hasFx).toBe(true);
     expect(seen.day.moonOn).toBe(false); // no moon reflection in daylight
-    expect(seen.dusk.moonAlpha).toBeLessThan(seen.night.moonAlpha);
+    expect(seen.dusk.moonOn ? seen.dusk.moonAlpha : 0).toBeLessThan(seen.night.moonAlpha); // the moon rises late in the dusk
     expect(seen.night.moonOn).toBe(true);
     expect(seen.night.moonAlpha).toBeGreaterThan(0.5);
     expect(seen.rain.activeRings).toBeGreaterThan(0); // rain rings on the surface

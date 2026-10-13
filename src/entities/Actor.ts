@@ -12,7 +12,9 @@ export type Act = 'idle' | 'happy' | 'surprised' | 'wave' | NpcAct;
 const WALK_FRAMES: Record<Dir, readonly number[]> = { down: FRAMES.down, up: FRAMES.up, left: FRAMES.left, right: FRAMES.right };
 
 /** A walking character (player, raccoon or villager) rendered from a generated sheet. */
+/** Shared sun direction for cast shadows (set by WorldScene from the time of day and weather). */
 export class Actor {
+  static sun = { dx: 3, sy: 0.3, alpha: 1 };
   scene: Phaser.Scene;
   id: string;
   sprite: Phaser.GameObjects.Sprite;
@@ -253,7 +255,8 @@ export class Actor {
     this.sprite.setDepth(ry);
     this.shadow.setPosition(rx, ry - 1);
     this.shadow.setDepth(ry - 0.5);
-    this.cast.setPosition(rx + 2, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx());
+    const sun = Actor.sun;
+    this.cast.setPosition(rx + sun.dx * 0.6, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, 0.34 * (sun.sy / 0.3)).setAlpha(0.3 * sun.alpha);
     if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
     if (this.bubble) this.bubble.setPosition(rx, ry - this.sprite.height + this.pad - 1);
   }

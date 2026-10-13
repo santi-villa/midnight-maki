@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
+import { lightState, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { settings } from '../core/settings';
@@ -15,7 +16,7 @@ import { ITEMS_BY_ID } from '../data/items';
 import { ZONES } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { charactersIn, shopGate, stopFor } from '../systems/npcs';
-import { arrivalTile, cameFrom, pace, phaseOf, shopButtonLabel, shopSignText, signSpots } from '../systems/schedule';
+import { arrivalTile, cameFrom, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
@@ -26,14 +27,17 @@ import { collectTipAt, deliverTo, guestViews, pumpService, syncRestaurantHours, 
 import type { FurnPiece, PartyPhase } from '../restaurant/floor';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture } from './textures';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, lookTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture } from './textures';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 
 export type { Target };
 
 interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; }
-interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; }
+/** kind: lamp (default, follows lamp level), spill = light from windows / doors, window = interior window light, ambient = soft room fill */
+interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window' | 'ambient'; facade?: boolean }
+interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
+interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; facade: boolean; door: boolean; phase: number }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
@@ -71,6 +75,13 @@ export class WorldScene extends Phaser.Scene {
   private waterRain: boolean | null = null;
   private waterFx: WaterFx | null = null;
   private lamps: Light[] = [];
+  private ls: LightState | null = null;
+  private lightKey = '';
+  /** counts how often the darkness layer was actually redrawn (tests check that a still scene is not redrawn every frame) */
+  lightRedraws = 0;
+  private windowGlows: WindowGlow[] = [];
+  private castList: CastShadow[] = [];
+  private shadowKey = '';
   private dark!: Phaser.GameObjects.RenderTexture;
   private lightStamp!: Phaser.GameObjects.Image;
   private weather: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
@@ -200,6 +211,10 @@ export class WorldScene extends Phaser.Scene {
     this.shopSigns = [];
     for (const o of this.objs) o.destroy();
     this.objs = [];
+    this.windowGlows = [];
+    this.castList = [];
+    this.lightKey = '';
+    this.shadowKey = '';
     for (const f of this.furnSprites) f.destroy();
     this.furnSprites = [];
     for (const n of this.npcs.values()) n.actor.destroy();
@@ -287,17 +302,26 @@ export class WorldScene extends Phaser.Scene {
       }
       if (p.def.kind === 'building') {
         // warm light spilling from the windows and door onto the street at night
-        for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 22, flicker: false, color: 0xffb867, glow: 0.35, spill: true } as Light);
-        this.lamps.push({ x: px, y: py - 10, r: 34, flicker: true, color: 0xff9f5a, glow: 0.5 });
+        const fac = p.def.variant === 0; // the restaurant follows its opening hours
+        for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 22, flicker: false, color: 0xffb867, glow: 0.35, kind: 'spill', facade: fac });
+        this.lamps.push({ x: px, y: py - 10, r: 34, flicker: true, color: 0xff9f5a, glow: 0.5, kind: 'spill', facade: fac });
+        if (fac) {
+          // the two red lanterns beside the restaurant door
+          const top = py - p.def.sh;
+          const left = px - p.def.sw / 2;
+          for (const lx of [44, 68]) this.lamps.push({ x: left + lx, y: top + p.def.sh - 24, r: 26, flicker: true, color: 0xff7a3a, glow: 0.6, facade: true });
+        }
+        this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac);
+        if (fac) this.addWindowGlow(img, p.def.sw, p.def.sh, 0, true, true);
       }
       if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - p.def.sh + 6);
     }
     this.placeFurnitureSprites();
     // windows glow at night
-    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 30, flicker: false, color: 0xffd08a, glow: 0.3 });
+    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 30, flicker: false, color: 0xffd08a, glow: 0.3, kind: 'window' });
     if (!def.outdoor) {
       // interiors: warm ambient light spots so night isn't too dark
-      for (let y = 3; y < def.h; y += 5) for (let x = 3; x < def.w; x += 6) this.lamps.push({ x: x * TILE, y: y * TILE, r: 56, flicker: false, color: 0xffc27a, glow: 0.12 });
+      for (let y = 3; y < def.h; y += 5) for (let x = 3; x < def.w; x += 6) this.lamps.push({ x: x * TILE, y: y * TILE, r: 56, flicker: false, color: 0xffc27a, glow: 0.12, kind: 'ambient' });
     }
     this.addAtmosphere();
     this.placeGather();
@@ -1608,11 +1632,8 @@ export class WorldScene extends Phaser.Scene {
 
   /** How strongly the moon / lanterns should show on the water right now (0 by day, rising at dusk). */
   private waterEnv() {
-    const per = clock.period;
-    const prog = clock.progress();
-    const moon = per === 3 ? 1 : per === 2 ? prog * 0.6 : 0;
-    const lamp = per === 3 ? 1 : per === 2 ? 0.35 + 0.6 * prog : 0;
-    return { moon, lamp, rain: game.flag('weather') === 'rain', view: this.cameras.main.worldView };
+    const ls = this.ls;
+    return { moon: ls?.moon ?? 0, lamp: ls?.lamp ?? 0, rain: game.flag('weather') === 'rain', view: this.cameras.main.worldView };
   }
 
   /** floating "+N" text above the player (coins, items) */
@@ -1704,6 +1725,7 @@ export class WorldScene extends Phaser.Scene {
       .setScale(1.04, kind === 'building' || kind === 'stall' ? 0.18 : tall ? 0.4 : 0.28)
       .setDepth(-7);
     if (track) this.objs.push(s);
+    this.castList.push({ s, src: img, tall, sy: s.scaleY, a: s.alpha, x: s.x - img.x });
     return s;
   }
 
@@ -1718,106 +1740,160 @@ export class WorldScene extends Phaser.Scene {
     this.objs.push(sh);
   }
 
+  /** A warm overlay of lit windows (and the restaurant doorway) on top of a building sprite. Shown by updateWindowGlow. */
+  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean) {
+    const img = this.add.image(src.x, src.y, windowGlowTexture(this, W, H, rot, door)).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
+    this.objs.push(img);
+    this.windowGlows.push({ img, src, facade, door, phase: Math.random() * 6 });
+  }
+
+  /** Window light level of a facade (0..1): the restaurant follows its hours, everything else follows the evening. */
+  private facadeLevel(facade: boolean, door: boolean): number {
+    const ls = this.ls;
+    if (!ls) return 0;
+    if (!facade) return ls.windows;
+    const t = game.save.time;
+    const ph = restaurantPhase(t.period, t.minutes);
+    const f = ph === 'open' ? 1 : ph === 'closing' ? 0.7 : ph === 'setup' ? 0.45 : 0.12;
+    // while it is open the restaurant is lit even in the afternoon, so the doorway is easy to find
+    const base = Math.max(ls.windows, ph === 'open' ? (door ? 0.32 : 0.3) : 0);
+    return base * f * (door && ph !== 'open' ? 0.4 : 1);
+  }
+
+  private updateWindowGlow(time: number) {
+    const lo = lowFx();
+    for (const w of this.windowGlows) {
+      if (!w.img.active) continue;
+      const lvl = this.facadeLevel(w.facade, w.door);
+      // very slow breathing so lit windows feel alive (none in battery / reduced-motion mode)
+      const breath = lo ? 1 : 1 + 0.04 * Math.sin(time * 0.9 + w.phase);
+      const a = Math.min(0.85, lvl * 0.7 * breath) * w.src.alpha;
+      w.img.setVisible(a > 0.02).setAlpha(a).setPosition(w.src.x, w.src.y);
+    }
+  }
+
+  /** Cast shadows follow the sun: they lean right in the morning, left in the afternoon, stretch at dusk and soften in rain. */
+  private updateShadows() {
+    const ls = this.ls;
+    if (!ls) return;
+    const st = ls.shadow;
+    const key = `${st.dx.toFixed(1)}|${st.sy.toFixed(2)}|${st.alpha.toFixed(2)}|${this.castList.length}`;
+    Actor.sun = st;
+    if (key === this.shadowKey) return;
+    this.shadowKey = key;
+    this.castList = this.castList.filter((c) => c.s.active && c.src.active);
+    for (const c of this.castList) {
+      c.s.setPosition(c.src.x + st.dx * (c.tall ? 1.6 : 1), c.s.y);
+      c.s.setScale(c.s.scaleX, c.sy * (st.sy / 0.3));
+      c.s.setAlpha(c.a * st.alpha);
+    }
+  }
+
   /**
-   * Lighting pass: a low-res "darkness" layer tinted per time of day with soft holes cut by lights,
-   * an additive warm glow per light (bloom), and a vignette that frames the view.
+   * Lighting pass. A low-res "darkness" layer multiplies the scene (ambient colour per time of day, weather and place),
+   * lamps cut soft, banded holes in it and tint the lit ground, and a faint additive halo sits on top of each light.
+   * The pass is skipped while nothing it depends on has changed (camera, player, ambient colour, flicker step).
    */
   private updateLighting() {
     const cam = this.cameras.main;
     const view = cam.worldView;
     const rt = this.dark;
-    rt.setPosition(Math.floor(view.x) - 2, Math.floor(view.y) - 2);
-    const per = clock.period;
-    const prog = clock.progress();
     const def = this.zone.def;
-    const rain = game.flag('weather') === 'rain' && def.outdoor;
-    // the darkness layer MULTIPLIES the scene: colours stay rich instead of turning grey
-    const mix = (a: number, b: number, k: number) => {
-      const c = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(a), Phaser.Display.Color.ValueToColor(b), 100, Math.round(k * 100));
-      return Phaser.Display.Color.GetColor(c.r, c.g, c.b);
-    };
-    let tint = 0xffffff;
-    let glow = 0;
-    let vig = 0.2;
-    if (per === 0) {
-      tint = mix(0xffeacc, 0xffffff, prog);
-      vig = 0.06;
-    } else if (per === 1) {
-      tint = mix(0xffffff, 0xfff0d8, prog);
-      vig = 0.05;
-    } else if (per === 2) {
-      tint = def.outdoor ? mix(0xffe2c2, 0xb0a2de, prog) : mix(0xffe8cc, 0xd6c4e4, prog);
-      glow = 0.35 + 0.6 * prog;
-      vig = 0.3;
-    } else {
-      tint = def.outdoor ? 0x4c4e94 : 0x9a86b8;
-      glow = 1;
-      vig = 0.42;
-    }
-    if (def.dark || this.zoneId === 'market') {
-      tint = 0x4c4e94;
-      glow = 1;
-      vig = 0.42;
-    }
-    if (rain && per < 3) {
-      tint = mix(tint, 0x8a94b8, 0.6);
-      glow = Math.max(glow, 0.45);
-      vig = Math.max(vig, 0.32);
-    }
-    if (def.outdoor && !def.dark) {
-      // seasonal colour grade: warm amber in autumn, cool blue-white in winter
-      const season = seasonOf(game.save.time.day);
-      const grade = season === 2 ? 0xffbe84 : season === 3 ? 0xc4d8ff : 0xffffff;
-      if (grade !== 0xffffff) {
-        const m = (a: number, b: number, sh: number) => (((a >> sh) & 255) * ((b >> sh) & 255)) / 255;
-        tint = (Math.round(m(tint, grade, 16)) << 16) | (Math.round(m(tint, grade, 8)) << 8) | Math.round(m(tint, grade, 0));
-      }
-    }
-    const alpha = tint === 0xffffff ? 0 : 1;
-    rt.clear();
+    const rain = game.flag('weather') === 'rain';
+    const t = game.save.time;
+    const ls = lightState({
+      period: clock.period,
+      prog: clock.progress(),
+      outdoor: !!def.outdoor,
+      dark: !!def.dark || this.zoneId === 'market',
+      rain,
+      season: seasonOf(t.day),
+      restaurant: this.zoneId === 'restaurant' ? restaurantPhase(t.period, t.minutes) : null,
+    });
+    this.ls = ls;
+    this.updateShadows();
+    const lo = lowFx();
+    const time = performance.now() / 1000;
+    this.updateWindowGlow(time);
+    // natural variation steps ~12 times a second (none in battery / reduced-motion mode): the layer is not redrawn in between
+    const step = lo ? 0 : Math.floor(time * 12);
+    const px = Math.floor(this.player.x);
+    const py = Math.floor(this.player.y);
+    const key = `${this.zoneId}|${Math.floor(view.x)}|${Math.floor(view.y)}|${rt.width}|${ls.tint}|${ls.lamp.toFixed(2)}|${ls.windows.toFixed(2)}|${ls.vig.toFixed(2)}|${step}|${px}|${py}|${this.lamps.length}|${lo ? 1 : 0}|${this.restaurantLevelKey()}`;
+    if (key === this.lightKey) return;
+    this.lightKey = key;
+    this.lightRedraws++;
+    rt.setPosition(Math.floor(view.x) - 2, Math.floor(view.y) - 2);
     rt.setVisible(true);
-    if (alpha) rt.fill(tint, 1);    const t = performance.now() / 1000;
+    rt.clear();
+    if (ls.tint !== 0xffffff) rt.fill(ls.tint, 1);
     const visible = this.lamps.filter((l) => l.x > view.x - 70 && l.x < view.right + 70 && l.y > view.y - 70 && l.y < view.bottom + 70);
-    const flick = (l: Light) => (l.flicker && !lowFx() ? 1 + Math.sin(t * 7 + l.x) * 0.05 + Math.sin(t * 13 + l.y) * 0.03 : 1);
-    if (glow > 0) {
-      for (const l of visible) {
-        this.lightStamp.setScale((l.r * 2 * flick(l)) / 64);
+    // slow breathing for lamps, a quicker flicker for flames and paper lanterns
+    const flick = (l: Light) => {
+      if (lo) return 1;
+      if (l.flicker) return 1 + Math.sin(time * 7 + l.x) * 0.05 + Math.sin(time * 13 + l.y) * 0.03;
+      return 1 + Math.sin(time * 1.3 + l.x * 0.1) * 0.02;
+    };
+    const lit = visible.map((l) => ({ l, k: this.lampLevel(l, ls) })).filter((e) => e.k > 0.02);
+    if (lit.length) {
+      for (const { l, k } of lit) {
+        this.lightStamp.setScale((l.r * 2 * flick(l) * (ls.halo > 1 ? 1.08 : 1)) / 64).setAlpha(Math.min(1, k));
         rt.erase(this.lightStamp, l.x - rt.x, l.y - rt.y);
       }
       // tint the lit pools warm (multiply layer: warm colour = warm light on the ground)
-      for (const l of visible) {
-        this.lightStamp.setScale((l.r * 1.7 * flick(l)) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.55 * glow);
+      for (const { l, k } of lit) {
+        this.lightStamp.setScale((l.r * 1.7 * flick(l) * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
         rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
       }
       this.lightStamp.clearTint().setAlpha(1);
-      // the player carries a soft glow so night is never too dark to play
-      this.lightStamp.setScale(1.5);
-      rt.erase(this.lightStamp, this.player.x - rt.x, this.player.y - 10 - rt.y);
+      // the player carries a soft light so the night is never too dark to play
+      if (ls.lamp > 0.1) {
+        this.lightStamp.setScale(1.5).setAlpha(Math.min(1, ls.lamp));
+        rt.erase(this.lightStamp, this.player.x - rt.x, this.player.y - 10 - rt.y);
+        this.lightStamp.setAlpha(1);
+      }
     }
     // vignette frames the screen (drawn into the same low-res layer)
     if (!this.vignette) this.vignette = this.make.image({ key: vignetteTexture(this) }, false);
-    this.vignette.setDisplaySize(rt.width, rt.height).setAlpha(vig);
+    this.vignette.setDisplaySize(rt.width, rt.height).setAlpha(ls.vig);
     rt.draw(this.vignette, rt.width / 2, rt.height / 2);
-    // additive warm bloom around each light (skipped in battery mode)
+    // faint additive halo around each light (skipped in battery mode)
     let i = 0;
-    if (glow > 0 && !lowFx()) {
-      for (const l of visible) {
+    if (!lo) {
+      for (const { l, k } of lit) {
         let g = this.glowPool[i];
         if (!g) {
           g = this.add.image(0, 0, glowTexture(this)).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001);
           this.glowPool.push(g);
         }
         const f = flick(l);
+        const spill = l.kind === 'spill';
         g.setVisible(true)
           .setPosition(l.x, l.y)
           .setTint(l.color ?? 0xffc070)
-          .setScale(((l as any).spill ? 0.9 : (l.r * 1.7) / 64) * f, ((l as any).spill ? 0.45 : (l.r * 1.7) / 64) * f)
-          .setAlpha(Math.min(0.95, (l.glow ?? 0.4) * glow * f * 1.35));
+          .setScale((spill ? 0.9 : (l.r * 1.5 * ls.halo) / 64) * f, (spill ? 0.45 : (l.r * 1.5 * ls.halo) / 64) * f)
+          .setAlpha(Math.min(0.7, (l.glow ?? 0.4) * k * f * 0.9));
         i++;
       }
     }
     for (; i < this.glowPool.length; i++) this.glowPool[i].setVisible(false);
   }
+
+  /** How lit a given light is right now (0..1): lamps follow dusk and night, windows follow the evening, the restaurant facade follows its hours. */
+  private lampLevel(l: Light, ls: LightState): number {
+    if (l.facade) {
+      const f = this.facadeLevel(true, false);
+      return l.kind === 'spill' ? f : Math.max(ls.lamp * f, f * 0.85);
+    }
+    return l.kind === 'spill' || l.kind === 'window' ? ls.windows : ls.lamp;
+  }
+
+  /** Part of the lighting cache key: the restaurant opens and closes by the clock while the rest of the light stays the same. */
+  private restaurantLevelKey(): string {
+    const t = game.save.time;
+    return restaurantPhase(t.period, t.minutes);
+  }
+
   /** Applies battery mode: caps the frame rate and rebuilds ambience without heavy effects. */
   enterLowFx(announce = false) {
     const loop = this.game.loop as any;

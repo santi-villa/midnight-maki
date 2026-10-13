@@ -218,6 +218,19 @@ export function shoreTileFrame(frame: number): TileDraw {
 }
 export const shoreTile: TileDraw = shoreTileFrame(0);
 
+/** Where a building's door and windows sit (shared by the sprite and by the night-time window glow). */
+export function buildingLayout(W: number, H: number) {
+  const roofH = Math.floor(H * 0.46);
+  const wallY = roofH - 3;
+  const doorW = 14;
+  const dx = Math.floor(W / 2 - doorW / 2);
+  const wy = wallY + 7;
+  const windows: { x: number; y: number; w: number; h: number }[] = [];
+  for (let x = 9; x + 12 < dx - 3; x += 20) windows.push({ x, y: wy, w: 11, h: 9 });
+  for (let x = dx + doorW + 7; x + 12 < W - 6; x += 20) windows.push({ x, y: wy, w: 11, h: 9 });
+  return { roofH, wallY, doorW, dx, doorY: H - 25, doorH: 20, windows, attic: { x: W / 2, y: roofH - 3 - Math.min(30, Math.floor(W * 0.32)) / 5 } };
+}
+
 export const bridgeTile: TileDraw = (c, x, y) => {
   px(c, x, y, NAT.water, 16, 16);
   for (let j = 0; j < 16; j += 4) {
@@ -561,6 +574,7 @@ export const NATURE_KINDS: Record<string, DrawFn> = {
   },
   building(c, W, H, c1, c2, rot) {
     // rot encodes variant: 0 restaurant, 1 shop, 2 house, 3 cabin, 4 library, 5 station
+    const L = buildingLayout(W, H);
     const wall = rot === 3 ? NAT.woodL : c1;
     const roofH = Math.floor(H * 0.46);
     const wallY = roofH - 3;
@@ -600,13 +614,10 @@ export const NATURE_KINDS: Record<string, DrawFn> = {
       px(c, W - 23, 1, '#5d5864', 10, 2);
     }
     // door + windows
-    const doorW = 14;
-    const dx = Math.floor(W / 2 - doorW / 2);
+    const { doorW, dx } = L;
     const curtain = rot === 0 ? '#2f3b6b' : rot === 1 ? '#d9a3a6' : undefined;
     archDoor(c, dx, H - 25, doorW, 20, curtain);
-    const wy = wallY + 7;
-    for (let x = 9; x + 12 < dx - 3; x += 20) cottageWindow(c, x, wy, 11, 9);
-    for (let x = dx + doorW + 7; x + 12 < W - 6; x += 20) cottageWindow(c, x, wy, 11, 9);
+    for (const w of L.windows) cottageWindow(c, w.x, w.y, w.w, w.h);
     // stone door step and potted plants
     px(c, dx - 2, H - 5, '#6f6a72', doorW + 4, 3);
     px(c, dx - 1, H - 5, '#c6c2cc', doorW + 2, 1);

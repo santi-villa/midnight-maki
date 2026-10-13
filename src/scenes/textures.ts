@@ -2,9 +2,10 @@
 import Phaser from 'phaser';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
 import { buildFolkSheet, FOLK_PAD } from '../art/folk';
+import { buildingLayout } from '../art/nature';
 import { FOLK_SPECS } from '../data/folkSpecs';
 import { drawObject } from '../art/objects';
-import { ctx2d, makeCanvas, outline, shade } from '../art/pixel';
+import { ctx2d, makeCanvas, outline, px, shade } from '../art/pixel';
 import { buildTileset } from '../art/tiles';
 import { buildRaccoonSheet, type RaccoonBuild } from '../art/raccoon';
 import { iconCanvas, type IconSpec } from '../art/icons';
@@ -89,20 +90,60 @@ export function iconTexture(scene: Phaser.Scene, spec: IconSpec): string {
   return k;
 }
 
-/** soft radial light used to cut holes in the night overlay */
+/**
+ * Radial light used to cut holes in the night overlay. Drawn in 6 brightness bands with a 4x4 ordered dither between them,
+ * so light pools look like pixel art (stepped, slightly grainy) instead of a smooth photographic gradient.
+ */
 export function lightTexture(scene: Phaser.Scene): string {
   if (!scene.textures.exists('light')) {
-    const c = makeCanvas(64, 64);
+    const S = 64;
+    const c = makeCanvas(S, S);
     const g = c.getContext('2d')!;
-    const grad = g.createRadialGradient(32, 32, 2, 32, 32, 32);
-    grad.addColorStop(0, 'rgba(255,255,255,1)');
-    grad.addColorStop(0.5, 'rgba(255,255,255,0.6)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 64, 64);
+    const img = g.createImageData(S, S);
+    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    const LEVELS = 6;
+    for (let y = 0; y < S; y++)
+      for (let x = 0; x < S; x++) {
+        const d = Math.hypot(x + 0.5 - S / 2, y + 0.5 - S / 2) / (S / 2);
+        // bright core, gentle shoulder, soft edge
+        const a = d >= 1 ? 0 : Math.pow(1 - d, 1.35) * (d < 0.12 ? 1 : 0.94);
+        const t = (BAYER[(y % 4) * 4 + (x % 4)] + 0.5) / 16;
+        const q = Math.min(1, Math.floor(a * LEVELS + t) / LEVELS);
+        const i = (y * S + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+        img.data[i + 3] = Math.round(q * 255);
+      }
+    g.putImageData(img, 0, 0);
     scene.textures.addCanvas('light', c);
   }
   return 'light';
+}
+
+/**
+ * Warm window panes (and, for the restaurant, its door) of a building sprite, as an overlay that is added on top at night.
+ * Built once per building size and variant, from the same layout the sprite itself was drawn with.
+ */
+export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot: number, door: boolean): string {
+  const key = `winglow_${W}x${H}_${rot}_${door ? 'd' : 'w'}`;
+  if (scene.textures.exists(key)) return key;
+  const c = makeCanvas(W, H);
+  const g = ctx2d(c);
+  const L = buildingLayout(W, H);
+  if (door) {
+    // the noren doorway: an orange wash with a brighter slit
+    px(g, L.dx + 1, L.doorY + 2, '#ff9a48', L.doorW - 2, L.doorH - 3);
+    px(g, L.dx + 3, L.doorY + 3, '#ffc27a', L.doorW - 6, L.doorH - 7);
+  } else {
+    for (const w of L.windows) {
+      px(g, w.x + 1, w.y + 1, '#ffb855', w.w - 2, w.h - 2);
+      px(g, w.x + 1, w.y + 1, '#ffe2a0', Math.floor((w.w - 2) / 2), 3);
+      px(g, w.x + Math.floor(w.w / 2), w.y + 1, '#b8661e', 1, w.h - 2); // mullion stays dark
+      px(g, w.x + 1, w.y + Math.floor(w.h / 2), '#cf7a26', w.w - 2, 1);
+    }
+    if (rot >= 2 && rot !== 5) px(g, Math.round(L.attic.x) - 1, Math.round(L.attic.y) - 1, '#ffd88a', 2, 2);
+  }
+  scene.textures.addCanvas(key, c);
+  return key;
 }
 
 /** soft bloom sprite for additive light halos */
