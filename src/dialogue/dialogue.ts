@@ -5,6 +5,7 @@
 import type { Expr } from '../art/characters';
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
+import { reportError } from '../core/errors';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
 import { CHAR_BY_ID } from '../data/characters';
@@ -49,13 +50,15 @@ export async function runScene(id: string, fn: () => Promise<void>): Promise<voi
   const seen = game.save.story.seenScenes.includes(id);
   const prevSeen = sceneSeen;
   sceneSeen = seen;
+  let completed = false;
   try {
     await fn();
+    completed = true;
   } catch (err) {
-    console.error('[dialogue] scene error', id, err);
+    reportError('dialogue:' + id, err);
   } finally {
     sceneSeen = prevSeen;
-    if (!game.save.story.seenScenes.includes(id) && !id.startsWith('talk')) {
+    if (completed && !game.save.story.seenScenes.includes(id) && !id.startsWith('talk')) {
       game.save.story.seenScenes.push(id);
       game.touch('scene');
     }

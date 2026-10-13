@@ -12,6 +12,7 @@ import { mountHud, showHud } from '../ui/hud';
 import { hudHandlers } from '../ui/menus';
 import { ensureDefaultDecor } from '../world/zoneRuntime';
 import { bus } from './events';
+import { runTask } from './errors';
 
 let phaser: Phaser.Game;
 let autosaveTimer = 0;
@@ -33,6 +34,7 @@ export async function continueGame(s: SaveData) {
 }
 
 async function startWorld(isNew: boolean) {
+  stopAutosave();
   clock.resetPause();
   ensureDefaultDecor();
   installDaily();
@@ -47,7 +49,7 @@ async function startWorld(isNew: boolean) {
   const story = await import('../story/story');
   world.lockHook = (to) => story.onLockedDoor(to);
   world.onEnterZone = (z) => {
-    story.onEnterZone(z);
+    return story.onEnterZone(z);
   };
   mountHud(hudHandlers());
   (await import('../ui/coach')).installCoach();
@@ -64,18 +66,25 @@ async function startWorld(isNew: boolean) {
     onContinue();
   }
   startAutosave();
-  backupHousekeeping();
+  void runTask('flow:backup', backupHousekeeping, false);
 }
 
 /** Keeps saves safe: asks for persistent storage and gently reminds to back up once a week. */
 async function backupHousekeeping() {
   const st = await import('../persistence/storage');
-  st.requestPersistence();
+  await st.requestPersistence();
   if (game.save.time.day >= 3 && st.daysSinceBackup() > 7) {
     setTimeout(() => {
-      import('../ui/dom').then(({ toast }) => toast('Consejo: hacé una copia de tu partida desde Ajustes → Copia de seguridad.'));
+      void runTask('flow:backup-tip', () => import('../ui/dom').then(({ toast }) => toast('Consejo: hacé una copia de tu partida desde Ajustes → Copia de seguridad.')), false);
     }, 20000);
   }
+}
+
+const autosaveOff: Array<() => void> = [];
+export function stopAutosave() {
+  clearInterval(autosaveTimer);
+  clearTimeout(soon);
+  for (const off of autosaveOff.splice(0)) off();
 }
 
 function startAutosave() {
@@ -91,17 +100,23 @@ function startAutosave() {
     syncPlayerPos();
     saveGame('hide');
   };
-  document.addEventListener('visibilitychange', () => document.hidden && flush());
+  const visibility = () => { if (document.hidden) flush(); };
+  document.addEventListener('visibilitychange', visibility);
   window.addEventListener('pagehide', flush);
   // safe points: zone changes, new day, closing menus
-  bus.on('zone:enter', () => saveSoon());
-  bus.on('time:changed', () => saveSoon());
-  bus.on('dialogue:end', () => saveSoon());
-  bus.on('ui:modal', ({ open }) => !open && saveSoon());
+  autosaveOff.push(
+    () => document.removeEventListener('visibilitychange', visibility),
+    () => window.removeEventListener('pagehide', flush),
+    bus.on('zone:enter', () => saveSoon()),
+    bus.on('time:changed', () => saveSoon()),
+    bus.on('dialogue:end', () => saveSoon()),
+    bus.on('ui:modal', ({ open }) => { if (!open) saveSoon(); }),
+  );
   // the first gesture unlocks audio
   const unlock = () => audio.unlock();
   window.addEventListener('pointerdown', unlock, { once: false });
   window.addEventListener('keydown', unlock, { once: false });
+  autosaveOff.push(() => window.removeEventListener('pointerdown', unlock), () => window.removeEventListener('keydown', unlock));
 }
 
 let soon = 0;

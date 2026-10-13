@@ -4,6 +4,7 @@
  */
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
+import { reportError } from '../core/errors';
 import { settings } from '../core/settings';
 import type { IntroCue } from './introScript';
 import { introSoundUrl, type IntroSoundId } from './introSounds';
@@ -79,8 +80,8 @@ function ramp(play: Playing, to: number, seconds: number, done?: () => void) {
   }
   const t0 = performance.now();
   const step = (now: number) => {
-    const k = Math.min(1, (now - t0) / ms);
-    play.el.volume = from + (to - from) * k;
+    const k = clamp01((now - t0) / ms);
+    play.el.volume = clamp01(from + (to - from) * k);
     if (k < 1) play.raf = requestAnimationFrame(step);
     else {
       play.raf = 0;
@@ -99,16 +100,31 @@ function ensureHook() {
       const to = level('bed', bed.base);
       ramp(bed, to, 0.2, () => {
         if (to <= 0.001) bed.el.pause();
-        else if (bed.el.paused) void bed.el.play().catch(() => armGesture(() => void bed.el.play()));
+        else if (bed.el.paused) playFile(bed.el);
       });
     }
   });
 }
 
 function playFile(el: HTMLAudioElement) {
+  let failed = false;
+  const live = () => !failed && !!el.getAttribute('src') &&
+    [...beds.values(), ...shots.values()].some((p) => p.el === el);
+  const onFailure = (err: unknown) => {
+    if (!live()) return; // an aborted play after cleanup is expected
+    if (err instanceof DOMException && err.name === 'NotAllowedError') {
+      armGesture(go); // every retry goes through the same rejection handler
+    } else {
+      failed = true;
+      reportError('audio:intro-file', err, false);
+      releaseEl(el);
+    }
+  };
   const go = () => {
+    if (!live()) return;
     audio.unlock();
-    el.play().catch(() => armGesture(go));
+    try { void el.play().catch(onFailure); }
+    catch (err) { onFailure(err); }
   };
   go();
 }
@@ -173,23 +189,12 @@ export function playIntroShot(id: IntroSoundId, volume: number, hold?: number) {
   el.volume = level('shot', volume);
   const play: Playing = { el, base: volume, raf: 0 };
   shots.set(id, play);
-  let giveUp = false;
-  el.addEventListener('error', () => {
-    if (el.getAttribute('src')) giveUp = true;
-  });
   el.addEventListener('ended', () => {
     if (shots.get(id) !== play) return;
     releaseEl(el);
     shots.delete(id);
   });
-  const go = () => {
-    if (giveUp || shots.get(id) !== play) return;
-    audio.unlock();
-    el.play().catch(() => {
-      if (!giveUp) armGesture(go);
-    });
-  };
-  go();
+  playFile(el);
   if (hold && hold > 0) {
     window.setTimeout(() => {
       if (shots.get(id) !== play) return;

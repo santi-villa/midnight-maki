@@ -4,6 +4,7 @@
  */
 import { settings } from '../core/settings';
 import { bus } from '../core/events';
+import { runTask } from '../core/errors';
 
 type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
 
@@ -155,7 +156,7 @@ class AudioEngine {
   /** must be called from a user gesture */
   unlock() {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'suspended') void runTask('audio:resume', () => this.ctx!.resume(), false);
       return;
     }
     try {
@@ -198,8 +199,8 @@ class AudioEngine {
     bus.on('settings:changed', () => this.applyVolumes());
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
-      if (document.hidden) this.ctx.suspend();
-      else this.ctx.resume();
+      if (document.hidden) void runTask('audio:suspend', () => this.ctx!.suspend(), false);
+      else void runTask('audio:resume', () => this.ctx!.resume(), false);
     });
     if (this.pendingTrack !== 'none') this.play(this.pendingTrack);
   }

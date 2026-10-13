@@ -66,10 +66,12 @@ export function newSave(name = 'Sofi', appearance: Appearance = defaultAppearanc
 class GameStore {
   save: SaveData = newSave();
   /** true after any mutation; persistence layer clears it after writing */
+  revision = 0;
   dirty = false;
   loaded = false;
 
   load(s: SaveData) {
+    this.revision++;
     this.save = s;
     this.loaded = true;
     this.dirty = false;
@@ -77,6 +79,7 @@ class GameStore {
   }
 
   touch(reason: string) {
+    this.revision++;
     this.dirty = true;
     this.save.updatedAt = Date.now();
     bus.emit('state:changed', { reason });

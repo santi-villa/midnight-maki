@@ -1,5 +1,6 @@
 /** Quest engine: main story quests, side quests and small optional tasks. */
 import { bus } from '../core/events';
+import { runTask } from '../core/errors';
 import { game } from '../core/state';
 
 export type QuestTarget =
@@ -115,9 +116,9 @@ export function check() {
   if (pendingRewards.length) {
     const list = pendingRewards;
     pendingRewards = [];
-    (async () => {
-      for (const f of list) await f();
-    })();
+    void runTask('quest:rewards', async () => {
+      for (const f of list) await runTask('quest:complete', f);
+    });
   }
 }
 
