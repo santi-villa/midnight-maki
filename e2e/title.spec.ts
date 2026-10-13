@@ -8,23 +8,6 @@ async function openTitle(page: Page, extra: Record<string, unknown> = {}) {
   await page.waitForSelector('.tt.ready');
 }
 
-/** Clicks through dialogue until it closes. */
-async function advance(page: Page, rounds = 120) {
-  await page.locator('.dlg').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-  let idle = 0;
-  for (let i = 0; i < rounds && idle < 6; i++) {
-    const choice = page.locator('.dlg .choices button').first();
-    if (await choice.isVisible().catch(() => false)) {
-      await choice.click();
-      idle = 0;
-    } else if (await page.locator('.dlg').isVisible().catch(() => false)) {
-      await page.locator('.dlg').click();
-      idle = 0;
-    } else idle++;
-    await page.waitForTimeout(100);
-  }
-}
-
 test('title: only art + prompt first, first tap unlocks audio and fades the menu in', async ({ page }) => {
   await openTitle(page);
   await expect(page.locator('.tt-prompt')).toHaveText('Tocá para comenzar');
@@ -98,8 +81,7 @@ test('title: with a save, Continuar loads it into the world', async ({ page }) =
   await page.getByRole('button', { name: 'Nueva partida' }).click();
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
-  await advance(page);
-  await page.evaluate(() => { const w = (window as any).mmDebug.world; w.player.walkTo(w.zone.grid, 5, 6); });
+  await expect(page.locator('.game-hud .hud-top')).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world?.zoneId), { timeout: 15_000 }).toBe('restaurant');
   await page.evaluate(async () => { await (window as any).mmDebug.storage.saveGame('manual'); });
   await page.reload();

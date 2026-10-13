@@ -25,14 +25,14 @@ async function music(page: Page) {
 
 async function finished(page: Page) {
   await expect(page.locator('.book')).toHaveCount(0);
-  await expect.poll(async () => (await music(page)).track).toBe('town');
+  await expect.poll(async () => (await music(page)).track).toBe('restaurant_night');
   await page.waitForTimeout(750);
   expect(await page.evaluate(() => [...(window as any).media].filter((el: any) => el.src.includes('/src/music/') && !el.paused).length)).toBe(0);
-  await page.locator('.dlg').click();
-  await expect(page.locator('.hud-quest')).toContainText('Entrá a Midnight Maki');
+  await expect(page.locator('.game-hud .hud-top')).toBeVisible();
+  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
 }
 
-test('the same custom song loops through seven scenes and the letter, then fades to the plaza', async ({ page }) => {
+test('the same custom song loops through seven scenes and the letter, then fades into the restaurant', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', err => errors.push(err.message));
   await begin(page);
