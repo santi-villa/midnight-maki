@@ -2,6 +2,7 @@
  * Procedural sprites for props, furniture and buildings.
  * drawObject(kind, wPx, hPx, c1, c2, rot) returns a canvas; sprites are bottom-aligned on their footprint.
  */
+import { facadeStage } from './facade';
 import { PAL } from './palette';
 import { ctx2d, ellipse, makeCanvas, outline, px, rng, shade, type Ctx } from './pixel';
 import { volumize } from './shade';
@@ -787,7 +788,7 @@ const K: Record<string, DrawFn> = {
 
 Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS);
 
-export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string): HTMLCanvasElement {
+export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string, stage?: number): HTMLCanvasElement {
   const c = makeCanvas(w, h);
   const ctx = ctx2d(c);
   const fn = K[kind];
@@ -796,6 +797,7 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
     // never leave a broken sprite: visible placeholder crate
     K.crate(ctx, w, h, c1, c2, 0, rng(seed));
   }
+  if (kind === 'building' && stage !== undefined) facadeStage(ctx, w, h, stage);
   if (label) {
     // shop plaque on the facade, or the board of a signpost
     if (kind === 'building') drawPlaque(ctx, w / 2, Math.floor(h * 0.46) - 2, label);

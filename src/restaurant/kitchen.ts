@@ -13,6 +13,7 @@ import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, max
 import { guestViews, plateState, serviceBoardNote, stagePlate, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade } from './upgrades';
 import { runScene, say } from '../dialogue/dialogue';
+import { STAGE_NAMES, stageForLevel } from './stages';
 import { QUICK_STARS, nextStarGoal, quickQuality, recipeStars, mastery, recordMastery, starsText } from './mastery';
 
 const CAT_NAME = { basic: 'Básica', intermediate: 'Intermedia', special: 'Especial' };
@@ -233,6 +234,13 @@ async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof 
       audio.sfxPlay('success');
       await say('spicy', `¡Midnight Maki subió a nivel ${out.levelUp}! ¡Somos famosos! Bueno, un poquito.`, 'happy');
       for (const id of out.newRecipes) await say('narr', `Nueva receta: ${RECIPES_BY_ID[id].name}.`);
+      // at some levels the whole restaurant changes its look (stages.ts): say it and redraw the room now
+      if (stageForLevel(out.levelUp) !== stageForLevel(out.levelUp - 1)) {
+        audio.sfxPlay('sparkle');
+        await say('narr', `Midnight Maki se ve distinto: ${STAGE_NAMES[stageForLevel(out.levelUp)]}. Mirá la fachada la próxima vez que salgas.`);
+        const { world } = await import('../scenes/WorldScene');
+        if (world.zoneId === 'restaurant' && world.player) void world.enterZone('restaurant', world.player.tx, world.player.ty, world.player.dir, false);
+      }
     }
   });
   if ((game.save.stats.spicyServed ?? 0) >= 5) game.setFlag('many_spicy');

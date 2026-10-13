@@ -88,3 +88,10 @@ describe('town projects', () => {
     expect(buildNextPhase('plaza_garden')).toBe(false); // finished
   });
 });
+
+describe('restaurant stages', () => {
+  it('follow the ten levels in four looks', async () => {
+    const { stageForLevel } = await import('../restaurant/stages');
+    expect([1, 2, 3, 4, 5, 7, 8, 10].map(stageForLevel)).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+  });
+});

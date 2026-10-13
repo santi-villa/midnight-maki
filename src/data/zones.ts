@@ -105,7 +105,10 @@ function plaza(): ZoneDef {
   b.rect(10, 19, 3, 2, 'c');
   b.rect(9, 9, 2, 1, 'r').rect(21, 9, 2, 1, 'y').rect(9, 16, 2, 1, 'l').rect(21, 16, 2, 1, 'r');
   treeBorder(b, [[15, 0], [16, 0], [29, 0], [30, 0], [15, 25], [16, 25], [31, 12], [31, 13], [0, 12], [0, 13]]);
-  b.prop('bld_restaurant', 2, 4)
+  b.prop('bld_restaurant_s0', 2, 4, 'stage=0')
+    .prop('bld_restaurant_s1', 2, 4, 'stage=1')
+    .prop('bld_restaurant_s2', 2, 4, 'stage=2')
+    .prop('bld_restaurant_s3', 2, 4, 'stage=3')
     .prop('bld_clothes', 23, 4)
     .prop('bld_store', 24, 16)
     .prop('bld_bakery', 2, 16)
@@ -216,7 +219,20 @@ function restaurant(): ZoneDef {
     .prop('sake_barrel', 1, 10)
     .prop('barrel', 2, 10)
     .prop('bamboo', 1, 12)
-    .prop('bamboo', 6, 12);
+    .prop('bamboo', 6, 12)
+    // the look of the restaurant grows with its level (restaurant/stages.ts): clutter goes away, comfort arrives
+    .prop('crate', 1, 7, 'stage<1')
+    .prop('sack', 1, 8, 'stage<1')
+    .prop('barrel', 3, 12, 'stage<1')
+    .prop('andon', 12, 3, 'stage>=1')
+    .prop('pot_cream', 3, 12, 'stage>=1')
+    .prop('wall_lantern_cream', 8, 1, 'stage>=1')
+    .prop('pot_rose', 4, 12, 'stage>=2')
+    .prop('wallshelf', 10, 1, 'stage>=2')
+    .prop('andon', 15, 5, 'stage>=2')
+    .prop('stonelantern', 15, 3, 'stage>=3')
+    .prop('flowers', 14, 4, 'stage>=3')
+    .prop('wall_lantern_red', 9, 1, 'stage>=3');
   return zone(b, {
     id: 'restaurant', name: 'Midnight Maki', music: 'restaurant', outdoor: false, walls: 'izakaya', floor: 'izakaya',
     doors: [

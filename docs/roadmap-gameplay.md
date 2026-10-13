@@ -23,17 +23,17 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
 7. **Recompensas por dominio**: +4 % de pago por estrella, bonus único de 100 monedas al llegar a 5 estrellas, y cuatro logros nuevos.
 8. **Proyectos del pueblo** (cartelera de la plaza): cinco proyectos de dos etapas (plaza, faroles, muelle, claro del bosque, jardín). Cada etapa cuesta monedas y materiales, cambia el mapa (aparecen flores, bancos, faroles, bote, cerezos) y suma encanto al restaurante. Las áreas cerradas no aparecen hasta abrirse.
 9. **Encargos de hoy**: hasta tres encargos diarios de vecinos y una meta semanal, con progreso por contadores del juego, recompensa en monedas, sin castigo ni rachas, y siempre los mismos durante el día.
-10. **Corrección**: la cartelera fallaba al mostrarse cuando estaba disponible el pedido heredado de Sumi (alias viejo sin definición).
+10. **Evolución visual del restaurante** (4 etapas según el nivel: 1-2 heredado, 3-4 recuperado, 5-7 popular, 8-10 corazón de Villa Nori): la fachada de la plaza pasa de desgastada (manchas, ventanas rotas, maleza) a cuidada (canteros), con toldo, noren y guirnaldas, y finalmente con detalles dorados y estrellas. Dentro, el desorden (cajas, bolsa, barril) desaparece y llegan faroles, macetas, estantes y un rincón de piedra y flores. Al subir a una etapa nueva se avisa y se redibuja el salón. No toca los muebles del jugador (los adornos están fuera de la zona de decoración).
+11. **Corrección**: la cartelera fallaba al mostrarse cuando estaba disponible el pedido heredado de Sumi (alias viejo sin definición).
 
 ## Compatibilidad
 - Guardados viejos: `recipeMastery` es opcional y se completa vacío al cargar (`validateSave`).
 - Sin cambios en los capítulos de la historia ni en los contratos de calidad 0/1/2.
 
 ## Pendiente
-1. Evolución visual del restaurante por etapas (fachada y salón) enlazada con las mejoras existentes.
-2. Más proyectos por área y más tipos de encargo con pequeñas escenas.
-3. Recompensas de dominio visuales (estilos de presentación) además del pago y los logros.
-4. Probar todo en un celular real: hasta ahora solo se probó en un navegador emulado en vertical.
+1. Más proyectos por área y más tipos de encargo con pequeñas escenas.
+2. Recompensas de dominio visuales (estilos de presentación) además del pago y los logros.
+3. Probar todo en un celular real: hasta ahora solo se probó en un navegador emulado en vertical.
 
 ## Criterios de aceptación de esta etapa
 - Un plato bien hecho y uno descuidado se ven y se pagan distinto, sin llegar nunca a "fallar".
