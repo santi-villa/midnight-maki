@@ -96,3 +96,56 @@ test('IndexedDB abort is reported as failed, preserves progress and successfully
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.game.coins)).toBe(result.currentCoins);
 });
+
+test('manual save never announces failed writes; failed imports roll back and successful imports preserve their location', async ({ page }) => {
+  await begin(page);
+  await page.getByRole('button', { name: 'Saltar intro ›' }).click();
+  await page.locator('.dlg').click();
+  await expect(page.locator('.hud-quest')).toContainText('Entrá a Midnight Maki');
+  const originalCoins = await page.evaluate(async () => {
+    const d = (window as any).mmDebug;
+    await d.storage.saveGame('baseline');
+    d.game.addCoins(5);
+    (await import('/src/ui/settingsPanel.ts')).openSettings(true);
+    return d.game.coins;
+  });
+  await page.evaluate(() => {
+    const original = IDBObjectStore.prototype.put;
+    (window as any).originalPut = original;
+    IDBObjectStore.prototype.put = function(value, key) {
+      const req = original.call(this, value, key);
+      if (key === 'main') this.transaction.abort();
+      return req;
+    };
+  });
+  await page.getByRole('button', { name: 'Guardar ahora' }).click();
+  await expect(page.locator('.toast').filter({ hasText: 'No se pudo guardar' })).toBeVisible();
+  await expect(page.locator('.toast').filter({ hasText: /^Partida guardada\.$/ })).toHaveCount(0);
+  const code = await page.evaluate(async () => {
+    const { saveCode } = await import('/src/persistence/storage.ts');
+    const game = (window as any).mmDebug.game;
+    const previous = game.save;
+    game.save = structuredClone(previous);
+    game.save.coins = 777;
+    game.save.player.zone = 'beach'; game.save.player.x = 8; game.save.player.y = 9;
+    game.save.flags.unlock_beach = true;
+    const code = saveCode();
+    game.save = previous;
+    return code;
+  });
+  await page.getByRole('button', { name: 'Pegar código', exact: true }).click();
+  await page.locator('textarea').fill(code);
+  await page.getByRole('button', { name: 'Restaurar desde el código' }).click();
+  await page.waitForTimeout(1100);
+  expect(await page.evaluate(() => (window as any).mmDebug.game.coins)).toBe(originalCoins);
+  expect(await page.evaluate(() => (window as any).mmDebug.game.dirty)).toBe(true);
+  await expect(page.locator('.panel')).toContainText('Ajustes');
+  await page.evaluate(() => { IDBObjectStore.prototype.put = (window as any).originalPut; });
+  await page.getByRole('button', { name: 'Restaurar desde el código' }).click();
+  await expect(page.locator('.tt.ready')).toBeVisible({ timeout: 15_000 });
+  await page.locator('.tt').click();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId)).toBe('beach');
+  expect(await page.evaluate(() => (window as any).mmDebug.game.coins)).toBe(777);
+  expect(await page.evaluate(() => ({ x: (window as any).mmDebug.game.save.player.x, y: (window as any).mmDebug.game.save.player.y }))).toEqual({ x: 8, y: 9 });
+});
