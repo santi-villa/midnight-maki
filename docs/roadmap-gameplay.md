@@ -91,3 +91,11 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
 - Un plato bien hecho y uno descuidado se ven y se pagan distinto, sin llegar nunca a "fallar".
 - Cerrar la cocina entre platos no duplica ingredientes ni recompensas.
 - Todo funciona con mouse y táctil; las pruebas (`vitest`, `tsc`, `build`, e2e `newgame`) pasan.
+
+## Punto 7 · Restauraciones y recuerdos del pueblo
+
+- Seis escenas opcionales asociadas a las dos primeras etapas de plaza, faroles, playa, claro, jardín y biblioteca. Se habilitan después del capítulo 3 para no anticipar el conflicto de memoria de Pip.
+- Álbum del pueblo accesible desde el tablón de proyectos y los servicios restaurados. Permite descubrir y releer escenas; reunir las seis desbloquea una página compartida con los mapaches.
+- No se conceden pistas de la investigación, capítulos, monedas ni recompensas repetibles. Los recuerdos se guardan con indicadores propios; los proyectos ya restaurados en partidas anteriores también habilitan escenas sin reconstruirlos.
+- Se marca cada recuerdo al terminar el diálogo, con bloqueo contra reproducciones simultáneas. Se reutilizan retratos, diálogos, pausa y limpieza existentes. Los secretos son narrativos: no se agregaron ilustraciones nuevas.
+- Verificación focalizada en navegador a 1280×800 y 390×844: seis escenas y página final, bloqueo previo al capítulo 3, compatibilidad con etapas antiguas, rechazo de ejecución concurrente, guardado/recarga y ausencia de desbordamiento horizontal. Typecheck y build. Suites de regresión aplazadas al final por pedido del usuario; pendiente celular físico.
