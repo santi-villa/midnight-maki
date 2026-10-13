@@ -23,8 +23,14 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
 7. **Recompensas por dominio**: +4 % de pago por estrella, bonus único de 100 monedas al llegar a 5 estrellas, y cuatro logros nuevos.
 8. **Proyectos del pueblo** (cartelera de la plaza): cinco proyectos de dos etapas (plaza, faroles, muelle, claro del bosque, jardín). Cada etapa cuesta monedas y materiales, cambia el mapa (aparecen flores, bancos, faroles, bote, cerezos) y suma encanto al restaurante. Las áreas cerradas no aparecen hasta abrirse.
 9. **Encargos de hoy**: hasta tres encargos diarios de vecinos y una meta semanal, con progreso por contadores del juego, recompensa en monedas, sin castigo ni rachas, y siempre los mismos durante el día.
-10. **Evolución visual del restaurante** (4 etapas según el nivel: 1-2 heredado, 3-4 recuperado, 5-7 popular, 8-10 corazón de Villa Nori): la fachada de la plaza pasa de desgastada (manchas, ventanas rotas, maleza) a cuidada (canteros), con toldo, noren y guirnaldas, y finalmente con detalles dorados y estrellas. Dentro, el desorden (cajas, bolsa, barril) desaparece y llegan faroles, macetas, estantes y un rincón de piedra y flores. Al subir a una etapa nueva se avisa y se redibuja el salón. No toca los muebles del jugador (los adornos están fuera de la zona de decoración).
-11. **Corrección**: la cartelera fallaba al mostrarse cuando estaba disponible el pedido heredado de Sumi (alias viejo sin definición).
+10. **Evolución visual del restaurante** (4 etapas según el nivel: 1-2 heredado, 3-4 recuperado, 5-7 popular, 8-10 corazón de Villa Nori):
+    - La fachada se redibuja completa (`src/art/storefronts.ts`): de madera gris con tejas rotas, ventanas tapiadas, musgo y maleza, a madera oscura con shoji encendidos, farolitos y noren; luego toldo y filas de faroles; y al final doble techo con detalles dorados y estrellas.
+    - Más cosas fuera: barriles de sake (etapa 3 de la lista: nivel 5+) y bambú (nivel 8+).
+    - Más mesas dentro: en cada etapa llegan mesas con sus sillas al salón (se colocan una sola vez, sin pisar los muebles del jugador ni la entrada; lo que no entre queda en el depósito). Más asientos significan más clientes a la vez.
+    - Adornos de pared y rincones se suman por etapa; el desorden inicial desaparece.
+    - Al subir a una etapa nueva se avisa y el salón se redibuja.
+11. **Locales con estilo propio**: panadería (ladrillo, chimenea, toldo, vitrinas con pan, canasto), ropa de Yuki (techo rosa, prendas en las vidrieras, noren), almacén de Taro (techo verde, estantes con frascos, cajones y barril), biblioteca (ladrillo, ventanas con libros) y galería (cuadros en las vidrieras).
+12. **Corrección**: la cartelera fallaba al mostrarse cuando estaba disponible el pedido heredado de Sumi (alias viejo sin definición).
 
 ## Compatibilidad
 - Guardados viejos: `recipeMastery` es opcional y se completa vacío al cargar (`validateSave`).

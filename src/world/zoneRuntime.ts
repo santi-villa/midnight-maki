@@ -5,7 +5,7 @@ import { TILE_INDEX, TILE_SOLID } from '../art/tiles';
 import { FURN_BY_ID, type FurnitureDef } from '../data/furniture';
 import { PROPS, type PropDef } from '../data/props';
 import { PROJECTS, PROJECT_PROPS } from '../data/projects';
-import { stageForLevel } from '../restaurant/stages';
+import { applyStageGrants, stageForLevel } from '../restaurant/stages';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
 
@@ -119,6 +119,7 @@ export function ensureDefaultDecor() {
       for (const [id, x, y, rot] of list) arr.push({ uid: game.uid(), id, x, y, rot: rot ?? 0 });
     });
   }
+  applyStageGrants(); // after the defaults, so the new tables never land on them
 }
 
 export function furnitureSolidTiles(f: PlacedFurniture, def: FurnitureDef): [number, number][] {
