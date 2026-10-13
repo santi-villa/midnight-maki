@@ -862,6 +862,27 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .recipe-style.selected { border-color: #a77b28; background: #f7edcf; box-shadow: inset 0 0 0 2px #e7cb83; }
 .recipe-style:disabled { opacity: .65; cursor: default; }
 .recipe-collection button:focus-visible, .recipe-collection input:focus-visible, .recipe-collection select:focus-visible { outline: 2px solid #8a5a3c; outline-offset: 3px; }
+
+/* Notice-board rewards and keepsakes use the existing parchment and wooden palette. */
+.errands-section h3 { margin: 12px 0 2px; color: var(--wood-dark); }
+.errand-card { gap: 6px; }
+.errand-card p { margin: 0; }
+.errand-card.ready { border-color: #7a9c62; background: #f2f4e5; }
+.errand-card.claimed { opacity: .65; }
+.errand-heading, .errand-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.errand-status { font-size: .8em; color: #586d48; }
+.errand-rewards { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; }
+.errand-reward { display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px; background: #eee4ce; border: 1px solid #cfb78c; font-size: .85em; }
+.errand-reward canvas { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; flex-shrink: 0; }
+.errand-stamps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.errand-stamp { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; padding: 10px 8px; background: #ede3cc; border: 2px dashed #b8a27e; min-width: 0; }
+.errand-stamp.earned { border: 2px solid #bf913e; background: #f4ebd2; }
+.errand-stamp > canvas { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; }
+.errand-stamp .hint { font-size: .8em; }
+@media (max-width: 440px) {
+  .errand-stamps { grid-template-columns: 1fr; }
+  .errand-actions .btn { width: 100%; }
+}
 @media (max-width: 600px) {
   .recipe-hero { grid-template-columns: 1fr; }
   .recipe-hero > .recipe-picture { margin: auto; }

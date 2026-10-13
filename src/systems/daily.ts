@@ -7,6 +7,7 @@ import { refreshOrders } from '../restaurant/orders';
 import { closeServiceForNight } from '../restaurant/service';
 import { growGarden } from './garden';
 import { eventToday } from './events';
+import { ensureDaily } from '../quests/daily';
 
 let installed = false;
 
@@ -23,6 +24,7 @@ export function installDaily() {
     game.setFlag('market_open', false);
     growGarden(day, rain);
     closeServiceForNight();
+    ensureDaily();
     refreshOrders(true);
     if (game.save.restaurant.upgrades.includes('pantry')) {
       game.addItem('rice', 3, 'pantry');
