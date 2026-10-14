@@ -23,9 +23,9 @@ import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
 import { currentQuestTarget } from '../quests/quests';
-import { customerAsk, GENERIC_CUSTOMERS } from '../restaurant/orders';
-import { canAcceptGuest, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
-import { partySizeFor, type FurnPiece, type PartyPhase } from '../restaurant/floor';
+import { customerAsk } from '../restaurant/orders';
+import { canAcceptGuest, carriedOrder, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
+import { type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, shopSignTexture } from './textures';
@@ -34,8 +34,9 @@ import { Journey, type Position } from '../systems/journeys';
 import { TownLife } from '../systems/townLife';
 import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
 import { layoutSpeech } from '../ui/speechLayout';
-import { CUSTOMER_IDS } from '../art/customerSheet';
-import type { CustomerId } from '../art/customers';
+import { customerLook } from '../restaurant/customers';
+import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
+import { RECIPES_BY_ID } from '../data/recipes';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 import { companyScene, openCompany } from '../story/companions';
@@ -289,6 +290,8 @@ export class WorldScene extends Phaser.Scene {
     for (const b of this.bugs) b.sprite.destroy();
     this.bugs = [];
     this.clearGuests();
+    this.serviceArt?.destroy(); this.serviceArt = null;
+    this.carriedSprite?.destroy(); this.carriedSprite = null; this.carriedKey = '';
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
     this.layer?.destroy();
@@ -601,8 +604,11 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private guests = new Map<string, { actor: Actor; phase: PartyPhase }>();
-  private visitors = new Map<string, { id: string; customer: string; origin: Position; trips: Journey[]; stage: 'arriving' | 'dining' | 'departing'; phase?: PartyPhase; greeted: boolean }>();
-  private visitorId = 1;
+  private visitors = new Map<string, { id: string; customer: string; customers: string[]; origin: Position; trips: Journey[]; stage: 'arriving' | 'dining' | 'departing'; phase?: PartyPhase; greeted: boolean }>();
+  private restoredDining = false;
+  private serviceArt: Phaser.GameObjects.Graphics | null = null;
+  private carriedSprite: Phaser.GameObjects.Image | null = null;
+  private carriedKey = '';
   private visitorIn = 4;
   private hostId: string | null = null;
   private hostWait = 0;
@@ -627,25 +633,31 @@ export class WorldScene extends Phaser.Scene {
   private pumpFloor(dt: number) {
     if (!game.has('intro_done') || !this.zone || this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
     const pieces = this.diningPieces();
+    canAcceptGuest(pieces);
+    if (!this.restoredDining) { this.restoredDining = true; this.restoreVisitors(); }
     const open = restaurantPhase(clock.period, game.save.time.minutes) === 'open';
     this.visitorIn -= dt;
     if (open && this.visitorIn <= 0 && ![...this.visitors.values()].some((v) => v.stage === 'arriving') && canAcceptGuest(pieces)) {
       this.visitorIn = 26 + Math.random() * 8;
-      const id = 'v' + this.visitorId++;
-      const customer = GENERIC_CUSTOMERS[Math.floor(Math.random() * GENERIC_CUSTOMERS.length)].id;
-      const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
-      const trips = Array.from({ length: partySizeFor(customer) }, (_, i) => {
-        const trip = new Journey({ ...origin, x: origin.x + i }, this.town.grid, 2.5);
-        trip.go({ zone: 'restaurant', x: 8 + i, y: 10 });
-        return trip;
-      });
-      this.visitors.set(id, { id, customer, origin, trips, stage: 'arriving', greeted: false });
+      const id = 'v' + game.uid();
+      const customers = chooseParty(pieces);
+      if (customers.length) {
+        const customer = customers[0];
+        const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
+        const trips = Array.from({ length: customers.length }, (_, i) => {
+          const trip = new Journey({ ...origin, x: origin.x + i }, this.town.grid, 2.5);
+          trip.go({ zone: 'restaurant', x: 8 + i % 2, y: 10 + Math.floor(i / 2) });
+          return trip;
+        });
+        this.visitors.set(id, { id, customer, customers, origin, trips, stage: 'arriving', greeted: false });
+      }
     }
     this.floorTick += dt;
     if (this.floorTick >= 1) {
-      const { paid, notice } = pumpService(Math.min(1.25, this.floorTick), pieces, { physical: true, arrivals: false, present: this.zoneId === 'restaurant' });
+      const { events, paid, notice } = pumpService(Math.min(1.25, this.floorTick), pieces, { physical: true, arrivals: false, present: this.zoneId === 'restaurant', relaxed: settings.cookMode === 'relaxed' });
       this.floorTick = 0;
       if (notice) this.note(notice);
+      if (this.zoneId === 'restaurant') for (const ev of events) if (ev.type === 'impatient') this.sayVisitor(ev.partyId, 'Cuando puedas, tenemos un poquito de hambre.');
       for (const meal of paid) {
         if (this.zoneId === 'restaurant') this.enqueueMeal(meal);
       }
@@ -655,7 +667,7 @@ export class WorldScene extends Phaser.Scene {
       const g = views.find((g) => g.id === v.id);
       if (v.stage === 'arriving' && !open) this.sendVisitorHome(v);
       if (v.stage === 'arriving' && v.trips.every((t) => t.settled)) {
-        if (spawnGuest(pieces, v.customer, v.id)) {
+        if (spawnGuest(pieces, v.customer, v.id, v.customers)) {
           receiveGuest(v.id);
           v.stage = 'dining';
         } else this.sendVisitorHome(v);
@@ -692,6 +704,68 @@ export class WorldScene extends Phaser.Scene {
     this.syncGuests();
   }
 
+  /** Recover saved groups without regenerating their orders or paying their trays. */
+  private restoreVisitors() {
+    for (const g of guestViews()) {
+      if (this.visitors.has(g.id)) continue;
+      const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
+      const seated = ['seated', 'waiting_order', 'waiting_food', 'eating', 'paying'].includes(g.phase);
+      const trips = g.members.map((_, i) => {
+        const seat = g.seats[i];
+        const p = seated && seat ? { zone: 'restaurant', x: seat.x, y: seat.y } : { zone: 'restaurant', x: 8 + i % 2, y: 10 + Math.floor(i / 2) };
+        const trip = new Journey(p, this.town.grid, 2.5);
+        if (g.phase === 'walking' && seat) trip.go({ zone: 'restaurant', x: seat.x, y: seat.y });
+        if (g.phase === 'leaving') trip.go(origin);
+        return trip;
+      });
+      this.visitors.set(g.id, { id: g.id, customer: g.customerId, customers: g.members.map(m => m.customerId), origin, trips, stage: 'dining', phase: g.phase, greeted: !['outside', 'reception', 'queued'].includes(g.phase) });
+      if (g.phase === 'walking' && !this.hostId && g.seats[0]) {
+        this.hostId = g.id; this.town.duty('pip', { zone: 'restaurant', x: g.seats[0].x - 1, y: g.seats[0].y, act: 'work', wander: 0 });
+      }
+      if (g.phase === 'outside') receiveGuest(g.id);
+    }
+  }
+
+  private updateServiceArt() {
+    if (!this.serviceArt?.active) this.serviceArt = this.add.graphics().setDepth(90000);
+    const art = this.serviceArt; art.clear();
+    if (this.zoneId === 'restaurant') {
+      // A lacquer tray next to the register, plus a separate tea corner in the kitchen.
+      art.fillStyle(0x4a3029).fillRect(6 * TILE - 3, 4 * TILE + 8, 20, 8);
+      art.fillStyle(0xb78655).fillRect(6 * TILE - 2, 4 * TILE + 9, 18, 5);
+      const ready = trayOrders();
+      for (let i = 0; i < Math.min(4, ready.length); i++) {
+        art.fillStyle(ready[i].kind === 'drink' ? 0x8ab9ad : 0xf6ecd6).fillRect(6 * TILE + i * 4, 4 * TILE + 10, 3, 3);
+      }
+      if (drinksUnlocked()) { art.fillStyle(0xe9d8b1).fillRect(2 * TILE + 4, 2 * TILE + 2, 5, 5); art.fillStyle(0x91ab69).fillRect(2 * TILE + 5, 2 * TILE + 3, 3, 2); }
+      const carrying = carriedOrder();
+      for (const job of tableJobs()) {
+        const f = this.zone.furniture.find(fi => String(fi.f.uid) === job.tableId);
+        if (!f) continue;
+        const x = f.f.x * TILE + f.def.w * TILE / 2, y = f.f.y * TILE - 5;
+        const destination = carrying?.service?.tableId === job.tableId;
+        const color = destination ? 0xf2c66d : job.impatient ? 0xd77a76 : 0xf6ecd6;
+        // One exclamation over each table. No question marks, full schedule text or giant labels.
+        if (job.phase === 'waiting_order' || destination) {
+          art.fillStyle(0x4a3029).fillRect(x - 3, y - 8, 6, 10);
+          art.fillStyle(color).fillRect(x - 1, y - 7, 2, 5).fillRect(x - 1, y, 2, 1);
+        }
+        if (job.phase === 'waiting_order' || job.phase === 'waiting_food') {
+          const ratio = Math.max(0, Math.min(1, job.patience / job.maxPatience));
+          art.fillStyle(0x4a3029).fillRect(x - 9, y + 3, 18, 3);
+          art.fillStyle(settings.cookMode === 'relaxed' || ratio > .5 ? 0x91ab69 : ratio > .2 ? 0xf2c66d : 0xd77a76).fillRect(x - 8, y + 4, Math.ceil(16 * (settings.cookMode === 'relaxed' ? 1 : ratio)), 1);
+        }
+      }
+    }
+    const carrying = carriedOrder();
+    if (!carrying) { this.carriedSprite?.setVisible(false); return; }
+    const def = carrying.kind === 'drink' ? DRINK_BY_ID[carrying.recipe] : RECIPES_BY_ID[carrying.recipe];
+    if (!def) return;
+    if (!this.carriedSprite?.active) this.carriedSprite = this.add.image(0, 0, iconTexture(this, def.icon)).setScale(.75);
+    if (this.carriedKey !== String(carrying.uid)) { this.carriedSprite.setTexture(iconTexture(this, def.icon)); this.carriedKey = String(carrying.uid); }
+    this.carriedSprite.setVisible(true).setPosition(this.player.x + (this.player.dir === 'left' ? -9 : 9), this.player.y - 17).setDepth(this.player.y + 1);
+  }
+
   private sendVisitorHome(v: { trips: Journey[]; origin: Position; stage: string }) {
     v.stage = 'departing';
     for (const trip of v.trips) trip.go(v.origin);
@@ -725,7 +799,7 @@ export class WorldScene extends Phaser.Scene {
     if (!visitor.greeted) {
       visitor.greeted = true;
       this.hostWait = 3.5;
-      this.npc('pip')?.emote(party.size > 1 ? '¡Bienvenidos! ¿Mesa para dos?' : '¡Hola! Bienvenido a Midnight Maki.', 3.5);
+      this.npc('pip')?.emote(party.size > 1 ? `¡Bienvenidos! ¿Mesa para ${party.size}?` : '¡Hola! Bienvenido a Midnight Maki.', 3.5);
       this.sayVisitor(party.id, party.size > 1 ? 'Sí, gracias. Venimos a comer juntos.' : '¡Hola! ¿Tenés una mesa libre?');
       return;
     }
@@ -766,8 +840,8 @@ export class WorldScene extends Phaser.Scene {
     try {
       while (this.mealQueue.length) {
         const meal = this.mealQueue.shift()!;
-        const { presentPaidMeal } = await import('../restaurant/kitchen');
-        await presentPaidMeal(meal);
+        const { presentPaidMeals } = await import('../restaurant/kitchen');
+        await presentPaidMeals([meal, ...this.mealQueue.splice(0)]);
       }
     } finally {
       this.mealBusy = false;
@@ -789,7 +863,7 @@ export class WorldScene extends Phaser.Scene {
         live.add(key);
         let body = this.guests.get(key);
         if (!body) {
-          const actor = new Actor(this, v.customer, customerTexture(this, guestCustomer(v.id, i)), p.x, p.y);
+          const actor = new Actor(this, v.customers[i] ?? v.customer, customerTexture(this, customerLook(v.customers[i] ?? v.customer)), p.x, p.y);
           actor.manual = true;
           body = { actor, phase };
           this.guests.set(key, body);
@@ -801,7 +875,8 @@ export class WorldScene extends Phaser.Scene {
         a.y = (sitting && seat ? seat.y : p.y) * TILE + TILE - 2 - (sitting ? 3 : 0);
         a.moving = trip.moving && !sitting;
         a.dir = sitting && seat ? (seat.rot === 2 ? 'up' : seat.rot === 1 ? 'right' : seat.rot === 3 ? 'left' : 'down') : trip.dir;
-        const act = sitting ? (phase === 'eating' || phase === 'paying' ? 'eat' : 'sit') : 'idle';
+        const fed = g?.members[i]?.items.some(item => item.kind === 'food' && item.quality !== null);
+        const act = sitting ? (fed || phase === 'eating' || phase === 'paying' ? 'eat' : 'sit') : 'idle';
         if (a.act !== act) a.setAct(act);
         body.phase = phase;
         a.sync();
@@ -866,7 +941,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
     if (this.townSave !== game.save || this.townDay !== clock.day) {
       if (this.townSave !== game.save) resetService();
-      this.visitors.clear(); this.clearGuests(); this.endConversation();
+      this.visitors.clear(); this.restoredDining = false; this.clearGuests(); this.endConversation();
       this.chatSequence.clear(); this.chatCooldown.clear(); this.chatIn = 8;
       this.hostId = null; this.visitorIn = 4;
       this.diningCache = null;
@@ -1203,6 +1278,7 @@ export class WorldScene extends Phaser.Scene {
       void runTask('world:gift', () => this.offerGift(intent.npcId));
       return;
     }
+    if (intent.type === 'tray') { void runTask('world:tray', () => import('../restaurant/tray').then(m => m.openTray())); return; }
     if (intent.type === 'company') { openCompany(this, intent.npcId); return; }
     if (intent.type === 'decorate') {
       void runTask('world:decorate', () => import('../decoration/editor').then((m) => m.startDecor()));
@@ -1398,6 +1474,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateAtmosphere(dt);
     this.updateOccluders(dt);
     this.updateQuestMarker(dt);
+    this.updateServiceArt();
     this.dust(dt);
     this.quirks(dt);
     this.updateGuide(dt);
@@ -2223,9 +2300,4 @@ function guestHash(id: string): number {
   let h = 2166136261;
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
   return h >>> 0;
-}
-
-/** Which of the 8 restaurant customers a seat gets: stable for the party, so a couple does not change faces mid-meal. */
-function guestCustomer(id: string, n: number): CustomerId {
-  return CUSTOMER_IDS[guestHash(id + ':' + n) % CUSTOMER_IDS.length];
 }

@@ -1,4 +1,8 @@
 /** Restaurant UI: order board, kitchen station, free cooking, experiments, upgrades. */
+import { DRINK_BY_ID, canPrepareDrink } from './drinkData';
+import { prepareDrink, openDrinks } from './drinks';
+import { runTask } from '../core/errors';
+import './tray';
 import { iconElement } from '../art/icons';
 import { recipeIllustration } from '../art/cooking';
 import { audio } from '../audio/audio';
@@ -6,12 +10,12 @@ import { game } from '../core/state';
 import { ITEMS_BY_ID } from '../data/items';
 import { EXPERIMENTS, RECIPES, RECIPES_BY_ID, type RecipeDef } from '../data/recipes';
 import { BALANCE } from '../core/balance';
-import { add, h, panel, toast, uiRoot } from '../ui/dom';
+import { add, h, panel, toast, openModal } from '../ui/dom';
 import { registerAction } from '../systems/actions';
 import { cook, type CookResult } from './cooking';
 import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeCollection';
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
-import { guestViews, plateState, serviceBoardNote, stagePlate, type PaidMeal } from './service';
+import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade } from './upgrades';
 import { freeCookCoins } from './economy';
 import { runScene, say } from '../dialogue/dialogue';
@@ -20,7 +24,7 @@ import { QUICK_STARS, nextStarGoal, quickQuality, recipeStars, mastery, recordMa
 
 const CAT_NAME = { basic: 'Básica', intermediate: 'Intermedia', special: 'Especial' };
 
-function ingList(r: RecipeDef) {
+function ingList(r: { ingredients: Record<string, number> }) {
   return h(
     'div',
     { class: 'row', style: { flexWrap: 'wrap', gap: '4px' } },
@@ -35,7 +39,7 @@ function ingList(r: RecipeDef) {
 }
 
 /** cost to buy what's missing for a recipe (basic shop ingredients only) */
-function missingCost(r: RecipeDef): number | null {
+function missingCost(r: { ingredients: Record<string, number> }): number | null {
   let cost = 0;
   for (const [id, q] of Object.entries(r.ingredients)) {
     const miss = q - game.countUsable(id);
@@ -47,7 +51,7 @@ function missingCost(r: RecipeDef): number | null {
   return cost;
 }
 
-function buyMissing(r: RecipeDef): boolean {
+function buyMissing(r: { ingredients: Record<string, number> }): boolean {
   const cost = missingCost(r);
   if (cost == null) return false;
   if (!game.spend(cost, 'restock')) return false;
@@ -90,62 +94,66 @@ export function openOrders() {
           h('b', null, `Bandeja de salida (${ready.length})`),
           h('div', { class: 'row', style: { flexWrap: 'wrap', gap: '8px' } },
             ...ready.map((o) => {
-              const r = RECIPES_BY_ID[o.recipe];
-              const view = guestViews().find((g) => g.orderUid === o.uid);
+              const r = o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe];
+
               const q = ['Aceptable', 'Muy bueno', 'Perfecto'][o.plate?.quality ?? 0];
-              return h('div', { class: 'tray-plate', title: q }, r ? iconElement(r.icon) : null, h('div', { class: 'hint' }, `${view?.tableId ? 'Mesa ' + (view.tableId.match(/\d+/)?.[0] ?? view.tableId) : customerName(o.customer)} · ${q}`));
+              return h('div', { class: 'tray-plate', title: q }, r ? iconElement(r.icon) : null, h('div', { class: 'hint' }, `${o.service?.tableId ? tableLabel(o.service.tableId) + ' · ' + customerName(o.customer) : customerName(o.customer)} · ${q}`));
             })),
-          h('div', { class: 'hint' }, 'Cuando termines acá, llevalos a sus mesas.'),
+          h('div', { class: 'hint' }, 'Recogelos en la bandeja física junto al mostrador y llevalos a sus mesas.'),
         ),
       );
     if (!game.save.orders.length) body.append(h('p', { class: 'muted' }, 'No hay pedidos en el mostrador. Cuando un cliente se siente, tomá el pedido en su mesa.'));
     for (const o of game.save.orders) {
-      const r = RECIPES_BY_ID[o.recipe];
+      const r = o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe];
       if (!r) continue;
       const held = plateState(o.uid);
-      const ready = held !== 'plated' && canCook(r.id);
-      const cost = ready || held === 'plated' ? 0 : missingCost(r);
+      const cooked = ['plated', 'carried', 'delivered'].includes(held);
+      const ready = !cooked && (o.kind === 'drink' ? canPrepareDrink(r.id) : canCook(r.id));
+      const cost = ready || cooked ? 0 : missingCost(r);
       const special = o.special === 'odd' ? 'Pedido sin remitente' : o.special === 'tutorial' ? 'Pedido de práctica' : '';
       body.append(
         h(
           'div',
           { class: 'card col', style: { gap: '6px', borderColor: o.special ? '#f2c66d' : undefined } },
           h('div', { class: 'row', style: { justifyContent: 'space-between' } },
-            h('div', { class: 'row' }, iconElement(r.icon), h('div', null, h('b', null, r.name), h('span', { class: 'mastery-stars', title: nextStarGoal(mastery(r.id)) ?? 'Receta dominada' }, ' ' + starsText(recipeStars(r.id))), h('div', { class: 'hint' }, special || `Para: ${customerName(o.customer)}`))),
+            h('div', { class: 'row' }, iconElement(r.icon), h('div', null, h('b', null, r.name), o.kind === 'drink' ? null : h('span', { class: 'mastery-stars', title: nextStarGoal(mastery(r.id)) ?? 'Receta dominada' }, ' ' + starsText(recipeStars(r.id))), h('div', { class: 'hint' }, special || `Para: ${customerName(o.customer)}${o.service ? ' · ' + tableLabel(o.service.tableId) : ''}`))),
             h('span', { class: 'coin' }, `${o.reward} ●`)),
           !special && customerAsk(o.customer, o.uid) ? h('div', { class: 'order-ask' }, `“${customerAsk(o.customer, o.uid)}”`) : null,
-          held === 'plated' ? h('div', { class: 'hint' }, 'El plato está listo. Llevalo a la mesa.') : ingList(r),
+          cooked ? h('div', { class: 'hint' }, held === 'carried' ? 'Lo estás llevando a su mesa.' : held === 'delivered' ? 'Entregado. El grupo está comiendo o esperando el resto.' : 'Listo en la bandeja de salida.') : ingList(r),
           h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
-            held !== 'plated' && !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) render(); else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
-            held !== 'plated' && !ready && cost == null ? h('span', { class: 'hint' }, 'Faltan ingredientes que no se compran acá.') : null,
-            held !== 'plated' && ready && quickQuality(recipeStars(r.id))
+            !cooked && !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) render(); else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
+            !cooked && !ready && cost == null ? h('span', { class: 'hint' }, 'Faltan ingredientes que no se compran acá.') : null,
+            !cooked && o.kind !== 'drink' && ready && quickQuality(recipeStars(r.id))
               ? h('button', { class: 'btn small', title: 'Receta dominada: se prepara en un toque', onclick: async () => {
                   p.root.parentElement!.style.display = 'none';
-                  try { await cookOrder(o.uid, true); } finally {
+                  try { await runTask('kitchen:order', () => cookOrder(o.uid, true)); } finally {
                     if (p.root.isConnected) { p.root.parentElement!.style.display = ''; render(); }
                   }
                 } }, 'Rápido')
               : null,
-            h('button', { class: 'btn small primary', disabled: held === 'plated' || !ready, onclick: async () => {
+            h('button', { class: 'btn small primary', disabled: cooked || !ready, onclick: async () => {
               // the station stays open between dishes: hide it while the board is up, then show the updated list
               p.root.parentElement!.style.display = 'none';
-              try { await cookOrder(o.uid); } finally {
+              try { await runTask('kitchen:order', () => cookOrder(o.uid)); } finally {
                 if (p.root.isConnected) { p.root.parentElement!.style.display = ''; render(); }
               }
-            } }, held === 'plated' ? 'En la mesa' : 'Cocinar'),
+            } }, cooked ? (held === 'delivered' ? 'Entregado' : held === 'carried' ? 'En tus manos' : 'En bandeja') : o.kind === 'drink' ? 'Preparar bebida' : 'Cocinar'),
           ),
         ),
       );
     }
-    body.append(h('p', { class: 'hint' }, `Hasta ${maxOrders()} pedidos a la vez. Tomá cada pedido en la mesa. Los de la historia siguen en el mostrador.`));
+    body.append(h('p', { class: 'hint' }, `Hasta ${maxOrders()} grupos a la vez. Cada integrante tiene su pedido. Recogé los platos listos en la bandeja. Los de la historia siguen en el mostrador.`));
   };
   render();
   const p = panel({ title: 'Cocina · Pedidos', body, foot: [h('button', { class: 'btn', onclick: () => p.close() }, 'Volver al salón')] });
 }
 
 /** Cook one order. A party that is waiting eats at the table; story orders pay here. */
-export function cookOrder(uid: number, quick = false) {
-  return startOrder(uid, quick);
+const cooking = new Set<number>();
+export async function cookOrder(uid: number, quick = false) {
+  if (cooking.has(uid)) return;
+  cooking.add(uid);
+  try { await startOrder(uid, quick); } finally { cooking.delete(uid); }
 }
 
 /** Result of a one-tap dish (mastered recipes): no board, and it never raises mastery. */
@@ -168,19 +176,22 @@ function celebrate(r: RecipeDef, result: CookResult) {
 }
 
 async function startOrder(uid: number, quick = false) {
-  if (plateState(uid) === 'plated') {
+  if (['plated', 'carried', 'delivered'].includes(plateState(uid))) {
     toast('Ese plato ya está listo. Llevalo a la mesa.');
     return;
   }
   const o = game.save.orders.find((x) => x.uid === uid);
   if (!o) return;
+  if (o.kind === 'drink') { await prepareDrink(uid); return; }
   const r = RECIPES_BY_ID[o.recipe];
-  const forTable = plateState(uid) === 'cooking';
+  const forTable = !!o.service || plateState(uid) === 'cooking';
   if (!game.consumeIngredients(r.ingredients)) {
     toast('Faltan ingredientes.');
     return;
   }
-  const res = quick ? quickResult(r) : await cook(r.id, customerName(o.customer));
+  let res: CookResult;
+  try { res = quick ? quickResult(r) : await cook(r.id, customerName(o.customer)); }
+  catch (error) { for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund'); throw error; }
   if (res.ok && !quick) celebrate(r, res);
   if (!res.ok) {
     // cancelled: give the ingredients back (no punishment)
@@ -188,9 +199,13 @@ async function startOrder(uid: number, quick = false) {
     toast('Guardaste los ingredientes para después.');
     return;
   }
-  if (forTable && stagePlate(uid, res.quality, res.variantBonus, res.variant)) {
+  if (forTable) {
+    if (!stagePlate(uid, res.quality, res.variantBonus, res.variant)) {
+      for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund');
+      toast('El pedido cambió. Te devolví los ingredientes.'); return;
+    }
     await showPlate(r, res.quality, res.variant);
-    toast(`Listo. Llevá ${r.name} a la mesa.`);
+    toast(`Listo. Recogé ${r.name} en la bandeja de salida.`);
     return;
   }
   const special = o.special;
@@ -208,13 +223,31 @@ async function startOrder(uid: number, quick = false) {
   }
 }
 
-/** Coins, reaction and level-up after a table has eaten. The tip stays on the table. */
-export async function presentPaidMeal(meal: PaidMeal) {
-  const r = RECIPES_BY_ID[meal.recipe];
-  if (!r) return;
+/** One short receipt per group, preserving meaningful recipe/level celebrations. */
+export async function presentPaidMeals(meals: PaidMeal[]) {
+  if (!meals.length) return;
   audio.sfxPlay('coin');
-  await showServeResult(r, meal.result, meal.quality, customerName(meal.customer), meal.customer, meal.variant, true);
+  await runScene('serve_group', async () => {
+    const coins = meals.reduce((n, m) => n + m.result.coins, 0), tips = meals.reduce((n, m) => n + m.result.tip, 0);
+    const reply = GENERIC_CUSTOMERS.find(c => c.id === meals[0].customer);
+    if (reply) await say('?' + reply.name, reply.react?.[meals[0].quality] ?? ['Gracias por la comida.', '¡Muy rico! Fue un lindo rato.', '¡Perfecto! Vamos a volver.'][meals[0].quality]);
+    await say('narr', `${meals.length} pedido${meals.length === 1 ? '' : 's'} servidos. Cobraste ${coins} monedas.${tips ? ` Quedaron ${tips} de propina en la mesa.` : ''}`);
+    for (const m of meals.filter(m => m.result.firstTime)) await say('narr', `¡Primera vez que preparás ${servingName({ recipe: m.recipe, kind: m.kind } as import('../core/types').Order)}! Quedó en tus colecciones.`);
+    const level = Math.max(...meals.map(m => m.result.levelUp));
+    if (level) {
+      await say('spicy', `¡Midnight Maki subió a nivel ${level}! ¡Seguimos creciendo!`, 'happy');
+      for (const recipe of [...new Set(meals.flatMap(m => m.result.newRecipes))]) await say('narr', `Nueva receta: ${RECIPES_BY_ID[recipe].name}.`);
+      applyStageGrants();
+      if (meals.some(m => m.result.levelUp && stageForLevel(m.result.levelUp) !== stageForLevel(m.result.levelUp - 1))) {
+        await say('narr', `Midnight Maki se ve distinto: ${STAGE_NAMES[stageForLevel(level)]}.`);
+        const { world } = await import('../scenes/WorldScene');
+        if (world.zoneId === 'restaurant' && world.player) await world.enterZone('restaurant', world.player.tx, world.player.ty, world.player.dir, false);
+      }
+    }
+    for (const m of meals.filter(m => m.result.gift)) await say('narr', `${customerName(m.customer)} dejó un regalito: ${ITEMS_BY_ID[m.result.gift!]?.name ?? m.result.gift}.`);
+  });
 }
+export async function presentPaidMeal(meal: PaidMeal) { await presentPaidMeals([meal]); }
 
 async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof serveOrder>>, quality: number, who: string, customer: string, variant?: string, tipOnTable = false) {
   const generic = GENERIC_CUSTOMERS.find((c) => c.id === customer);
@@ -263,16 +296,16 @@ function showPlate(r: RecipeDef, quality: number, variant?: string): Promise<voi
     cv.style.maxWidth = '86vw';
     const stars = h('div', { class: 'plate-stars' }, ...[0, 1, 2].map((i) => h('span', { class: i <= quality ? 'on' : '' }, '★')));
     const words = ['¡Listo para servir!', '¡Muy bien hecho!', '¡Perfecto!'][quality];
-    const wrap = h('div', { class: 'plate-show' }, h('div', { class: 'plate-card' }, h('div', { class: 'plate-name' }, r.name), cv, stars, h('div', { class: 'plate-words' }, words), h('div', { class: 'hint' }, 'Tocá para servir')));
+    const wrap = h('div', { class: 'plate-show' }, h('div', { class: 'plate-card' }, h('div', { class: 'plate-name' }, r.name), cv, stars, h('div', { class: 'plate-words' }, words), h('div', { class: 'hint' }, 'Tocá para continuar')));
     wrap.addEventListener('pointerup', () => {
       wrap.classList.add('out');
       setTimeout(() => {
-        wrap.remove();
+        close();
         resolve();
       }, 250);
     });
     audio.sfxPlay(quality === 2 ? 'success' : 'sparkle');
-    uiRoot().append(wrap);
+    const close = openModal(wrap);
   });
 }
 
@@ -289,6 +322,7 @@ export function openKitchen() {
       h('b', null, 'Cocina libre'),
       h('p', { class: 'hint' }, 'Prepará cualquier receta que conozcas. Un cliente sin reserva siempre la compra.'),
       h('button', { class: 'btn', onclick: () => { p.close(); openFreeCook(); } }, 'Elegir receta')),
+    h('div', { class: 'card col' }, h('b', null, 'Bebidas'), h('p', { class: 'hint' }, 'Té verde, ramune y leche de frutilla desde nivel 2.'), h('button', { class: 'btn', onclick: () => { p.close(); openDrinks(); } }, 'Estación de bebidas')),
     game.has('spicy_lab_intro') || game.friendLevel('spicy') >= 1
       ? h('div', { class: 'card col' },
           h('b', null, 'Experimentar con Spicy'),
@@ -311,7 +345,7 @@ function openFreeCook() {
         ingList(r),
         h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
           !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) { p.close(); openFreeCook(); } else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
-          h('button', { class: 'btn small primary', disabled: !ready, onclick: () => { p.close(); freeCook(r.id); } }, 'Cocinar')),
+          h('button', { class: 'btn small primary', disabled: !ready, onclick: () => { p.close(); void runTask('kitchen:free', () => freeCook(r.id)); } }, 'Cocinar')),
       ),
     );
   }

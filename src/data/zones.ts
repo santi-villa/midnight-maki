@@ -213,7 +213,7 @@ function restaurant(): ZoneDef {
   // fixed kitchen props are furniture-like props
   b.prop('k_fridge', 1, 2).prop('k_stove', 2, 2).prop('k_sink', 3, 2).prop('k_rice', 4, 2).prop('k_board', 5, 2)
     .prop('k_counter', 1, 5).prop('k_counter', 2, 5).prop('k_counter', 3, 5).prop('k_counter', 4, 5)
-    .prop('k_register', 7, 4).prop('k_register2', 8, 4)
+    .prop('k_counter', 6, 4).prop('k_register', 7, 4).prop('k_register2', 8, 4)
     .prop('bar_stool', 1, 6).prop('bar_stool', 2, 6).prop('bar_stool', 3, 6).prop('bar_stool', 4, 6)
     .prop('stairs', 16, 2)
     .prop('door_storage', 13, 1, '!storage_open')
@@ -255,6 +255,8 @@ function restaurant(): ZoneDef {
       { id: 'cook2', x: 4, y: 3, label: 'Cocinar', action: 'cook' },
       { id: 'orders', x: 7, y: 5, label: 'Pedidos', action: 'orders' },
       { id: 'orders2', x: 8, y: 5, label: 'Pedidos', action: 'orders' },
+      { id: 'tray', x: 6, y: 5, label: 'Bandeja de salida', action: 'tray' },
+      { id: 'drinks', x: 2, y: 3, label: 'Bebidas', action: 'drinks' },
       { id: 'fridge', x: 1, y: 3, label: 'Despensa', action: 'pantry' },
       { id: 'storage_door', x: 13, y: 2, label: 'Depósito', action: 'door:storage' },
     ],

@@ -940,3 +940,12 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 @keyframes phone-open { from { opacity: .5; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .reduce-motion .noriphone { animation: none; }
 @media (prefers-reduced-motion: reduce) { .noriphone { animation: none; } }
+
+/* Short beverage preparation uses the existing cozy panels and touch buttons. */
+.drink-preparation { align-items: center; }
+.drink-preparation > canvas { width: 64px; height: 64px; image-rendering: pixelated; }
+.drink-preparation .btn { width: 100%; min-height: 48px; }
+.drink-vessel { width: 64px; height: 72px; border: 4px solid #6b4330; background: #f6ecd6; position: relative; overflow: hidden; box-shadow: 4px 4px 0 #bc9870; }
+.drink-fill { position: absolute; bottom: 0; left: 0; right: 0; transition: height 120ms steps(4); }
+.reduce-motion .drink-fill { transition: none; }
+@media (prefers-reduced-motion: reduce) { .drink-fill { transition: none; } }

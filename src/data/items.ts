@@ -19,6 +19,10 @@ const I = (id: string, name: string, cat: ItemCat, icon: IconSpec, buy: number, 
   ({ id, name, cat, icon, buy, sell, desc, ...extra });
 
 export const ITEMS: ItemDef[] = [
+  // ---------------- beverage supplies
+  I('tea_leaves', 'Hojas de té verde', 'ingredient', { type: 'leaf', c1: '#91ab69' }, 2, 1, 'Para una taza de té verde en la estación de bebidas.'),
+  I('ramune_bottle', 'Botella de ramune', 'ingredient', { type: 'bottle', c1: '#78adb6' }, 4, 2, 'Una bolita de vidrio guarda las burbujas.'),
+  I('milk', 'Leche', 'ingredient', { type: 'bottle', c1: '#f6ecd6' }, 3, 1, 'Para mezclar con frutillas silvestres.'),
   // ---------------- ingredients
   I('rice', 'Arroz para sushi', 'ingredient', { type: 'grain' }, 3, 1, 'Arroz avinagrado, brillante y pegajoso.'),
   I('nori', 'Alga nori', 'ingredient', { type: 'sheet' }, 3, 1, 'Hoja de alga tostada.'),

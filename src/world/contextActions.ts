@@ -5,10 +5,11 @@
  */
 import { game } from '../core/state';
 import type { Dir } from '../core/types';
+import { DRINK_BY_ID } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { ZONES, type DoorDef, type InteractDef, type RoomDef } from '../data/zones';
 import { canCook, customerName } from '../restaurant/orders';
-import { tableJobs, type TableJob } from '../restaurant/service';
+import { carriedOrder, trayOrders, tableJobs, type TableJob } from '../restaurant/service';
 import type { GatherSpot } from '../systems/gather';
 
 export const TILE = 16;
@@ -31,6 +32,7 @@ export type ContextIntent =
   | { type: 'company'; npcId: string }
   | { type: 'decorate' }
   | { type: 'orders' }
+  | { type: 'tray' }
   | { type: 'takeOrder'; tableId: string }
   | { type: 'cookOrder'; uid: number }
   | { type: 'deliver'; tableId: string }
@@ -151,16 +153,16 @@ function jobAction(job: TableJob): ContextAction | null {
     const who = job.customerId ? customerName(job.customerId) : 'El cliente';
     return {
       id: `take:${job.tableId}`,
-      label: 'Tomar pedido',
-      detail: `${who} está listo para pedir.`,
+      label: job.members > 1 ? 'Tomar pedidos' : 'Tomar pedido',
+      detail: job.members > 1 ? `Tomar los pedidos de ${job.members} personas.` : `${who} está listo para pedir.`,
       icon: 'clipboard',
       intent: { type: 'takeOrder', tableId: job.tableId },
     };
   }
   if (job.phase !== 'waiting_food' || !job.recipe) return null;
   const who = job.customerId ? customerName(job.customerId) : 'el cliente';
-  const dish = RECIPES_BY_ID[job.recipe]?.name ?? 'el pedido';
-  if (job.plated) {
+  const dish = RECIPES_BY_ID[job.recipe]?.name ?? DRINK_BY_ID[job.recipe]?.name ?? 'el pedido';
+  if (carriedOrder()?.service?.tableId === job.tableId) {
     return {
       id: `deliver:${job.tableId}`,
       label: 'Entregar',
@@ -169,7 +171,9 @@ function jobAction(job: TableJob): ContextAction | null {
       intent: { type: 'deliver', tableId: job.tableId },
     };
   }
-  const ready = !!job.orderUid && canCook(job.recipe);
+  if (job.plated) return { id: `tray:${job.tableId}`, label: 'Recoger pedido', detail: `${dish} espera en la bandeja de salida.`, icon: 'serve', intent: { type: 'orders' } };
+  const order = game.save.orders.find(o => o.uid === job.orderUid);
+  const ready = !!job.orderUid && order?.kind !== 'drink' && canCook(job.recipe);
   return {
     id: ready ? `cook:${job.orderUid}` : `order:${job.orderUid}`,
     label: `${ready ? 'Cocinar' : 'Pedido'} · ${shortWho(who)}`,
@@ -219,7 +223,11 @@ export function resolveContext(sense: ContextSense): ContextOffer {
       }, n.x, n.y, 22, sense, 5);
     }
   }
+  if (sense.zoneId === 'restaurant' && (trayOrders().length || carriedOrder())) consider(bag, {
+    id: 'station:tray', label: carriedOrder() ? 'Dejar pedido' : 'Recoger pedido', detail: 'Bandeja de salida', icon: 'serve', intent: { type: 'tray' },
+  }, 6 * TILE + 8, 5 * TILE + 10, 24, sense, 0, -TILE / 2);
   for (const i of sense.interacts) {
+    if (i.action === 'tray' && (trayOrders().length || carriedOrder())) continue;
     const px = i.x * TILE + 8;
     const py = i.y * TILE + 10;
     if (i.action.startsWith('door:')) {

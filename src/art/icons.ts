@@ -11,6 +11,11 @@ const RICE = '#fbf7ee';
 const NORI = '#2f3b33';
 
 const T: Record<string, F> = {
+  tea(c, c1) {
+    px(c, 3, 6, '#f6ecd6', 10, 7); px(c, 4, 7, c1, 8, 3);
+    px(c, 3, 13, '#6b4330', 10, 1); px(c, 12, 8, '#6b4330', 3, 3);
+    px(c, 5, 2, '#f6ecd6', 1, 3); px(c, 9, 1, '#f6ecd6', 1, 3);
+  },
   grain(c) {
     ellipse(c, 8, 10, 6, 4, '#c27f86');
     px(c, 2, 9, '#a85f68', 13, 1);
