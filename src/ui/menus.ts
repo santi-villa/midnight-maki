@@ -107,7 +107,7 @@ function investigationView() {
 }
 
 function relationsView() {
-  const grid = h('div', { class: 'col' }, h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: openPhotoAlbum }, 'Fotos juntos'), h('button', { class: 'btn small', onclick: () => openJournal(3) }, 'Recuerdos y momentos')));
+  const grid = h('div', { class: 'col' }, h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: openPhotoAlbum }, 'Fotos juntos'), h('button', { class: 'btn small', onclick: () => openJournal(3) }, 'Recuerdos y momentos'), h('button', { class: 'btn small', onclick: () => import('./bonds').then((m) => m.openBonds()) }, 'Vínculos')));
   for (const c of CHARACTERS) {
     const r = game.rel(c.id);
     if (!c.raccoon && r.points <= 0) continue;

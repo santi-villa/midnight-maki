@@ -219,6 +219,28 @@ export const RECIPES: RecipeDef[] = [
     steps: maki(['tuna', 'mango', 'shiitake'], ['roe']), price: 115, xp: 45,
     unlock: { flag: 'recipe_secret', text: 'Experimento de Spicy' }, icon: { type: 'maki', c1: '#3b4470', c2: '#f2c66d' },
   }),
+  // Rewards of the personal stories (src/story/bonds.ts): earned with Pip, Spicy and Rigg, never bought.
+  R({
+    id: 'pip_nap', name: 'Maki Siesta de Pip', cat: 'special', difficulty: 2,
+    desc: 'Mango, pepino y queso crema, suave como una manta. Se come despacito.',
+    ingredients: { rice: 1, nori: 1, mango: 1, cucumber: 1, cream: 1 },
+    steps: maki(['mango', 'cucumber', 'cream']), price: 62, xp: 26,
+    unlock: { flag: 'recipe_bond_pip', text: 'Una siesta con Pip' }, icon: { type: 'maki', c1: '#f4c6cf', c2: '#f8d78a' },
+  }),
+  R({
+    id: 'spicy_egg', name: 'Tamago con carácter', cat: 'special', difficulty: 3, spicy: true,
+    desc: 'Tamagoyaki, pepino y un hilo de ají. Tiene carácter, como debe ser.',
+    ingredients: { rice: 1, nori: 1, egg: 1, cucumber: 1, chili: 1 },
+    steps: maki(['egg', 'cucumber', 'chili']), price: 74, xp: 32,
+    unlock: { flag: 'recipe_bond_spicy', text: 'El huevo de Spicy, otra vez' }, icon: { type: 'maki', c1: '#f2d27a', c2: '#c94a3f' },
+  }),
+  R({
+    id: 'rigg_notebook', name: 'Maki del Cuaderno', cat: 'special', difficulty: 3,
+    desc: 'Atún, palta y una ciruela encurtida. Prolijo, ácido y sorprendentemente tierno.',
+    ingredients: { rice: 1, nori: 1, tuna: 1, avocado: 1, umeboshi: 1 },
+    steps: maki(['tuna', 'avocado', 'umeboshi']), price: 82, xp: 34,
+    unlock: { flag: 'recipe_bond_rigg', text: 'Una noche de estrellas con Rigg' }, icon: { type: 'maki', c1: '#3b4470', c2: '#c4505a' },
+  }),
   R({
     id: 'sofi_maki', name: 'Maki de la casa', cat: 'special', difficulty: 3,
     desc: 'Salmón, palta y mango con un toque de sakura. Hecho con cariño.',

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
-import { BALANCE } from '../core/balance';
 import { ITEMS_BY_ID } from '../data/items';
 import { RECIPES } from '../data/recipes';
 import { addRestaurantXp, serveOrder, unlockLevelRecipes } from '../restaurant/orders';
@@ -41,15 +40,16 @@ describe('sustainable cooking and unlock pace', () => {
     }
     expect(game.save.restaurant.level).toBe(2);
     expect(game.save.recipesKnown).toContain('california');
-    game.addCoins(300); const before = game.coins;
+    game.addCoins(300); game.addItem('wood', 2); const before = game.coins;
     expect(buyUpgrade('tables2')).toBe(true); expect(game.coins).toBe(before - 300);
     expect(buyUpgrade('tables2')).toBe(false);
     addRestaurantXp(100000); unlockLevelRecipes();
-    expect(game.save.restaurant.level).toBe(BALANCE.maxRestaurantLevel);
+    // from level 3 on, levels are bought (Restaurante → Mejoras → Ascender): piling up XP alone never skips a gate
+    expect(game.save.restaurant.level).toBe(2);
     expect(game.save.recipesKnown).not.toContain('three_stars');
   });
   it('charges an upgrade once when a synchronous wallet listener tries buying it again', () => {
-    game.save.restaurant.level = 2; game.save.coins = 1000;
+    game.save.restaurant.level = 2; game.save.coins = 1000; game.addItem('wood', 2);
     let reentered = false;
     const off = bus.on('coins:changed', () => {
       if (reentered) return;
