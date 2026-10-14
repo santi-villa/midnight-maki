@@ -9,6 +9,7 @@ import { IZAKAYA_KINDS } from './izakaya';
 import { NATURE_KINDS } from './nature';
 import { drawPlaque } from './pixfont';
 import { SHOP_KINDS } from './shopart';
+import { TOWN_KINDS } from './townart';
 import { drawFountain } from './fountain';
 
 const OUT = '#3a2a2a';
@@ -808,7 +809,7 @@ const K: Record<string, DrawFn> = {
   },
 };
 
-Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS);
+Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS);
 
 export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string, stage?: number): HTMLCanvasElement {
   const c = makeCanvas(w, h);

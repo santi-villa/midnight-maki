@@ -67,6 +67,25 @@ registerAction('door', async (to) => {
   await world.enterZone(d.to, d.tx, d.ty, d.dir);
 });
 
+/** A visible obstacle (logs, vines, barricade...) that closes a path until its flag is set. */
+registerAction('blocked', async (to) => {
+  const d = world.zone.def.doors.find((dd) => dd.to === to && dd.lock);
+  if (!d?.lock) return;
+  if (game.has(d.lock.flag)) { world.refreshZone(); return; }
+  toast(d.lock.msg);
+  const { onLockedDoor } = await import('../story/story');
+  if (onLockedDoor(to)) world.refreshZone();
+});
+
+const NOTES: Record<string, string> = {
+  house: 'La luz está encendida. Se oye una radio bajita adentro.',
+  tea: 'La casa de té abre solo para los vecinos del barrio. Huele a té de cebada.',
+  fish: 'El pescador salió temprano. Dejó una nota: "Vuelvo con la marea".',
+  flower: 'Un cartelito: "Las flores de hoy están en el jardín. Pasen por la tarde".',
+  shrine: 'Dejás una moneda imaginaria y pedís un deseo chiquito. El viento mueve las tiras de papel.',
+};
+registerAction('note', (key) => { toast(NOTES[key] ?? 'No hay nadie.'); });
+
 registerAction('board', () => {
   const ids = boardQuests();
   const body = h('div', { class: 'col' });

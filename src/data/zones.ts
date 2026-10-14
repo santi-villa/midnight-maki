@@ -3,7 +3,9 @@
  * which keeps them easy to edit. Coordinates are tiles.
  */
 import type { Dir } from '../core/types';
-import { PROJECT_AMENITIES } from './projects';
+import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
+import { plaza } from './plazaMap';
+export { Builder, treeBorder, zone, RESTAURANT_ENTRY };
 
 export interface PropPlace { id: string; x: number; y: number; cond?: string; }
 export interface DoorDef {
@@ -35,171 +37,7 @@ export interface ZoneDef {
 }
 
 // The restaurant's street entrance is also the arrival point after the opening pictures.
-export const RESTAURANT_ENTRY = { zone: 'restaurant', x: 8, y: 12, dir: 'up' } as const;
 export const GARDEN_PLOT_POSITIONS = [[3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [4, 5], [7, 5]] as const;
-
-// ------------------------------------------------------------------ builder
-class Builder {
-  g: string[][];
-  props: PropPlace[] = [];
-  constructor(public w: number, public h: number, fill: string) {
-    this.g = Array.from({ length: h }, () => Array.from({ length: w }, () => fill));
-  }
-  rect(x: number, y: number, w: number, h: number, ch: string) {
-    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (this.g[j] && i >= 0 && i < this.w) this.g[j][i] = ch;
-    return this;
-  }
-  set(x: number, y: number, ch: string) {
-    if (this.g[y] && x >= 0 && x < this.w) this.g[y][x] = ch;
-    return this;
-  }
-  prop(id: string, x: number, y: number, cond?: string) {
-    this.props.push({ id, x, y, cond });
-    return this;
-  }
-  /** interior box: walltop border, wall face row with windows */
-  room(x: number, y: number, w: number, h: number, windows: number[] = []) {
-    this.rect(x, y, w, h, '#');
-    this.rect(x + 1, y, w - 2, 1, 'U');
-    this.rect(x + 1, y + 1, w - 2, 1, 'W');
-    for (const wx of windows) this.set(x + wx, y + 1, 'V');
-    this.rect(x + 1, y + 2, w - 2, h - 3, 'f');
-    return this;
-  }
-  rows() {
-    return this.g.map((r) => r.join(''));
-  }
-}
-
-function zone(b: Builder, z: Omit<ZoneDef, 'w' | 'h' | 'ground' | 'props'> & { props?: PropPlace[] }): ZoneDef {
-  const amenities = PROJECT_AMENITIES.filter((a) => a.zone === z.id).map((a) => ({ id: 'project_' + a.id, x: a.x, y: a.y, label: a.title, action: 'project:' + a.id, cond: `proj_${a.project}_${a.phase}` }));
-  return { ...z, interact: [...z.interact, ...amenities], w: b.w, h: b.h, ground: b.rows(), props: [...b.props, ...(z.props ?? [])] };
-}
-
-function treeBorder(b: Builder, gaps: [number, number][], kinds = ['tree', 'tree_dark', 'pine']) {
-  let k = 0;
-  const near = (x: number, y: number) => gaps.some(([gx, gy]) => Math.abs(gx - x) <= 1 && Math.abs(gy - y) <= 1);
-  // trees only grow on grass (never in water, sand or paths)
-  const gap = (x: number, y: number) => near(x, y) || !'gG'.includes(b.g[y]?.[x] ?? 'x');
-  for (let x = 0; x < b.w; x += 2) {
-    if (!gap(x, 0)) b.prop(kinds[k++ % kinds.length], x, 0);
-    if (!gap(x, b.h - 1)) b.prop(kinds[k++ % kinds.length], x, b.h - 1);
-  }
-  for (let y = 2; y < b.h - 1; y += 2) {
-    if (!gap(0, y)) b.prop(kinds[k++ % kinds.length], 0, y);
-    if (!gap(b.w - 1, y)) b.prop(kinds[k++ % kinds.length], b.w - 1, y);
-  }
-}
-
-// ================================================================== PLAZA
-function plaza(): ZoneDef {
-  const b = new Builder(32, 26, 'g');
-  b.rect(9, 7, 14, 12, 'c'); // square
-  b.rect(3, 7, 7, 2, 'c'); // to restaurant
-  b.rect(15, 0, 2, 7, 'p'); // north
-  b.rect(15, 19, 2, 7, 'p'); // south
-  b.rect(23, 12, 9, 2, 'p'); // east
-  b.rect(0, 12, 9, 2, 'p'); // west
-  b.rect(29, 0, 2, 7, 'p'); // market path
-  b.rect(23, 7, 8, 1, 'p');
-  b.rect(25, 7, 2, 5, 'c');
-  b.rect(4, 19, 2, 1, 'c');
-  b.rect(4, 13, 2, 3, 'p');
-  b.rect(10, 19, 3, 2, 'c');
-  b.rect(9, 9, 2, 1, 'r').rect(21, 9, 2, 1, 'y').rect(9, 16, 2, 1, 'l').rect(21, 16, 2, 1, 'r');
-  treeBorder(b, [[15, 0], [16, 0], [29, 0], [30, 0], [12, 25], [15, 25], [16, 25], [31, 12], [31, 13], [0, 12], [0, 13]]);
-  b.prop('bld_restaurant_s0', 2, 4, 'stage=0')
-    .prop('bld_restaurant_s1', 2, 4, 'stage=1')
-    .prop('bld_restaurant_s2', 2, 4, 'stage=2')
-    .prop('bld_restaurant_s3', 2, 4, 'stage=3')
-    // outside the restaurant, more of the street joins in as it grows
-    .prop('sake_barrel', 1, 6, 'stage>=2')
-    .prop('sake_barrel', 1, 5, 'stage>=2')
-    .prop('bamboo', 8, 5, 'stage>=3')
-    .prop('bamboo', 1, 7, 'stage>=3')
-    .prop('flowers', 6, 6, 'stage>=1')
-    .prop('bld_clothes', 23, 4)
-    .prop('bld_store', 24, 16)
-    .prop('bld_bakery', 2, 16)
-    .prop('bld_library', 8, 22)
-    .prop('fountain', 14, 11)
-    .prop('board', 11, 7)
-    .prop('mailbox', 9, 5)
-    .prop('bench', 12, 14)
-    .prop('bench', 18, 14)
-    .prop('lamppost', 9, 8)
-    .prop('lamppost', 22, 8)
-    .prop('lamppost', 9, 18)
-    .prop('lamppost', 22, 18)
-    .prop('sakura', 13, 8)
-    .prop('sakura', 19, 8)
-    .prop('tree', 5, 11)
-    .prop('tree', 27, 21)
-    .prop('bush_flower', 2, 9)
-    .prop('bush', 8, 4)
-    .prop('bush_berry', 20, 22)
-    .prop('lantern_red', 3, 8)
-    .prop('lantern_red', 8, 8)
-    .prop('torii', 28, 3)
-    .prop('flowers', 6, 10)
-    .prop('flowers_lav', 18, 21)
-    .prop('crate', 30, 15)
-    .prop('barrel', 22, 20)
-    .prop('pot_rose', 3, 7)
-    .prop('pot_cream', 7, 7)
-    .prop('menuboard', 8, 7)
-    .prop('awning_rose', 25, 5)
-    .prop('awning_sage', 26, 17)
-    .prop('vending_blue', 23, 18)
-    .prop('vending_red', 30, 18)
-    .prop('bicycle', 10, 5)
-    .prop('bicycle_rose', 20, 23)
-    .prop('lanternstring', 14, 2)
-    .prop('lanternstring', 14, 20)
-    .prop('poster_a', 2, 18)
-    .prop('poster_b', 7, 18)
-    .prop('pot_rose', 8, 23)
-    .prop('puddle', 12, 10, 'rain')
-    .prop('puddle', 19, 12, 'rain')
-    .prop('puddle', 6, 13, 'rain')
-    .prop('puddle', 16, 17, 'rain');
-  return zone(b, {
-    id: 'plaza', name: 'Plaza de Villa Nori', music: 'town', outdoor: true,
-    doors: [
-      { x: 26, y: 6, to: 'shop_yuki', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Ropa de Yuki' },
-      { x: 27, y: 18, to: 'shop_taro', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Almacén de Taro' },
-      { x: 5, y: 18, to: 'shop_bento', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Panadería' },
-      { x: 11, y: 24, to: 'library', tx: 6, ty: 7, dir: 'up', walk: true, label: 'Biblioteca' },
-      { x: 5, y: 6, to: RESTAURANT_ENTRY.zone, tx: RESTAURANT_ENTRY.x, ty: RESTAURANT_ENTRY.y, dir: RESTAURANT_ENTRY.dir, walk: true, label: 'Midnight Maki' },
-      { x: 15, y: 0, to: 'forest', tx: 14, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Kiki dice que el sendero al bosque todavía está lleno de ramas.' } },
-      { x: 16, y: 0, to: 'forest', tx: 15, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Kiki dice que el sendero al bosque todavía está lleno de ramas.' } },
-      { x: 15, y: 25, to: 'beach', tx: 14, ty: 1, dir: 'down', walk: true, lock: { flag: 'unlock_beach', msg: 'Nami está arreglando el camino a la playa. ¡Pronto!' } },
-      { x: 16, y: 25, to: 'beach', tx: 15, ty: 1, dir: 'down', walk: true, lock: { flag: 'unlock_beach', msg: 'Nami está arreglando el camino a la playa. ¡Pronto!' } },
-      { x: 31, y: 12, to: 'garden', tx: 1, ty: 10, dir: 'right', walk: true, lock: { flag: 'unlock_garden', msg: 'El portón del jardín está cerrado. Momo tiene la llave.' } },
-      { x: 31, y: 13, to: 'garden', tx: 1, ty: 11, dir: 'right', walk: true, lock: { flag: 'unlock_garden', msg: 'El portón del jardín está cerrado. Momo tiene la llave.' } },
-      { x: 0, y: 12, to: 'station', tx: 22, ty: 10, dir: 'left', walk: true, lock: { flag: 'unlock_station', msg: 'Un cartel viejo: "Estación clausurada". El camino está tapado por enredaderas.' } },
-      { x: 0, y: 13, to: 'station', tx: 22, ty: 11, dir: 'left', walk: true, lock: { flag: 'unlock_station', msg: 'Un cartel viejo: "Estación clausurada". El camino está tapado por enredaderas.' } },
-      { x: 29, y: 0, to: 'market', tx: 12, ty: 16, dir: 'up', walk: true, lock: { flag: 'market_open', msg: 'El torii está en silencio. Dicen que algunas noches aparece un mercado del otro lado.' } },
-      { x: 30, y: 0, to: 'market', tx: 13, ty: 16, dir: 'up', walk: true, lock: { flag: 'market_open', msg: 'El torii está en silencio. Dicen que algunas noches aparece un mercado del otro lado.' } },
-    ],
-    interact: [
-      { id: 'board', x: 11, y: 8, label: 'Cartelera', action: 'board' },
-      { id: 'board2', x: 12, y: 8, label: 'Cartelera', action: 'board' },
-      { id: 'mailbox', x: 9, y: 6, label: 'Buzón', action: 'mail' },
-      { id: 'fountain', x: 15, y: 13, label: 'Fuente', action: 'fountain' },
-      { id: 'sign', x: 4, y: 7, label: 'Cartel del restaurante', action: 'story:sign', cond: '!sign_restored' },
-      { id: 'sumi_stall', x: 20, y: 20, label: 'Puesto de Sumi', action: 'shop:sumi' },
-    ],
-    rooms: [],
-    gather: [
-      { x: 3, y: 10, pool: ['fl_daisy', 'fl_tulip'] },
-      { x: 28, y: 9, pool: ['fl_daisy', 'fl_sun'] },
-      { x: 20, y: 23, pool: ['berry', 'fl_bell'] },
-      { x: 7, y: 20, pool: ['wood', 'stone', 'fl_daisy'] },
-    ],
-    bugs: true,
-  });
-}
 
 // ================================================================== RESTAURANT
 function restaurant(): ZoneDef {
@@ -382,8 +220,8 @@ function beach(): ZoneDef {
   return zone(b, {
     id: 'beach', name: 'Playa de las Conchas', music: 'beach', outdoor: true,
     doors: [
-      { x: 14, y: 0, to: 'plaza', tx: 15, ty: 24, dir: 'up', walk: true },
-      { x: 15, y: 0, to: 'plaza', tx: 16, ty: 24, dir: 'up', walk: true },
+      { x: 14, y: 0, to: 'plaza', tx: 15, ty: 41, dir: 'up', walk: true },
+      { x: 15, y: 0, to: 'plaza', tx: 16, ty: 41, dir: 'up', walk: true },
       { x: 3, y: 4, to: 'lighthouse', tx: 6, ty: 10, dir: 'up', walk: false, label: 'Faro', lock: { flag: 'lighthouse_open', msg: 'La puerta del faro tiene tres huecos con forma de estrella.' } },
     ],
     interact: [
@@ -474,8 +312,8 @@ function garden(): ZoneDef {
   return zone(b, {
     id: 'garden', name: 'Jardín de los Faroles', music: 'garden', outdoor: true,
     doors: [
-      { x: 0, y: 10, to: 'plaza', tx: 30, ty: 12, dir: 'left', walk: true },
-      { x: 0, y: 11, to: 'plaza', tx: 30, ty: 13, dir: 'left', walk: true },
+      { x: 0, y: 10, to: 'plaza', tx: 55, ty: 12, dir: 'left', walk: true },
+      { x: 0, y: 11, to: 'plaza', tx: 55, ty: 13, dir: 'left', walk: true },
     ],
     interact: [
       ...GARDEN_PLOT_POSITIONS.map(([x, y], i) => ({ id: 'plot' + i, x, y, label: 'Parcela', action: 'plot:' + i, ...(i >= 6 ? { cond: 'proj_garden_lanterns_4' } : {}) })),
@@ -577,7 +415,7 @@ for (const z of [plaza(), shopYuki(), shopTaro(), shopBento(), restaurant(), lib
 
 /** Wooden signposts next to each exit, so every place says where it leads. */
 const SIGNPOSTS: Record<string, [string, number, number][]> = {
-  plaza: [['sign_forest', 17, 3], ['sign_beach', 17, 23], ['sign_garden', 28, 11], ['sign_station', 2, 10], ['sign_market', 26, 2]],
+  plaza: [['sign_forest', 17, 3], ['sign_garden', 28, 11], ['sign_station', 2, 10], ['sign_market', 26, 2]],
   beach: [['sign_plaza_up', 16, 2], ['sign_lighthouse', 5, 6]],
   forest: [['sign_plaza_down', 16, 21]],
   garden: [['sign_plaza_left', 1, 8]],
