@@ -9,7 +9,6 @@ import { hasSave, importSaveFile, loadGame, saveFromCode } from '../persistence/
 import { openCreator } from './creator';
 import { confirmBox, h, hideBoot, panel, toast, uiRoot } from './dom';
 import { openSettings } from './settingsPanel';
-import { skinIconEl } from './skin';
 
 /** Where the animated touches sit, in pixels of each illustration (768x1376 vertical, 1376x768 horizontal). */
 interface Layout {
@@ -116,7 +115,7 @@ export async function showTitle(phaser: Phaser.Game) {
 
   // ---- artwork, framed so that nothing is ever cropped (the logo is part of the picture)
   const back = h('img', { class: 'tt-back', alt: '', draggable: 'false' }) as HTMLImageElement;
-  const img = h('img', { class: 'tt-img', alt: 'Midnight Maki', draggable: 'false' }) as HTMLImageElement;
+  const img = h('img', { class: 'tt-img', alt: 'Maki & Mapaches: Pip, Spicy y Rigg junto a Midnight Maki', draggable: 'false' }) as HTMLImageElement;
   let artworkReady!: () => void;
   const artwork = new Promise<void>(resolve => { artworkReady = resolve; });
   const fx = h('div', { class: 'tt-fx' });
@@ -163,13 +162,7 @@ export async function showTitle(phaser: Phaser.Game) {
   img.onerror = () => { root.classList.add('no-bg'); artworkReady(); };
 
   // ---- fallback logo (only visible when the illustration cannot be loaded)
-  const logo = h(
-    'div',
-    { class: 'title-logo mm-logo tt-logo-fallback' },
-    h('div', { class: 'logo-row' }, skinIconEl('lantern', 'logo-lantern'), h('div', { class: 't1' }, ...[...'MIDNIGHT'].map((ch, i) => h('span', { class: 'wave', style: { animationDelay: i * 0.08 + 's' } }, ch))), skinIconEl('lantern', 'logo-lantern')),
-    h('div', { class: 'logo-row' }, skinIconEl('maki', 'logo-maki'), h('div', { class: 't1 red' }, ...[...'MAKI'].map((ch, i) => h('span', { class: 'wave', style: { animationDelay: 0.7 + i * 0.08 + 's' } }, ch))), skinIconEl('maki', 'logo-maki')),
-    h('div', { class: 't2' }, 'Los secretos de Villa Nori'),
-  );
+  const logo = brandLogo('title-logo mm-logo tt-logo-fallback');
 
   // ---- menu, revealed after the first tap
   const btn = (label: string, cls: string, span: number, fn: () => void) => {
@@ -228,11 +221,19 @@ function credits() {
     body: h(
       'div',
       { class: 'col', style: { lineHeight: '1.5' } },
-      h('p', null, h('b', null, 'Midnight Maki: Los secretos de Villa Nori')),
+      h('p', null, h('b', null, 'Maki & Mapaches: Los secretos de Villa Nori')),
       h('p', null, 'Un regalo para Sofi, de Santi.'),
-      h('p', null, 'Arte pixel, música y sonidos generados por el propio juego: todo es original.'),
+      h('p', null, 'Ilustraciones pixel art, música y sonidos para Villa Nori.'),
       h('p', null, 'Hecho con Phaser, TypeScript y Vite. Tipografía: Pixelify Sans (OFL).'),
       h('p', { class: 'muted' }, 'Pip, Spicy Beacon y Rigg te mandan saludos.'),
     ),
   });
+}
+
+function brandLogo(className: string) {
+  return h('div', { class: className, 'aria-label': 'Maki & Mapaches' },
+    h('div', { class: 'brand-top' }, 'MAKI ', h('span', null, '&')),
+    h('div', { class: 'brand-bottom' }, 'MAPACHES'),
+    h('div', { class: 'brand-subtitle' }, 'Los secretos de Villa Nori'),
+    h('div', { class: 'brand-family' }, 'Pip · Spicy Beacon · Rigg'));
 }

@@ -1,5 +1,5 @@
 /* Midnight Maki service worker: offline play after the first visit. */
-const CACHE = 'midnight-maki-v1';
+const CACHE = 'midnight-maki-v2';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './title/title-vertical.webp', './title/title-horizontal.webp'];
 
 self.addEventListener('install', (e) => {

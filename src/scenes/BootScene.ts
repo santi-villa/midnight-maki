@@ -10,7 +10,7 @@ export class BootScene extends Phaser.Scene {
     const tip = document.getElementById('boot-tip');
     if (tip) tip.textContent = 'Dando color a Villa Nori…';
     ensureTileset(this);
-    if (tip) tip.textContent = 'Abriendo Midnight Maki…';
+    if (tip) tip.textContent = 'Abriendo Maki & Mapaches…';
     this.scene.start('title');
     this.game.events.emit('booted');
   }
