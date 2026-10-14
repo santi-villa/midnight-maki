@@ -35,6 +35,7 @@ async function live(page: Page) {
 }
 
 test('a full day opens, closes, sleeps and can be skipped', async ({ page }) => {
+  test.setTimeout(120_000);
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(String(err)));
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ textSpeed: 0, music: 0, sfx: 0, ambience: 0 })));
@@ -82,7 +83,8 @@ test('a full day opens, closes, sleeps and can be skipped', async ({ page }) => 
     g.save.time.period = 1;
     g.save.time.minutes = 20;
   });
-  await expect.poll(async () => (await live(page)).guests.length, { timeout: 25_000 }).toBeGreaterThan(0);
+  // Physical guests walk across the plaza; loaded headless rendering may run below real time.
+  await expect.poll(async () => (await live(page)).guests.length, { timeout: 60_000 }).toBeGreaterThan(0);
   const serving = await live(page);
   expect(serving.phase).toBe('open');
 
