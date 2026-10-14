@@ -12,6 +12,7 @@ import { h, uiRoot } from './dom';
 import { skinIconEl } from './skin';
 import { formatHudTime, hudTime, paintHudClock } from './hudClock';
 import './hud.css';
+import { mountPhone, setPhoneVisible } from './phone/phone';
 
 let root: HTMLElement | null = null;
 let timeEl: HTMLElement;
@@ -62,8 +63,7 @@ export function mountHud(hd: HudHandlers) {
     const b = h('button', { type: 'button', class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon));
     return b;
   };
-  const menuButton = btn('phone', 'NoriPhone', () => handlers.menu());
-  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('clipboard', 'Misiones', () => handlers.journal()), btn('map', 'Mapa', () => import('./worldmap').then((m) => m.openWorldMap())), menuButton);
+  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('clipboard', 'Misiones', () => handlers.journal()), btn('map', 'Mapa', () => import('./worldmap').then((m) => m.openWorldMap())));
   questEl = h('div', {
     class: 'hud-quest', role: 'button', tabindex: 0, title: 'Ver detalles de la misión',
     onclick: () => {
@@ -92,9 +92,11 @@ export function mountHud(hd: HudHandlers) {
   refreshSuggestions();
   renderContext();
   setupJoystick();
+  mountPhone();
 }
 
 export function showHud(v: boolean) {
+  setPhoneVisible(v);
   if (root) root.style.display = v ? '' : 'none';
   if (joyEl) joyEl.style.display = v && settings.joystick ? '' : 'none';
 }

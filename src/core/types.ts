@@ -107,6 +107,16 @@ export interface RecipeRecord {
   presentation?: RecipePresentation;
 }
 
+/** The player's NoriPhone: look, unlocked designs and what was already seen (see ui/phone). */
+export interface PhonePrefs {
+  model: string;
+  color: string;
+  wallpaper: string;
+  /** "kind:id" of every special design the player has earned */
+  unlocked: string[];
+  seen: { designs?: string[]; recipes?: number; quests?: number };
+}
+
 export interface SaveData {
   version: number;
   createdAt: number;
@@ -148,6 +158,8 @@ export interface SaveData {
   garden: { plot: number; seed: string | null; plantedDay: number; watered: number; ready: boolean }[];
   photos: Photo[];
   stats: Record<string, number>;
+  /** NoriPhone look; missing in older saves (defaults apply) */
+  phone?: PhonePrefs;
 }
 
 export interface Settings {
@@ -158,6 +170,8 @@ export interface Settings {
   textSpeed: number;  // chars per second, 0 = instant
   reduceMotion: boolean;
   haptics?: boolean;
+  /** key that opens / closes the NoriPhone on a keyboard */
+  phoneKey?: string;
   joystick: boolean;
   cookMode: 'relaxed' | 'normal' | 'challenge';
   settingsVersion?: number;

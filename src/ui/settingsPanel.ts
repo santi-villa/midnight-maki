@@ -81,6 +81,7 @@ export function openSettings(inGame: boolean) {
     choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Desafío']], () => settings.cookMode, (v) => updateSettings({ cookMode: v })),
     toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
     toggle('Vibración', 'haptics', supportsHaptics() ? 'Toques breves en momentos especiales. El dispositivo puede limitar la vibración.' : 'Este navegador no ofrece vibración. Tu preferencia se guarda para dispositivos compatibles.'),
+    choice<string>('Atajo del NoriPhone (teclado)', [['p', 'P'], ['n', 'N'], ['t', 'T']], () => settings.phoneKey ?? 'p', (v) => updateSettings({ phoneKey: v })),
     toggle('Joystick virtual', 'joystick', 'Además de tocar el suelo para caminar.'),
     choice<'auto' | 'high' | 'low'>('Efectos', [['auto', 'Automático'], ['high', 'Lindos'], ['low', 'Ahorro de batería']], () => settings.perf ?? 'auto', (v) => { if (v === 'auto') resetAutoPerf(); updateSettings({ perf: v }); }),
     toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),

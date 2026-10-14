@@ -502,6 +502,11 @@ class AudioEngine {
       case 'tap': tone(880, 0, 0.06, 'triangle', 0.15); break;
       case 'open': tone(660, 0, 0.08, 'triangle', 0.18); tone(990, 0.05, 0.1, 'triangle', 0.14); break;
       case 'close': tone(880, 0, 0.07, 'triangle', 0.14); tone(587, 0.05, 0.09, 'triangle', 0.12); break;
+      case 'phone_open': tone(520, 0, 0.07, 'triangle', 0.12); tone(780, 0.05, 0.1, 'triangle', 0.1); noiseHit(0, 0.12, 1800, 0.05); break;
+      case 'phone_close': tone(700, 0, 0.06, 'triangle', 0.1); tone(460, 0.05, 0.09, 'triangle', 0.08); break;
+      case 'phone_tap': tone(1040, 0, 0.04, 'triangle', 0.08); break;
+      case 'phone_swap': tone(660, 0, 0.05, 'sine', 0.1); tone(880, 0.04, 0.07, 'sine', 0.08); break;
+      case 'phone_unlock': [784, 988, 1318].forEach((f, i) => tone(f, i * 0.07, 0.2, 'sine', 0.1)); break;
       case 'coin': tone(1318, 0, 0.08, 'square', 0.06); tone(1760, 0.06, 0.18, 'square', 0.05); break;
       case 'pickup': tone(784, 0, 0.07, 'triangle', 0.2); tone(1175, 0.06, 0.12, 'triangle', 0.18); break;
       case 'cut': noiseHit(0, 0.08, 3500, 0.5); tone(1400, 0, 0.04, 'sine', 0.08, 0.6); break;

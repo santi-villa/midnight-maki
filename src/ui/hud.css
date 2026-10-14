@@ -112,5 +112,4 @@
 .game-hud .ctx-dock .hud-interact .skin-icon, .game-hud .ctx-chip .skin-icon { display: block; flex: 0 0 auto; width: 22px; height: 22px; }
 .game-hud .ctx-chip { display: flex; align-items: center; justify-content: center; gap: 5px; }
 .game-hud .ctx-dock .hud-interact, .game-hud .ctx-chip { min-height: 44px; }
-.phone-shell .close-x { width: 44px; height: 44px; flex: 0 0 auto; }
 @media (max-width: 340px) { .game-hud .hud-buttons { display: grid; grid-template-columns: repeat(2, 44px); gap: 4px; } .game-hud .hud-buttons .icon-btn { width: 44px; } }
