@@ -1,8 +1,8 @@
 /**
  * Illustrated map of Villa Nori: a pixel-art painting of the town (drawn on a canvas) with tappable
- * wooden name plates, a "you are here" marker and the raccoons' current whereabouts.
+ * place icons, a "you are here" marker and the raccoons' current whereabouts.
  */
-import { ctx2d, ellipse, makeCanvas, px, rng, shade, type Ctx } from '../art/pixel';
+import { ctx2d, drawTemplate, ellipse, makeCanvas, px, rng, shade, type Ctx } from '../art/pixel';
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
 import { ZONES } from '../data/zones';
@@ -10,6 +10,7 @@ import { world } from '../scenes/WorldScene';
 import { currentQuestTarget } from '../quests/quests';
 import { portraitURL } from '../systems/appearance';
 import { h, panel } from './dom';
+import { PLACE_ICON_PALETTE, placeIconGrid } from './mapIcons';
 
 const MW = 240;
 const MH = 200;
@@ -234,6 +235,14 @@ function paintingURL() {
   return painting;
 }
 
+function placeIcon(id: string): HTMLCanvasElement {
+  const rows = placeIconGrid(id);
+  const cv = makeCanvas(16, 16);
+  drawTemplate(ctx2d(cv), rows, PLACE_ICON_PALETTE);
+  cv.setAttribute('aria-hidden', 'true');
+  return cv;
+}
+
 // ------------------------------------------------------------------ panel
 function hereZone(): string {
   const z = world?.zoneId ?? 'plaza';
@@ -267,18 +276,21 @@ export function openWorldMap() {
   for (const p of PLACES) {
     const open = !p.flag || game.has(p.flag);
     const isTarget = p.id === questTargetZone;
+    const label = open ? (isTarget ? `${p.name}, misión` : p.name) : 'Lugar sin descubrir';
     const plate = h('button', {
+      type: 'button',
       class: 'wmap-plate' + (open ? '' : ' locked') + (p.id === here ? ' here' : '') + (isTarget ? ' target' : ''),
+      'aria-label': label,
+      title: label,
       style: {
         left: (p.x / MW) * 100 + '%',
         top: (p.y / MH) * 100 + '%',
-        borderColor: isTarget ? '#d97d27' : undefined,
       },
       onclick: () => {
         info.innerHTML = '';
         info.append(h('b', null, (open ? p.name : '???') + (isTarget ? ' ✦ Misión' : '')), h('div', { class: 'hint' }, open ? p.desc : 'Todavía no descubriste este lugar.'));
       },
-    }, (open ? p.name : '???') + (isTarget && p.id !== here ? ' ✦' : ''));
+    }, placeIcon(open ? p.id : 'unknown'), isTarget ? h('span', { class: 'wmap-mark', 'aria-hidden': 'true' }, '✦') : null);
     wrap.append(plate);
     if (p.id === here) {
       wrap.append(h('div', { class: 'wmap-you', style: { left: (p.x / MW) * 100 + '%', top: (p.y / MH) * 100 + '%' } }, h('img', { src: portraitURL('player', 'happy'), alt: '' }), h('span', null, 'Estás acá')));

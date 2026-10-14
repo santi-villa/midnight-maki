@@ -527,11 +527,18 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .wmap { position: relative; width: 100%; aspect-ratio: 240 / 200; border: 4px solid #2b1d17; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 3px #d9a970; }
 .wmap-art { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .wmap-plate {
-  position: absolute; transform: translate(-50%, -150%); white-space: nowrap; font-size: .7em; font-weight: 600; color: #3a2418;
-  border: 6px solid transparent; border-image: var(--tx-plank-btn) 4 fill / 6px stretch; background: none; padding: 0 3px; line-height: 1.2;
-  box-shadow: 0 2px 0 rgba(43,29,23,.4); z-index: 2;
+  position: absolute; transform: translate(-50%, -100%);
+  width: 34px; height: 34px; box-sizing: border-box; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 6px solid transparent; border-image: var(--tx-plank-btn) 4 fill / 6px stretch; background: none;
+  box-shadow: 0 2px 0 rgba(43,29,23,.4); z-index: 2; line-height: 0;
 }
-.wmap-plate.locked { border-image-source: var(--tx-stone-down); color: #f3eef6; text-shadow: var(--outline); }
+.wmap-plate canvas { width: 16px; height: 16px; image-rendering: pixelated; pointer-events: none; }
+.wmap-mark {
+  position: absolute; top: -1px; right: -2px; z-index: 1; font-size: 11px; line-height: 1;
+  color: #fff4dc; text-shadow: var(--outline); pointer-events: none;
+}
+.wmap-plate.locked { border-image-source: var(--tx-stone-down); }
 .wmap-plate.here { border-image-source: var(--tx-plank-btn-gold); z-index: 3; }
 .wmap-you { position: absolute; transform: translate(-50%, -10%); display: flex; flex-direction: column; align-items: center; z-index: 4; pointer-events: none; animation: bob 1.2s ease-in-out infinite; }
 .wmap-you img { width: 30px; height: 34px; image-rendering: pixelated; object-fit: cover; border: 3px solid #2b1d17; border-radius: 50%; background: #f2c66d; }
