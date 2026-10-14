@@ -43,8 +43,11 @@ Los costados de cada salida están cerrados con árboles, rocas o piedras, para 
 ## Pruebas
 `src/tests/zones.test.ts` recorre todas las zonas al aire libre: puertas, interacciones y recolecciones alcanzables, props sólidos sin superponerse ni caer al agua, y que cada camino cerrado de la plaza esté realmente cerrado hasta que se pone su bandera.
 
+## Casas con entrada lateral
+- Las tres tiendas (Ropa de Yuki, Almacén de Taro, Panadería) ahora tienen la puerta en el costado, **en el mismo tile de siempre**, así que sus interiores, rutinas y misiones no cambian. Se dibujan con `townhouse` (oficios 4–6) y un cartel sobre la fachada.
+- Las 16 casas del pueblo, la cala, el puerto, la ribera y el jardín este (`src/data/houses.ts`) se pueden **visitar por dentro**: cada una es una zona propia de 10×8, amueblada según el oficio (casa, casa de té, pescadería, florería), con textos para mirar (`note:in_*`). Siempre abiertas.
+
 ## Pendiente / ideas
-- Convertir también Ropa de Yuki, el Almacén y la Panadería a entrada lateral (hoy son de frente, con sus coordenadas viejas).
-- Que las casas del puerto se puedan visitar por dentro (hoy dicen una nota).
+- Vecinos adentro de las casas (hoy están vacías) y algún mini-juego de té.
 - Música/ambiente propios para el puerto y el santuario.
 - No se probó en un dispositivo físico.

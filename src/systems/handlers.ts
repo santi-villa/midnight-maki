@@ -77,14 +77,26 @@ registerAction('blocked', async (to) => {
   if (onLockedDoor(to)) world.refreshZone();
 });
 
-const NOTES: Record<string, string> = {
+const NOTES: Record<string, string | string[]> = {
   house: 'La luz está encendida. Se oye una radio bajita adentro.',
   tea: 'La casa de té abre solo para los vecinos del barrio. Huele a té de cebada.',
   fish: 'El pescador salió temprano. Dejó una nota: "Vuelvo con la marea".',
   flower: 'Un cartelito: "Las flores de hoy están en el jardín. Pasen por la tarde".',
   shrine: 'Dejás una moneda imaginaria y pedís un deseo chiquito. El viento mueve las tiras de papel.',
+  // inside the side-entrance houses
+  in_home: ['Una mesita baja con dos tazas. Alguien dejó un crucigrama a medias.', 'En la mesa hay un plato tapado con otro plato. Mejor no meterse.', 'Sobre la mesa, una lista de compras: "arroz, alga, algo dulce".'],
+  in_home2: ['La cocina está impecable. Solo falta que alguien cocine.', 'Una olla chiquita hace "blop, blop" sobre el fuego bajito.', 'Hay un frasco de pickles con una etiqueta: "no tocar (Abuela)".'],
+  in_tea: ['Una tetera humeante y dos tacitas esperando. No hay nadie, pero alguien estuvo hace un momento.', 'Un cartel: "El té se toma despacio. El mundo puede esperar".', 'Una tacita con una hojita de té flotando. Te sentís un poco más tranquilo.'],
+  in_tea2: ['Los almohadones están todavía tibios. Qué ganas de quedarse un rato.', 'Un poema en la pared: "Taza vacía / la tarde se queda / sin apuro".'],
+  in_fish: ['La tabla de cortar huele a mar. Un cuchillo bien afilado descansa al lado.', 'Un balde con hielo y tres sardinas plateadas. Tienen cara de dormidas.', 'El pescador anotó en una pizarra: "atún: poco, caballa: mucha".'],
+  in_fish2: ['Cajones apilados con redes enrolladas. Alguna conserva una conchita.', 'Una caña de pescar apoyada en la pared, con un moño rojo en la punta.'],
+  in_flower: ['Los ramos de hoy están atados con hilo rojo. Cada uno tiene una notita: "para alguien que lo merece".', 'En el mostrador hay un jarroncito con una sola flor. Es para que la mires.', 'Una libreta de pedidos: "tulipanes para el sábado, 12 girasoles, un ramo sorpresa".'],
+  in_flower2: ['Las macetas están ordenadas por color, como un arcoíris que se quedó a vivir.', 'Un cartel: "Hablales a las plantas. Responden, pero con las hojas".'],
 };
-registerAction('note', (key) => { toast(NOTES[key] ?? 'No hay nadie.'); });
+registerAction('note', (key) => {
+  const t = NOTES[key] ?? 'No hay nadie.';
+  toast(Array.isArray(t) ? t[(game.save.time.day + key.length + Math.floor(game.save.time.minutes / 15)) % t.length] : t);
+});
 
 registerAction('board', () => {
   const ids = boardQuests();

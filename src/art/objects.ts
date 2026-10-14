@@ -825,6 +825,7 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   if (label) {
     // shop plaque on the facade, or the board of a signpost
     if (kind === 'building') drawPlaque(ctx, w / 2, Math.floor(h * 0.46) - 2, label);
+    else if (kind === 'townhouse') drawPlaque(ctx, (rot & 1) ? (w - 26) / 2 : 26 + (w - 26) / 2 - 4, Math.floor(h * 0.44) - 1, label);
     else drawPlaque(ctx, w / 2, 1, label, { wood: '#d9a970' });
   }
   // flat ground decals stay flat; everything else gets lit volume

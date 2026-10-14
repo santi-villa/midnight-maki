@@ -5,20 +5,12 @@
  */
 import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import type { DoorDef, InteractDef, ZoneDef } from './zones';
+import { houseDoorDef, housePropId, housesIn } from './houses';
 
 export const PLAZA_SIZE = { w: 58, h: 44 } as const;
 /** River centre column for each row (the water is 4 tiles wide: cx-2 .. cx+1). */
 export const riverX = (y: number) => 40 + Math.round(2.2 * Math.sin(y / 5.5));
 export const BRIDGE_ROWS = [[12, 13], [30, 32]] as const;
-
-type Trade = 'home' | 'tea' | 'fish' | 'flower';
-/** Side-entrance houses: [trade, side of the porch, x, y]. The door is the bottom row of the porch. */
-const HOUSES: [Trade, 'l' | 'r', number, number][] = [
-  ['home', 'l', 1, 27], ['flower', 'r', 18, 27], ['home', 'r', 24, 27], ['fish', 'l', 30, 27],
-  ['tea', 'r', 1, 36], ['home', 'l', 8, 36], ['fish', 'r', 18, 36], ['flower', 'l', 24, 36],
-  ['tea', 'r', 46, 15], ['flower', 'l', 50, 20],
-];
-export const houseDoor = (side: 'l' | 'r', x: number, y: number): [number, number] => [x + (side === 'l' ? 1 : 4), y + 2];
 
 export function plaza(): ZoneDef {
   const { w: W, h: H } = PLAZA_SIZE;
@@ -90,9 +82,10 @@ export function plaza(): ZoneDef {
     .prop('bamboo', 8, 5, 'stage>=3')
     .prop('bamboo', 1, 7, 'stage>=3')
     .prop('flowers', 6, 6, 'stage>=1')
-    .prop('bld_clothes', 23, 4)
-    .prop('bld_store', 24, 16)
-    .prop('bld_bakery', 2, 16)
+    // the three shops now have their door on the side, at the same tile as before
+    .prop('bld_th_clothes_r', 22, 4)
+    .prop('bld_th_store_r', 23, 16)
+    .prop('bld_th_bakery_l', 4, 16)
     .prop('bld_library', 8, 22)
     .prop('fountain', 14, 11)
     .prop('board', 11, 7)
@@ -101,7 +94,7 @@ export function plaza(): ZoneDef {
     .prop('bench', 18, 14)
     .prop('lamppost', 9, 8)
     .prop('lamppost', 22, 8)
-    .prop('lamppost', 9, 18)
+    .prop('lamppost', 10, 19)
     .prop('lamppost', 22, 18)
     .prop('sakura', 13, 8)
     .prop('sakura', 19, 8)
@@ -119,16 +112,12 @@ export function plaza(): ZoneDef {
     .prop('pot_rose', 3, 7)
     .prop('pot_cream', 7, 7)
     .prop('menuboard', 8, 7)
-    .prop('awning_rose', 25, 5)
-    .prop('awning_sage', 26, 17)
-    .prop('vending_blue', 23, 18)
+    .prop('vending_blue', 22, 19)
     .prop('vending_red', 30, 18)
     .prop('bicycle', 10, 5)
     .prop('bicycle_rose', 20, 23)
     .prop('lanternstring', 14, 4)
     .prop('lanternstring', 14, 20)
-    .prop('poster_a', 2, 18)
-    .prop('poster_b', 7, 18)
     .prop('puddle', 12, 10, 'rain')
     .prop('puddle', 19, 12, 'rain')
     .prop('puddle', 6, 13, 'rain')
@@ -161,7 +150,7 @@ export function plaza(): ZoneDef {
   b.prop('sign_shrine', 45, 10);
 
   // ---------------------------------------------------------------- side-entrance houses
-  for (const [trade, side, x, y] of HOUSES) b.prop(`bld_th_${trade}_${side}`, x, y);
+  for (const h of housesIn('plaza')) b.prop(housePropId(h), h.x, h.y);
   // lane details
   for (const x of [6, 13, 19, 25, 34]) b.prop('lamppost', x, 30);
   for (const x of [4, 12, 21, 27]) b.prop('lamppost', x, 39);
@@ -201,6 +190,7 @@ export function plaza(): ZoneDef {
     { x: 0, y: 13, to: 'station', tx: 22, ty: 11, dir: 'left', walk: true, lock: { flag: 'unlock_station', msg: 'Un portón oxidado, cubierto de enredaderas: "Estación clausurada". Tiene un candado viejo.' } },
     { x: 29, y: 0, to: 'market', tx: 12, ty: 16, dir: 'up', walk: true, lock: { flag: 'market_open', msg: 'Una soga de bambú cierra el torii. Dicen que algunas noches aparece un mercado del otro lado.' } },
     { x: 30, y: 0, to: 'market', tx: 13, ty: 16, dir: 'up', walk: true, lock: { flag: 'market_open', msg: 'Una soga de bambú cierra el torii. Dicen que algunas noches aparece un mercado del otro lado.' } },
+    ...housesIn('plaza').map(houseDoorDef),
   ];
 
   const interact: InteractDef[] = [
@@ -228,11 +218,6 @@ export function plaza(): ZoneDef {
     { id: 'pier_fish1', x: 35, y: 40, label: 'Pescar', action: 'fish:sea' },
     { id: 'pier_fish2', x: 36, y: 40, label: 'Pescar', action: 'fish:sea' },
   ];
-  for (const [trade, side, x, y] of HOUSES) {
-    const [dx, dy] = houseDoor(side, x, y);
-    interact.push({ id: `house_${x}_${y}`, x: dx, y: dy, label: trade === 'tea' ? 'Casa de té' : trade === 'fish' ? 'Pescadería' : trade === 'flower' ? 'Florería' : 'Casa', action: 'note:' + trade });
-  }
-
   return zone(b, {
     id: 'plaza', name: 'Villa Nori', music: 'town', outdoor: true,
     doors,

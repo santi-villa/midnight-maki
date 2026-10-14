@@ -5,6 +5,7 @@
 import type { Dir } from '../core/types';
 import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import { plaza } from './plazaMap';
+import { houseDoorDef, housePropId, housesIn, houseZones } from './houses';
 export { Builder, treeBorder, zone, RESTAURANT_ENTRY };
 
 export interface PropPlace { id: string; x: number; y: number; cond?: string; }
@@ -222,7 +223,7 @@ function beach(): ZoneDef {
     .prop('lanternstring', 4, 9)
     .prop('puddle', 12, 9, 'rain');
   // east cove: shacks with their door on the side, boats pulled up on the sand, nets and rocks
-  b.prop('bld_th_fish_l', 32, 3).prop('bld_th_home_r', 40, 3).prop('bld_th_tea_l', 33, 9).prop('bld_th_flower_r', 40, 9);
+  for (const h of housesIn('beach')) b.prop(housePropId(h), h.x, h.y);
   b.prop('boat', 31, 14).prop('boat', 44, 13).prop('bigrock', 36, 14).prop('bigrock', 42, 15).prop('rock', 46, 12).prop('rock', 33, 13).prop('stump', 30, 13)
     .prop('crate', 37, 13).prop('barrel', 38, 13).prop('sack', 39, 11).prop('lanternstring', 34, 12).prop('lanternstring', 41, 12)
     .prop('lamppost', 31, 8).prop('lamppost', 44, 8).prop('lamppost', 37, 8).prop('lantern_cream', 37, 12).prop('lantern_cream', 40, 12)
@@ -234,6 +235,7 @@ function beach(): ZoneDef {
     doors: [
       { x: 14, y: 0, to: 'plaza', tx: 15, ty: 41, dir: 'up', walk: true },
       { x: 15, y: 0, to: 'plaza', tx: 16, ty: 41, dir: 'up', walk: true },
+      ...housesIn('beach').map(houseDoorDef),
       { x: 3, y: 4, to: 'lighthouse', tx: 6, ty: 10, dir: 'up', walk: false, label: 'Faro', lock: { flag: 'lighthouse_open', msg: 'La puerta del faro tiene tres huecos con forma de estrella.' } },
     ],
     interact: [
@@ -246,7 +248,6 @@ function beach(): ZoneDef {
       { id: 'sunset', x: 16, y: 13, label: 'Mirar el mar', action: 'sunset' },
       { id: 'fish4', x: 38, y: 19, label: 'Pescar', action: 'fish:sea' },
       { id: 'fish5', x: 39, y: 19, label: 'Pescar', action: 'fish:sea' },
-      { id: 'beach_fish_note', x: 36, y: 5, label: 'Cabañas de pescadores', action: 'note:fish' },
     ],
     rooms: [],
     gather: [
@@ -354,7 +355,7 @@ function garden(): ZoneDef {
     .prop('lanternstring', 13, 16)
     .prop('puddle', 7, 11, 'rain');
   // eastern garden: a tea house with its door on the side, wisteria lanterns and an orchard of cherry trees
-  b.prop('bld_th_tea_l', 25, 4).prop('bld_th_flower_r', 31, 4);
+  for (const h of housesIn('garden')) b.prop(housePropId(h), h.x, h.y);
   const orchard: [number, number][] = [[3, 21], [6, 22], [9, 21], [13, 22], [16, 21], [19, 22], [4, 24], [8, 24], [12, 24], [17, 24], [22, 22], [23, 19]];
   for (const [x, y] of orchard) b.prop('sakura', x, y);
   b.prop('stonelantern', 29, 15).prop('stonelantern', 32, 15).prop('stonelantern', 29, 24).prop('stonelantern', 32, 24)
@@ -368,6 +369,7 @@ function garden(): ZoneDef {
     doors: [
       { x: 0, y: 10, to: 'plaza', tx: 55, ty: 12, dir: 'left', walk: true },
       { x: 0, y: 11, to: 'plaza', tx: 55, ty: 13, dir: 'left', walk: true },
+      ...housesIn('garden').map(houseDoorDef),
     ],
     interact: [
       ...GARDEN_PLOT_POSITIONS.map(([x, y], i) => ({ id: 'plot' + i, x, y, label: 'Parcela', action: 'plot:' + i, ...(i >= 6 ? { cond: 'proj_garden_lanterns_4' } : {}) })),
@@ -375,8 +377,6 @@ function garden(): ZoneDef {
       { id: 'merge', x: 13, y: 9, label: 'Banco de macetas', action: 'minigame:merge' },
       { id: 'koi_fish1', x: 30, y: 19, label: 'Pescar', action: 'fish:lake' },
       { id: 'koi_fish2', x: 31, y: 21, label: 'Pescar', action: 'fish:lake' },
-      { id: 'garden_tea', x: 28, y: 6, label: 'Casa de té', action: 'note:tea' },
-      { id: 'garden_flower', x: 35, y: 6, label: 'Florería', action: 'note:flower' },
     ],
     rooms: [],
     gather: [
@@ -482,7 +482,7 @@ function lighthouse(): ZoneDef {
 
 // ================================================================== REGISTERED WORLD ZONES
 export const ZONES: Record<string, ZoneDef> = {};
-for (const z of [plaza(), shopYuki(), shopTaro(), shopBento(), restaurant(), library(), home(), storage(), beach(), forest(), garden(), station(), market(), lighthouse()]) ZONES[z.id] = z;
+for (const z of [plaza(), shopYuki(), shopTaro(), shopBento(), restaurant(), library(), home(), storage(), beach(), forest(), garden(), station(), market(), lighthouse(), ...houseZones()]) ZONES[z.id] = z;
 
 /** Wooden signposts next to each exit, so every place says where it leads. */
 const SIGNPOSTS: Record<string, [string, number, number][]> = {

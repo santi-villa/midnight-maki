@@ -222,7 +222,7 @@ describe('consistent storefront indicators', () => {
         expect(zone.grid.isSolid(spot.x, spot.y)).toBe(true);
         const cx = spot.x * 16;
         const bottom = spot.y * 16 + 14;
-        for (const prop of zone.props.filter((p) => p.def.kind !== 'building')) {
+        for (const prop of zone.props.filter((p) => p.def.kind !== 'building' && p.def.kind !== 'townhouse')) {
           const px = prop.x * 16 + prop.def.w * 8;
           const py = (prop.y + prop.def.h) * 16;
           const overlaps = cx + 14.5 > px - prop.def.sw / 2 && cx - 14.5 < px + prop.def.sw / 2 && bottom > py - prop.def.sh && bottom - 11 < py;
