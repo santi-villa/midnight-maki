@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
 import { ZONES } from '../data/zones';
 import type { FurnPiece } from '../restaurant/floor';
-import { resetService, spawnGuest, stagePlate, stepService, takeOrderAt } from '../restaurant/service';
+import { pickupPlate, resetService, spawnGuest, stagePlate, stepService, takeOrderAt } from '../restaurant/service';
 import {
   decorateBlockReason,
   isPlayerRoom,
@@ -239,12 +239,18 @@ describe('restaurant tables', () => {
 
     game.save.inventory = { rice: 4, nori: 4, cucumber: 3 };
     stagePlate(1, 2, 0);
+    const tray = all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture })))[0];
+    expect(tray.label).toBe('Recoger pedido');
+    expect(tray.detail).toMatch(/bandeja/);
+    expect(tray.intent).toEqual({ type: 'orders' });
+    pickupPlate(1);
     const deliver = all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture })))[0];
     expect(deliver.label).toBe('Entregar');
     expect(deliver.intent).toEqual({ type: 'deliver', tableId: '10' });
   });
 
   it('hides empty tables, far tables, story orders and pre-intro service', () => {
+    delete game.save.dining;
     resetService();
     expect(all(resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture }))).some((a) => a.id.startsWith('take:'))).toBe(false);
 
@@ -252,6 +258,7 @@ describe('restaurant tables', () => {
     const far = resolveContext(sense({ zoneId: 'restaurant', ...at(2, 3), furniture }));
     expect(all(far).some((a) => a.id.startsWith('take:'))).toBe(false);
 
+    delete game.save.dining;
     resetService();
     game.save.orders = [{ uid: 7, recipe: 'kappa', customer: 'c_tourist', reward: 16, special: 'tutorial' }];
     const special = resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture }));

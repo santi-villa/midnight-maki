@@ -8,6 +8,7 @@ import {
   collectTipAt,
   deliverTo,
   guestViews,
+  pickupPlate,
   pumpService,
   resetService,
   serviceAudit,
@@ -67,6 +68,7 @@ describe('restaurant hours', () => {
 
   it('lets guests in only while the door is open', () => {
     const arrive = (period: number, minutes: number) => {
+      delete game.save.dining;
       boot();
       at(period, minutes);
       pumpService(4, room);
@@ -119,6 +121,8 @@ describe('restaurant hours', () => {
     expect(guestViews()[0]?.phase).toBe('waiting_food');
     const uid = game.save.orders[0].uid;
     expect(stagePlate(uid, 2, 0)).toBe(true);
+    expect(deliverTo('1')).toMatch(/bandeja/);
+    pickupPlate(uid);
     expect(deliverTo('1')).toMatch(/provecho/);
     expect(stepService(1).paid).toEqual([]);
     expect(stepService(1).paid).toHaveLength(1);
@@ -127,7 +131,7 @@ describe('restaurant hours', () => {
     expect(game.save.restaurant.served).toBe(1);
     expect(shiftSummary()).toMatchObject({ arrived: 1, served: 1, coins: 18, tips: 1, pending: 0 });
     expect(serviceBoardNote().status).toMatch(/Cerrando/);
-    expect(serviceBoardNote().summary.join(' ')).toMatch(/1 plato/);
+    expect(serviceBoardNote().summary.join(' ')).toMatch(/1 pedido/);
     at(3, 90);
     pumpService(40, room);
     expect(game.save.restaurant.served).toBe(1);
@@ -154,7 +158,7 @@ describe('restaurant hours', () => {
 
     at(3, 20, 2);
     expect(restaurantPhase(3, 20)).toBe('open');
-    expect(whereIs('spicy')).toBe('home');
+    expect(whereIs('spicy')).toBe('restaurant');
     takeOrderAt('1');
     expect(game.save.orders).toHaveLength(1);
 
@@ -172,16 +176,16 @@ describe('restaurant hours', () => {
     game.save.time.minutes = 0;
     closeServiceForNight();
     refreshOrders(true);
-    expect(game.save.orders).toEqual([]);
+    expect(game.save.orders).toHaveLength(1);
     expect(game.save.restaurant.served).toBe(0);
     expect(game.coins).toBe(120);
-    expect(guestViews()).toEqual([]);
+    expect(guestViews()[0]?.phase).toBe('waiting_food');
     expect(serviceBoardNote().status).toMatch(/Cerrado/);
 
     at(1, 30, 3);
     expect(syncRestaurantHours(false)).toBeNull();
     pumpService(0, room);
-    expect(guestViews()).toEqual([]);
+    expect(guestViews()[0]?.phase).toBe('waiting_food');
     expect(game.save.restaurant.served).toBe(0);
     expect(game.coins).toBe(120);
   });
@@ -228,7 +232,7 @@ describe('restaurant hours', () => {
     expect(serviceBoardNote().status).toMatch(/Todavía no abrís/);
   });
 
-  it('sleeps with a cooked plate once, and drops an uncooked order without charging', () => {
+  it('keeps plated and uncooked table orders overnight without charging them', () => {
     pumpService(0, room);
     spawnGuest(room, 'c_tourist');
     seatArrived();
@@ -242,27 +246,33 @@ describe('restaurant hours', () => {
     game.save.time.minutes = 0;
     closeServiceForNight();
     refreshOrders(true);
-    expect(guestViews()).toEqual([]);
-    expect(game.save.orders).toEqual([]);
-    expect(game.save.restaurant.served).toBe(1);
-    expect(game.coins).toBe(139);
+    expect(guestViews()[0]?.phase).toBe('waiting_food');
+    expect(game.save.orders.map((o) => o.uid)).toEqual([uid]);
+    expect(game.save.orders[0].plate?.quality).toBe(2);
+    expect(game.save.restaurant.served).toBe(0);
+    expect(game.coins).toBe(120);
     closeServiceForNight();
-    expect(game.coins).toBe(139);
-    expect(game.save.restaurant.served).toBe(1);
-    expect(shiftSummary()).toMatchObject({ day: 4, served: 1, coins: 18, tips: 1 });
+    expect(game.coins).toBe(120);
+    expect(game.save.restaurant.served).toBe(0);
+    expect(shiftSummary()).toMatchObject({ day: 4, served: 0, coins: 0, tips: 0, pending: 1 });
 
+    delete game.save.dining;
+    game.save.orders = [];
     boot();
     at(1, 20, 6);
     pumpService(0, room);
     spawnGuest(room, 'c_tourist');
     seatArrived();
     takeOrderAt('1');
+    expect(game.save.orders).toHaveLength(1);
+    expect(game.save.orders[0].plate).toBeUndefined();
     game.save.time.day += 1;
     closeServiceForNight();
     refreshOrders(true);
-    expect(game.save.orders).toEqual([]);
-    expect(game.coins).toBe(139);
-    expect(game.save.restaurant.served).toBe(1);
+    expect(game.save.orders).toHaveLength(1);
+    expect(game.save.orders[0].service).toBeTruthy();
+    expect(game.coins).toBe(120);
+    expect(game.save.restaurant.served).toBe(0);
   });
 
   it('saves and reloads a live plate without a second bill or a new guest', () => {
@@ -281,13 +291,15 @@ describe('restaurant hours', () => {
     boot();
     at(3, 80);
     pumpService(10, room);
-    expect(guestViews()).toEqual([]);
-    expect(game.save.orders).toEqual([]);
-    expect(game.save.restaurant.served).toBe(1);
-    expect(game.coins).toBe(139);
+    expect(guestViews()[0]?.phase).toBe('waiting_food');
+    expect(game.save.orders).toHaveLength(1);
+    expect(game.save.orders[0].plate?.quality).toBe(2);
+    expect(game.save.restaurant.served).toBe(0);
+    expect(game.coins).toBe(120);
     pumpService(10, room);
-    expect(game.save.restaurant.served).toBe(1);
-    expect(game.coins).toBe(139);
+    expect(game.save.restaurant.served).toBe(0);
+    expect(game.coins).toBe(120);
+    expect(guestViews()).toHaveLength(1);
     expect(serviceAudit()).toEqual([]);
   });
 
@@ -302,10 +314,12 @@ describe('restaurant hours', () => {
     at(3, 15);
     expect(restaurantPhase(3, 15)).toBe('open');
     expect(whereIs('pip')).toBe('restaurant');
-    expect(whereIs('spicy')).toBe('home');
-    expect(whereIs('rigg')).toBe('home');
+    expect(whereIs('spicy')).toBe('restaurant');
+    expect(whereIs('rigg')).toBe('restaurant');
     at(3, 70);
     expect(whereIs('pip')).toBe('home');
+    expect(whereIs('spicy')).toBe('home');
+    expect(whereIs('rigg')).toBe('home');
     expect(restaurantPhase(3, 70)).toBe('closed');
     expect(shopGate('taro').open).toBe(false);
     expect(shopGate('midnight').tracked).toBe(false);
