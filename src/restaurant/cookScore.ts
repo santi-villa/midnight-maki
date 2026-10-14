@@ -43,8 +43,10 @@ export function judgeCook(input: CookJudgeInput): CookJudgement {
   const precision = clamp01(input.precision);
   const score = Math.min(100, Math.max(0, 100 - input.mistakes * 10 - Math.max(0, input.elapsed - par) * 1.5) + precision * 8);
   let quality: 0 | 1 | 2 = score >= 80 ? 2 : score >= 50 ? 1 : 0;
-  if (input.mode === 'challenge' && input.timeLimit > 0 && input.elapsed <= input.timeLimit) {
-    quality = Math.min(2, quality + 1) as 0 | 1 | 2;
+  if (input.mode === 'challenge' && input.timeLimit > 0) {
+    // hard mode has a real clock: on time it lifts the dish a level, over time it cannot be better than "good"
+    if (input.elapsed <= input.timeLimit) quality = Math.min(2, quality + 1) as 0 | 1 | 2;
+    else quality = Math.min(1, quality) as 0 | 1 | 2;
   }
   return { quality, score: Math.round(score), label: LABELS[quality] };
 }

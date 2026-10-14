@@ -1006,3 +1006,4 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .cook .cook-tray .ing.slot-empty { opacity: .3; pointer-events: none; border-style: dashed; }
 @media (max-width: 700px) { .cook .cook-tray .ing { width: 64px; height: 70px; } }
 .ks .cook { color: var(--ink); }
+.cook-head .pill.late { background: #c8483f; color: #fff; }

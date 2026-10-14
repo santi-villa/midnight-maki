@@ -160,3 +160,12 @@ describe('fish cutting and cones', () => {
     expect(coneDrag(-50, 50).progress).toBe(0);
   });
 });
+
+describe('hard mode clock', () => {
+  const base = { mode: 'challenge' as const, mistakes: 0, steps: 6, timeLimit: 100, precision: 1 };
+  it('lifts a good dish when finished on time and caps it when late', () => {
+    expect(judgeCook({ ...base, elapsed: 30 }).quality).toBe(2);
+    expect(judgeCook({ ...base, elapsed: 30, mistakes: 4 }).quality).toBeGreaterThanOrEqual(1);
+    expect(judgeCook({ ...base, elapsed: 130 }).quality).toBeLessThanOrEqual(1);
+  });
+});

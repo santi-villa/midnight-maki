@@ -164,6 +164,24 @@ export async function cookOrder(uid: number, quick = false) {
 }
 
 /** The multi-dish kitchen: orders are claimed (ingredients consumed) when a dish starts and refunded if it is dropped. */
+/** Hard mode pays more for a perfect dish and keeps the best time per recipe. */
+function hardModeExtras(r: RecipeDef, res: CookResult) {
+  if (!res.hard || !res.ok) return;
+  if (res.quality === 2) {
+    const extra = Math.max(2, Math.round(r.price * 0.25));
+    res.variantBonus += extra;
+    toast(`Modo difícil: +${extra} ● por un plato perfecto.`);
+  }
+  if (res.seconds && res.quality >= 1) {
+    const best = (game.save.bestTimes ??= {});
+    if (!best[r.id] || res.seconds < best[r.id]) {
+      const first = !best[r.id];
+      best[r.id] = res.seconds;
+      toast(first ? `${r.name}: tiempo ${Math.round(res.seconds)} s.` : `¡Nuevo mejor tiempo en ${r.name}: ${Math.round(res.seconds)} s!`);
+    }
+  }
+}
+
 const FREE_UID = -1;
 export async function enterKitchen(firstUid?: number, freeId?: string) {
   if (kitchenOpen()) return;
@@ -196,6 +214,7 @@ export async function enterKitchen(firstUid?: number, freeId?: string) {
       taken.delete(uid);
       if (!p) return null;
       const { o, r } = p;
+      hardModeExtras(r, res);
       if (!o) return finishFree(r, res);
       const refund = () => { for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund'); };
       celebrate(r, res);

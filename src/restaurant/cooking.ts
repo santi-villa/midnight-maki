@@ -52,7 +52,7 @@ import {
 } from './cookScore';
 import { doneness } from './grill';
 
-export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; variant?: string; variantItem?: string; variantBonus: number; }
+export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; variant?: string; variantItem?: string; variantBonus: number; /** active seconds spent, hard mode only */ seconds?: number; hard?: boolean; }
 
 const STEP_NAMES: Record<CookStep['t'], string> = {
   nori: 'Alga', rice: 'Arroz', place: 'Relleno', slice: 'Cortar', roll: 'Enrollar', cut: 'Porciones',
@@ -1137,6 +1137,8 @@ export class CookingGame {
         variant: used ? this.variant!.name : undefined,
         variantItem: used ? this.variant!.item : undefined,
         variantBonus: used ? this.variant!.bonus : 0,
+        seconds: Math.round(this.elapsed() * 10) / 10,
+        hard: mode === 'challenge',
       });
     };
     const shownAt = performance.now();
@@ -1213,7 +1215,8 @@ export class CookingGame {
     this.drawCookWait();
     if (this.timeLimit) {
       const left = Math.max(0, this.timeLimit - this.elapsed());
-      this.timerEl.textContent = `⏱ ${Math.ceil(left)}s (opcional)`;
+      this.timerEl.textContent = left > 0 ? `⏱ ${Math.ceil(left)} s` : '⏱ ¡Tiempo!';
+      this.timerEl.classList.toggle('late', left < 10);
     } else this.timerEl.textContent = settings.cookMode === 'relaxed' ? 'Relajado' : 'Normal';
     this.raf = requestAnimationFrame(this.loop);
   };
