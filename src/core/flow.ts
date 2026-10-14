@@ -3,7 +3,7 @@ import type Phaser from 'phaser';
 import { audio } from '../audio/audio';
 import { game, newSave } from './state';
 import type { Appearance, SaveData } from './types';
-import { saveGame } from '../persistence/storage';
+import { deleteSlot, saveGame, setActiveSlot } from '../persistence/storage';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
 import { installActions } from '../systems/actions';
@@ -21,12 +21,17 @@ export function setPhaser(g: Phaser.Game) {
   phaser = g;
 }
 
-export async function startNewGame(a: Appearance, name: string, restaurant: string) {
+export async function startNewGame(a: Appearance, name: string, restaurant: string, slot = 0) {
   audio.unlock();
   audio.crossfade('intro'); // begin inside the Comenzar gesture, before asynchronous startup
+  // Drop the old playthrough only once the new one is actually starting, then write it
+  // before the intro so a crash mid-intro does not leave the slot empty.
+  setActiveSlot(slot);
+  await deleteSlot(slot);
   const s = newSave(name, a, restaurant);
   s.time = { day: 1, period: 2, minutes: 0 };
   game.load(s);
+  if (!(await saveGame('new'))) game.touch('new');
   await startWorld(true);
 }
 
@@ -100,8 +105,8 @@ export function stopAutosave() {
   for (const off of autosaveOff.splice(0)) off();
 }
 
-function startAutosave() {
-  clearInterval(autosaveTimer);
+export function startAutosave() {
+  stopAutosave();
   autosaveTimer = window.setInterval(() => {
     if (game.dirty && !clock.paused) {
       syncPlayerPos();
@@ -141,7 +146,7 @@ export function saveSoon() {
   }, 400);
 }
 
-function syncPlayerPos() {
+export function syncPlayerPos() {
   if (!world?.player || !world.zoneId) return;
   const p = game.save.player;
   p.zone = world.zoneId;

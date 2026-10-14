@@ -15,8 +15,10 @@ import { runTask } from '../../core/errors';
 import { h, modalOpen, openModal } from '../dom';
 import { formatHudTime, hudTime } from '../hudClock';
 import { skinIconEl } from '../skin';
+import { phoneAppIcon, phoneCharm, phoneDeco, phoneSignals } from './appIcons';
 import { caseGeometry, drawCase, SIDE_MARGIN } from './caseArt';
 import { COLORS, COLOR_BY_ID, MODELS, MODEL_BY_ID, WALLPAPERS, WALLPAPER_BY_ID, type PhoneKind } from './catalog';
+import { APPS_PER_PAGE, clampPage, orderPhoneApps, phonePages } from './pages';
 import { choose, isUnlocked, markDesignsSeen, noveltyCounts, phonePrefs, refreshUnlocks, unseenDesigns } from './prefs';
 import { wallpaperCanvas, wallpaperTile } from './wallpapers';
 import './phone.css';
@@ -48,6 +50,8 @@ let draft: Look | null = null;
 let busyTimer = 0;
 let appBusy = false;
 let clockOff: (() => void) | null = null;
+let homePage = 0;
+let pageApi: { show: (page: number) => void } | null = null;
 
 const reduced = () => document.body.classList.contains('reduce-motion') || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 const saved = (): Look => { const p = phonePrefs(); return { model: p.model, color: p.color, wallpaper: p.wallpaper }; };
@@ -133,6 +137,7 @@ export function openPhone() {
   applyLook(saved());
   draft = null;
   screenName = 'home';
+  homePage = 0;
   renderHome();
   guard = h('div', { class: 'noriphone-guard' });
   (guard as any).__close = closePhone;
@@ -238,29 +243,173 @@ function allApps(): PhoneApp[] {
   const at = apps.findIndex((a) => a.id === 'settings');
   const list = [...apps];
   list.splice(at < 0 ? list.length : at, 0, mine);
-  return list;
+  return orderPhoneApps(list);
+}
+
+function appButton(app: PhoneApp, n: ReturnType<typeof noveltyCounts>) {
+  return h('button', {
+    type: 'button', class: 'pn-app', 'data-app': app.id, title: app.hint, 'aria-label': `${app.name}. ${app.hint}`,
+    onclick: () => {
+      if (appBusy || phase !== 'open') return;
+      audio.sfxPlay('phone_tap');
+      markSeen(app.id);
+      if (app.id === 'customize') { app.run(); return; }
+      appBusy = true;
+      if (app.closePhone) closePhone();
+      void runTask('phone:' + app.id, app.run).finally(() => { appBusy = false; if (screenName === 'home' && phase === 'open') renderHome(); });
+    },
+  }, h('span', { class: 'pn-icon', 'aria-hidden': 'true' }, phoneAppIcon(app.id) ?? skinIconEl(app.icon), badgeFor(app.id, n) ? h('i', { class: 'pn-badge' }) : null), h('span', { class: 'pn-label' }, app.name));
+}
+
+function deco(kind: 'paw' | 'leaf' | 'cherry', place: string) {
+  const canvas = phoneDeco(kind);
+  canvas.classList.add('pn-deco', place);
+  return canvas;
 }
 
 function renderHome() {
   screenName = 'home';
+  view.className = 'pn-view is-home';
   view.innerHTML = '';
-  const grid = h('div', { class: 'pn-apps' });
+  const apps = allApps();
+  const pages = phonePages(apps, APPS_PER_PAGE);
+  homePage = clampPage(homePage, pages.length);
   const n = noveltyCounts();
-  for (const app of allApps())
-    grid.append(h('button', {
-      type: 'button', class: 'pn-app', 'data-app': app.id, title: app.hint, 'aria-label': `${app.name}: ${app.hint}`,
-      onclick: () => {
-        if (appBusy || phase !== 'open') return;
-        audio.sfxPlay('phone_tap');
-        markSeen(app.id);
-        if (app.id === 'customize') { app.run(); return; }
-        appBusy = true;
-        if (app.closePhone) closePhone();
-        void runTask('phone:' + app.id, app.run).finally(() => { appBusy = false; if (screenName === 'home' && phase === 'open') renderHome(); });
-      },
-    }, h('span', { class: 'pn-icon', 'aria-hidden': 'true' }, skinIconEl(app.icon), badgeFor(app.id, n) ? h('i', { class: 'pn-badge' }) : null), h('span', { class: 'pn-label' }, app.name)));
-  view.append(bar(null, null), h('main', { class: 'pn-main' }, h('p', { class: 'pn-hello' }, 'Un pueblo, tres mapaches y vos.'), grid), h('footer', { class: 'pn-home-bar', 'aria-hidden': 'true' }, h('i')));
+  const track = h('div', { class: 'pn-track' });
+  pages.forEach((page, i) => {
+    const grid = h('div', { class: 'pn-page', role: 'group', 'aria-label': `Página ${i + 1} de ${pages.length}` });
+    for (const app of page) grid.append(appButton(app, n));
+    track.append(grid);
+  });
+  const pager = h('div', { class: 'pn-pager' });
+  pager.append(track);
+  const dots = h('div', { class: 'pn-dots', role: 'tablist', 'aria-label': 'Páginas de aplicaciones' });
+  const apply = (page: number, animate: boolean) => {
+    homePage = page;
+    track.style.transition = !animate || reduced() ? 'none' : '';
+    if (animate && !reduced()) void track.offsetWidth;
+    track.style.transform = `translateX(${-page * 100}%)`;
+    [...track.children].forEach((el, i) => {
+      const node = el as HTMLElement;
+      const on = i === page;
+      node.inert = !on;
+      if (on) node.removeAttribute('aria-hidden');
+      else node.setAttribute('aria-hidden', 'true');
+    });
+    [...dots.children].forEach((el, i) => {
+      el.classList.toggle('on', i === page);
+      el.setAttribute('aria-selected', String(i === page));
+    });
+  };
+  const show = (next: number, animate = true) => {
+    const page = clampPage(next, pages.length);
+    const changed = page !== homePage;
+    apply(page, animate);
+    if (!changed) return;
+    audio.sfxPlay('phone_swap');
+    haptic('tap');
+    const active = document.activeElement;
+    const current = track.children[page];
+    if (active instanceof HTMLElement && track.contains(active) && current && !current.contains(active)) {
+      current.querySelector<HTMLElement>('.pn-app')?.focus({ preventScroll: true });
+    }
+  };
+  pages.forEach((page, i) => {
+    const alert = page.some((app) => badgeFor(app.id, n));
+    dots.append(h('button', {
+      type: 'button',
+      class: 'pn-dot' + (i === homePage ? ' on' : '') + (alert ? ' has-badge' : ''),
+      role: 'tab',
+      'aria-selected': String(i === homePage),
+      'aria-label': `Página ${i + 1} de ${pages.length}`,
+      onclick: () => { if (i !== homePage) show(i); },
+    }));
+  });
+  const signals = phoneSignals();
+  signals.classList.add('pn-signals');
+  const main = h('main', { class: 'pn-main pn-home' },
+    h('p', { class: 'pn-hello' }, h('span', null, 'Un pueblo, tres mapaches y vos.')),
+    pager);
+  view.append(
+    h('header', { class: 'pn-homehead' },
+      signals,
+      h('div', { class: 'pn-plaque' }, h('div', { class: 'pn-clock' })),
+      h('button', { type: 'button', class: 'pn-close', 'aria-label': 'Cerrar NoriPhone', onclick: () => closePhone() }, '✕')),
+    main,
+    h('footer', { class: 'pn-foot-home' }, dots),
+    h('div', { class: 'pn-decos', 'aria-hidden': 'true' }, deco('leaf', 'a'), deco('cherry', 'b'), deco('paw', 'c'), deco('leaf', 'd'), deco('paw', 'e')),
+  );
   renderStatus();
+  apply(homePage, false);
+  setupHomePager(main, track, show);
+  pageApi = { show };
+  if (phase === 'open') track.children[homePage]?.querySelector<HTMLElement>('.pn-app')?.focus({ preventScroll: true });
+}
+
+/** Horizontal drag, like a phone home screen. A small move does not open the app underneath. */
+function setupHomePager(pager: HTMLElement, track: HTMLElement, show: (page: number) => void) {
+  let pid = -1;
+  let sx = 0;
+  let sy = 0;
+  let dx = 0;
+  let axis: 'x' | 'y' | null = null;
+  let blockClick = false;
+  const damp = (delta: number) => (homePage === 0 && delta > 0) || (homePage === track.children.length - 1 && delta < 0) ? delta * 0.32 : delta;
+  pager.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || screenName !== 'home') return;
+    pid = e.pointerId;
+    sx = e.clientX;
+    sy = e.clientY;
+    dx = 0;
+    axis = null;
+    blockClick = false;
+  });
+  pager.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== pid) return;
+    const mx = e.clientX - sx;
+    const my = e.clientY - sy;
+    if (!axis && (Math.abs(mx) > 8 || Math.abs(my) > 8)) {
+      axis = Math.abs(mx) > Math.abs(my) ? 'x' : 'y';
+      if (axis === 'x') { try { pager.setPointerCapture(pid); } catch { /* ignore */ } }
+    }
+    if (axis !== 'x') return;
+    dx = mx;
+    e.preventDefault();
+    track.style.transition = 'none';
+    track.style.transform = `translateX(calc(${-homePage * 100}% + ${damp(dx)}px))`;
+  });
+  const end = (e: PointerEvent) => {
+    if (e.pointerId !== pid) return;
+    pid = -1;
+    if (axis !== 'x') { axis = null; return; }
+    const flip = Math.abs(dx) > Math.max(36, pager.clientWidth * 0.18);
+    if (Math.abs(dx) > 12) blockClick = true;
+    const dir = dx < 0 ? 1 : -1;
+    axis = null;
+    dx = 0;
+    show(flip ? homePage + dir : homePage);
+  };
+  pager.addEventListener('pointerup', end);
+  pager.addEventListener('pointercancel', end);
+  pager.addEventListener('click', (e) => {
+    if (!blockClick) return;
+    blockClick = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+  let wheel = 0;
+  let wheelTimer = 0;
+  pager.addEventListener('wheel', (e) => {
+    if (screenName !== 'home' || Math.abs(e.deltaX) <= Math.abs(e.deltaY) || Math.abs(e.deltaX) < 4) return;
+    e.preventDefault();
+    wheel += e.deltaX;
+    window.clearTimeout(wheelTimer);
+    wheelTimer = window.setTimeout(() => { wheel = 0; }, 160);
+    if (Math.abs(wheel) < 48) return;
+    const dir = wheel > 0 ? 1 : -1;
+    wheel = 0;
+    show(homePage + dir);
+  }, { passive: false });
 }
 
 // ------------------------------------------------------------------ "Personalizar"
@@ -278,6 +427,8 @@ function openCustomize() {
 
 function renderCustomize(tab: PhoneKind) {
   const d = draft!;
+  pageApi = null;
+  view.className = 'pn-view';
   view.innerHTML = '';
   const tabs = h('div', { class: 'pn-tabs', role: 'tablist' });
   for (const [kind, label] of [['model', 'Modelo'], ['color', 'Color'], ['wallpaper', 'Fondo']] as const)
@@ -364,7 +515,9 @@ export function mountPhone() {
   peek = h('button', { type: 'button', class: 'noriphone-peek', 'aria-label': 'Abrir NoriPhone', onclick: () => openPhone() });
   const gripTop = h('div', { class: 'noriphone-grip top' });
   const gripBottom = h('div', { class: 'noriphone-grip bottom' });
-  device = h('div', { class: 'noriphone-device' }, caseCanvas, screen, gripTop, gripBottom, peek);
+  const charm = phoneCharm();
+  charm.classList.add('pn-charm');
+  device = h('div', { class: 'noriphone-device' }, caseCanvas, screen, charm, gripTop, gripBottom, peek);
   screen.inert = true;
   dim = h('div', { class: 'noriphone-dim' });
   dim.addEventListener('pointerdown', () => { if (phase === 'open' && performance.now() - openedAt > 450 && !modalOpen_top()) closePhone(); });
@@ -402,6 +555,15 @@ function modalOpen_top(): boolean {
 }
 
 function onKey(e: KeyboardEvent) {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    if (phase === 'open' && screenName === 'home' && !modalOpen_top() && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      const typing = e.target as HTMLElement | null;
+      if (typing && (typing.tagName === 'INPUT' || typing.tagName === 'TEXTAREA' || typing.isContentEditable)) return;
+      e.preventDefault();
+      if (!e.repeat) pageApi?.show(homePage + (e.key === 'ArrowRight' ? 1 : -1));
+    }
+    return;
+  }
   const key = (settings.phoneKey ?? 'p').toLowerCase();
   const bound = actionForCode(e.code, bindingMap(settings.bindings)) === 'phone';
   if ((!bound && e.key.toLowerCase() !== key) || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;

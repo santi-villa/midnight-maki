@@ -33,7 +33,7 @@ export interface CharacterDef {
   routine: [RoutineStop, RoutineStop, RoutineStop, RoutineStop];
   bio: string;
   birthday: number; // internal calendar day of season (season index * 100 + day)
-  voice: number;    // pitch for blip sounds
+  voice: number;    // fallback blip pitch. Pip, Spicy, Rigg, Ume, Kiki and Akio are shaped in src/audio/voices.ts
   rainSpot?: RoutineStop; // where they shelter on rainy days
   needsFlag?: string;     // NPC appears only after this flag
 }

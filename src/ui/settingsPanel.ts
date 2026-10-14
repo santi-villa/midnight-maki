@@ -4,7 +4,7 @@ import type { SaveData } from '../core/types';
 import { resetAutoPerf } from '../core/perf';
 import { ACTION_LABEL, EDITABLE_ACTIONS, bindingConflict, bindingMap, keyLabel, sanitizeBindings, type GameAction } from '../input/bindings';
 import { armKeyCapture } from '../input/keys';
-import { exportSave, importSaveFile, saveCode, saveFromCode, saveGame, shareSave } from '../persistence/storage';
+import { activeSlot, clearManual, exportSave, importSaveFile, markResumeOnce, saveCode, saveFromCode, saveGame, saveManual, shareSave } from '../persistence/storage';
 import { h, panel, toast } from './dom';
 import { haptic, supportsHaptics } from '../core/haptics';
 
@@ -38,6 +38,7 @@ export function openSettings(inGame: boolean) {
       game.dirty = wasDirty;
       return false;
     }
+    await clearManual(activeSlot());
     // Pagehide must not replace the imported coordinates with the old world's position.
     const { stopAutosave } = await import('../core/flow');
     stopAutosave();
@@ -51,6 +52,7 @@ export function openSettings(inGame: boolean) {
       const s = await importSaveFile(f);
       if (!(await restore(s))) return;
       toast('Partida importada. Recargando…');
+      markResumeOnce();
       setTimeout(() => location.reload(), 800);
     } catch (err: any) {
       toast(err?.message ?? 'No se pudo importar.');
@@ -63,6 +65,7 @@ export function openSettings(inGame: boolean) {
         const s = saveFromCode(codeBox.value);
         if (!(await restore(s))) return;
         toast('Partida restaurada. Recargando…');
+        markResumeOnce();
         setTimeout(() => location.reload(), 800);
       } catch (err: any) {
         toast(err?.message ?? 'No se pudo leer el código.');
@@ -93,8 +96,8 @@ export function openSettings(inGame: boolean) {
           'div',
           { class: 'col' },
           h('h3', null, 'Partida'),
-          h('p', { class: 'hint' }, 'El juego guarda solo en este celu. Hacé una copia de vez en cuando por si se borran los datos del navegador o cambiás de teléfono.'),
-          h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: async () => { if (await saveGame('manual')) toast('Partida guardada.'); } }, 'Guardar ahora')),
+          h('p', { class: 'hint' }, `Estás en la partida ${activeSlot() + 1} de 3. El progreso se guarda solo en este dispositivo. Guardar ahora deja un punto fijo de esta partida. Conviene hacer una copia por si se borran los datos del navegador o cambiás de teléfono.`),
+          h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: async () => { const { syncPlayerPos } = await import('../core/flow'); syncPlayerPos(); if (await saveManual()) toast(`Partida ${activeSlot() + 1} guardada a mano.`); } }, 'Guardar ahora')),
           h('h3', null, 'Copia de seguridad'),
           h('div', { class: 'row', style: { flexWrap: 'wrap' } },
             h('button', { class: 'btn small primary', onclick: async () => { await saveGame('manual'); const r = await shareSave(); if (r === 'shared') toast('¡Copia enviada!'); else if (r === 'downloaded') toast('Se descargó el archivo de tu partida.'); } }, 'Compartir copia'),
