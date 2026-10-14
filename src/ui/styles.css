@@ -948,3 +948,28 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
   outline-offset: 2px;
 }
 .binding-wait { outline: 3px solid #f2c66d; outline-offset: 2px; }
+
+/* ---- kitchen session: several dishes, free movement between them ---- */
+.ks { position: fixed; inset: 0; z-index: 30; background: #2b2236; color: var(--cream); display: flex; flex-direction: column; gap: 8px; padding: calc(8px + var(--safe-t)) calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l)); }
+.ks-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ks-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.ks-tab { font: inherit; font-weight: 700; padding: 6px 14px; border-radius: 10px 10px 0 0; border: 3px solid var(--wood-dark); border-bottom: 0; background: #4a3a58; color: var(--cream); cursor: pointer; min-height: 40px; }
+.ks-tab.on { background: var(--gold); color: var(--ink); }
+.ks-chips { display: flex; gap: 6px; overflow-x: auto; min-height: 0; }
+.ks-chips:empty { display: none; }
+.ks-chip { display: flex; align-items: stretch; background: var(--cream); color: var(--ink); border: 3px solid var(--wood-dark); border-radius: 10px; flex: 0 0 auto; }
+.ks-chip.on { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+.ks-chip button { font: inherit; background: none; border: 0; cursor: pointer; color: inherit; }
+.ks-chip-main { display: flex; align-items: center; gap: 6px; padding: 4px 8px; position: relative; min-width: 150px; text-align: left; }
+.ks-chip-main canvas { width: 28px; height: 28px; image-rendering: pixelated; }
+.ks-chip-t { display: flex; flex-direction: column; line-height: 1.15; }
+.ks-chip-t small { opacity: .75; }
+.ks-chip-bar { position: absolute; left: 6px; right: 6px; bottom: 2px; height: 3px; background: rgba(0,0,0,.15); border-radius: 2px; }
+.ks-chip-bar u { display: block; height: 100%; background: var(--sage); border-radius: 2px; }
+.ks-chip-x { padding: 0 8px; border-left: 2px solid rgba(0,0,0,.12) !important; }
+.ks-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ks-orders { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.ks-order { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--ink); }
+.ks-table { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ks .cook { position: relative; inset: auto; z-index: auto; padding: 0; flex: 1; min-height: 0; }
+.ks-orders > .hint, .ks-orders > .muted { color: var(--cream); opacity: .8; }

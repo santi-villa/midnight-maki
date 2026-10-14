@@ -14,6 +14,7 @@ import { bus } from '../core/events';
 import { add, h, panel, toast, openModal } from '../ui/dom';
 import { registerAction } from '../systems/actions';
 import { cook, type CookResult } from './cooking';
+import { kitchenOpen, openKitchenSession, type KitchenHooks } from './kitchenSession';
 import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeCollection';
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
@@ -150,12 +151,68 @@ export function openOrders() {
   const p = panel({ title: 'Cocina · Pedidos', body, foot: [h('button', { class: 'btn', onclick: () => p.close() }, 'Volver al salón')] });
 }
 
-/** Cook one order. A party that is waiting eats at the table; story orders pay here. */
+/** Cook one order. Food opens the kitchen with that dish started; drinks and one-tap dishes keep their short flow. */
 const cooking = new Set<number>();
 export async function cookOrder(uid: number, quick = false) {
-  if (cooking.has(uid)) return;
+  if (cooking.has(uid) || kitchenOpen()) return;
   cooking.add(uid);
-  try { await startOrder(uid, quick); } finally { cooking.delete(uid); }
+  try {
+    const o = game.save.orders.find((x) => x.uid === uid);
+    if (o && o.kind !== 'drink' && !quick && !['plated', 'carried', 'delivered'].includes(plateState(uid))) await enterKitchen(uid);
+    else await startOrder(uid, quick);
+  } finally { cooking.delete(uid); }
+}
+
+/** The multi-dish kitchen: orders are claimed (ingredients consumed) when a dish starts and refunded if it is dropped. */
+export async function enterKitchen(firstUid?: number) {
+  if (kitchenOpen()) return;
+  refreshOrders(false);
+  const taken = new Set<number>();
+  const plan = (uid: number) => {
+    const o = game.save.orders.find((x) => x.uid === uid);
+    return o && o.kind !== 'drink' ? { o, r: RECIPES_BY_ID[o.recipe] } : null;
+  };
+  const hooks: KitchenHooks = {
+    orders: () => game.save.orders
+      .filter((o) => o.kind !== 'drink' && RECIPES_BY_ID[o.recipe] && !['plated', 'carried', 'delivered'].includes(plateState(o.uid)))
+      .map((o) => ({ uid: o.uid, recipe: RECIPES_BY_ID[o.recipe], who: customerName(o.customer), reward: o.reward, ready: taken.has(o.uid) || canCook(o.recipe), note: o.service ? tableLabel(o.service.tableId) : o.special === 'odd' ? 'sin remitente' : undefined })),
+    take: (uid) => {
+      const p = plan(uid);
+      if (!p || taken.has(uid) || !game.consumeIngredients(p.r.ingredients)) return false;
+      taken.add(uid);
+      return true;
+    },
+    cancel: (uid) => {
+      const p = plan(uid);
+      if (!taken.delete(uid)) return;
+      const r = p?.r ?? null;
+      if (r) for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund');
+    },
+    done: (uid, res) => {
+      const p = plan(uid);
+      taken.delete(uid);
+      if (!p) return null;
+      const { o, r } = p;
+      const refund = () => { for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund'); };
+      celebrate(r, res);
+      if (o.service || plateState(uid) === 'cooking') {
+        if (!stagePlate(uid, res.quality, res.variantBonus, res.variant)) {
+          refund();
+          return async () => { toast('El pedido cambió. Te devolví los ingredientes.'); };
+        }
+        return async () => { await showPlate(r, res.quality, res.variant); toast(`Listo. Recogé ${r.name} en la bandeja de salida.`); };
+      }
+      const special = o.special;
+      const out = serveOrder(uid, res.quality, res.variantBonus);
+      if (!out) { refund(); return async () => { toast('El cliente ya no está. Te devolví los ingredientes.'); }; }
+      audio.sfxPlay('coin');
+      return async () => {
+        await showServeResult(r, out, res.quality, customerName(o.customer), o.customer, res.variant);
+        if (special === 'odd') { const { oddOrderServed } = await import('../story/story'); await oddOrderServed(); }
+      };
+    },
+  };
+  await openKitchenSession(hooks, firstUid);
 }
 
 /** Result of a one-tap dish (mastered recipes): no board, and it never raises mastery. */
@@ -316,6 +373,10 @@ export function openKitchen() {
   const body = h('div', { class: 'col' });
   const pending = game.save.orders.filter((o) => canCook(o.recipe));
   add(body,
+    h('div', { class: 'card col' },
+      h('b', null, 'Cocinar'),
+      h('p', { class: 'hint' }, 'Entrá a la cocina: tomá varios pedidos, elegí cuáles hacer y pasá de un plato a otro cuando quieras.'),
+      h('button', { class: 'btn primary', onclick: () => { p.close(); void runTask('kitchen:session', () => enterKitchen()); } }, 'Entrar a la cocina')),
     h('div', { class: 'card col' },
       h('b', null, 'Pedidos'),
       h('p', { class: 'hint' }, pending.length ? `Tenés ${pending.length} pedido(s) listos para cocinar.` : 'No hay pedidos con todos los ingredientes. Revisá el mostrador.'),

@@ -90,7 +90,10 @@ export function cook(recipeId: string, title = ''): Promise<CookResult> {
   });
 }
 
-class CookingGame {
+/** Where an embedded board lives (the multi-dish kitchen) and how it talks back to it. */
+export interface CookHost { el: HTMLElement; onBack: () => void; }
+
+export class CookingGame {
   private root!: HTMLElement;
   private canvas!: HTMLCanvasElement;
   private g!: CanvasRenderingContext2D;
@@ -173,7 +176,41 @@ class CookingGame {
   private landing: { x: number; y: number; age: number } | null = null;
   private stageResize: ResizeObserver | null = null;
 
-  constructor(private r: RecipeDef, private title: string, private finish: (r: CookResult) => void) {}
+  private pausedAt = 0;
+  private active = true;
+
+  constructor(private r: RecipeDef, private title: string, private finish: (r: CookResult) => void, private host?: CookHost) {}
+
+  get recipe() { return this.r; }
+  get customer() { return this.title; }
+  get finished() { return this.done; }
+  /** 0..1 of the steps already done, for the dish chip */
+  get progress() { return this.done ? 1 : this.stepIdx / Math.max(1, this.r.steps.length); }
+  get stepName() { return this.done ? '¡Listo!' : STEP_NAMES[this.step?.t ?? 'plate']; }
+
+  /** Embedded boards run only while shown; hidden ones freeze (and their timer with them). */
+  setActive(on: boolean) {
+    if (this.done || on === this.active) return;
+    this.active = on;
+    if (!on) {
+      this.pausedAt = performance.now();
+      cancelAnimationFrame(this.raf);
+      this.root.style.display = 'none';
+    } else {
+      this.startT += performance.now() - this.pausedAt;
+      this.lastFrame = 0;
+      this.root.style.display = '';
+      this.resize();
+      this.loop();
+    }
+  }
+
+  /** Throws the dish away (the caller refunds). */
+  discard() {
+    if (this.done) return;
+    this.done = true;
+    this.cleanup();
+  }
 
   start() {
     // portrait phones get a taller, narrower board so it fills the screen
@@ -184,8 +221,10 @@ class CookingGame {
     this.mat = { x: Math.round((this.W - 192) / 2), y: Math.round(this.H * 0.3), w: 192, h: 100 };
     const mode = settings.cookMode;
     if (mode === 'challenge') this.timeLimit = challengeLimit(this.r.steps.length);
-    this.musicBefore = audio.currentTrack();
-    audio.crossfade('kitchen');
+    if (!this.host) {
+      this.musicBefore = audio.currentTrack();
+      audio.crossfade('kitchen');
+    }
     this.stepsEl = h('div', { class: 'cook-steps' });
     this.timerEl = h('div', { class: 'pill' });
     this.msg = h('div', { class: 'cook-msg', id: 'cook-instruction' });
@@ -199,11 +238,16 @@ class CookingGame {
       'div',
       { class: 'cook-head' },
       h('div', { class: 'cook-order' }, iconElement(this.r.icon), h('div', { class: 'col', style: { gap: '2px' } }, h('b', null, this.r.name + (this.title ? ` — ${this.title}` : '')), this.stepsEl)),
-      h('div', { class: 'col', style: { alignItems: 'flex-end', gap: '4px' } }, this.timerEl, h('button', { class: 'close-x', 'aria-label': 'Salir', onclick: () => this.abort() }, '✕')),
+      h('div', { class: 'col', style: { alignItems: 'flex-end', gap: '4px' } }, this.timerEl, this.host ? null : h('button', { class: 'close-x', 'aria-label': 'Salir', onclick: () => this.abort() }, '✕')),
     );
     this.root = h('div', { class: 'cook' }, head, instruction, stage, this.tray);
-    this.close = openModal(this.root);
-    (this.root as any).__close = () => this.abort();
+    if (this.host) {
+      this.host.el.append(this.root);
+      this.close = () => this.root.remove();
+    } else {
+      this.close = openModal(this.root);
+      (this.root as any).__close = () => this.abort();
+    }
     this.g = this.canvas.getContext('2d')!;
     this.bindInput();
     this.resize();
@@ -951,7 +995,7 @@ class CookingGame {
     this.dragCleanup?.();
     this.stageResize?.disconnect();
     window.removeEventListener('resize', this.resize);
-    audio.crossfade(this.musicBefore);
+    if (!this.host) audio.crossfade(this.musicBefore);
     this.close();
   }
 
