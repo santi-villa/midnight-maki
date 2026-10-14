@@ -82,7 +82,7 @@ export const RECIPES: RecipeDef[] = [
     id: 'california', name: 'California roll', cat: 'basic', difficulty: 2,
     desc: 'Kanikama, palta y pepino, con el arroz por fuera.',
     ingredients: { rice: 1, nori: 1, crab: 1, avocado: 1, cucumber: 1, sesame: 1 },
-    steps: uramaki(['crab', 'avocado', 'cucumber'], ['sesame']), price: 25, xp: 12,
+    steps: uramaki(['crab', 'avocado', 'cucumber'], ['sesame']), price: 32, xp: 12,
     unlock: { level: 2, text: 'Restaurante nivel 2' }, icon: { type: 'uramaki', c1: '#e8826f', c2: '#f3e6c8', c3: '#7fa356' },
   }),
   R({
