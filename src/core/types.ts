@@ -144,6 +144,7 @@ export interface Settings {
   textScale: number;
   textSpeed: number;  // chars per second, 0 = instant
   reduceMotion: boolean;
+  haptics?: boolean;
   joystick: boolean;
   cookMode: 'relaxed' | 'normal' | 'challenge';
   settingsVersion?: number;

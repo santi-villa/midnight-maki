@@ -1,3 +1,4 @@
+import { haptic } from '../core/haptics';
 /** Restoration flags stay compatible; new participation baselines and benefits are additive. */
 import { game } from '../core/state';
 import { activityCount } from '../core/activityCounters';
@@ -69,6 +70,7 @@ export function buildNextPhase(id: string, expectedIndex?: number): boolean {
     game.stat('projectPhases');
     applyProjectBenefits();
     game.touch('project');
+    haptic('unlock');
     return true;
   } finally { building.delete(id); }
 }

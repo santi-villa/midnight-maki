@@ -4,6 +4,7 @@ import type { SaveData } from '../core/types';
 import { resetAutoPerf } from '../core/perf';
 import { exportSave, importSaveFile, saveCode, saveFromCode, saveGame, shareSave } from '../persistence/storage';
 import { h, panel, toast } from './dom';
+import { haptic, supportsHaptics } from '../core/haptics';
 
 export function openSettings(inGame: boolean) {
   const slider = (label: string, key: 'music' | 'ambience' | 'sfx') =>
@@ -13,8 +14,8 @@ export function openSettings(inGame: boolean) {
       h('label', null, label),
       h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(settings[key]), oninput: (e: Event) => updateSettings({ [key]: +(e.target as HTMLInputElement).value } as any) }),
     );
-  const toggle = (label: string, key: 'reduceMotion' | 'joystick' | 'guide', hint: string) => {
-    const b = h('button', { class: 'btn small ' + (settings[key] ? 'sage' : ''), onclick: () => { updateSettings({ [key]: !settings[key] } as any); b.className = 'btn small ' + (settings[key] ? 'sage' : ''); b.textContent = settings[key] ? 'Sí' : 'No'; } }, settings[key] ? 'Sí' : 'No');
+  const toggle = (label: string, key: 'reduceMotion' | 'joystick' | 'guide' | 'haptics', hint: string) => {
+    const b = h('button', { class: 'btn small ' + (settings[key] ? 'sage' : ''), onclick: () => { updateSettings({ [key]: !settings[key] } as any); b.className = 'btn small ' + (settings[key] ? 'sage' : ''); b.textContent = settings[key] ? 'Sí' : 'No'; if (key === 'haptics' && settings.haptics) haptic('reward'); } }, settings[key] ? 'Sí' : 'No');
     return h('div', { class: 'opt-row' }, h('div', null, h('b', null, label), h('div', { class: 'hint' }, hint)), b);
   };
   const choice = <T extends string | number>(label: string, opts: [T, string][], get: () => T, set: (v: T) => void) => {
@@ -79,6 +80,7 @@ export function openSettings(inGame: boolean) {
     h('h3', null, 'Juego'),
     choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Desafío']], () => settings.cookMode, (v) => updateSettings({ cookMode: v })),
     toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
+    toggle('Vibración', 'haptics', supportsHaptics() ? 'Toques breves en momentos especiales. El dispositivo puede limitar la vibración.' : 'Este navegador no ofrece vibración. Tu preferencia se guarda para dispositivos compatibles.'),
     toggle('Joystick virtual', 'joystick', 'Además de tocar el suelo para caminar.'),
     choice<'auto' | 'high' | 'low'>('Efectos', [['auto', 'Automático'], ['high', 'Lindos'], ['low', 'Ahorro de batería']], () => settings.perf ?? 'auto', (v) => { if (v === 'auto') resetAutoPerf(); updateSettings({ perf: v }); }),
     toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),

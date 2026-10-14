@@ -1,3 +1,4 @@
+import { haptic } from '../core/haptics';
 /**
  * Sushi preparation minigame. A full-screen canvas board drives each recipe step:
  * drag ingredients, spread rice by rubbing, slice along a guide, roll with an upward
@@ -593,6 +594,7 @@ class CookingGame {
     if (this.sliceDone >= this.sliceNeeded) return;
     const knife = game.save.restaurant.upgrades.includes('knife');
     const v = fishCutVerdict(this.sliceMark(), settings.cookMode, knife);
+    if (v.kind === 'perfect') haptic('cut');
     this.fishCuts.push(v.kind);
     this.prec.push(v.prec);
     this.sliceDone++;
@@ -909,6 +911,7 @@ class CookingGame {
       precision,
     });
     this.verdict = judged;
+    if (judged.quality === 2) haptic('excellent');
     const used = this.variantUsed && this.variant && game.consumeIngredients({ [this.variant.item]: 1 });
     audio.sfxPlay(judged.quality === 2 ? 'success' : 'sparkle');
     this.say(judged.label);

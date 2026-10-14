@@ -252,6 +252,7 @@ export const DEFAULT_SETTINGS: Settings = {
   textScale: 1,
   textSpeed: 45,
   reduceMotion: false,
+  haptics: false,
   joystick: true,
   guide: true,
   perf: 'auto',
@@ -266,7 +267,7 @@ export function loadSettings(): Settings {
       const saved = JSON.parse(raw);
       // v2: the virtual joystick is on by default (older saves stored it switched off)
       if (!saved.settingsVersion || saved.settingsVersion < 2) Object.assign(saved, { joystick: true, settingsVersion: 2 });
-      return { ...DEFAULT_SETTINGS, ...saved };
+      return { ...DEFAULT_SETTINGS, ...saved, haptics: saved.haptics === true };
     }
   } catch {
     /* ignore */

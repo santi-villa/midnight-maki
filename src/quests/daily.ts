@@ -1,3 +1,4 @@
+import { haptic } from '../core/haptics';
 /** Optional errands follow the game calendar. The saved JSON flag also preserves legacy assignments. */
 import { game } from '../core/state';
 import { activityCount as statNow } from '../core/activityCounters';
@@ -197,6 +198,7 @@ export function claimErrandReward(id: string): ErrandReceipt | null {
     }
     receipt = { coins: e.coins, rewards: e.rewards, stamps };
   });
+  if (receipt) haptic('reward');
   return receipt;
 }
 /** Legacy numeric API. */

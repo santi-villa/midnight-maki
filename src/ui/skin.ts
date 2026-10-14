@@ -97,6 +97,38 @@ function plankButton(col: string): HTMLCanvasElement {
 // ------------------------------------------------------------------ icons (16x16)
 type IconFn = (g: Ctx) => void;
 const ICONS: Record<string, IconFn> = {
+  phone(g) {
+    px(g, 4, 0, INK, 8, 16); px(g, 5, 1, '#bf8a5c', 6, 14);
+    px(g, 5, 3, '#8fb7a2', 6, 9); px(g, 7, 1, INK, 2, 1); px(g, 7, 13, '#f6ead0', 2, 1);
+    for (const [x,y] of [[6,5],[9,5],[6,8],[9,8]]) px(g,x,y,'#f2c66d',1,1);
+  },
+  camera(g) {
+    px(g, 1, 4, INK, 14, 10); px(g, 4, 2, INK, 5, 3); px(g, 2, 5, '#a8714a', 12, 8);
+    ellipse(g, 8, 9, 4, 4, INK); ellipse(g, 8, 9, 2, 2, '#9fc3c6'); px(g, 12, 6, '#f2c66d', 2, 1);
+  },
+  heart(g) {
+    px(g, 2, 3, INK, 5, 6); px(g, 9, 3, INK, 5, 6); px(g, 3, 5, INK, 10, 6);
+    px(g, 5, 10, INK, 6, 2); px(g, 7, 12, INK, 2, 1);
+    px(g, 3, 4, '#df9baa', 3, 4); px(g, 10, 4, '#df9baa', 3, 4); px(g, 4, 6, '#df9baa', 8, 4); px(g, 6, 10, '#df9baa', 4, 1);
+  },
+  calendar(g) {
+    px(g, 2, 2, INK, 12, 12); px(g, 3, 3, '#f6ead0', 10, 10); px(g, 3, 3, '#c27f86', 10, 3);
+    for (const x of [4,10]) px(g, x, 1, INK, 2, 3);
+    for (const y of [8,11]) for (const x of [5,8,11]) px(g, x, y, '#8e5d3c', 1, 1);
+  },
+  serve(g) {
+    ellipse(g, 8, 10, 7, 4, INK); ellipse(g, 8, 9, 6, 3, '#f6ead0');
+    px(g, 5, 6, '#2f3b33', 7, 4); px(g, 6, 6, '#fbf7ee', 5, 2); px(g, 7, 6, '#ef9a78', 3, 1);
+  },
+  inspect(g) {
+    ellipse(g, 6, 6, 5, 5, INK); ellipse(g, 6, 6, 3, 3, '#acd0cb'); px(g, 4, 4, '#fff6e4', 2, 1);
+    for (let i = 0; i < 5; i++) px(g, 9 + i, 9 + i, '#6b4330', 3, 2);
+  },
+  shop(g) {
+    px(g, 2, 3, INK, 12, 11); px(g, 3, 4, '#d0a574', 10, 9); px(g, 2, 3, '#c27f86', 12, 3);
+    for (const x of [3,7,11]) px(g, x, 3, '#f6ead0', 2, 3);
+    px(g, 9, 8, INK, 3, 6); px(g, 4, 8, '#9fc3c6', 3, 3);
+  },
   menu(g) {
     for (const y of [3, 7, 11]) {
       px(g, 2, y, '#513722', 12, 3);

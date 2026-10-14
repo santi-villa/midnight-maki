@@ -19,6 +19,8 @@ import type { HudHandlers } from './hud';
 import { whereIs } from '../systems/npcs';
 import { ZONES } from '../data/zones';
 import { ACHIEVEMENTS } from '../systems/achievements';
+import { mountNoriPhone } from './noriPhone';
+import { openTownMemories } from './townMemories';
 
 function tabs(names: string[], onPick: (i: number) => void, start = 0) {
   const bar = h('div', { class: 'tabs' });
@@ -105,7 +107,7 @@ function investigationView() {
 }
 
 function relationsView() {
-  const grid = h('div', { class: 'col' });
+  const grid = h('div', { class: 'col' }, h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: openPhotoAlbum }, 'Fotos juntos'), h('button', { class: 'btn small', onclick: () => openJournal(3) }, 'Recuerdos y momentos')));
   for (const c of CHARACTERS) {
     const r = game.rel(c.id);
     if (!c.raccoon && r.points <= 0) continue;
@@ -151,13 +153,39 @@ function collectionsView() {
   const list = h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' } });
   for (const a of ACHIEVEMENTS) list.append(h('div', { class: 'card' + (got.includes(a.id) ? '' : ' locked'), style: { opacity: got.includes(a.id) ? '1' : '.5' } }, h('b', null, a.name), h('div', { class: 'hint' }, a.desc)));
   wrap.append(list);
-  // photos
-  if (game.save.photos.length) {
-    const ph = h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' } });
-    for (const p of game.save.photos) ph.append(h('div', { class: 'card col', style: { padding: '4px' } }, h('img', { src: p.data, style: { width: '100%', imageRendering: 'pixelated', borderRadius: '6px' } }), h('span', { class: 'hint' }, `Día ${p.day} · ${p.subject}`)));
-    wrap.append(h('h3', null, `Álbum de fotos — ${game.save.photos.length}`), ph);
-  }
+  // The same saved-photo gallery is also used by NoriPhone.
+  if (game.save.photos.length) wrap.append(h('h3', null, `Álbum de fotos — ${game.save.photos.length}`), photoCards());
+  wrap.append(h('button', { class: 'btn small', onclick: openTownMemories }, 'Álbum del pueblo · Restauraciones'));
   return wrap;
+}
+
+function photoCards() {
+  const body = h('div', { class: 'phone-photos' });
+  for (const photo of game.save.photos) body.append(h('figure', { class: 'card col' },
+    h('img', { src: photo.data, alt: photo.subject, style: { width: '100%', imageRendering: 'pixelated' } }),
+    h('figcaption', null, `Día ${photo.day} · ${photo.subject}`)));
+  if (!game.save.photos.length) body.append(h('p', { class: 'hint' }, 'Todavía no guardaste fotos. Usá Cámara cerca de Pip, Spicy o Rigg para crear un recuerdo juntos.'));
+  return body;
+}
+function openPhotoAlbum() { panel({ title: 'Álbum de fotos', body: photoCards() }); }
+
+export function openNoriPhone() {
+  mountNoriPhone([
+    { id: 'camera', name: 'Cámara', icon: 'camera', hint: 'Sacar una foto', closePhone: true, run: () => import('./camera').then(m => m.takePhoto()) },
+    { id: 'photos', name: 'Fotos', icon: 'camera', hint: 'Tus fotos y momentos juntos', run: openPhotoAlbum },
+    { id: 'map', name: 'Mapa', icon: 'map', hint: 'Explorar Villa Nori', run: () => import('./worldmap').then(m => m.openWorldMap()) },
+    { id: 'quests', name: 'Misiones', icon: 'clipboard', hint: 'Historia y objetivos', run: () => openJournal(0) },
+    { id: 'friends', name: 'Amigos', icon: 'heart', hint: 'Pip, Spicy, Rigg y los vecinos', run: () => openJournal(2) },
+    { id: 'collections', name: 'Colecciones', icon: 'gift', hint: 'Descubrimientos, recuerdos y logros', run: () => openJournal(3) },
+    { id: 'recipes', name: 'Recetario', icon: 'maki', hint: 'Recetas, variantes y dominio', run: () => openJournal(4) },
+    { id: 'restaurant', name: 'Restaurante', icon: 'shop', hint: 'Pedidos, nivel y mejoras', run: () => import('../restaurant/kitchen').then(m => m.openOrders()) },
+    { id: 'calendar', name: 'Calendario', icon: 'calendar', hint: 'Fechas y eventos', run: () => openJournal(5) },
+    { id: 'memories', name: 'Recuerdos', icon: 'scroll', hint: 'Álbum del pueblo restaurado', run: openTownMemories },
+    { id: 'investigation', name: 'Pistas', icon: 'inspect', hint: 'El cuaderno de investigación', run: () => openJournal(1) },
+    { id: 'bag', name: 'Mochila', icon: 'bag', hint: 'Ingredientes y objetos', run: () => openBag() },
+    { id: 'settings', name: 'Ajustes', icon: 'wood_gear', hint: 'Sonido, texto y vibración', run: () => openSettings(true) },
+    { id: 'more', name: 'Más', icon: 'menu', hint: 'Personaje, descanso, guardado y salida', run: openMenu },
+  ]);
 }
 
 function calendarView() {
@@ -185,6 +213,7 @@ export function openMenu() {
     b('Colecciones', 'Álbum y logros', () => openJournal(3)),
     b('Recetario', 'Recetas, variantes y dominio', () => openJournal(4)),
     b('Cámara', 'Sacar una foto', () => import('./camera').then((m) => m.takePhoto())),
+    b('NoriPhone', 'Tus aplicaciones de Villa Nori', () => openNoriPhone()),
     b('Descansar un rato', clock.period < 3 ? 'Pasar al siguiente momento del día' : 'Es de noche: andá a dormir a tu cama', () => restPeriod()),
     b('Ajustes', 'Sonido, texto, accesibilidad', () => openSettings(true)),
     b('Guardar y salir', 'Volver al título', async () => {
@@ -225,7 +254,7 @@ export function hudHandlers(): HudHandlers {
   return {
     bag: () => openBag(),
     journal: () => openJournal(),
-    menu: () => openMenu(),
+    menu: () => openNoriPhone(),
     questText: () => trackedText(),
     suggestions,
   };

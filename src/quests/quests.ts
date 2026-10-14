@@ -1,3 +1,4 @@
+import { haptic } from '../core/haptics';
 /** Quest engine: main story quests, side quests and small optional tasks. */
 import { bus } from '../core/events';
 import { runTask } from '../core/errors';
@@ -141,6 +142,7 @@ function complete(q: QuestDef) {
     for (const rc of r.recipes ?? []) if (!game.save.recipesKnown.includes(rc)) game.save.recipesKnown.push(rc);
   }
   game.touch('quest');
+  haptic('unlock');
   if (q.kind !== 'task') bus.emit('toast', { text: `Misión completada: ${q.title}${r?.coins ? ` (+${r.coins} monedas)` : ''}` });
   if (q.onComplete) pendingRewards.push(q.onComplete);
 }
