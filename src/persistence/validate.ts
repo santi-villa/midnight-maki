@@ -1,4 +1,5 @@
 /** Save validation & migrations. DOM-free (tested in node). */
+import { validateDining } from './dining';
 import { STARTER_CLOTHES } from '../data/clothes';
 import { newSave, SAVE_VERSION } from '../core/state';
 import type { SaveData } from '../core/types';
@@ -88,6 +89,15 @@ export function validateSave(raw: unknown): SaveData {
   }
   if (!Array.isArray(out.recipesKnown)) out.recipesKnown = base.recipesKnown;
   if (!Array.isArray(out.orders)) out.orders = [];
+  // New data is optional. Reject inconsistent service links instead of losing prepared dishes.
+  for (const order of out.orders) {
+    if (!order || typeof order !== 'object') throw new SaveError('La partida contiene un pedido inválido.');
+    if (order.service && (!out.dining || typeof order.service.partyId !== 'string' || typeof order.service.memberId !== 'string' || typeof order.service.tableId !== 'string' || typeof order.service.seatId !== 'string' || (!Number.isFinite(order.service.day) || order.service.day < 1))) throw new SaveError('La partida contiene un pedido sin mesa válida.');
+    if (order.plate && (![0, 1, 2].includes(order.plate.quality) || order.plate.state && !['ready', 'carried', 'delivered'].includes(order.plate.state))) throw new SaveError('La partida contiene un plato inválido.');
+  }
+  if (out.orders.filter((o: any) => o.plate?.state === 'carried').length > 1) throw new SaveError('La partida contiene una bandeja de transporte inválida.');
+  try { out.dining = validateDining(out.dining, out.orders); }
+  catch { throw new SaveError('No se pudo validar el servicio del restaurante. Conservá una copia de esta partida.'); }
   if (!Array.isArray(out.garden) || out.garden.length < 6) out.garden = base.garden;
   out.recipesKnown = [...new Set(out.recipesKnown)];
   // starter clothes added in later versions are given to existing saves too
@@ -99,6 +109,7 @@ export function validateSave(raw: unknown): SaveData {
   let maxUid = out.nextUid ?? 1;
   for (const list of Object.values(out.decor as Record<string, { uid: number }[]>)) for (const f of list) maxUid = Math.max(maxUid, f.uid + 1);
   for (const o of out.orders) maxUid = Math.max(maxUid, (o.uid ?? 0) + 1);
+  for (const party of out.dining?.floor.parties ?? []) for (const member of party.members) for (const item of member.items) maxUid = Math.max(maxUid, (item.orderUid ?? 0) + 1);
   out.nextUid = maxUid;
   return out as SaveData;
 }

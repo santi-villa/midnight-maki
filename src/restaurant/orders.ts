@@ -1,4 +1,5 @@
 /** Order generation, serving and restaurant progression. DOM-free logic. */
+import { DRINK_BY_ID } from './drinkData';
 import { townCharm } from './projects';
 import { recipeStars } from './mastery';
 import { haptic } from '../core/haptics';
@@ -53,6 +54,14 @@ export const GENERIC_CUSTOMERS: GenericCustomer[] = [
   { id: 'c_sailor', name: 'Marinera de paso', line: '¡Tierra firme y sushi! ¿Qué más se puede pedir?',
     asks: ['Tres semanas en el barco comiendo galletas. Sálvame.', 'El capitán dice que acá cocinan unos mapaches. Pensé que era broma.'],
     react: ['Mejor que las galletas del barco, eso seguro.', '¡Le voy a contar a toda la tripulación!', '¡Por todos los mares! ¡Esto es un tesoro!'], gift: 'sh_scallop' },
+  { id: 'c_oli', name: 'Oli', line: '¡Vine por una merienda con amigos!' },
+  { id: 'c_toby', name: 'Toby', line: 'Un té y algo rico hacen un buen descanso.' },
+  { id: 'c_fredi', name: 'Fredi', line: 'La caminata me abrió el apetito.' },
+  { id: 'c_pipo', name: 'Pipo', line: 'Hoy quiero probar algo nuevo.' },
+  { id: 'c_po', name: 'Po', line: 'Me gusta comer despacio y charlar.' },
+  { id: 'c_gigi', name: 'Gigi', line: 'Qué lindos faroles tienen acá.' },
+  { id: 'c_nico', name: 'Nico', line: 'Este rincón es perfecto para descansar.' },
+  { id: 'c_leo', name: 'Leo', line: '¡Se huele la cocina desde la puerta!' },
 ];
 
 export function customerAsk(id: string, seed: number): string | null {
@@ -131,7 +140,7 @@ export function makeOrder(r: () => number = Math.random): Omit<Order, 'uid'> | n
 export function refreshOrders(newDay: boolean) {
   if (!newDay) return;
   const s = game.save;
-  const next = s.orders.filter((o) => o.special);
+  const next = s.orders.filter((o) => o.special || o.service);
   if (next.length === s.orders.length) return;
   s.orders = next;
   game.touch('orders');
@@ -152,6 +161,7 @@ export interface ServeOptions {
   /** Keep the tip out of the wallet. The table holds it until the player picks it up. */
   holdTip?: boolean;
   rng?: () => number;
+  noTip?: boolean;
 }
 
 /** Deliver a cooked dish for an order. quality: 0 ok, 1 good, 2 perfect. Idempotent per order uid. */
@@ -161,30 +171,34 @@ export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, op
   if (idx < 0) return null;
   const o = s.orders[idx];
   s.orders.splice(idx, 1);
-  const r = RECIPES_BY_ID[o.recipe];
+  const r = o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe];
+  if (!r) { s.orders.splice(idx, 0, o); return null; }
   const roll = opts?.rng ?? Math.random;
   // a dish the cook has mastered is worth a little more (4% per star)
-  let coins = Math.round(o.reward * (1 + BALANCE.qualityBonus[quality] + tipBonus() + recipeStars(o.recipe) * 0.04)) + variantBonus;
+  let coins = Math.round(o.reward * (1 + BALANCE.qualityBonus[quality] + tipBonus() + (o.kind === 'drink' ? 0 : recipeStars(o.recipe) * 0.04))) + variantBonus;
   // happy customers sometimes leave a tip, and a perfect dish may earn a little present
-  const tip = quality >= 1 && roll() < (quality === 2 ? 0.55 : 0.25) ? Math.round(o.reward * (0.1 + roll() * 0.2)) : 0;
+  const tip = !opts?.noTip && quality >= 1 && roll() < (quality === 2 ? 0.55 : 0.25) ? Math.round(o.reward * (0.1 + roll() * 0.2)) : 0;
   if (!opts?.holdTip) coins += tip;
   game.addCoins(coins, 'serve');
   const gc = GENERIC_CUSTOMERS.find((c) => c.id === o.customer);
-  const gift = quality === 2 && gc?.gift && roll() < 0.35 ? gc.gift : null;
+  const gift = o.kind !== 'drink' && quality === 2 && gc?.gift && roll() < 0.35 ? gc.gift : null;
   if (gift) game.addItem(gift, 1, 'tip');
-  const firstTime = !s.recipesCooked[o.recipe];
-  s.recipesCooked[o.recipe] = (s.recipesCooked[o.recipe] ?? 0) + 1;
-  s.restaurant.served++;
-  if (quality >= 1) game.stat('goodServed');
-  const rep = BALANCE.reputationPerServe + quality;
+  const firstTime = o.kind !== 'drink' && !s.recipesCooked[o.recipe];
+  if (o.kind === 'drink') game.stat('drinksServed');
+  else {
+    s.recipesCooked[o.recipe] = (s.recipesCooked[o.recipe] ?? 0) + 1;
+    s.restaurant.served++;
+    if (quality >= 1) game.stat('goodServed');
+    game.stat('served');
+  }
+  const rep = o.kind === 'drink' ? 1 : BALANCE.reputationPerServe + quality;
   s.restaurant.reputation += rep;
   const xp = r.xp + quality * 2;
   const levelUp = addRestaurantXp(xp);
   const newRecipes = levelUp ? unlockLevelRecipes() : [];
   if (CHARACTERS.some((c) => c.id === o.customer)) game.addFriendship(o.customer, 6 + quality * 3);
-  if (r.spicy) game.stat('spicyServed');
-  game.stat('served');
-  bus.emit('recipe:cooked', { id: o.recipe, quality });
+  if ('spicy' in r && r.spicy) game.stat('spicyServed');
+  if (o.kind !== 'drink') bus.emit('recipe:cooked', { id: o.recipe, quality });
   game.touch('serve');
   return { coins, xp, rep, levelUp, firstTime, newRecipes, tip, gift };
 }

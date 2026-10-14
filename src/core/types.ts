@@ -1,3 +1,4 @@
+import type { DiningSnapshot } from '../restaurant/floor';
 export type Dir = 'down' | 'up' | 'left' | 'right';
 
 export type Species = 'human' | 'cat' | 'fox' | 'bunny' | 'raccoon' | 'bear' | 'dog' | 'owl' | 'otter' | 'squirrel';
@@ -50,14 +51,25 @@ export interface PlacedFurniture {
   rot: number; // 0..3, only for rotatable
 }
 
+export interface DiningSave {
+  day: number;
+  floor: DiningSnapshot;
+  bag: string[];
+  lastCustomer: string | null;
+  nextId: number;
+  shift: { day: number; arrived: number; served: number; coins: number; tips: number; state: 'open' | 'closed' } | null;
+}
+
 export interface Order {
+  kind?: 'drink';
+  service?: { partyId: string; memberId: string; tableId: string; seatId: string; day: number };
   uid: number;
   recipe: string;
   customer: string;   // npc id or generic customer id
   reward: number;
   special?: string;   // marks story/quest orders
   /** Set once the dish is cooked and still needs to be carried to the table. */
-  plate?: { quality: 0 | 1 | 2; variantBonus?: number; variant?: string };
+  plate?: { quality: 0 | 1 | 2; variantBonus?: number; variant?: string; state?: 'ready' | 'carried' | 'delivered' };
 }
 
 export interface QuestState {
@@ -121,6 +133,7 @@ export interface SaveData {
   recipeRecords?: Record<string, RecipeRecord>;
   restaurant: { level: number; xp: number; reputation: number; upgrades: string[]; served: number };
   orders: Order[];
+  dining?: DiningSave;
   nextUid: number;
   relationships: Record<string, RelationState>;
   flags: Record<string, number | string | boolean>;
