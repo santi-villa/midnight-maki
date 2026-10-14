@@ -2,6 +2,8 @@ import { settings, updateSettings } from '../core/settings';
 import { game } from '../core/state';
 import type { SaveData } from '../core/types';
 import { resetAutoPerf } from '../core/perf';
+import { ACTION_LABEL, EDITABLE_ACTIONS, bindingConflict, bindingMap, keyLabel, sanitizeBindings, type GameAction } from '../input/bindings';
+import { armKeyCapture } from '../input/keys';
 import { exportSave, importSaveFile, saveCode, saveFromCode, saveGame, shareSave } from '../persistence/storage';
 import { h, panel, toast } from './dom';
 import { haptic, supportsHaptics } from '../core/haptics';
@@ -82,9 +84,10 @@ export function openSettings(inGame: boolean) {
     toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
     toggle('Vibración', 'haptics', supportsHaptics() ? 'Toques breves en momentos especiales. El dispositivo puede limitar la vibración.' : 'Este navegador no ofrece vibración. Tu preferencia se guarda para dispositivos compatibles.'),
     choice<string>('Atajo del NoriPhone (teclado)', [['p', 'P'], ['n', 'N'], ['t', 'T']], () => settings.phoneKey ?? 'p', (v) => updateSettings({ phoneKey: v })),
-    toggle('Joystick virtual', 'joystick', 'Además de tocar el suelo para caminar.'),
+    toggle('Joystick virtual', 'joystick', 'Aparece al usar el dedo, además de tocar el suelo para caminar.'),
     choice<'auto' | 'high' | 'low'>('Efectos', [['auto', 'Automático'], ['high', 'Lindos'], ['low', 'Ahorro de batería']], () => settings.perf ?? 'auto', (v) => { if (v === 'auto') resetAutoPerf(); updateSettings({ perf: v }); }),
     toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),
+    controlsSection(),
     inGame
       ? h(
           'div',
@@ -107,4 +110,68 @@ export function openSettings(inGame: boolean) {
       : null,
   );
   panel({ title: 'Ajustes', body });
+}
+
+function controlsSection() {
+  const host = h('div', { class: 'col' });
+  const status = h('p', { class: 'hint' }, 'WASD y las flechas mueven. Elegí Cambiar y presioná la tecla nueva.');
+  let disarm = () => {};
+
+  function draw() {
+    disarm();
+    disarm = () => {};
+    const map = bindingMap(settings.bindings);
+    const list = h('div', { class: 'col' });
+    list.append(h('div', { class: 'opt-row' }, h('label', null, 'Movimiento'), h('span', null, 'WASD y flechas')));
+    list.append(h('div', { class: 'opt-row' }, h('label', null, 'Cerrar'), h('span', null, 'Esc')));
+    for (const action of EDITABLE_ACTIONS) {
+      const change = h('button', {
+        type: 'button',
+        class: 'btn small',
+        'aria-label': `${ACTION_LABEL[action]}: ${keyLabel(map[action])}. Cambiar`,
+        onclick: () => listen(action, change),
+      }, keyLabel(map[action]));
+      list.append(h('div', { class: 'opt-row' }, h('label', null, ACTION_LABEL[action]), change));
+    }
+    const restore = h('button', {
+      type: 'button',
+      class: 'btn small',
+      onclick: () => {
+        disarm();
+        updateSettings({ bindings: undefined });
+        status.textContent = 'Controles restaurados.';
+        draw();
+      },
+    }, 'Restaurar controles');
+    host.replaceChildren(h('h3', null, 'Controles'), status, list, restore);
+  }
+
+  function listen(action: GameAction, button: HTMLButtonElement) {
+    disarm();
+    button.classList.add('binding-wait');
+    button.textContent = '…';
+    status.textContent = `Presioná una tecla para ${ACTION_LABEL[action]}. Escape cancela.`;
+    disarm = armKeyCapture((press) => {
+      if (press.repeat || press.ctrl || press.meta || press.alt) return 'again';
+      if (press.code === 'Escape') {
+        status.textContent = 'Sin cambios.';
+        draw();
+        return 'done';
+      }
+      const map = bindingMap(settings.bindings);
+      const conflict = bindingConflict(map, action, press.code);
+      if (conflict) {
+        status.textContent = `${keyLabel(press.code)} ya se usa para ${conflict}.`;
+        button.textContent = '…';
+        return 'again';
+      }
+      updateSettings({ bindings: sanitizeBindings({ ...settings.bindings, [action]: press.code }) });
+      status.textContent = `${ACTION_LABEL[action]}: ${keyLabel(press.code)}.`;
+      draw();
+      return 'done';
+    });
+  }
+
+  draw();
+  return host;
 }

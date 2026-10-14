@@ -20,8 +20,8 @@ export function plazaActivity(id: string, stop: RoutineStop, minutes: number): R
   if (stop.zone !== 'plaza') return stop;
   if (phaseOf(minutes) === 'depart') return { ...stop, act: stop.act === 'look' || !stop.act ? 'work' : stop.act }; // keep the exit destination
   const bench = PLAZA_BENCHES[id];
-  if (bench) return { ...stop, x: bench[0], y: bench[1], wander: 0, seatLift: 12, dir: 'down',
-    act: stop.act === 'eat' || stop.act === 'drink' ? stop.act : 'sit' };
+  // A bench is a rest, including during the meal beat. Eating there only reused the sit pose and said "ñam".
+  if (bench) return { ...stop, x: bench[0], y: bench[1], wander: 0, seatLift: 12, dir: 'down', act: 'sit' };
   if (!stop.act || stop.act === 'look' || stop.act === 'talk') {
     const act: RoutineStop['act'] = id === 'pip' ? 'play' : id === 'rigg' || id === 'hoshi' || id === 'kumo' ? 'read' : 'work';
     return { ...stop, act };

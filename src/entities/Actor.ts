@@ -241,7 +241,8 @@ export class Actor {
             // customers: breathing while seated, chewing while eating (frames 30..33 / 34 of their sheet)
             frame = this.act === 'eat' ? 30 + (Math.floor(this.actT * 3) % 4) : Math.floor(this.actT * 1.5) % 2 ? 34 : 29;
           }
-          if (!this.bubble && this.act !== 'sit' && this.actT > 0.35 && this.actT < 0.5) this.emote(this.act === 'eat' ? 'ñam' : 'té', 1.3);
+          // Only guests with a chewing frame say it. Villagers share the sit pose, so the word looked random.
+          if (this.sideSit && !this.bubble && this.act !== 'sit' && this.actT > 0.35 && this.actT < 0.5) this.emote(this.act === 'eat' ? 'ñam' : 'té', 1.3);
           break;
         case 'wave':
         case 'talk':

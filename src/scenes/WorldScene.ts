@@ -26,6 +26,7 @@ import { currentQuestTarget } from '../quests/quests';
 import { customerAsk } from '../restaurant/orders';
 import { canAcceptGuest, carriedOrder, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
 import { type FurnPiece, type PartyPhase } from '../restaurant/floor';
+import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, shopSignTexture } from './textures';
@@ -82,6 +83,8 @@ export class WorldScene extends Phaser.Scene {
   private mealQueue: PaidMeal[] = [];
   extras = new Map<string, Actor>(); // cutscene-only actors
   joy = { x: 0, y: 0 };
+  /** A ground click keeps its path until the movement keys and the stick are released. */
+  private pointerSteer = false;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private waterTiles: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[] = [];
   private shoreTiles: { x: number; y: number }[] = [];
@@ -127,21 +130,23 @@ export class WorldScene extends Phaser.Scene {
 
   create() {
     this.releaseBus();
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ENTER') as any;
-    this.input.keyboard!.on('keydown', (e: KeyboardEvent) => {
-      if ((e.key === 'e' || e.key === 'E' || e.key === ' ' || e.key === 'Enter') && this.canAct()) this.tryInteract();
-    });
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT') as any;
+    // Text fields must receive letters. shortcuts.ts decides when a key scrolls the page.
+    this.input.keyboard!.disableGlobalCapture();
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.pointerDown = { x: p.x, y: p.y, t: p.downTime };
     });
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
       const d = this.pointerDown;
       this.pointerDown = null;
-      if (!d || Math.hypot(p.x - d.x, p.y - d.y) > 12) return;
+      // A short slip still counts as a click. Camera movement does not change these screen points.
+      if (!d || Math.hypot(p.x - d.x, p.y - d.y) > 28) return;
       if (this.decorMode) return;
       if (!this.canAct()) return;
       this.tapWorld(p.worldX, p.worldY);
     });
+    this.game.events.on('blur', this.releaseSteer, this);
+    this.events.once('shutdown', () => this.game.events.off('blur', this.releaseSteer, this));
     this.scale.on('resize', () => this.layout());
     this.dark = this.add.renderTexture(0, 0, 8, 8).setOrigin(0, 0).setDepth(200000).setBlendMode(Phaser.BlendModes.MULTIPLY);
     this.lightStamp = this.make.image({ key: lightTexture(this) }, false);
@@ -1190,7 +1195,21 @@ export class WorldScene extends Phaser.Scene {
     return !this.transitioning && this.inputLocked === 0 && !clock.paused && !this.decorMode;
   }
 
+  private releaseSteer = () => {
+    this.joy = { x: 0, y: 0 };
+    this.pointerSteer = false;
+  };
+
+  private stickHeld(): boolean {
+    const k = this.keys;
+    const key = !!k && (k.A.isDown || k.D.isDown || k.W.isDown || k.S.isDown || k.LEFT.isDown || k.RIGHT.isDown || k.UP.isDown || k.DOWN.isDown);
+    return key || Math.hypot(this.joy.x, this.joy.y) > 0.15;
+  }
+
   private tapWorld(wx: number, wy: number) {
+    // The click chooses the destination even if a key or the stick is still down.
+    this.joy = { x: 0, y: 0 };
+    this.pointerSteer = true;
     // NPC tap
     for (const [id, n] of this.npcs) {
       const a = n.actor;
@@ -1262,6 +1281,18 @@ export class WorldScene extends Phaser.Scene {
   tryInteract() {
     const primary = this.contextOffer.primary;
     if (primary) this.perform(primary);
+  }
+
+  /** Space: the side action when one is showing, otherwise the main action. */
+  tryAlternate() {
+    if (this.contextOffer.chip) this.perform(this.contextOffer.chip);
+    else this.tryInteract();
+  }
+
+  /** F: the side action, or the first extra action, and nothing when the player is alone. */
+  trySecondary() {
+    const alt = this.contextOffer.chip ?? this.contextOffer.overflow[0] ?? null;
+    if (alt) this.perform(alt);
   }
 
   /** Run one contextual action. Keyboard uses the primary; the HUD may pass any of them. */
@@ -1495,7 +1526,8 @@ export class WorldScene extends Phaser.Scene {
     const p = this.player;
     let vx = 0;
     let vy = 0;
-    if (this.canAct()) {
+    if (!this.stickHeld()) this.pointerSteer = false;
+    if (!this.pointerSteer && this.canAct() && !isTypingTarget(document.activeElement)) {
       const k = this.keys;
       if (k.A.isDown || k.LEFT.isDown) vx -= 1;
       if (k.D.isDown || k.RIGHT.isDown) vx += 1;
@@ -1504,17 +1536,15 @@ export class WorldScene extends Phaser.Scene {
       vx += this.joy.x;
       vy += this.joy.y;
     }
-    const mag = Math.hypot(vx, vy);
-    if (mag > 0.15) {
+    const stick = normalizeStick(vx, vy);
+    if (stick.x !== 0 || stick.y !== 0) {
       p.path = [];
       p.onArrive = null;
-      vx /= Math.max(1, mag);
-      vy /= Math.max(1, mag);
       const sp = p.speed * dt;
-      this.moveWithCollision(vx * sp, 0);
-      this.moveWithCollision(0, vy * sp);
-      if (Math.abs(vx) > Math.abs(vy)) p.dir = vx > 0 ? 'right' : 'left';
-      else p.dir = vy > 0 ? 'down' : 'up';
+      this.moveWithCollision(stick.x * sp, 0);
+      this.moveWithCollision(0, stick.y * sp);
+      if (Math.abs(stick.x) > Math.abs(stick.y)) p.dir = stick.x > 0 ? 'right' : 'left';
+      else p.dir = stick.y > 0 ? 'down' : 'up';
       p.moving = true;
       p.manual = true;
     } else if (p.manual) {

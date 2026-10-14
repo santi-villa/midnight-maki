@@ -184,7 +184,7 @@ function phoneApps(): PhoneApp[] {
     { id: 'memories', name: 'Recuerdos', icon: 'scroll', hint: 'Álbum del pueblo restaurado', run: openTownMemories },
     { id: 'investigation', name: 'Pistas', icon: 'inspect', hint: 'El cuaderno de investigación', run: () => openJournal(1) },
     { id: 'bag', name: 'Mochila', icon: 'bag', hint: 'Ingredientes y objetos', run: () => openBag() },
-    { id: 'settings', name: 'Ajustes', icon: 'wood_gear', hint: 'Sonido, texto y vibración', run: () => openSettings(true) },
+    { id: 'settings', name: 'Ajustes', icon: 'wood_gear', hint: 'Sonido, texto y controles', run: () => openSettings(true) },
     { id: 'more', name: 'Más', icon: 'menu', hint: 'Personaje, descanso, guardado y salida', run: openMenu },
   ];
 }
@@ -218,7 +218,7 @@ export function openMenu() {
     b('Cámara', 'Sacar una foto', () => import('./camera').then((m) => m.takePhoto())),
     b('NoriPhone', 'Tus aplicaciones de Villa Nori', () => openNoriPhone()),
     b('Descansar un rato', clock.period < 3 ? 'Pasar al siguiente momento del día' : 'Es de noche: andá a dormir a tu cama', () => restPeriod()),
-    b('Ajustes', 'Sonido, texto, accesibilidad', () => openSettings(true)),
+    b('Ajustes', 'Sonido, texto y controles', () => openSettings(true)),
     b('Guardar y salir', 'Volver al título', async () => {
       const { saveGame } = await import('../persistence/storage');
       if (!(await saveGame('exit'))) return;

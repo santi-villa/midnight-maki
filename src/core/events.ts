@@ -18,6 +18,7 @@ export interface GameEvents {
   'phone:changed': {};
   'flag:set': { key: string };
   'settings:changed': {};
+  'input:method': { method: 'touch' | 'mouse' | 'keyboard' };
   'item:collected': { id: string; source: string };
 }
 

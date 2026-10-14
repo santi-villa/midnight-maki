@@ -4,6 +4,8 @@ import { audio } from '../audio/audio';
 import { bus } from '../core/events';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
+import { bindingMap, keyLabel, type GameAction } from '../input/bindings';
+import { inputMethod } from '../input/keys';
 import { dayOfSeason, WEEKDAYS, weekday } from '../core/balance';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
@@ -29,6 +31,7 @@ let menuEl: HTMLElement | null = null;
 let menuOpen = false;
 let overflowKey = '';
 const actionBtns = new Map<string, HTMLButtonElement>();
+const chrome: { el: HTMLButtonElement; action: GameAction; name: string }[] = [];
 
 export interface HudHandlers {
   bag: () => void;
@@ -59,11 +62,13 @@ export function mountHud(hd: HudHandlers) {
     },
   }, '←');
   const statusWrap = h('div', { class: 'hud-status-wrap' }, status, toggle);
-  const btn = (icon: string, label: string, fn: () => void) => {
-    const b = h('button', { type: 'button', class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon));
+  const btn = (icon: string, label: string, action: GameAction, fn: () => void) => {
+    const b = h('button', { type: 'button', class: 'icon-btn', onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon));
+    chrome.push({ el: b, action, name: label });
     return b;
   };
-  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('clipboard', 'Misiones', () => handlers.journal()), btn('map', 'Mapa', () => import('./worldmap').then((m) => m.openWorldMap())));
+  chrome.length = 0;
+  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', 'inventory', () => handlers.bag()), btn('clipboard', 'Misiones', 'journal', () => handlers.journal()), btn('map', 'Mapa', 'map', () => import('./worldmap').then((m) => m.openWorldMap())));
   questEl = h('div', {
     class: 'hud-quest', role: 'button', tabindex: 0, title: 'Ver detalles de la misión',
     onclick: () => {
@@ -91,6 +96,7 @@ export function mountHud(hd: HudHandlers) {
   refresh();
   refreshSuggestions();
   renderContext();
+  paintChrome();
   setupJoystick();
   mountPhone();
 }
@@ -140,7 +146,8 @@ bus.on('flag:set', () => refresh());
 bus.on('interact:available', () => renderContext());
 bus.on('dialogue:start', () => showHud(false));
 bus.on('dialogue:end', () => showHud(true));
-bus.on('settings:changed', () => setupJoystick());
+bus.on('settings:changed', syncInputChrome);
+bus.on('input:method', syncInputChrome);
 setInterval(() => refresh(), 1000);
 
 // ------------------------------------------------------------------ contextual actions
@@ -151,6 +158,7 @@ interface BtnSpec {
   icon: string;
   cls: string;
   primary?: boolean;
+  keyAction?: GameAction;
   run: () => void;
 }
 
@@ -180,7 +188,7 @@ function renderContext() {
 
 function buttonSpecs(offer: ContextOffer): BtnSpec[] {
   const specs: BtnSpec[] = [];
-  if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip'));
+  if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
   if (offer.overflow.length) {
     specs.push({
       id: '__more',
@@ -194,11 +202,11 @@ function buttonSpecs(offer: ContextOffer): BtnSpec[] {
       },
     });
   }
-  if (offer.primary) specs.push(actionSpec(offer.primary, 'hud-interact', true));
+  if (offer.primary) specs.push(actionSpec(offer.primary, 'hud-interact', true, 'interact'));
   return specs;
 }
 
-function actionSpec(a: ContextAction, cls: string, primary = false): BtnSpec {
+function actionSpec(a: ContextAction, cls: string, primary = false, keyAction?: GameAction): BtnSpec {
   return {
     id: a.id,
     label: a.label,
@@ -206,6 +214,7 @@ function actionSpec(a: ContextAction, cls: string, primary = false): BtnSpec {
     icon: a.icon,
     cls,
     primary,
+    keyAction,
     run: () => {
       menuOpen = false;
       world?.perform(a);
@@ -219,21 +228,34 @@ function makeAction(spec: BtnSpec) {
   return el;
 }
 
+function hintKey(spec: BtnSpec): string | null {
+  if (!spec.keyAction || inputMethod() === 'touch') return null;
+  return keyLabel(bindingMap(settings.bindings)[spec.keyAction]);
+}
+
+function paintActionLabel(span: HTMLElement, spec: BtnSpec, key: string | null) {
+  span.className = spec.primary ? 'lbl' : 'ctx-txt';
+  span.replaceChildren();
+  if (key && inputMethod() === 'keyboard') span.append(h('kbd', null, key), document.createTextNode(` ${spec.label}`));
+  else span.textContent = spec.label;
+}
+
 function fillAction(el: HTMLButtonElement, spec: BtnSpec) {
+  const key = hintKey(spec);
   el.classList.toggle('hud-interact', !!spec.primary);
   el.classList.toggle('ctx-chip', !spec.primary);
-  el.setAttribute('aria-label', spec.detail);
+  el.title = key ? `${spec.detail} [${key}]` : spec.detail;
+  el.setAttribute('aria-label', key ? `${spec.detail} (${key})` : spec.detail);
   if (spec.id === '__more') el.setAttribute('aria-expanded', menuOpen ? 'true' : 'false');
   if (el.dataset.icon !== spec.icon || el.childElementCount < 2) {
     el.dataset.icon = spec.icon;
     el.innerHTML = '';
-    el.append(skinIconEl(spec.icon), h('span', { class: spec.primary ? 'lbl' : 'ctx-txt' }, spec.label));
+    const span = h('span');
+    paintActionLabel(span, spec, key);
+    el.append(skinIconEl(spec.icon), span);
   } else {
     const span = el.querySelector('span');
-    if (span) {
-      span.className = spec.primary ? 'lbl' : 'ctx-txt';
-      span.textContent = spec.label;
-    }
+    if (span) paintActionLabel(span, spec, key);
   }
   el.onclick = (e) => {
     e.stopPropagation();
@@ -314,12 +336,29 @@ function paintTag(name: string | null) {
 }
 
 // ------------------------------------------------------------------ optional virtual joystick
+function paintChrome() {
+  for (const item of chrome) {
+    const key = inputMethod() === 'touch' ? null : keyLabel(bindingMap(settings.bindings)[item.action]);
+    const title = key ? `${item.name} [${key}]` : item.name;
+    item.el.title = title;
+    item.el.setAttribute('aria-label', title);
+  }
+}
+
+function syncInputChrome() {
+  setupJoystick();
+  renderContext();
+  paintChrome();
+}
+
 function setupJoystick() {
   if (joyEl) {
     joyEl.remove();
     joyEl = null;
+    if (world) world.joy = { x: 0, y: 0 };
   }
-  if (!settings.joystick || !root) return;
+  // The on-screen stick is for touch. Mouse and keyboard keep the ground tap and WASD.
+  if (!settings.joystick || !root || inputMethod() !== 'touch') return;
   const knob = h('i');
   joyEl = h('div', { class: 'joystick game-joystick' }, knob);
   uiRoot().append(joyEl);

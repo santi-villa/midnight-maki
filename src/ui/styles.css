@@ -929,3 +929,15 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .drink-fill { position: absolute; bottom: 0; left: 0; right: 0; transition: height 120ms steps(4); }
 .reduce-motion .drink-fill { transition: none; }
 @media (prefers-reduced-motion: reduce) { .drink-fill { transition: none; } }
+
+/* Keyboard focus stays visible without changing the cozy panels. */
+.panel :focus-visible,
+.dlg button:focus-visible,
+.choices button:focus-visible,
+.decor-sheet button:focus-visible,
+.game-hud button:focus-visible,
+.tt-menu button:focus-visible {
+  outline: 3px solid #f2c66d;
+  outline-offset: 2px;
+}
+.binding-wait { outline: 3px solid #f2c66d; outline-offset: 2px; }

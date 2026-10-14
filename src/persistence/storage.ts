@@ -1,6 +1,7 @@
 /** IndexedDB persistence with a rolling backup, export/import and a localStorage fallback. */
 import { game } from '../core/state';
 import { reportError } from '../core/errors';
+import { sanitizeBindings } from '../input/bindings';
 import type { SaveData, Settings } from '../core/types';
 import { SaveError, validateSave } from './validate';
 
@@ -267,7 +268,7 @@ export function loadSettings(): Settings {
       const saved = JSON.parse(raw);
       // v2: the virtual joystick is on by default (older saves stored it switched off)
       if (!saved.settingsVersion || saved.settingsVersion < 2) Object.assign(saved, { joystick: true, settingsVersion: 2 });
-      return { ...DEFAULT_SETTINGS, ...saved, haptics: saved.haptics === true };
+      return { ...DEFAULT_SETTINGS, ...saved, haptics: saved.haptics === true, bindings: sanitizeBindings(saved.bindings) };
     }
   } catch {
     /* ignore */

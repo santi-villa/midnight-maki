@@ -1,6 +1,8 @@
 /** Tiny DOM toolkit for the HTML UI layer (menus, dialogue, minigames). */
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
+import { isTypingTarget, stepIndex } from '../input/bindings';
+import { cancelKeyCapture, isCapturingKey, isCodeSwallowed, swallowCode } from '../input/keys';
 import { clock } from '../systems/time';
 import { settings } from '../core/settings';
 import type { TransitionKind } from '../world/zoneTransition';
@@ -31,6 +33,7 @@ export const uiRoot = () => document.getElementById('ui')!;
 // ------------------------------------------------------------------ modal stack
 interface ModalRec { el: HTMLElement; onClose?: () => void; }
 const stack: ModalRec[] = [];
+let panelSeq = 0;
 
 export function modalOpen() {
   return stack.length > 0;
@@ -51,6 +54,7 @@ export function openModal(el: HTMLElement, onClose?: () => void): () => void {
     if (i >= 0) stack.splice(i, 1);
     el.remove();
     clock.resume();
+    cancelKeyCapture();
     rec.onClose?.();
     bus.emit('ui:modal', { open: stack.length > 0 });
     if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
@@ -69,13 +73,14 @@ export function panel(opts: {
 }): { close: () => void; body: HTMLElement; root: HTMLElement } {
   const body = h('div', { class: 'panel-body' }, ...(Array.isArray(opts.body) ? opts.body : [opts.body]));
   let close = () => {};
+  const titleId = `mm-panel-${++panelSeq}`;
   const head = h(
     'div',
     { class: 'panel-head' },
-    h('h2', null, opts.title),
-    opts.closable === false ? null : h('button', { class: 'close-x', 'aria-label': 'Cerrar', onclick: () => { audio.sfxPlay('close'); close(); } }, '✕'),
+    h('h2', { id: titleId }, opts.title),
+    opts.closable === false ? null : h('button', { type: 'button', class: 'close-x', 'aria-label': 'Cerrar', onclick: () => { audio.sfxPlay('close'); close(); } }, '✕'),
   );
-  const p = h('div', { class: 'panel', style: opts.wide ? { width: 'min(820px, 100%)' } : undefined }, head, opts.tabs ?? null, body, opts.foot?.length ? h('div', { class: 'panel-foot' }, ...opts.foot) : null);
+  const p = h('div', { class: 'panel', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId, style: opts.wide ? { width: 'min(820px, 100%)' } : undefined }, head, opts.tabs ?? null, body, opts.foot?.length ? h('div', { class: 'panel-foot' }, ...opts.foot) : null);
   const back = h('div', { class: 'panel-backdrop' }, p);
   back.addEventListener('pointerdown', (e) => {
     if (e.target === back && opts.closable !== false) close();
@@ -83,17 +88,62 @@ export function panel(opts: {
   audio.sfxPlay('open');
   close = openModal(back, opts.onClose);
   (back as any).__close = close;
+  queueMicrotask(() => {
+    if (!back.isConnected || p.contains(document.activeElement)) return;
+    focusables(p).find((el) => !el.classList.contains('close-x'))?.focus({ preventScroll: true });
+  });
   return { close, body, root: p };
 }
 
-/** Escape closes the top-most modal */
-if (typeof window !== 'undefined') {
-  window.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || !stack.length) return;
-    const top = stack[stack.length - 1].el as any;
-    if (top.__close && !top.dataset.noesc) top.__close();
+function focusables(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((el) => {
+    if (el.hasAttribute('disabled') || el.getAttribute('aria-hidden') === 'true') return false;
+    return el.getClientRects().length > 0;
   });
 }
+
+/** Escape closes the top modal. Tab and arrows stay inside it. */
+function onModalKey(e: KeyboardEvent) {
+  if (!stack.length || isCodeSwallowed(e.code)) return;
+  if (e.key === 'Escape' && isCapturingKey()) return;
+  const top = stack[stack.length - 1].el;
+  if (e.key === 'Escape') {
+    const closer = top as HTMLElement & { __close?: () => void };
+    if (closer.__close && !top.dataset.noesc) {
+      swallowCode(e.code);
+      e.preventDefault();
+      e.stopPropagation();
+      closer.__close();
+    }
+    return;
+  }
+  if (isTypingTarget(e.target) && e.key !== 'Tab') return;
+  if (e.key === 'Tab') {
+    const items = focusables(top);
+    if (!items.length) {
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    const dir: 1 | -1 = e.shiftKey ? -1 : 1;
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    const next = i < 0 ? items[dir === 1 ? 0 : items.length - 1] : items[stepIndex(i, items.length, dir)];
+    next.focus({ preventScroll: true });
+    return;
+  }
+  if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const items = focusables(top).filter((el) => el.tagName === 'BUTTON' || el.getAttribute('role') === 'button');
+  if (items.length < 2) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const dir: 1 | -1 = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1;
+  const i = items.indexOf(document.activeElement as HTMLElement);
+  const next = i < 0 ? items[dir === 1 ? 0 : items.length - 1] : items[stepIndex(i, items.length, dir)];
+  next.focus({ preventScroll: true });
+}
+
+if (typeof window !== 'undefined') window.addEventListener('keydown', onModalKey, true);
 
 export function confirmBox(text: string, yes = 'Sí', no = 'Cancelar'): Promise<boolean> {
   return new Promise((resolve) => {
