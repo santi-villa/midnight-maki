@@ -81,6 +81,8 @@ function layout() {
   const geo = caseGeometry(m, Wc, Hc);
   const cssH = Hc * pxs;
   const peekH = (m.bezel.top + 2) * pxs;
+  // Reserve the real closed-phone hit area for the mobile controls beside it.
+  document.documentElement.style.setProperty('--phone-peek-h', Math.max(28, peekH) + 'px');
   device.classList.add('no-anim');
   const st = device.style;
   st.setProperty('--px', pxs + 'px');

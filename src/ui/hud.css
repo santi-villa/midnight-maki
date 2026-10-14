@@ -117,3 +117,9 @@
 .game-hud .ctx-chip { display: flex; align-items: center; justify-content: center; gap: 5px; }
 .game-hud .ctx-dock .hud-interact, .game-hud .ctx-chip { min-height: 44px; }
 @media (max-width: 340px) { .game-hud .hud-buttons { display: grid; grid-template-columns: repeat(2, 44px); gap: 4px; } .game-hud .hud-buttons .icon-btn { width: 44px; } }
+
+/* The closed NoriPhone still has a touch target along the bottom edge. */
+@media (max-width: 600px) {
+  .game-hud .hud-suggest, .game-hud .ctx-dock { bottom: calc(max(16px, var(--phone-peek-h, 0px) + 8px) + var(--safe-b)); }
+  .joystick.game-joystick { bottom: calc(max(24px, var(--phone-peek-h, 0px) + 8px) + var(--safe-b)); }
+}
