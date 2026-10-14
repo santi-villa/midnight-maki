@@ -1,6 +1,7 @@
 /** Order generation, serving and restaurant progression. DOM-free logic. */
 import { townCharm } from './projects';
 import { recipeStars } from './mastery';
+import { haptic } from '../core/haptics';
 import { BALANCE } from '../core/balance';
 import { bus } from '../core/events';
 import { game } from '../core/state';
@@ -197,6 +198,7 @@ export function addRestaurantXp(xp: number): number {
     rs.level++;
     up = rs.level;
   }
+  if (up) haptic('unlock');
   return up;
 }
 

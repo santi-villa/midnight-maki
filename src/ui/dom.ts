@@ -37,6 +37,7 @@ export function modalOpen() {
 }
 
 export function openModal(el: HTMLElement, onClose?: () => void): () => void {
+  const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const rec: ModalRec = { el, onClose };
   stack.push(rec);
   uiRoot().append(el);
@@ -52,6 +53,7 @@ export function openModal(el: HTMLElement, onClose?: () => void): () => void {
     clock.resume();
     rec.onClose?.();
     bus.emit('ui:modal', { open: stack.length > 0 });
+    if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
   };
 }
 

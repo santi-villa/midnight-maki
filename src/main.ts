@@ -21,7 +21,7 @@ onBack(async () => {
   }
   const { game } = await import('./core/state');
   const { inDialogue } = await import('./dialogue/dialogue');
-  if (game.loaded && !inDialogue()) (await import('./ui/menus')).openMenu();
+  if (game.loaded && !inDialogue()) (await import('./ui/menus')).openNoriPhone();
 });
 
 if (new URLSearchParams(location.search).has('debug')) {

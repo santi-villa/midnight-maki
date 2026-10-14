@@ -62,9 +62,7 @@ export function mountHud(hd: HudHandlers) {
     const b = h('button', { type: 'button', class: 'icon-btn', 'aria-label': label, title: label, onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon));
     return b;
   };
-  const menuButton = btn('menu', 'Menú', () => handlers.menu());
-  menuButton.firstElementChild!.classList.add('hud-menu-mobile');
-  menuButton.append(skinIconEl('wood_gear', 'skin-icon hud-menu-desktop'));
+  const menuButton = btn('phone', 'NoriPhone', () => handlers.menu());
   const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', () => handlers.bag()), btn('clipboard', 'Misiones', () => handlers.journal()), btn('map', 'Mapa', () => import('./worldmap').then((m) => m.openWorldMap())), menuButton);
   questEl = h('div', {
     class: 'hud-quest', role: 'button', tabindex: 0, title: 'Ver detalles de la misión',

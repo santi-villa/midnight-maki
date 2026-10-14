@@ -16,7 +16,7 @@ export const TILE = 16;
 const FACING: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const TABLE_KINDS = new Set(['table', 'roundtable', 'kotatsu']);
 
-export type ActionIcon = 'talk' | 'gift' | 'act' | 'door' | 'bed' | 'decor' | 'maki';
+export type ActionIcon = 'talk' | 'gift' | 'act' | 'door' | 'bed' | 'decor' | 'maki' | 'clipboard' | 'serve' | 'coin' | 'inspect' | 'shop';
 
 export type Target =
   | { kind: 'npc'; id: string; label: string }
@@ -110,12 +110,12 @@ function keep(bag: Map<string, Scored>, action: ContextAction, score: number) {
   if (!prev || score < prev.score) bag.set(action.id, { action, score });
 }
 
-function consider(bag: Map<string, Scored>, action: ContextAction, x: number, y: number, maxD: number, sense: ContextSense, rank: number) {
+function consider(bag: Map<string, Scored>, action: ContextAction, x: number, y: number, maxD: number, sense: ContextSense, rank: number, bias = 0) {
   const d = Math.hypot(x - sense.px, y - sense.py);
   if (d > maxD) return;
   const [fx, fy] = FACING[sense.dir];
   const dot = ((x - sense.px) * fx + (y - sense.py) * fy) / (d || 1);
-  keep(bag, action, d - dot * 8 + rank * 0.01);
+  keep(bag, action, d - dot * 8 + rank * 0.01 + bias);
 }
 
 export function doorCopy(zoneId: string, door: DoorDef): { label: string; detail: string } {
@@ -142,7 +142,7 @@ function jobAction(job: TableJob): ContextAction | null {
       id: `tip:${job.tableId}`,
       label: 'Propina',
       detail: `Hay ${job.tip} de propina en la mesa.`,
-      icon: 'maki',
+      icon: 'coin',
       intent: { type: 'tip', tableId: job.tableId },
     };
   }
@@ -152,7 +152,7 @@ function jobAction(job: TableJob): ContextAction | null {
       id: `take:${job.tableId}`,
       label: 'Tomar pedido',
       detail: `${who} está listo para pedir.`,
-      icon: 'maki',
+      icon: 'clipboard',
       intent: { type: 'takeOrder', tableId: job.tableId },
     };
   }
@@ -164,7 +164,7 @@ function jobAction(job: TableJob): ContextAction | null {
       id: `deliver:${job.tableId}`,
       label: 'Entregar',
       detail: `${dish} para ${who}.`,
-      icon: 'maki',
+      icon: 'serve',
       intent: { type: 'deliver', tableId: job.tableId },
     };
   }
@@ -187,7 +187,9 @@ function addTables(bag: Map<string, Scored>, sense: ContextSense) {
     if (!action) continue;
     const ax = table.x * TILE + (table.w * TILE) / 2;
     const ay = table.y * TILE + 10;
-    consider(bag, action, ax, ay, 28, sense, 4);
+    // Within reach, attention and delivery get half a tile of preference over casual actions.
+    const service = action.intent.type === 'takeOrder' || action.intent.type === 'deliver';
+    consider(bag, action, ax, ay, 28, sense, 4, service ? -TILE / 2 : 0);
   }
 }
 
@@ -228,7 +230,7 @@ export function resolveContext(sense: ContextSense): ContextOffer {
       }, px, py, 24, sense, 2);
       continue;
     }
-    const icon: ActionIcon = i.action === 'orders' || i.action === 'cook' ? 'maki' : 'act';
+    const icon: ActionIcon = i.action === 'orders' ? 'clipboard' : i.action === 'cook' ? 'maki' : i.action.startsWith('shop:') ? 'shop' : ['library', 'board', 'mail', 'secret', 'fountain'].some(a => i.action === a || i.action.startsWith(a + ':')) ? 'inspect' : 'act';
     consider(bag, {
       id: `use:${i.action}`,
       label: i.label,
