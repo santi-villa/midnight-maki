@@ -21,7 +21,7 @@ import {
   takeOrderAt,
 } from '../restaurant/service';
 import { RESTAURANT_HOURS, restaurantPhase } from '../systems/schedule';
-import { shopGate, whereIs } from '../systems/npcs';
+import { shopGate, stopFor, whereIs } from '../systems/npcs';
 
 const FAST = { approach: 1, walk: 1, settle: 1, eat: 1, pay: 1, leave: 1 };
 
@@ -319,7 +319,12 @@ describe('restaurant hours', () => {
     at(3, 70);
     expect(whereIs('pip')).toBe('home');
     expect(whereIs('spicy')).toBe('home');
+    expect(whereIs('rigg')).toBe('restaurant'); // stays to clean for a while
+    expect(stopFor('rigg', 3)).toMatchObject({ zone: 'restaurant', act: 'clean' });
+    at(3, 85);
     expect(whereIs('rigg')).toBe('home');
+    expect(stopFor('rigg', 3)).toMatchObject({ act: 'sleep' });
+    at(3, 70);
     expect(restaurantPhase(3, 70)).toBe('closed');
     expect(shopGate('taro').open).toBe(false);
     expect(shopGate('midnight').tracked).toBe(false);
