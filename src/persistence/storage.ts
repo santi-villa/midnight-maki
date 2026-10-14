@@ -1,4 +1,4 @@
-/** IndexedDB persistence with a rolling backup, export/import and a localStorage fallback. */
+/** IndexedDB persistence: 3 slots, each with an automatic save, a rolling backup and a manual checkpoint. */
 import { game } from '../core/state';
 import { reportError } from '../core/errors';
 import { sanitizeBindings } from '../input/bindings';
@@ -7,8 +7,38 @@ import { SaveError, validateSave } from './validate';
 
 const DB_NAME = 'midnight-maki';
 const STORE = 'saves';
-const MAIN = 'main';
-const BACKUP = 'backup';
+/** Pre-slot keys. Slot 0 still reads them when its own automatic save is missing. */
+const LEGACY_MAIN = 'main';
+const LEGACY_BACKUP = 'backup';
+const ACTIVE_KEY = 'mm_active_slot';
+const RESUME_KEY = 'mm_resume_once';
+
+export const SLOT_COUNT = 3;
+export type SaveKind = 'auto' | 'manual' | 'latest';
+export type SavePart = 'auto' | 'backup' | 'manual';
+
+export interface SaveBrief {
+  kind: 'auto' | 'manual';
+  updatedAt: number;
+  name: string;
+  restaurant: string;
+  day: number;
+  period: number;
+  minutes: number;
+  coins: number;
+}
+
+export interface SlotInfo {
+  slot: number;
+  auto: SaveBrief | null;
+  manual: SaveBrief | null;
+}
+
+export interface ContinueTarget {
+  slot: number;
+  kind: 'auto' | 'manual';
+  data: SaveData;
+}
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;
 
@@ -75,59 +105,210 @@ async function idbDelete(key: string): Promise<void> {
   });
 }
 
-export async function hasSave(): Promise<boolean> {
+function normalizeSlot(slot: number): number {
+  const n = Math.floor(Number(slot));
+  return n === 1 || n === 2 ? n : 0;
+}
+
+function slotKey(slot: number, part: SavePart): string {
+  return `s${slot}-${part}`;
+}
+
+/** Which playthrough autosave writes. Defaults to the first slot. */
+export function activeSlot(): number {
   try {
-    return !!(await idbGet(MAIN));
+    return normalizeSlot(Number(localStorage.getItem(ACTIVE_KEY)));
+  } catch {
+    return 0;
+  }
+}
+
+export function setActiveSlot(slot: number): void {
+  try {
+    localStorage.setItem(ACTIVE_KEY, String(normalizeSlot(slot)));
+  } catch {
+    /* the next save still lands on the default slot */
+  }
+}
+
+/** After a reload, the title should walk straight back into the snapshot just chosen. */
+export function markResumeOnce(): void {
+  try {
+    sessionStorage.setItem(RESUME_KEY, '1');
+  } catch {
+    /* Continuar still loads the snapshot that was just prepared */
+  }
+}
+
+export function takeResumeOnce(): boolean {
+  try {
+    if (sessionStorage.getItem(RESUME_KEY) !== '1') return false;
+    sessionStorage.removeItem(RESUME_KEY);
+    return true;
   } catch {
     return false;
   }
 }
 
-export async function loadGame(): Promise<SaveData | null> {
-  for (const key of [MAIN, BACKUP]) {
-    try {
-      const raw = await idbGet(key);
-      if (!raw) continue;
-      return validateSave(structuredClone(raw));
-    } catch (err) {
-      reportError('save:load:' + key, err, false);
-    }
+function autoKeys(slot: number): string[] {
+  // The rolling backup stays ahead of a pre-slot copy, so a broken new save
+  // does not resurrect the original playthrough while a newer backup exists.
+  const keys = [slotKey(slot, 'auto'), slotKey(slot, 'backup')];
+  if (slot === 0) keys.push(LEGACY_MAIN, LEGACY_BACKUP);
+  return keys;
+}
+
+async function readValid(key: string): Promise<SaveData | null> {
+  try {
+    const raw = await idbGet(key);
+    if (!raw) return null;
+    return validateSave(structuredClone(raw));
+  } catch (err) {
+    reportError('save:load:' + key, err, false);
+    return null;
+  }
+}
+
+async function readFirst(keys: string[]): Promise<SaveData | null> {
+  for (const key of keys) {
+    const data = await readValid(key);
+    if (data) return data;
   }
   return null;
 }
 
+function briefOf(data: SaveData, kind: 'auto' | 'manual'): SaveBrief {
+  return {
+    kind,
+    updatedAt: Number.isFinite(data.updatedAt) ? data.updatedAt : 0,
+    name: data.player?.name || 'Sin nombre',
+    restaurant: data.player?.restaurantName || '',
+    day: data.time?.day || 1,
+    period: data.time?.period || 0,
+    minutes: data.time?.minutes || 0,
+    coins: data.coins || 0,
+  };
+}
+
+/** One row per slot. `auto` is whatever loading the automatic choice would resume, backup included. */
+export async function listSlots(): Promise<SlotInfo[]> {
+  const out: SlotInfo[] = [];
+  for (let slot = 0; slot < SLOT_COUNT; slot++) {
+    const auto = await loadGame(slot, 'auto');
+    const manual = await loadGame(slot, 'manual');
+    out.push({
+      slot,
+      auto: auto ? briefOf(auto, 'auto') : null,
+      manual: manual ? briefOf(manual, 'manual') : null,
+    });
+  }
+  return out;
+}
+
+export async function hasSave(): Promise<boolean> {
+  if ((await listSlots()).some((s) => s.auto || s.manual)) return true;
+  const keys = [LEGACY_MAIN, LEGACY_BACKUP];
+  for (let slot = 0; slot < SLOT_COUNT; slot++) keys.push(slotKey(slot, 'auto'), slotKey(slot, 'backup'), slotKey(slot, 'manual'));
+  for (const key of keys) {
+    try {
+      if (await idbGet(key)) return true;
+    } catch {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * `auto` walks the slot's automatic save, then its rolling backup, then (slot 0) the legacy keys.
+ * `manual` is only the checkpoint the player asked for.
+ * `latest` prefers that automatic chain, then the manual checkpoint.
+ * No arguments keep the active slot, which tests and Continuar rely on.
+ */
+export async function loadGame(slot = activeSlot(), kind: SaveKind = 'latest'): Promise<SaveData | null> {
+  const n = normalizeSlot(slot);
+  if (kind === 'manual') return readValid(slotKey(n, 'manual'));
+  const auto = await readFirst(autoKeys(n));
+  if (kind === 'auto' || auto) return auto;
+  return readValid(slotKey(n, 'manual'));
+}
+
+/** Active slot first. If that slot is empty, the newest snapshot of any other slot. */
+export async function continueTarget(): Promise<ContinueTarget | null> {
+  const active = activeSlot();
+  const auto = await loadGame(active, 'auto');
+  if (auto) return { slot: active, kind: 'auto', data: auto };
+  const manual = await loadGame(active, 'manual');
+  if (manual) return { slot: active, kind: 'manual', data: manual };
+  let best: { slot: number; kind: 'auto' | 'manual'; at: number } | null = null;
+  for (const info of await listSlots()) {
+    if (info.slot === active) continue;
+    for (const brief of [info.auto, info.manual]) {
+      if (!brief) continue;
+      if (!best || brief.updatedAt > best.at) best = { slot: info.slot, kind: brief.kind, at: brief.updatedAt };
+    }
+  }
+  if (!best) return null;
+  const data = await loadGame(best.slot, best.kind);
+  return data ? { slot: best.slot, kind: best.kind, data } : null;
+}
+
 let writes: Promise<unknown> = Promise.resolve();
-let lastBackup = 0;
+const lastBackup = new Map<number, number>();
 const SAVE_NOTICE = 'No se pudo guardar. Tu progreso sigue en esta sesión; reintentá o exportá una copia antes de salir.';
+
+function enqueue<T>(job: () => Promise<T>): Promise<T> {
+  const run = writes.then(job, job);
+  writes = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+function snapshotSave(source: SaveData): SaveData | null {
+  try {
+    return validateSave(JSON.parse(JSON.stringify(source)));
+  } catch (err) {
+    reportError('save:snapshot', err, SAVE_NOTICE);
+    return null;
+  }
+}
+
+function sameMoment(a: SaveData, b: SaveData): boolean {
+  return a.updatedAt === b.updatedAt
+    && a.coins === b.coins
+    && a.player.name === b.player.name
+    && a.time.day === b.time.day
+    && a.time.period === b.time.period
+    && a.time.minutes === b.time.minutes;
+}
+
+async function removeKey(key: string): Promise<void> {
+  try {
+    await idbDelete(key);
+  } catch (err) {
+    reportError('save:delete:' + key, err, false);
+  }
+}
+
+async function rotateBackup(slot: number): Promise<void> {
+  if (Date.now() - (lastBackup.get(slot) ?? 0) <= 120_000) return;
+  const prev = await readFirst(autoKeys(slot));
+  if (prev) await idbPut(slotKey(slot, 'backup'), prev);
+  lastBackup.set(slot, Date.now());
+}
 
 /** Capture at the call, then serialize writes. Only a completed transaction counts as saved. */
 export async function saveGame(reason = 'auto'): Promise<boolean> {
   if (!game.loaded) return false;
   const source = game.save;
   const revision = game.revision;
-  let snapshot: SaveData;
-  try {
-    snapshot = validateSave(JSON.parse(JSON.stringify(source)));
-  } catch (err) {
-    reportError('save:snapshot', err, SAVE_NOTICE);
-    return false;
-  }
-  const write = writes.then(async () => {
+  const slot = activeSlot();
+  const snapshot = snapshotSave(source);
+  if (!snapshot) return false;
+  return enqueue(async () => {
     try {
-      // Rotate only a validated previous save. Never replace a good backup with corrupt data.
-      if (Date.now() - lastBackup > 120_000) {
-        let prev: unknown;
-        try { prev = await idbGet(MAIN); }
-        catch (err) { reportError('save:backup-read', err, false); }
-        if (prev) {
-          let backup: SaveData | undefined;
-          try { backup = validateSave(structuredClone(prev)); }
-          catch (err) { reportError('save:backup-invalid', err, false); }
-          if (backup) await idbPut(BACKUP, backup);
-        }
-        lastBackup = Date.now();
-      }
-      await idbPut(MAIN, snapshot);
+      // Rotate only a validated previous save, and only for this slot's own timer.
+      await rotateBackup(slot);
+      await idbPut(slotKey(slot, 'auto'), snapshot);
       if (game.save === source && game.revision === revision) game.dirty = false;
       return true;
     } catch (err) {
@@ -135,13 +316,109 @@ export async function saveGame(reason = 'auto'): Promise<boolean> {
       return false;
     }
   });
-  writes = write;
-  return write;
 }
 
+/**
+ * One checkpoint written to the manual slot and the automatic slot.
+ * Later autosaves update only the automatic side, so this point stays put.
+ */
+export async function saveManual(): Promise<boolean> {
+  if (!game.loaded) return false;
+  const source = game.save;
+  const revision = game.revision;
+  const slot = activeSlot();
+  const snapshot = snapshotSave(source);
+  if (!snapshot) return false;
+  return enqueue(async () => {
+    try {
+      await idbPut(slotKey(slot, 'auto'), snapshot);
+      await idbPut(slotKey(slot, 'manual'), snapshot);
+      if (game.save === source && game.revision === revision) game.dirty = false;
+      return true;
+    } catch (err) {
+      reportError('save:manual', err, SAVE_NOTICE);
+      return false;
+    }
+  });
+}
+
+/** Make this snapshot the slot's automatic save. The manual checkpoint is left as it is. */
+export async function adoptSnapshot(slot: number, data: SaveData): Promise<boolean> {
+  const n = normalizeSlot(slot);
+  const snapshot = snapshotSave(data);
+  if (!snapshot) return false;
+  return enqueue(async () => {
+    try {
+      const prev = await readFirst(autoKeys(n));
+      if (prev && !sameMoment(prev, snapshot)) {
+        await idbPut(slotKey(n, 'backup'), prev);
+        lastBackup.set(n, Date.now());
+      }
+      await idbPut(slotKey(n, 'auto'), snapshot);
+      setActiveSlot(n);
+      return true;
+    } catch (err) {
+      reportError('save:adopt', err, SAVE_NOTICE);
+      return false;
+    }
+  });
+}
+
+/** Replace a whole slot with an imported playthrough. The old manual checkpoint does not stay. */
+export async function installSave(slot: number, data: SaveData): Promise<boolean> {
+  const n = normalizeSlot(slot);
+  const snapshot = snapshotSave(data);
+  if (!snapshot) return false;
+  return enqueue(async () => {
+    try {
+      await removeKey(slotKey(n, 'auto'));
+      await removeKey(slotKey(n, 'backup'));
+      await removeKey(slotKey(n, 'manual'));
+      if (n === 0) {
+        await removeKey(LEGACY_MAIN);
+        await removeKey(LEGACY_BACKUP);
+      }
+      await idbPut(slotKey(n, 'auto'), snapshot);
+      lastBackup.set(n, 0);
+      setActiveSlot(n);
+      return true;
+    } catch (err) {
+      reportError('save:install', err, SAVE_NOTICE);
+      return false;
+    }
+  });
+}
+
+export async function clearManual(slot = activeSlot()): Promise<void> {
+  const n = normalizeSlot(slot);
+  await enqueue(async () => {
+    await removeKey(slotKey(n, 'manual'));
+  });
+}
+
+/** Wipe one playthrough, including a legacy copy hiding behind slot 0. */
+export async function deleteSlot(slot: number): Promise<void> {
+  const n = normalizeSlot(slot);
+  await enqueue(async () => {
+    await removeKey(slotKey(n, 'auto'));
+    await removeKey(slotKey(n, 'backup'));
+    await removeKey(slotKey(n, 'manual'));
+    if (n === 0) {
+      await removeKey(LEGACY_MAIN);
+      await removeKey(LEGACY_BACKUP);
+    }
+  });
+}
+
+/** Test isolation: every slot, the legacy keys and the active-slot pointer. */
 export async function deleteSave() {
-  await idbDelete(MAIN);
-  await idbDelete(BACKUP);
+  for (let slot = 0; slot < SLOT_COUNT; slot++) await deleteSlot(slot);
+  lastBackup.clear();
+  try {
+    localStorage.removeItem(ACTIVE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function exportName() {
