@@ -219,8 +219,20 @@ export function openMenu() {
     b('NoriPhone', 'Tus aplicaciones de Villa Nori', () => openNoriPhone()),
     b('Descansar un rato', clock.period < 3 ? 'Pasar al siguiente momento del día' : 'Es de noche: andá a dormir a tu cama', () => restPeriod()),
     b('Ajustes', 'Sonido, texto y controles', () => openSettings(true)),
-    b('Guardar y salir', 'Volver al título', async () => {
+    b('Guardar', 'Deja un punto fijo de esta partida', async () => {
+      const { syncPlayerPos } = await import('../core/flow');
+      const { activeSlot, saveManual } = await import('../persistence/storage');
+      syncPlayerPos();
+      if (await saveManual()) toast(`Partida ${activeSlot() + 1} guardada a mano.`);
+    }),
+    b('Cargar', 'Elegí un automático o un manual', async () => {
+      const { openInGameLoad } = await import('./saves');
+      await openInGameLoad();
+    }),
+    b('Guardar y salir', 'Guarda el automático y vuelve al título', async () => {
+      const { syncPlayerPos } = await import('../core/flow');
       const { saveGame } = await import('../persistence/storage');
+      syncPlayerPos();
       if (!(await saveGame('exit'))) return;
       if (await confirmBox('Partida guardada. ¿Volver a la pantalla de título?', 'Salir', 'Seguir jugando')) location.reload();
     }),
