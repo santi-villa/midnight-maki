@@ -2,8 +2,8 @@
 import { settings } from './settings';
 import { reportError } from './errors';
 
-type Cue = 'cut' | 'excellent' | 'unlock' | 'reward';
-const PATTERNS: Record<Cue, number | number[]> = { cut: 12, excellent: [18, 35, 18], unlock: [20, 40, 30], reward: 20 };
+type Cue = 'cut' | 'excellent' | 'unlock' | 'reward' | 'tap';
+const PATTERNS: Record<Cue, number | number[]> = { cut: 12, excellent: [18, 35, 18], unlock: [20, 40, 30], reward: 20, tap: 8 };
 let last = -Infinity;
 export const supportsHaptics = () => typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
 export function haptic(cue: Cue): boolean {

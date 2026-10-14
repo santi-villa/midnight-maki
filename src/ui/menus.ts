@@ -19,7 +19,7 @@ import type { HudHandlers } from './hud';
 import { whereIs } from '../systems/npcs';
 import { ZONES } from '../data/zones';
 import { ACHIEVEMENTS } from '../systems/achievements';
-import { mountNoriPhone } from './noriPhone';
+import { openPhone, registerPhoneApps, type PhoneApp } from './phone/phone';
 import { openTownMemories } from './townMemories';
 
 function tabs(names: string[], onPick: (i: number) => void, start = 0) {
@@ -169,8 +169,9 @@ function photoCards() {
 }
 function openPhotoAlbum() { panel({ title: 'Álbum de fotos', body: photoCards() }); }
 
-export function openNoriPhone() {
-  mountNoriPhone([
+/** The phone only navigates: each app opens one of the game's existing screens. */
+function phoneApps(): PhoneApp[] {
+  return [
     { id: 'camera', name: 'Cámara', icon: 'camera', hint: 'Sacar una foto', closePhone: true, run: () => import('./camera').then(m => m.takePhoto()) },
     { id: 'photos', name: 'Fotos', icon: 'camera', hint: 'Tus fotos y momentos juntos', run: openPhotoAlbum },
     { id: 'map', name: 'Mapa', icon: 'map', hint: 'Explorar Villa Nori', run: () => import('./worldmap').then(m => m.openWorldMap()) },
@@ -185,8 +186,10 @@ export function openNoriPhone() {
     { id: 'bag', name: 'Mochila', icon: 'bag', hint: 'Ingredientes y objetos', run: () => openBag() },
     { id: 'settings', name: 'Ajustes', icon: 'wood_gear', hint: 'Sonido, texto y vibración', run: () => openSettings(true) },
     { id: 'more', name: 'Más', icon: 'menu', hint: 'Personaje, descanso, guardado y salida', run: openMenu },
-  ]);
+  ];
 }
+registerPhoneApps(phoneApps);
+export function openNoriPhone() { openPhone(); }
 
 function calendarView() {
   const wrap = h('div', { class: 'col' });

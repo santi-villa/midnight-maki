@@ -15,6 +15,7 @@ export interface GameEvents {
   'toast': { text: string; icon?: string };
   'decor:changed': { room: string };
   'appearance:changed': {};
+  'phone:changed': {};
   'flag:set': { key: string };
   'settings:changed': {};
   'item:collected': { id: string; source: string };

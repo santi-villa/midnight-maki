@@ -1,0 +1,79 @@
+/* NoriPhone: peeking pixel phone. Everything is scoped to .noriphone-* / .pn-* so it cannot leak into other screens. */
+#ui > .noriphone-layer { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; }
+.noriphone-layer.is-open { z-index: 48; }
+.noriphone-guard { display: none; }
+.noriphone-dim { position: absolute; inset: 0; background: rgba(12, 10, 24, 0); transition: background 260ms ease; pointer-events: none; }
+.noriphone-layer.is-open .noriphone-dim { background: rgba(12, 10, 24, .62); pointer-events: auto; }
+
+.noriphone-device { position: absolute; left: 50%; top: 50%; pointer-events: none; image-rendering: pixelated;
+  transform: translate(-50%, calc(-50% + var(--closed-y, 100vh))); transition: transform 300ms cubic-bezier(.2, .9, .25, 1.08); will-change: transform; }
+.noriphone-device.is-open { transform: translate(-50%, -50%); pointer-events: auto; }
+.noriphone-device:not(.is-open) { transition-duration: 240ms; transition-timing-function: cubic-bezier(.5, 0, .75, .4); }
+.noriphone-device.no-anim { transition: none; }
+.noriphone-device.instant, .reduce-motion .noriphone-device { transition-duration: 1ms; }
+.noriphone-layer.is-open .noriphone-device { transition-timing-function: cubic-bezier(.2, .9, .25, 1.06); }
+@media (prefers-reduced-motion: reduce) { .noriphone-device, .noriphone-dim { transition-duration: 1ms; } }
+.reduce-motion .noriphone-dim { transition-duration: 1ms; }
+
+.noriphone-case { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; filter: drop-shadow(0 6px 0 rgba(0, 0, 0, .25)); }
+.noriphone-screen { position: absolute; left: var(--scr-x); top: var(--scr-y); width: var(--scr-w); height: var(--scr-h); border-radius: var(--scr-r); overflow: hidden;
+  background: #1b1830; color: #3b2a22; font-family: inherit; }
+.noriphone-screen.is-busy { pointer-events: none; }
+.pn-wall { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: cover; }
+.pn-shade { position: absolute; inset: 0; background: linear-gradient(rgba(255, 255, 255, .12), rgba(0, 0, 0, .18)); pointer-events: none; }
+.pn-view { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; }
+
+.noriphone-peek { position: absolute; left: 50%; top: 0; transform: translateX(-50%); height: var(--peek, 24px); min-height: 28px; background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; pointer-events: auto; }
+.noriphone-device.is-open .noriphone-peek { pointer-events: none; }
+.noriphone-peek:focus-visible { outline: 3px solid #ffe08a; outline-offset: -3px; }
+.noriphone-grip { position: absolute; left: 0; right: 0; pointer-events: none; touch-action: none; }
+.noriphone-device.is-open .noriphone-grip { pointer-events: auto; }
+.noriphone-grip.top { top: 0; height: calc(var(--scr-y) + 2px); }
+.noriphone-grip.bottom { bottom: 0; height: calc(var(--px) * 6); }
+
+.pn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; flex: 0 0 auto; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, .55); }
+.pn-clock { flex: 1; display: flex; flex-direction: column; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.pn-clock small { opacity: .9; font-size: .72em; }
+.pn-title { flex: 1; text-align: center; }
+.pn-back, .pn-close { width: 36px; height: 36px; border: 2px solid rgba(255, 255, 255, .7); border-radius: 8px; background: rgba(0, 0, 0, .3); color: #fff; font: inherit; font-size: 1.1em; cursor: pointer; flex: 0 0 auto; }
+.pn-back:focus-visible, .pn-close:focus-visible, .pn-app:focus-visible, .pn-tab:focus-visible, .pn-opt:focus-visible, .pn-btn:focus-visible { outline: 3px solid #ffe08a; outline-offset: 2px; }
+.pn-main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 10px 10px; -webkit-overflow-scrolling: touch; }
+.pn-hello { margin: 2px 0 10px; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, .6); font-size: .85em; text-align: center; }
+.pn-apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 6px; }
+.pn-app { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 2px; min-width: 0; min-height: 64px; border: 0; background: transparent; color: #fff; font: inherit; font-size: .78em; line-height: 1.1; text-shadow: 0 1px 0 rgba(0, 0, 0, .7); cursor: pointer; overflow-wrap: anywhere; }
+.pn-icon { position: relative; display: grid; place-items: center; width: 46px; height: 46px; background: rgba(255, 248, 230, .92); border: 3px solid #5b4636; border-radius: 10px; box-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+.pn-icon .skin-icon { width: 28px; height: 28px; image-rendering: pixelated; }
+.pn-app:active .pn-icon { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+.pn-badge { position: absolute; top: -6px; right: -6px; width: 11px; height: 11px; border-radius: 50%; background: #e8574f; border: 2px solid #fff; }
+.pn-home-bar { flex: 0 0 auto; display: grid; place-items: center; padding: 6px 0 8px; }
+.pn-home-bar i { display: block; width: 34%; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .8); }
+
+.pn-tabs { display: flex; gap: 4px; padding: 0 8px 6px; flex: 0 0 auto; }
+.pn-tab { flex: 1; min-height: 34px; border: 2px solid #5b4636; border-radius: 8px; background: rgba(255, 248, 230, .8); color: #3b2a22; font: inherit; font-size: .85em; cursor: pointer; }
+.pn-tab.on { background: #ffe08a; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .15); }
+.pn-hint { margin: 0 0 8px; padding: 5px 7px; border-radius: 6px; background: rgba(0, 0, 0, .45); color: #fff; font-size: .78em; line-height: 1.25; }
+.pn-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pn-opt { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 4px; border: 3px solid #5b4636; border-radius: 8px; background: rgba(255, 248, 230, .9); color: #3b2a22; font: inherit; font-size: .72em; cursor: pointer; }
+.pn-opt.on { border-color: #e8a317; background: #fff1bf; }
+.pn-opt.locked { filter: grayscale(1) brightness(.55); }
+.pn-opt.locked .pn-thumb { background: #222 !important; }
+.pn-opt.locked .pn-thumb > * { filter: brightness(0); }
+.pn-thumb { display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 4px; background: #d8c9a8; }
+.pn-thumb canvas { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.pn-opts.color .pn-thumb { aspect-ratio: 1; }
+.pn-opt-name { overflow-wrap: anywhere; text-align: center; line-height: 1.05; }
+.pn-foot { display: flex; gap: 8px; padding: 6px 10px 10px; flex: 0 0 auto; }
+.pn-btn { flex: 1; min-height: 40px; border: 3px solid #5b4636; border-radius: 8px; background: #efe3c3; color: #3b2a22; font: inherit; cursor: pointer; }
+.pn-btn.primary { background: #9fc18f; }
+.pn-btn:disabled { opacity: .5; cursor: default; }
+/* labels sit on a dark pill so they read on light wallpapers too */
+.pn-label, .pn-clock, .pn-title, .pn-hello { background: rgba(38, 26, 20, .6); padding: 1px 6px; border-radius: 6px; text-shadow: none; }
+.pn-clock { align-self: flex-start; }
+.pn-hello { margin-inline: auto; width: fit-content; }
+.pn-app { font-size: .66em; overflow-wrap: normal; word-break: normal; }
+.pn-label { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-inline: 4px; }
+.pn-app { font-size: .62em; }
+.pn-label { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; text-align: center; }
+@media (max-height: 480px) { .pn-hello { display: none; } .pn-icon { width: 40px; height: 40px; } }
+.pn-app { font-size: clamp(8px, calc(var(--scr-w) / 26), 12px); }
+.pn-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-inline: 2px; }
