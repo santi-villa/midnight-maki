@@ -12,6 +12,8 @@ export interface RoutineStop {
   act?: NpcAct;
   /** Visual seating lift; pathfinding still targets the free tile in front of a bench. */
   seatLift?: number;
+  /** Tiles of the bed they sleep in; the actor is drawn lying in it once settled. */
+  bed?: { x: number; y: number; w: number; h: number };
   dir?: Dir;
   /** Safe alternate destinations for shared work/rest areas. */
   alternatives?: [number, number][];

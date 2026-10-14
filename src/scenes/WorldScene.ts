@@ -1017,6 +1017,7 @@ export class WorldScene extends Phaser.Scene {
       n.traveling = !trip.settled;
       n.anchor = [stop.x, stop.y]; n.wander = stop.wander ?? 0; n.act = stop.act;
       n.actor.seatLift = n.traveling ? 0 : stop.seatLift ?? 0;
+      n.actor.bed = !n.traveling && stop.act === 'sleep' ? stop.bed ?? null : null;
       if (!n.traveling && stop.dir && !n.social) n.actor.face(stop.dir);
       if (n.traveling) { n.actor.stop(); n.actor.setAct('idle'); }
       else if (wasTraveling) {

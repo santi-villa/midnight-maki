@@ -33,6 +33,9 @@ export class Actor {
   moving = false;
   act: Act = 'idle';
   seatLift = 0;
+  /** Bed (in tiles) to lie in while asleep: only the head and shoulders show above the quilt. */
+  bed: { x: number; y: number; w: number; h: number } | null = null;
+  private lying = false;
   private animT = 0;
   private blinkT = 2 + Math.random() * 3;
   private blinking = 0;
@@ -277,17 +280,41 @@ export class Actor {
     }
   }
 
+  private syncLying(): boolean {
+    const b = this.bed;
+    const lie = !!b && !this.moving && this.act === 'sleep';
+    if (lie !== this.lying) {
+      this.lying = lie;
+      if (!lie) this.sprite.setCrop();
+      this.shadow.setVisible(!lie);
+    }
+    if (!lie || !b) return false;
+    const f = this.sprite.frame;
+    const keep = Math.round(f.height * 0.42);
+    this.sprite.setCrop(0, 0, f.width, keep);
+    const cx = Math.round(b.x * TILE + (b.w * TILE) / 2);
+    const top = b.y * TILE;
+    const breath = Math.sin(this.actT * 1.6 + this.phase) > 0.2 ? 1 : 0;
+    this.sprite.setPosition(cx, top + 20 + (f.height - keep) - breath);
+    this.sprite.setDepth((b.y + b.h) * TILE + 1);
+    this.cast.setVisible(false);
+    return true;
+  }
+
   sync() {
+    const lying = this.syncLying();
     const rx = Math.round(this.x);
     const ry = Math.round(this.y);
     const seated = !this.moving && ['sit', 'read', 'eat', 'drink'].includes(this.act) ? this.seatLift : 0;
-    this.sprite.setPosition(rx, ry - this.bob - seated);
-    this.sprite.setDepth(ry);
-    this.shadow.setPosition(rx, ry - 1);
-    this.shadow.setDepth(ry - 0.5);
-    const sun = Actor.sun;
-    this.cast.setPosition(rx + sun.dx * 0.6, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, 0.34 * (sun.sy / 0.3)).setAlpha(0.3 * sun.alpha);
-    if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
+    if (!lying) {
+      this.sprite.setPosition(rx, ry - this.bob - seated);
+      this.sprite.setDepth(ry);
+      this.shadow.setPosition(rx, ry - 1);
+      this.shadow.setDepth(ry - 0.5);
+      const sun = Actor.sun;
+      this.cast.setPosition(rx + sun.dx * 0.6, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, 0.34 * (sun.sy / 0.3)).setAlpha(0.3 * sun.alpha);
+      if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
+    }
     if (this.bubble) {
       const view = this.scene.cameras.main.worldView;
       const half = this.bubble.displayWidth / 2;
