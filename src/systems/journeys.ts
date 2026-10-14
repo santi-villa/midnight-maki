@@ -40,10 +40,11 @@ export class Journey {
     this.destination = { ...start };
   }
 
-  go(stop: RoutineStop) {
+  go(stop: RoutineStop, returnDisplaced = false) {
     const old = this.destination;
     this.destination = { ...stop };
-    if (old.zone === stop.zone && old.x === stop.x && old.y === stop.y) return;
+    if (old.zone === stop.zone && old.x === stop.x && old.y === stop.y &&
+      !(returnDisplaced && this.settled && (this.position.zone !== stop.zone || Math.hypot(this.position.x - stop.x, this.position.y - stop.y) > 0.1))) return;
     this.settled = false;
     this.path = [];
     this.planned = false;

@@ -2,6 +2,7 @@
 import { iconCanvas, iconElement, type IconSpec } from '../art/icons';
 import { audio } from '../audio/audio';
 import { game } from '../core/state';
+import { runTask } from '../core/errors';
 import { ITEMS_BY_ID } from '../data/items';
 import { obtain } from '../systems/collect';
 import { h, toast } from '../ui/dom';
@@ -228,7 +229,7 @@ export function memoryGame(opponent = 'pip'): Promise<void> {
     };
     const remember = (i: number) => seen.set(deck[i], [...new Set([...(seen.get(deck[i]) ?? []), i])]);
     const flip = async (i: number) => {
-      if (open[i] || flipped.includes(i)) return;
+      if (done || open[i] || flipped.includes(i)) return;
       flipped.push(i);
       remember(i);
       audio.sfxPlay('tap');
@@ -236,6 +237,7 @@ export function memoryGame(opponent = 'pip'): Promise<void> {
       if (flipped.length < 2) return;
       busy = true;
       await new Promise((r) => setTimeout(r, 700));
+      if (done) return;
       const [a, b] = flipped;
       if (deck[a] === deck[b]) {
         open[a] = open[b] = true;
@@ -247,11 +249,13 @@ export function memoryGame(opponent = 'pip'): Promise<void> {
       busy = false;
       draw();
       if (open.every(Boolean)) return end();
-      if (turn === 1) aiTurn();
+      if (turn === 1) void runTask('memory:opponent', aiTurn);
     };
     const aiTurn = async () => {
+      if (done) return;
       busy = true;
       await new Promise((r) => setTimeout(r, 600));
+      if (done) return;
       const closed = open.map((o, i) => (o ? -1 : i)).filter((i) => i >= 0);
       // raccoons remember some cards (Rigg more, Pip less)
       const memory = opponent === 'rigg' ? 0.8 : opponent === 'spicy' ? 0.55 : 0.35;
@@ -266,8 +270,10 @@ export function memoryGame(opponent = 'pip'): Promise<void> {
       const first = pick ? pick[0] : closed[Math.floor(Math.random() * closed.length)];
       busy = false;
       await flip(first);
+      if (done) return;
       busy = true;
       await new Promise((r) => setTimeout(r, 500));
+      if (done) return;
       let second = pick ? pick[1] : -1;
       if (second < 0) {
         const known = (seen.get(deck[first]) ?? []).find((i) => i !== first && !open[i]);
@@ -277,6 +283,7 @@ export function memoryGame(opponent = 'pip'): Promise<void> {
       await flip(second);
     };
     const end = () => {
+      if (done) return;
       const win = score[0] > score[1];
       if (win) game.stat('memoryWins');
       if (win && dayOnce('memory_' + opponent)) {
@@ -288,9 +295,9 @@ export function memoryGame(opponent = 'pip'): Promise<void> {
       setTimeout(finish, 900);
     };
     sh.canvas.addEventListener('pointerdown', (e) => {
-      if (busy || turn !== 0) return;
+      if (done || busy || turn !== 0) return;
       const p = boardPos(sh.canvas, e);
-      flip(Math.floor(p.y / 32) * 4 + Math.floor(p.x / 32));
+      void runTask('memory:flip', () => flip(Math.floor(p.y / 32) * 4 + Math.floor(p.x / 32)));
     });
     draw();
     function finish() {

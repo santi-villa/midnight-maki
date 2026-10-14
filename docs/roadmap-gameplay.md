@@ -111,3 +111,11 @@ Regresiones agregadas para registros del recetario, etapas y cultivos existentes
 Identidad pública actualizada, conservando Midnight Maki como restaurante y Villa Nori como pueblo. Portadas adaptadas en vertical/horizontal; metadatos PWA y nombre Android conservan los identificadores técnicos. NoriPhone reúne pantallas actuales, fotos y recuerdos; acciones con iconos más claros y vibración opcional. No se reconstruyeron la historia, cocina ni guardados. La auditoría formal del punto 1 sigue aplazada.
 
 Detalles, archivos, verificación y límites: [identidad y experiencia móvil](identity-mobile.md). Siguiente recomendado: punto 3, puestos, retornos y descansos de los mapaches; después 4 → 5 → 7 → 8, con confirmación entre entregas.
+
+## Nuevo orden — Punto 3: convivencia
+
+Completada la entrega de puestos y alternativas seguras, retorno explícito de Pip tras acompañar clientes, recuperación de rutas tras interrupciones, descansos escalonados y regreso a las habitaciones al cierre. Compañía opcional reutiliza amistad, memoria y cámara: caricias, merienda, sentarse, jugar y fotos; respuestas propias, premio diario acotado, recuerdos persistentes y cancelaciones sin consumo ni bloqueo. Se amplían ocurrencias y conversaciones ambientales, sin cambiar capítulos, reloj ni iluminación.
+
+Detalles, archivos, instrucciones de uso y comprobaciones puntuales: [companionship.md](companionship.md). Typecheck/build y comprobaciones de navegador en PC y celular emulado; suites completas aplazadas para el cierre por pedido del usuario.
+
+Pendientes del nuevo orden: **4 (restaurante)** → **5 (progresión y hogar)** → **7 (narrativa)** → **8 (pulido y pruebas completas)**. El punto 1 sigue aplazado. Próxima recomendación: ampliar los grupos y pedidos individuales sobre el servicio físico existente, y después bandeja/transporte y bebidas. Avanzar solamente cuando el usuario confirme el siguiente punto.

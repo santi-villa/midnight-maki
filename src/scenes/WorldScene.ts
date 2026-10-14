@@ -38,6 +38,8 @@ import { CUSTOMER_IDS } from '../art/customerSheet';
 import type { CustomerId } from '../art/customers';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
+import { companyScene, openCompany } from '../story/companions';
+import type { CompanyActivity } from '../systems/companionship';
 
 export type { Target };
 
@@ -68,6 +70,7 @@ export class WorldScene extends Phaser.Scene {
   private shopKey = '';
   private lifeTick = 0;
   private town = new TownLife();
+  private decorReaction = false;
   private townMembers = '';
   private townSave = game.save;
   private townDay = game.save.time.day;
@@ -146,7 +149,7 @@ export class WorldScene extends Phaser.Scene {
       bus.on('decor:changed', () => {
         this.town.invalidate(); this.diningCache = null;
         for (const v of this.visitors.values()) for (const trip of v.trips) trip.replan();
-        this.refreshFurniture();
+        this.refreshFurniture(); this.decorReaction = true;
       }),
       bus.on('coins:changed', ({ delta }) => {
         if (delta > 0 && this.sys.isActive()) this.floatText('+' + delta + ' ●');
@@ -871,6 +874,11 @@ export class WorldScene extends Phaser.Scene {
       this.town.sync(); this.spawnNpcs(false);
     }
     this.rememberResidents();
+    this.town.setHeld([...this.npcs.entries()].filter(([, n]) => n.social || n.t >= 80).map(([id]) => id));
+    this.town.setOccupied([
+      { zone: this.zoneId, x: this.player.tx, y: this.player.ty },
+      ...[...this.visitors.values()].flatMap(v => v.trips.map(t => ({ zone: t.position.zone, x: Math.round(t.position.x), y: Math.round(t.position.y) }))),
+    ]);
     this.town.tick(dt);
     const members = this.town.inZone(this.zoneId).map((r) => r.id + ':' + r.trip.settled).join('|');
     if (members !== this.townMembers) {
@@ -1195,6 +1203,7 @@ export class WorldScene extends Phaser.Scene {
       void runTask('world:gift', () => this.offerGift(intent.npcId));
       return;
     }
+    if (intent.type === 'company') { openCompany(this, intent.npcId); return; }
     if (intent.type === 'decorate') {
       void runTask('world:decorate', () => import('../decoration/editor').then((m) => m.startDecor()));
       return;
@@ -1241,9 +1250,61 @@ export class WorldScene extends Phaser.Scene {
     this.player.faceTowards(a.x, a.y);
     const st = this.npcs.get(id);
     if (!st) return;
-    st.actor.stop();
+    st.actor.stop(); st.actor.clearEmote();
     st.t = 6;
     if (st.actor.act === 'sleep') st.actor.setAct('idle');
+  }
+
+  canKeepCompany(id: string): boolean {
+    const n = this.npcs.get(id), scripted = game.flag('at_' + id);
+    return !!(this.canAct() && game.has('intro_done') && CHAR_BY_ID[id]?.raccoon && n &&
+      !n.traveling && !n.actor.path.length && n.t < 80 && !(id === 'pip' && this.hostId) &&
+      !(typeof scripted === 'string' && scripted) && Math.hypot(n.actor.x - this.player.x, n.actor.y - this.player.y) < 48);
+  }
+
+  async keepCompany(id: string, kind: CompanyActivity): Promise<boolean> {
+    if (!this.canKeepCompany(id)) return false;
+    const n = this.npcs.get(id)!, zone = this.zone, player = this.player;
+    this.greet(id); this.rememberResidents();
+    this.inputLocked++; clock.pause(); n.social = true;
+    try {
+      if (kind === 'sit') {
+        const ax = n.actor.tx, ay = n.actor.ty;
+        const spots = [[this.player.tx, this.player.ty], [ax - 3, ay], [ax + 3, ay], [ax - 2, ay], [ax + 2, ay], [ax, ay + 2], [ax, ay - 2]];
+        const tile = spots.find(([x, y]) => Math.hypot(x - ax, y - ay) >= 2 && Math.abs(x - ax) + Math.abs(y - ay) <= 3 &&
+          !zone.grid.isSolid(x, y) && !zone.def.doors.some(d => Math.abs(d.x - x) + Math.abs(d.y - y) <= 1) &&
+          !zone.def.interact.some(i => i.x === x && i.y === y) &&
+          !(this.zoneId === 'restaurant' && [8, 9].includes(x) && y >= 10) &&
+          ![...this.npcs.values()].some(other => other !== n && Math.hypot(other.actor.tx - x, other.actor.ty - y) < 2) &&
+          ![...this.guests.values()].some(g => Math.hypot(g.actor.tx - x, g.actor.ty - y) < 2) &&
+          (zone.grid.path(this.player.tx, this.player.ty, x, y)?.length ?? Infinity) <= 10);
+        if (!tile) { this.note('Busquemos un rincón con un poquito más de espacio.'); return false; }
+        const arrived = await new Promise<boolean>(resolve => {
+          let done = false;
+          const cancel = () => finish(false);
+          const finish = (ok: boolean) => {
+            if (done) return; done = true; timer.remove(); this.events.off('shutdown', cancel); resolve(ok);
+          };
+          const timer = this.time.delayedCall(4000, () => { this.player.stop(); finish(false); });
+          this.events.once('shutdown', cancel);
+          if (!this.player.walkTo(zone.grid, tile[0], tile[1], () => finish(true))) finish(false);
+        });
+        if (!arrived || this.zone !== zone || !n.actor.sprite.active) return false;
+        this.player.faceTowards(n.actor.x, n.actor.y); this.player.setAct('sit');
+      }
+      n.actor.setAct(kind === 'sit' ? 'sit' : 'happy');
+      return await companyScene(id, kind);
+    } finally {
+      if (player.sprite.active) { player.stop(); player.setAct('idle'); }
+      if (this.npcs.get(id) === n && n.actor.sprite.active) {
+        n.social = false; n.actor.setAct(n.act ?? 'idle'); n.t = 0;
+      }
+      this.inputLocked = Math.max(0, this.inputLocked - 1); clock.resume();
+      if (this.sys.isActive()) {
+        this.town.setHeld([...this.npcs.entries()].filter(([, other]) => other.social || other.t >= 80).map(([otherId]) => otherId));
+        this.town.sync(); this.spawnNpcs(false); this.contextKey = '';
+      }
+    }
   }
 
   private doInteract(t: Target) {
@@ -1266,6 +1327,7 @@ export class WorldScene extends Phaser.Scene {
         name: CHAR_BY_ID[id]?.name ?? id,
         x: n.actor.x,
         y: n.actor.y - 4,
+        company: this.canKeepCompany(id),
       })),
       interacts: this.zone.def.interact.filter((i) => condOk(i.cond)).map((i) => {
         if (!i.action.startsWith('shop:')) return i;
@@ -1554,6 +1616,7 @@ export class WorldScene extends Phaser.Scene {
     const a = n.actor;
     if (clock.paused && n.t < 80 || this.transitioning || this.decorMode) { a.update(0); return; }
     const trip = this.town.residents.get(a.id)?.trip;
+    n.traveling = !!trip && !trip.settled;
     if (trip && !trip.settled && n.t < 80 && !this.inputLocked) {
       const p = trip.position;
       a.stop(); a.manual = true; a.moving = trip.moving; a.dir = trip.dir;
@@ -1664,7 +1727,8 @@ export class WorldScene extends Phaser.Scene {
     if (this.chatIn > 0) return;
     this.chatIn = 12 + Math.random() * 8;
     const neighbors = [...this.npcs.values()].filter((n) => !n.traveling && n.t < 80 && !n.actor.path.length && !n.actor.bubble &&
-      !['sleep', 'eat', 'drink', 'cook', 'fish', 'stars'].includes(n.act ?? '') &&
+      !['sleep', 'eat', 'drink', 'fish', 'stars'].includes(n.act ?? '') &&
+      (n.act !== 'cook' || CHAR_BY_ID[n.actor.id]?.raccoon && game.save.quests.done.includes('prologue')) &&
       !(n.actor.id === 'pip' && this.hostId) && !(this.chatCooldown.get(n.actor.id) ?? 0) &&
       !this.zoneId.startsWith('shop_'));
     const pairs: [NpcState, NpcState][] = [];
@@ -1692,7 +1756,11 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private npcStamp() {
-    return `${clock.period}:${businessPhase(clock.period, game.save.time.minutes)}:${phaseOf(game.save.time.minutes)}:${game.flag('weather') ?? ''}:${game.flag('festival_today') ?? ''}:${Object.keys(CHAR_BY_ID).map((id) => game.flag('at_' + id) ?? '').join('|')}`;
+    const roles = ['pip', 'spicy', 'rigg'].map(id => {
+      const s = stopFor(id, clock.period);
+      return s ? `${s.zone},${s.x},${s.y},${s.act}` : '';
+    }).join('|');
+    return `${clock.period}:${businessPhase(clock.period, game.save.time.minutes)}:${phaseOf(game.save.time.minutes)}:${game.flag('weather') ?? ''}:${game.flag('festival_today') ?? ''}:${roles}:${Object.keys(CHAR_BY_ID).map((id) => game.flag('at_' + id) ?? '').join('|')}`;
   }
 
   private shopStamp() {
@@ -2127,6 +2195,18 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private quirks(dt: number) {
+    if (!this.canAct()) return;
+    if (this.decorReaction) {
+      this.decorReaction = false;
+      const view = this.cameras.main.worldView;
+      const n = [...this.npcs.values()].filter(n => CHAR_BY_ID[n.actor.id]?.raccoon && !n.social && !n.traveling && n.t < 80 &&
+        !(n.actor.id === 'pip' && this.hostId) && view.contains(n.actor.x, n.actor.y) &&
+        game.flag('decor_reaction_' + n.actor.id) !== game.save.time.day).sort((a, b) =>
+        Math.hypot(a.actor.x - this.player.x, a.actor.y - this.player.y) - Math.hypot(b.actor.x - this.player.x, b.actor.y - this.player.y))[0];
+      if (n) void runTask('world:decor-reaction', () => import('../story/quirks').then(m => {
+        if (this.sys.isActive() && n.actor.sprite.active) m.reactToDecor(n.actor.id, n.actor, this);
+      }));
+    }
     this.quirkT -= dt;
     if (this.quirkT > 0 || this.inputLocked || lowFx()) return;
     this.quirkT = 25 + Math.random() * 35;

@@ -97,6 +97,15 @@ function plankButton(col: string): HTMLCanvasElement {
 // ------------------------------------------------------------------ icons (16x16)
 type IconFn = (g: Ctx) => void;
 const ICONS: Record<string, IconFn> = {
+  pet(g) {
+    ellipse(g, 8, 10, 4, 3, '#df9baa');
+    for (const [x, y] of [[3, 5], [6, 3], [10, 3], [13, 5]]) ellipse(g, x, y, 1.5, 2, '#6b4330');
+    px(g, 5, 12, '#6b4330', 6, 1);
+  },
+  play(g) {
+    px(g, 2, 2, INK, 12, 12); px(g, 3, 3, '#f6ead0', 10, 10);
+    for (const [x, y] of [[5, 5], [10, 5], [7, 7], [5, 10], [10, 10]]) px(g, x, y, '#c27f86', 2, 2);
+  },
   phone(g) {
     px(g, 4, 0, INK, 8, 16); px(g, 5, 1, '#bf8a5c', 6, 14);
     px(g, 5, 3, '#8fb7a2', 6, 9); px(g, 7, 1, INK, 2, 1); px(g, 7, 13, '#f6ead0', 2, 1);

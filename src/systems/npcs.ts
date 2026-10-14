@@ -2,6 +2,7 @@
 import { game } from '../core/state';
 import { CHARACTERS, type CharacterDef, type RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
+import { raccoonRoutine } from '../data/raccoons';
 import { applyBeat, businessPhase, SHOP_PLACES, FESTIVAL_SPOT, phaseOf, restaurantPhase, shopPlace, shopStatus, type ShopStatus } from './schedule';
 
 function minutesNow(): number {
@@ -40,13 +41,15 @@ export function stopFor(id: string, period: number): RoutineStop | null {
   }
   // during the prologue tutorial the raccoons stay at the restaurant so they're always reachable
   if (c.raccoon && !game.save.quests.done.includes('prologue') && game.save.time.day < 2) return { zone: 'restaurant', ...introSpot(id) };
-  // Pip hosts the whole public shift, then returns to his own evening routine.
-  if (id === 'pip' && game.has('intro_done') && restaurantPhase(period, minutesNow()) === 'open') {
-    return { zone: 'restaurant', x: 8, y: 9, wander: 0, act: 'work' };
-  }
   const shop = SHOP_PLACES.find(place => place.keeper === id);
   if (shop?.counter && businessPhase(period, minutesNow()) === 'open') {
     return { zone: shop.zone, ...shop.counter, wander: 0 };
+  }
+  const fest = (period === 1 || period === 2) && game.flag('festival_today') ? FESTIVAL_SPOT[c.id] : undefined;
+  if (fest) return beat(c, period, fest, period < 2);
+  if (c.raccoon && game.has('intro_done')) {
+    const routine = raccoonRoutine(id, period, minutesNow(), restaurantPhase(period, minutesNow()) === 'open');
+    if (routine) return routine;
   }
   const spot = c.routine[period];
   if (game.flag('weather') === 'rain' && period < 3) {
@@ -60,8 +63,6 @@ export function stopFor(id: string, period: number): RoutineStop | null {
     if (c.id === 'nami' || c.id === 'kiki') return beat(c, period, spot);
     return null;
   }
-  const fest = (period === 1 || period === 2) && game.flag('festival_today') ? FESTIVAL_SPOT[c.id] : undefined;
-  if (fest) return beat(c, period, fest, period < 2);
   // villagers who "sleep" in town are indoors (not visible). Raccoons sleep in their rooms.
   if (spot.act === 'sleep' && !c.raccoon) return null;
   return beat(c, period, spot);

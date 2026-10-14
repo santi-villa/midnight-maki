@@ -6,6 +6,9 @@ export interface AmbientLine { speaker: string; text: string }
 interface Exchange { pair: [string, string]; lines: [string, string, string] }
 
 const EXCHANGES: Exchange[] = [
+  { pair: ['spicy', 'rigg'], lines: ['¿Anotaste mi nueva receta?', 'Sí. Puse "una pizca", donde decía "un volcán".', '¡Una pizca de volcán! Perfecto.'] },
+  { pair: ['spicy', 'rigg'], lines: ['Guardé una merienda para vos.', 'Gracias. Esta página puede esperar.', '¡Entonces cerramos el libro y abrimos el apetito!'] },
+  { pair: ['pip', 'rigg'], lines: ['¿Puedo sentarme mientras leés?', 'Sí. Esta vez elegís vos el cuento.', '¡Uno que dure hasta la merienda!'] },
   { pair: ['pip', 'spicy'], lines: ['¿Les llevo agua a las mesas?', 'Sí, Pip. ¡Y el wasabi va aparte!', '¡Agua primero, volcán después!'] },
   { pair: ['pip', 'spicy'], lines: ['Hoy no se me cayó ninguna bandeja.', 'Eso merece una merienda del chef.', '¿Una grande? Me esforcé mucho.'] },
   { pair: ['pip', 'rigg'], lines: ['Encontré una piedra que parece una luna.', 'Guardala. Después la dibujamos.', '¡Nuestra colección tiene cielo!'] },
