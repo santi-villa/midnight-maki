@@ -16,7 +16,8 @@ import { TILE } from '../entities/Actor';
 import { world } from '../scenes/WorldScene';
 import { furnTexture } from '../scenes/textures';
 import { clock } from '../systems/time';
-import { add, h, toast, uiRoot } from '../ui/dom';
+import { isTypingTarget, stepIndex } from '../input/bindings';
+import { add, h, modalOpen, toast, uiRoot } from '../ui/dom';
 import { showHud } from '../ui/hud';
 import { decorateBlockReason } from '../world/contextActions';
 import { furnitureSolidTiles, placementKeepsPaths, roomAt } from '../world/zoneRuntime';
@@ -73,7 +74,7 @@ class DecorEditor {
     tabs.append(...tabBtns);
     this.sheet = h(
       'div',
-      { style: { position: 'fixed', left: '0', right: '0', bottom: '0', padding: '8px calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l))', background: 'rgba(31,36,64,.92)', borderTop: '3px solid #46291f', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: '25' } },
+      { class: 'decor-sheet', role: 'dialog', 'aria-label': `Decorar: ${this.room.name}`, style: { position: 'fixed', left: '0', right: '0', bottom: '0', padding: '8px calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l))', background: 'rgba(31,36,64,.92)', borderTop: '3px solid #46291f', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: '25' } },
       h('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap' } },
         h('b', { style: { color: '#f2c66d' } }, `Decorar: ${this.room.name}`),
         h('div', { class: 'row', style: { gap: '6px' } }, h('button', { class: 'btn small', onclick: () => this.doUndo() }, 'Deshacer'), h('button', { class: 'btn small primary', onclick: () => this.close() }, 'Listo'))),
@@ -81,13 +82,40 @@ class DecorEditor {
     );
     uiRoot().append(this.sheet);
     (this.sheet as any).__close = () => this.close();
+    window.addEventListener('keydown', this.onKey, true);
+    this.sheet.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
     this.startOwned = Object.values(game.save.furnitureOwned).reduce((a, b) => a + b, 0);
     this.renderList();
     this.drawGrid();
     this.setStatus('Elegí un mueble guardado o tocá uno de la habitación.');
   }
 
+  private onKey = (e: KeyboardEvent) => {
+    if (!active || modalOpen() || isTypingTarget(e.target) || e.key === 'Escape') return;
+    const arrows = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+    if (this.ghost && arrows) {
+      e.preventDefault();
+      e.stopPropagation();
+      const nudgeTo = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' } as const;
+      this.nudge(nudgeTo[e.key as keyof typeof nudgeTo]);
+      return;
+    }
+    const items = [...this.sheet.querySelectorAll('button')].filter((el) => el.getClientRects().length > 0);
+    if (!items.length) return;
+    if (e.key === 'Tab' || arrows) {
+      e.preventDefault();
+      e.stopPropagation();
+      const dir: 1 | -1 = e.key === 'ArrowUp' || e.key === 'ArrowLeft' || (e.key === 'Tab' && e.shiftKey) ? -1 : 1;
+      const i = items.indexOf(document.activeElement as HTMLButtonElement);
+      const next = i < 0 ? items[0] : items[stepIndex(i, items.length, dir)];
+      next.focus({ preventScroll: true });
+    }
+  };
+
   private close() {
+    if (!active) return;
+    active = false;
+    window.removeEventListener('keydown', this.onKey, true);
     this.clearGhost(true);
     this.gfx.destroy();
     world.input.off('pointerup', this.handler);
@@ -96,7 +124,6 @@ class DecorEditor {
     world.decorMode = false;
     clock.resume();
     showHud(true);
-    active = false;
     this.reactions();
     game.touch('decor');
     bus.emit('ui:modal', { open: false });

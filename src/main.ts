@@ -9,9 +9,11 @@ import { showTitle } from './ui/title';
 import { errorReports, installErrorGuard, runTask } from './core/errors';
 import { registerSW } from './core/pwa';
 import { installAppShell, onBack } from './core/appShell';
+import { installMoveScrollGuard, installPcControls } from './input/shortcuts';
 
 installErrorGuard();
 installAppShell();
+installPcControls();
 onBack(async () => {
   const { modalOpen } = await import('./ui/dom');
   if (modalOpen()) {
@@ -60,6 +62,7 @@ const game = new Phaser.Game({
 });
 
 (window as any).__mm = game; // handy for debugging & e2e tests
+installMoveScrollGuard(game);
 
 game.events.once('booted', () => void runTask('boot:title', () => showTitle(game)));
 }

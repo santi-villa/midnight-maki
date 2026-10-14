@@ -65,6 +65,10 @@
 .game-hud .ctx-dock { right: calc(16px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); gap: 8px; max-width: min(260px, 64vw); }
 .game-hud .ctx-dock .hud-interact { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .game-hud .ctx-dock .hud-interact .skin-icon, .game-hud .ctx-chip .skin-icon { display: none; }
+.game-hud kbd {
+  font-family: inherit; font-size: .78em; margin-right: 4px; padding: 0 3px;
+  border: 2px solid #6a4a32; border-radius: 3px; background: #f6ecd0; color: #3a2418;
+}
 .game-hud .ctx-dock .hud-interact .lbl {
   position: static; transform: none; margin: 0; max-width: none; font-size: inherit; font-weight: 400;
   color: inherit; text-shadow: none; letter-spacing: 0; line-height: inherit; white-space: normal;

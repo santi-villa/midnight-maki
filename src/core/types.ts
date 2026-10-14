@@ -1,3 +1,4 @@
+import type { KeyBindings } from '../input/bindings';
 import type { DiningSnapshot } from '../restaurant/floor';
 export type Dir = 'down' | 'up' | 'left' | 'right';
 
@@ -179,4 +180,6 @@ export interface Settings {
   guide?: boolean;
   /** effects quality: auto-detect, always high, or battery saver */
   perf?: 'auto' | 'high' | 'low';
+  /** KeyboardEvent.code overrides. Missing actions use the defaults. Not part of the save. */
+  bindings?: KeyBindings;
 }

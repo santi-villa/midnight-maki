@@ -26,6 +26,7 @@ describe('daily rhythm', () => {
         if (minutes < 82) {
           expect(stop.seatLift).toBe(12); expect(stop.wander).toBe(0);
           expect(buildZone('plaza', false).grid.isSolid(stop.x, stop.y)).toBe(false);
+          expect(plazaActivity(id, { zone: 'plaza', x: 16, y: 15, act: 'eat' }, minutes).act).toBe('sit');
         }
       }
     }

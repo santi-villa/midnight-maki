@@ -179,16 +179,29 @@ export function choose(options: string[], who = 'player', prompt?: string): Prom
         }, `${i + 1}. ${fmt(o)}`),
       ),
     );
+    const buttons = () => [...list.querySelectorAll('button')];
     const key = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
       const n = parseInt(e.key, 10);
       if (n >= 1 && n <= options.length) {
+        e.preventDefault();
         (list.children[n - 1] as HTMLButtonElement).click();
+        return;
       }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const all = buttons();
+      if (!all.length) return;
+      e.preventDefault();
+      const dir = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1;
+      const i = all.indexOf(document.activeElement as HTMLButtonElement);
+      const next = i < 0 ? all[dir === 1 ? 0 : all.length - 1] : all[(i + dir + all.length) % all.length];
+      next.focus({ preventScroll: true });
     };
     window.addEventListener('keydown', key);
     if (catcher) catcher.onpointerup = null;
     const dlg = h('div', { class: 'dlg' }, info.name && who !== 'player' ? h('div', { class: 'name' }, info.name) : null, h('div', { class: 'body' }, prompt ? h('div', { class: 'text', style: { minHeight: '0' } }, fmt(prompt)) : null, list));
     root.append(dlg);
+    buttons()[0]?.focus({ preventScroll: true });
   });
 }
 

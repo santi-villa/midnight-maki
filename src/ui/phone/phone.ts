@@ -7,6 +7,7 @@ import { audio } from '../../audio/audio';
 import { bus } from '../../core/events';
 import { haptic } from '../../core/haptics';
 import { settings } from '../../core/settings';
+import { actionForCode, bindingMap } from '../../input/bindings';
 import { game } from '../../core/state';
 import { inDialogue } from '../../dialogue/dialogue';
 import { clock } from '../../systems/time';
@@ -399,7 +400,8 @@ function modalOpen_top(): boolean {
 
 function onKey(e: KeyboardEvent) {
   const key = (settings.phoneKey ?? 'p').toLowerCase();
-  if (e.key.toLowerCase() !== key || e.ctrlKey || e.metaKey || e.altKey) return;
+  const bound = actionForCode(e.code, bindingMap(settings.bindings)) === 'phone';
+  if ((!bound && e.key.toLowerCase() !== key) || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
   const t = e.target as HTMLElement | null;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
   if (!game.loaded || layer.style.display === 'none') return;
