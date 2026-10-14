@@ -5,6 +5,7 @@
 import { fillText } from './gender';
 import type { Expr } from '../art/characters';
 import { audio } from '../audio/audio';
+import { hasVoice } from '../audio/voices';
 import { bus } from '../core/events';
 import { reportError } from '../core/errors';
 import { settings } from '../core/settings';
@@ -80,15 +81,15 @@ export function inDialogue() {
 }
 
 function speakerInfo(who: string) {
-  if (who === 'narr') return { name: '', portrait: null as string | null, voice: 1 };
-  if (who === 'player') return { name: game.save.player.name, portrait: null, voice: 1.2 };
+  if (who === 'narr') return { id: '', name: '', portrait: null as string | null, voice: 1 };
+  if (who === 'player') return { id: 'player', name: game.save.player.name, portrait: null, voice: 1.2 };
   if (who.startsWith('?')) {
     // '?Visible name|charId' shows a portrait under a different (unknown yet) name
     const [nm, pid] = who.slice(1).split('|');
-    return { name: nm || '???', portrait: pid && CHAR_BY_ID[pid] ? pid : null, voice: CHAR_BY_ID[pid]?.voice ?? 0.9 };
+    return { id: pid || '', name: nm || '???', portrait: pid && CHAR_BY_ID[pid] ? pid : null, voice: CHAR_BY_ID[pid]?.voice ?? 0.9 };
   }
   const def = CHAR_BY_ID[who];
-  return { name: displayName(who) || who, portrait: def ? who : null, voice: def?.voice ?? 1 };
+  return { id: who, name: displayName(who) || who, portrait: def ? who : null, voice: def?.voice ?? 1 };
 }
 
 /** Show one line. Resolves after the player advances. */
@@ -128,12 +129,18 @@ export function say(who: string, text: string, expr: Expr = 'neutral'): Promise<
       audio.sfxPlay('tap');
       resolve();
     };
-    if (speed <= 0) complete();
-    else {
+    if (speed <= 0) {
+      if (hasVoice(info.id)) audio.speakLine(info.id);
+      complete();
+    } else {
       timer = window.setInterval(() => {
         i += 1;
         txt.textContent = text.slice(0, i);
-        if (i % 2 === 0 && text[i - 1] !== ' ') audio.voice(info.voice);
+        const ch = text[i - 1];
+        if (ch && ch !== ' ') {
+          if (hasVoice(info.id)) audio.speak(info.id, i);
+          else if (i % 2 === 0) audio.voice(info.voice);
+        }
         if (i >= text.length) complete();
       }, 1000 / speed);
     }

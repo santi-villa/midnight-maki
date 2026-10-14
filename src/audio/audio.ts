@@ -5,6 +5,7 @@
 import { settings } from '../core/settings';
 import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
+import { voiceNote, voicePhraseCount, voiceWhen, type VoiceNote } from './voices';
 
 type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
 
@@ -551,6 +552,78 @@ class AudioEngine {
     o.connect(g).connect(this.sfx);
     o.start(now);
     o.stop(now + 0.06);
+  }
+
+  /** One syllable of a lead's voice. Silent steps and a too-soon repeat do nothing. */
+  speak(id: string, step: number) {
+    const note = voiceNote(id, step);
+    const c = this.ctx;
+    if (!note || !note.sound || step % note.every !== 0 || !c) return;
+    const now = c.currentTime;
+    const key = 'spk:' + id;
+    if (key in this.lastSfx && now - this.lastSfx[key] < note.gap) return;
+    this.lastSfx[key] = now;
+    this.speakAt(note, 0);
+  }
+
+  /** A short phrase, used when the line appears all at once. */
+  speakLine(id: string) {
+    const want = voicePhraseCount(id);
+    const c = this.ctx;
+    if (!c || want <= 0) return;
+    let played = 0;
+    let lastWhen = 0;
+    for (let step = 0; played < want && step < 80; step++) {
+      const when = voiceWhen(id, step);
+      const note = when == null ? null : voiceNote(id, step);
+      if (when == null || !note) continue;
+      this.speakAt(note, when);
+      lastWhen = when;
+      played++;
+    }
+    this.lastSfx['spk:' + id] = c.currentTime + lastWhen;
+  }
+
+  private speakAt(note: VoiceNote, delay: number) {
+    const c = this.ctx;
+    if (!c) return;
+    const t = c.currentTime + Math.max(0, delay);
+    const attack = Math.min(Math.max(0.001, note.attack), note.dur * 0.8);
+    const end = Math.max(note.dur, attack + 0.02);
+    const env = (g: GainNode, vol: number) => {
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(Math.max(0.0001, vol), t + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + end);
+    };
+    const tone = (freq: number, vol: number, slideTo: number) => {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = note.type;
+      const f0 = Math.max(1, freq);
+      o.frequency.setValueAtTime(f0, t);
+      if (slideTo > 0 && Math.abs(slideTo - 1) > 0.001) o.frequency.exponentialRampToValueAtTime(Math.max(1, f0 * slideTo), t + end);
+      env(g, vol);
+      o.connect(g).connect(this.sfx);
+      o.start(t);
+      o.stop(t + end + 0.02);
+    };
+    const slide = note.chirp > 1 ? note.chirp : note.slide;
+    tone(note.freq, note.vol, slide);
+    if (note.harm > 0 && note.harmMix > 0) tone(note.freq * note.harm, note.vol * note.harmMix, note.slide);
+    if (note.noise > 0) {
+      const s = c.createBufferSource();
+      s.buffer = this.noise();
+      const f = c.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.setValueAtTime(Math.max(40, note.freq), t);
+      f.Q.setValueAtTime(3.2, t);
+      const g = c.createGain();
+      g.gain.setValueAtTime(note.noise, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + end);
+      s.connect(f).connect(g).connect(this.sfx);
+      s.start(t, Math.random());
+      s.stop(t + end);
+    }
   }
 }
 
