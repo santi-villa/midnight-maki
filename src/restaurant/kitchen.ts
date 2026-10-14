@@ -13,6 +13,7 @@ import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeC
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { guestViews, plateState, serviceBoardNote, stagePlate, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade } from './upgrades';
+import { freeCookCoins } from './economy';
 import { runScene, say } from '../dialogue/dialogue';
 import { STAGE_NAMES, applyStageGrants, stageForLevel } from './stages';
 import { QUICK_STARS, nextStarGoal, quickQuality, recipeStars, mastery, recordMastery, starsText } from './mastery';
@@ -306,7 +307,7 @@ function openFreeCook() {
     const cost = ready ? 0 : missingCost(r);
     body.append(
       h('div', { class: 'card col', style: { gap: '6px' } },
-        h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('div', { class: 'row' }, iconElement(r.icon), h('div', null, h('b', null, r.name), h('div', { class: 'hint' }, `${CAT_NAME[r.cat]} · ${'★'.repeat(r.difficulty)}`))), h('span', { class: 'coin' }, `~${Math.round(r.price * 0.7)} ●`)),
+        h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('div', { class: 'row' }, iconElement(r.icon), h('div', null, h('b', null, r.name), h('div', { class: 'hint' }, `${CAT_NAME[r.cat]} · ${'★'.repeat(r.difficulty)}`))), h('span', { class: 'coin' }, `${freeCookCoins(r, 0)}–${freeCookCoins(r, 2)} ●`)),
         ingList(r),
         h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
           !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) { p.close(); openFreeCook(); } else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
@@ -328,7 +329,7 @@ async function freeCook(id: string) {
   celebrate(r, res);
   const first = !game.save.recipesCooked[id];
   game.save.recipesCooked[id] = (game.save.recipesCooked[id] ?? 0) + 1;
-  const coins = Math.round(r.price * (0.6 + res.quality * 0.1)) + res.variantBonus;
+  const coins = freeCookCoins(r, res.quality, res.variantBonus);
   game.addCoins(coins, 'walkin');
   const lvl = addRestaurantXp(Math.round(r.xp * 0.6));
   if (lvl) unlockLevelRecipes();

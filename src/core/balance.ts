@@ -16,6 +16,7 @@ export const BALANCE = {
   giftLiked: 20,
   giftNeutral: 8,
   qualityBonus: [0, 0.1, 0.25], // ok, good, perfect
+  freeCookMultiplier: [0.8, 0.9, 1], // walk-ins: no service tips, charm or mastery premium
   sellMultiplier: 1,
 };
 
