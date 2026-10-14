@@ -219,7 +219,7 @@ export function shopSignText(status: ShopStatus): string {
 export function shopInteractionText(status: ShopStatus, entrance = false): string {
   if (!status.tracked) return '';
   const info = status.open ? `${status.title} está atendiendo. Horario: ${status.hours}.` : status.detail;
-  return entrance && !status.open ? `${info} Podés entrar al edificio, pero la tienda no está atendiendo.` : info;
+  return entrance && !status.open ? `${info} La puerta está cerrada.` : info;
 }
 
 export function signSpots(zoneId: string): { shopId: string; x: number; y: number }[] {
