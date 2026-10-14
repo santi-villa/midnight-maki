@@ -1,5 +1,5 @@
 /**
- * Town and restaurant projects (the restoration board). Every project has two or three phases.
+ * Town and restaurant projects (the restoration board). Projects have two to four phases.
  * A finished phase sets the flag `proj_<id>_<n>`: props with that condition appear in the zone,
  * and each finished phase adds a little charm to the restaurant (better tips).
  */

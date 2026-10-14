@@ -99,3 +99,9 @@ Hallazgo principal: en modo Relajado (el predeterminado) casi todo plato salía 
 - No se conceden pistas de la investigación, capítulos, monedas ni recompensas repetibles. Los recuerdos se guardan con indicadores propios; los proyectos ya restaurados en partidas anteriores también habilitan escenas sin reconstruirlos.
 - Se marca cada recuerdo al terminar el diálogo, con bloqueo contra reproducciones simultáneas. Se reutilizan retratos, diálogos, pausa y limpieza existentes. Los secretos son narrativos: no se agregaron ilustraciones nuevas.
 - Verificación focalizada en navegador a 1280×800 y 390×844: seis escenas y página final, bloqueo previo al capítulo 3, compatibilidad con etapas antiguas, rechazo de ejecución concurrente, guardado/recarga y ausencia de desbordamiento horizontal. Typecheck y build. Suites de regresión aplazadas al final por pedido del usuario; pendiente celular físico.
+
+## Punto 8 · Economía y verificación final
+
+Se corrigieron pérdidas demostradas de cocina libre y California, y se acercaron los precios de las primeras mejoras al arranque. Fórmula de cocina libre compartida entre el panel y el pago. Reloj y experiencia permanecen iguales. Análisis reproducible con `npm run balance`; supuestos, márgenes y tiempos estimados en `docs/balance-economy.md`.
+
+Regresiones agregadas para registros del recetario, etapas y cultivos existentes, provisiones diarias, encargos archivados y entregas, escenas opcionales y bloqueos, márgenes, pedidos antiguos y desbloqueos. Browser: proyectos/encargos/recuerdos y vista de cocina libre a 1280×800 y 390×844. Se ejecutan las suites aplazadas como cierre del orden 2 → 3 → 6 → 5 → 7 → 8. Balance orgánico prolongado y celular físico pendientes.
