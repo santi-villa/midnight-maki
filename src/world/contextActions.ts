@@ -162,7 +162,7 @@ function jobAction(job: TableJob): ContextAction | null {
   if (job.phase !== 'waiting_food' || !job.recipe) return null;
   const who = job.customerId ? customerName(job.customerId) : 'el cliente';
   const dish = RECIPES_BY_ID[job.recipe]?.name ?? DRINK_BY_ID[job.recipe]?.name ?? 'el pedido';
-  if (carriedOrder()?.service?.tableId === job.tableId) {
+  if (carriedOrder(job.tableId)) {
     return {
       id: `deliver:${job.tableId}`,
       label: 'Entregar',

@@ -1,5 +1,6 @@
 /** Order generation, serving and restaurant progression. DOM-free logic. */
 import { DRINK_BY_ID } from './drinkData';
+import { normalizeRestaurant, xpFloor } from './progression';
 import { townCharm } from './projects';
 import { recipeStars } from './mastery';
 import { haptic } from '../core/haptics';
@@ -204,12 +205,16 @@ export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, op
 }
 
 export function addRestaurantXp(xp: number): number {
+  if (!Number.isFinite(xp) || xp <= 0) return 0;
   const rs = game.save.restaurant;
-  rs.xp += xp;
+  // Compatibility with old saves and callers that load a raw save in memory.
+  normalizeRestaurant(rs);
+  rs.totalXp! += Math.floor(xp);
+  rs.xp = rs.totalXp! - xpFloor(rs.level);
   let up = 0;
-  while (rs.level < BALANCE.maxRestaurantLevel && rs.xp >= BALANCE.restaurantXpPerLevel(rs.level)) {
-    rs.xp -= BALANCE.restaurantXpPerLevel(rs.level);
-    rs.level++;
+  if (rs.level === 1 && rs.totalXp! >= xpFloor(2)) {
+    rs.level = 2;
+    rs.xp = rs.totalXp! - xpFloor(2);
     up = rs.level;
   }
   if (up) haptic('unlock');

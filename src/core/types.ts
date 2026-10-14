@@ -142,7 +142,7 @@ export interface SaveData {
   recipeMastery?: Record<string, { n: number; g: number; p: number }>;
   /** Hand-cooked records, discovered variant ingredient IDs and chosen plate style. */
   recipeRecords?: Record<string, RecipeRecord>;
-  restaurant: { level: number; xp: number; reputation: number; upgrades: string[]; served: number };
+  restaurant: { level: number; xp: number; totalXp?: number; reputation: number; upgrades: string[]; served: number };
   orders: Order[];
   dining?: DiningSave;
   nextUid: number;

@@ -1,5 +1,7 @@
 /** Save validation & migrations. DOM-free (tested in node). */
 import { validateDining } from './dining';
+import { normalizeRestaurant } from '../restaurant/progression';
+import { carryCapacity } from '../restaurant/carry';
 import { STARTER_CLOTHES } from '../data/clothes';
 import { newSave, SAVE_VERSION } from '../core/state';
 import type { SaveData } from '../core/types';
@@ -37,6 +39,9 @@ export function validateSave(raw: unknown): SaveData {
   for (const k of ['player', 'restaurant', 'time', 'quests', 'story']) {
     if (isObj(base[k]) && isObj(s[k])) out[k] = { ...base[k], ...s[k] };
   }
+  // Inspect the raw optional value: new-game defaults must not erase an old XP remainder.
+  out.restaurant.totalXp = s.restaurant?.totalXp;
+  normalizeRestaurant(out.restaurant);
   for (const k of ['inventory', 'flags', 'relationships', 'decor', 'roomStyle', 'furnitureOwned', 'collections', 'stats', 'recipesCooked', 'recipeMastery', 'recipeRecords', 'raccoonOutfits']) {
     if (!isObj(out[k])) out[k] = {};
   }
@@ -95,7 +100,7 @@ export function validateSave(raw: unknown): SaveData {
     if (order.service && (!out.dining || typeof order.service.partyId !== 'string' || typeof order.service.memberId !== 'string' || typeof order.service.tableId !== 'string' || typeof order.service.seatId !== 'string' || (!Number.isFinite(order.service.day) || order.service.day < 1))) throw new SaveError('La partida contiene un pedido sin mesa válida.');
     if (order.plate && (![0, 1, 2].includes(order.plate.quality) || order.plate.state && !['ready', 'carried', 'delivered'].includes(order.plate.state))) throw new SaveError('La partida contiene un plato inválido.');
   }
-  if (out.orders.filter((o: any) => o.plate?.state === 'carried').length > 1) throw new SaveError('La partida contiene una bandeja de transporte inválida.');
+  if (out.orders.filter((o: any) => o.plate?.state === 'carried').length > carryCapacity(out)) throw new SaveError('La partida contiene una bandeja de transporte inválida.');
   try { out.dining = validateDining(out.dining, out.orders); }
   catch { throw new SaveError('No se pudo validar el servicio del restaurante. Conservá una copia de esta partida.'); }
   if (!Array.isArray(out.garden) || out.garden.length < 6) out.garden = base.garden;

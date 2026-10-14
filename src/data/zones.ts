@@ -166,6 +166,9 @@ function home(): ZoneDef {
     doors: [{ x: 14, y: 10, to: 'restaurant', tx: 16, ty: 3, dir: 'down', walk: true, label: 'Abajo' }],
     interact: [
       { id: 'mirror', x: 6, y: 2, label: 'Ropero', action: 'wardrobe' },
+      { id: 'pip_corner', x: 13, y: 5, label: 'Rincón de Pip', action: 'corner:pip', cond: 'upgrade:pip_corner' },
+      { id: 'spicy_corner', x: 18, y: 5, label: 'Rincón de Spicy', action: 'corner:spicy', cond: 'upgrade:spicy_corner' },
+      { id: 'rigg_corner', x: 25, y: 5, label: 'Rincón de Rigg', action: 'corner:rigg', cond: 'upgrade:rigg_corner' },
     ],
     rooms: [
       { id: 'room_player', name: 'Tu habitación', x: 0, y: 0, w: 8, h: 8, owner: 'player', defWall: 'rose', defFloor: 'wood' },

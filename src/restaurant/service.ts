@@ -11,6 +11,7 @@
  * and lets meals already ordered finish. Skipping a shift never fails the day.
  */
 import { game } from '../core/state';
+import { carryCapacity } from './carry';
 import { DRINKS, DRINK_BY_ID, drinksUnlocked } from './drinkData';
 import { drawCustomer } from './customers';
 import type { Order } from '../core/types';
@@ -137,7 +138,8 @@ export function tableLabel(id: string | null | undefined): string {
   session(); const index = salon?.tableList().findIndex(t => t.id === id) ?? -1;
   return index >= 0 ? `Mesa ${index + 1}` : 'Mostrador';
 }
-export function carriedOrder(): Order | null { return game.save.orders.find(o => o.plate?.state === 'carried') ?? null; }
+export function carriedOrders(): Order[] { return game.save.orders.filter(o => o.plate?.state === 'carried'); }
+export function carriedOrder(tableId?: string): Order | null { return carriedOrders().find(o => tableId === undefined || o.service?.tableId === tableId) ?? null; }
 export function trayOrders(): Order[] { return game.save.orders.filter(o => o.plate && !['carried', 'delivered'].includes(o.plate.state ?? 'ready')); }
 
 /** Draw up to four distinct faces, bounded by a real table's seats. */
@@ -357,13 +359,13 @@ export function tableJobs(): TableJob[] {
     const waiting = party?.phase === 'waiting_order' || party?.phase === 'waiting_food';
     if (!waiting && table.status !== 'tip') continue;
     const pending = party?.members.flatMap(m => m.items).filter(i => i.quality === null) ?? [];
-    const item = pending.find(i => i.orderUid === carriedOrder()?.uid) ?? pending.find(i => i.orderUid && plateOf(i.orderUid)) ?? pending[0];
+    const item = pending.find(i => i.orderUid === carriedOrder(table.id)?.uid) ?? pending.find(i => i.orderUid && plateOf(i.orderUid)) ?? pending[0];
     jobs.push({
       members: party?.size ?? 0, patience: party?.patience ?? 0, maxPatience: party?.maxPatience ?? 1, impatient: party?.impatient ?? false,
       tableId: table.id,
       status: table.status,
       phase: party?.phase ?? null,
-      customerId: party?.customerId ?? null,
+      customerId: party?.members.find(m => m.items.some(i => i.orderUid === item?.orderUid))?.customerId ?? party?.customerId ?? null,
       recipe: item?.recipe ?? party?.recipe ?? null,
       orderUid: item?.orderUid ?? party?.orderUid ?? null,
       plated: !!item?.orderUid && !!plateOf(item.orderUid),
@@ -515,20 +517,19 @@ export function stagePlate(uid: number, quality: 0 | 1 | 2, variantBonus = 0, va
 }
 
 export function pickupPlate(uid: number): string {
-  if (carriedOrder()) return 'Ya llevás un pedido. Entregalo o dejalo en la bandeja.';
+  if (carriedOrders().length >= carryCapacity(game.save)) return 'La bandeja está llena. Entregá un pedido o dejalo en la bandeja de salida.';
   const order = game.save.orders.find(o => o.uid === uid);
   if (!order?.plate || plateState(uid) !== 'plated') return 'Ese pedido todavía no está listo.';
   order.plate.state = 'carried'; persist(); game.touch('carry');
   return `Llevás ${servingName(order)} para ${customerName(order.customer)}.`;
 }
-export function returnPlate(): string {
-  const order = carriedOrder(); if (!order?.plate) return 'No llevás ningún pedido.';
+export function returnPlate(uid?: number): string {
+  const order = uid === undefined ? carriedOrder() : carriedOrders().find(o => o.uid === uid); if (!order?.plate) return 'No llevás ese pedido.';
   order.plate.state = 'ready'; persist(); game.touch('tray'); return 'Dejaste el pedido en la bandeja.';
 }
 export function deliverTo(tableId: string): string {
-  const order = carriedOrder();
-  if (!order?.plate) return 'Recogé primero el pedido en la bandeja de salida.';
-  if (order.service?.tableId !== tableId) return 'Ese pedido es para otra mesa. Seguí el marcador.';
+  const order = carriedOrder(tableId);
+  if (!order?.plate || !order.service) return carriedOrders().length ? 'Ese pedido es para otra mesa. Seguí el marcador.' : 'Recogé primero el pedido en la bandeja de salida.';
   const party = salon?.party(order.service.partyId);
   if (!party || party.phase !== 'waiting_food') return 'Esa mesa no está esperando este pedido.';
   if (!salon!.deliver(party.id, order.plate.quality, order.plate.variantBonus, order.uid)) return 'Ese pedido ya se entregó.';

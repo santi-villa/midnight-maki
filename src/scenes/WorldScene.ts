@@ -25,7 +25,7 @@ import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
 import { currentQuestTarget } from '../quests/quests';
 import { customerAsk } from '../restaurant/orders';
-import { canAcceptGuest, carriedOrder, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
+import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
 import { type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
@@ -324,7 +324,7 @@ export class WorldScene extends Phaser.Scene {
     this.bugs = [];
     this.clearGuests();
     this.serviceArt?.destroy(); this.serviceArt = null;
-    this.carriedSprite?.destroy(); this.carriedSprite = null; this.carriedKey = '';
+    for (const sprite of this.carriedSprites) sprite.destroy(); this.carriedSprites = [];
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
     this.layer?.destroy();
@@ -640,8 +640,7 @@ export class WorldScene extends Phaser.Scene {
   private visitors = new Map<string, { id: string; customer: string; customers: string[]; origin: Position; trips: Journey[]; stage: 'arriving' | 'dining' | 'departing'; phase?: PartyPhase; greeted: boolean }>();
   private restoredDining = false;
   private serviceArt: Phaser.GameObjects.Graphics | null = null;
-  private carriedSprite: Phaser.GameObjects.Image | null = null;
-  private carriedKey = '';
+  private carriedSprites: Phaser.GameObjects.Image[] = [];
   private visitorIn = 4;
   private hostId: string | null = null;
   private hostWait = 0;
@@ -771,12 +770,12 @@ export class WorldScene extends Phaser.Scene {
         art.fillStyle(ready[i].kind === 'drink' ? 0x8ab9ad : 0xf6ecd6).fillRect(6 * TILE + i * 4, 4 * TILE + 10, 3, 3);
       }
       if (drinksUnlocked()) { art.fillStyle(0xe9d8b1).fillRect(2 * TILE + 4, 2 * TILE + 2, 5, 5); art.fillStyle(0x91ab69).fillRect(2 * TILE + 5, 2 * TILE + 3, 3, 2); }
-      const carrying = carriedOrder();
+      const carrying = carriedOrders();
       for (const job of tableJobs()) {
         const f = this.zone.furniture.find(fi => String(fi.f.uid) === job.tableId);
         if (!f) continue;
         const x = f.f.x * TILE + f.def.w * TILE / 2, y = f.f.y * TILE - 5;
-        const destination = carrying?.service?.tableId === job.tableId;
+        const destination = carrying.some(o => o.service?.tableId === job.tableId);
         const color = destination ? 0xf2c66d : job.impatient ? 0xd77a76 : 0xf6ecd6;
         // One exclamation over each table. No question marks, full schedule text or giant labels.
         if (job.phase === 'waiting_order' || destination) {
@@ -790,13 +789,17 @@ export class WorldScene extends Phaser.Scene {
         }
       }
     }
-    const carrying = carriedOrder();
-    if (!carrying) { this.carriedSprite?.setVisible(false); return; }
-    const def = carrying.kind === 'drink' ? DRINK_BY_ID[carrying.recipe] : RECIPES_BY_ID[carrying.recipe];
-    if (!def) return;
-    if (!this.carriedSprite?.active) this.carriedSprite = this.add.image(0, 0, iconTexture(this, def.icon)).setScale(.75);
-    if (this.carriedKey !== String(carrying.uid)) { this.carriedSprite.setTexture(iconTexture(this, def.icon)); this.carriedKey = String(carrying.uid); }
-    this.carriedSprite.setVisible(true).setPosition(this.player.x + (this.player.dir === 'left' ? -9 : 9), this.player.y - 17).setDepth(this.player.y + 1);
+    const carrying = carriedOrders();
+    this.carriedSprites.forEach(s => s.setVisible(false));
+    carrying.forEach((order, i) => {
+      const def = order.kind === 'drink' ? DRINK_BY_ID[order.recipe] : RECIPES_BY_ID[order.recipe];
+      if (!def) return;
+      const texture = iconTexture(this, def.icon);
+      let sprite = this.carriedSprites[i];
+      if (!sprite?.active) this.carriedSprites[i] = sprite = this.add.image(0, 0, texture).setScale(.65);
+      if (sprite.texture.key !== texture) sprite.setTexture(texture);
+      sprite.setVisible(true).setPosition(this.player.x + (this.player.dir === 'left' ? -1 : 1) * (7 + i * 9), this.player.y - 17 + i * 2).setDepth(this.player.y + 1 + i);
+    });
   }
 
   private sendVisitorHome(v: { trips: Journey[]; origin: Position; stage: string }) {
