@@ -14,7 +14,7 @@ import { bus } from '../core/events';
 import { add, h, panel, toast, openModal } from '../ui/dom';
 import { registerAction } from '../systems/actions';
 import { cook, type CookResult } from './cooking';
-import { kitchenOpen, openKitchenSession, type KitchenHooks } from './kitchenSession';
+import { kitchenOpen, openKitchenSession, type KitchenHooks, type SessionOrder } from './kitchenSession';
 import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeCollection';
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
@@ -164,18 +164,21 @@ export async function cookOrder(uid: number, quick = false) {
 }
 
 /** The multi-dish kitchen: orders are claimed (ingredients consumed) when a dish starts and refunded if it is dropped. */
-export async function enterKitchen(firstUid?: number) {
+const FREE_UID = -1;
+export async function enterKitchen(firstUid?: number, freeId?: string) {
   if (kitchenOpen()) return;
   refreshOrders(false);
   const taken = new Set<number>();
+  const free = freeId ? RECIPES_BY_ID[freeId] : null;
   const plan = (uid: number) => {
+    if (uid === FREE_UID && free) return { o: null, r: free };
     const o = game.save.orders.find((x) => x.uid === uid);
     return o && o.kind !== 'drink' ? { o, r: RECIPES_BY_ID[o.recipe] } : null;
   };
   const hooks: KitchenHooks = {
-    orders: () => game.save.orders
+    orders: () => (free ? ([{ uid: FREE_UID, recipe: free, who: 'Cocina libre', reward: freeCookCoins(free, 1), ready: taken.has(FREE_UID) || canCook(free.id), note: 'un cliente sin reserva lo compra' }] as SessionOrder[]) : ([] as SessionOrder[])).concat(game.save.orders
       .filter((o) => o.kind !== 'drink' && RECIPES_BY_ID[o.recipe] && !['plated', 'carried', 'delivered'].includes(plateState(o.uid)))
-      .map((o) => ({ uid: o.uid, recipe: RECIPES_BY_ID[o.recipe], who: customerName(o.customer), reward: o.reward, ready: taken.has(o.uid) || canCook(o.recipe), note: o.service ? tableLabel(o.service.tableId) : o.special === 'odd' ? 'sin remitente' : undefined })),
+      .map((o) => ({ uid: o.uid, recipe: RECIPES_BY_ID[o.recipe], who: customerName(o.customer), reward: o.reward, ready: taken.has(o.uid) || canCook(o.recipe), note: o.service ? tableLabel(o.service.tableId) : o.special === 'odd' ? 'sin remitente' : undefined }))),
     take: (uid) => {
       const p = plan(uid);
       if (!p || taken.has(uid) || !game.consumeIngredients(p.r.ingredients)) return false;
@@ -193,6 +196,7 @@ export async function enterKitchen(firstUid?: number) {
       taken.delete(uid);
       if (!p) return null;
       const { o, r } = p;
+      if (!o) return finishFree(r, res);
       const refund = () => { for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund'); };
       celebrate(r, res);
       if (o.service || plateState(uid) === 'cooking') {
@@ -416,13 +420,12 @@ function openFreeCook() {
 }
 
 async function freeCook(id: string) {
-  const r = RECIPES_BY_ID[id];
-  if (!game.consumeIngredients(r.ingredients)) return;
-  const res = await cook(id, 'Cocina libre');
-  if (!res.ok) {
-    for (const [i, q] of Object.entries(r.ingredients)) game.addItem(i, q, 'refund');
-    return;
-  }
+  await enterKitchen(FREE_UID, id);
+}
+
+/** Free cooking pays right away; the little scene waits until the kitchen is closed. */
+function finishFree(r: RecipeDef, res: CookResult): () => Promise<void> {
+  const id = r.id;
   celebrate(r, res);
   const first = !game.save.recipesCooked[id];
   game.save.recipesCooked[id] = (game.save.recipesCooked[id] ?? 0) + 1;
@@ -434,7 +437,7 @@ async function freeCook(id: string) {
   if (r.spicy) game.stat('spicyServed');
   game.touch('freecook');
   audio.sfxPlay('coin');
-  await runScene('freecook', async () => {
+  return () => runScene('freecook', async () => {
     if (first) await say('narr', `¡Primera vez que preparás ${r.name}!`);
     await say('narr', `Un cliente sin reserva compró tu ${r.name} por ${coins} monedas.`);
     if (lvl) await say('spicy', `¡Nivel ${lvl}! ¡Seguimos creciendo!`, 'happy');

@@ -10,7 +10,7 @@ import { h } from './dom';
 
 const CATEGORIES = { basic: 'Básicas', intermediate: 'Intermedias', special: 'Especiales' };
 const QUALITY = ['Listo para servir', 'Muy bien hecho', 'Perfecto'];
-const STEPS: Record<CookStep['t'], string> = { nori: 'Alga', rice: 'Arroz', place: 'Relleno', slice: 'Cortar', roll: 'Enrollar', cut: 'Porciones', shape: 'Moldear', top: 'Cubrir', wrap: 'Envolver', cone: 'Cono', garnish: 'Decorar', plate: 'Emplatar' };
+const STEPS: Record<CookStep['t'], string> = { nori: 'Alga', rice: 'Arroz', place: 'Relleno', slice: 'Cortar', roll: 'Enrollar', cut: 'Porciones', shape: 'Moldear', top: 'Cubrir', wrap: 'Envolver', cone: 'Cono', garnish: 'Decorar', cook: 'Cocinar', plate: 'Emplatar' };
 
 function picture(recipe: RecipeDef, style = recipePresentation(recipe.id), variant?: string) {
   const cv = h('canvas', { class: 'recipe-picture', width: 96, height: 64, 'aria-label': `Ilustración de ${recipe.name}${variant ? ' con ingrediente extra' : ''}` });

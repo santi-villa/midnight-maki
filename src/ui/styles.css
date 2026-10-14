@@ -973,3 +973,26 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .ks-table { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ks .cook { position: relative; inset: auto; z-index: auto; padding: 0; flex: 1; min-height: 0; }
 .ks-orders > .hint, .ks-orders > .muted { color: var(--cream); opacity: .8; }
+.ks-badge { margin-left: 6px; background: #c8483f; color: #fff; border-radius: 9px; padding: 0 7px; font-size: .78em; animation: ks-pulse 1s ease-in-out infinite; }
+@keyframes ks-pulse { 50% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .ks-badge { animation: none; } }
+.gr { display: none; flex: 1; min-height: 0; overflow-y: auto; flex-direction: column; gap: 8px; }
+.ks-body > .gr[style*="display: none"] { display: none; }
+.ks-body > .gr:not([style*="display: none"]) { display: flex; }
+.gr .hint { color: var(--cream); opacity: .85; }
+.gr-note { min-height: 1.3em; color: var(--gold); font-weight: 700; }
+.gr-h { color: var(--cream); }
+.gr-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 640px) { .gr-board { grid-template-columns: repeat(2, 1fr); } }
+.gr-slot { font: inherit; background: #2a2530; border: 4px solid var(--wood-dark); border-radius: 12px; padding: 6px; cursor: pointer; color: var(--cream); display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 120px; }
+.gr-slot canvas { width: 100%; max-width: 256px; aspect-ratio: 64 / 56; image-rendering: pixelated; }
+.gr-slot[data-zone="ready"] { border-color: #7fb35f; box-shadow: 0 0 10px #7fb35f88; }
+.gr-slot[data-zone="over"] { border-color: #e6892f; }
+.gr-slot[data-zone="burnt"] { border-color: #c8483f; }
+.gr-label { font-size: .85em; font-weight: 700; }
+.gr-tray { display: flex; flex-wrap: wrap; gap: 8px; }
+.gr-raw { font: inherit; display: flex; align-items: center; gap: 8px; background: var(--cream); color: var(--ink); border: 3px solid var(--wood-dark); border-radius: 10px; padding: 6px 10px; cursor: pointer; min-height: 48px; text-align: left; }
+.gr-raw.on { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold); }
+.gr-raw canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+.gr-raw span { display: flex; flex-direction: column; line-height: 1.15; }
+.gr-raw small { opacity: .7; }
