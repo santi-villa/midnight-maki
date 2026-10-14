@@ -10,6 +10,7 @@ import { bus } from '../core/events';
 import { h, openModal, toast } from '../ui/dom';
 import type { RecipeDef } from '../data/recipes';
 import { CookingGame, type CookResult } from './cooking';
+import { Grill } from './grillView';
 
 export const MAX_DISHES = 4;
 
@@ -34,7 +35,7 @@ export interface KitchenHooks {
   cancel(uid: number): void;
 }
 
-type View = 'orders' | 'table';
+type View = 'orders' | 'table' | 'grill';
 interface Dish { uid: number; game: CookingGame; order: SessionOrder; }
 
 let open = false;
@@ -56,7 +57,8 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
     const exit = h('button', { class: 'close-x', 'aria-label': 'Salir de la cocina', onclick: () => tryLeave() }, '✕');
     const ordersEl = h('div', { class: 'ks-orders' });
     const tableEl = h('div', { class: 'ks-table' });
-    const body = h('div', { class: 'ks-body' }, ordersEl, tableEl);
+    const grill = new Grill(() => dishes.map((d) => ({ game: d.game, who: d.order.who })), () => renderTabs());
+    const body = h('div', { class: 'ks-body' }, ordersEl, tableEl, grill.el);
     const root = h('div', { class: 'ks' }, h('div', { class: 'ks-top' }, tabs, exit), chips, body);
 
     const musicBefore: Track = audio.currentTrack();
@@ -69,6 +71,7 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
       leaving = true;
       off();
       clearInterval(tick);
+      clearInterval(ticker);
       for (const d of dishes.splice(0)) {
         d.game.discard();
         hooks.cancel(d.uid);
@@ -96,10 +99,11 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
       if (dishes.some((d) => d.uid === o.uid)) return;
       if (!hooks.take(o.uid)) { toast('No se pudo empezar ese pedido.'); render(); return; }
       const dish: Dish = { uid: o.uid, order: o, game: null as unknown as CookingGame };
-      dish.game = new CookingGame(o.recipe, o.who, (res) => onDone(dish, res), { el: tableEl, onBack: () => show('orders') });
+      dish.game = new CookingGame(o.recipe, o.who, (res) => onDone(dish, res), { el: tableEl, onBack: () => show('orders'), goGrill: () => show('grill'), status: (g, item) => grill.status(g, item) });
       dishes.push(dish);
       dish.game.start();
       dish.game.setActive(false);
+      grill.render();
       select(dish);
     };
 
@@ -107,6 +111,7 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
       const i = dishes.indexOf(d);
       if (i < 0) return;
       dishes.splice(i, 1);
+      grill.dropDish(d.game);
       if (!res.ok) hooks.cancel(d.uid);
       else {
         const p = hooks.done(d.uid, res);
@@ -128,11 +133,13 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
     function show(v: View) {
       view = v;
       for (const d of dishes) d.game.setActive(v === 'table' && d === active);
+      if (v === 'grill') grill.render();
       render();
     }
 
     function discard(d: Dish) {
       d.game.discard();
+      grill.dropDish(d.game);
       dishes.splice(dishes.indexOf(d), 1);
       hooks.cancel(d.uid);
       toast('Guardaste los ingredientes para después.');
@@ -146,13 +153,19 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
     function render() {
       ordersEl.style.display = view === 'orders' ? '' : 'none';
       tableEl.style.display = view === 'table' ? '' : 'none';
-      tabs.innerHTML = '';
-      const tab = (id: View, label: string, on: boolean) =>
-        tabs.append(h('button', { class: 'ks-tab' + (on ? ' on' : ''), role: 'tab', 'aria-selected': on ? 'true' : 'false', onclick: () => (id === 'table' && !active ? (dishes.length ? select(dishes[0]) : toast('Empezá un pedido primero.')) : show(id)) }, label));
-      tab('orders', `Pedidos`, view === 'orders');
-      tab('table', 'Mesa', view === 'table');
+      grill.el.style.display = view === 'grill' ? '' : 'none';
+      renderTabs();
       renderChips();
       if (view === 'orders') renderOrders();
+    }
+
+    function renderTabs() {
+      tabs.innerHTML = '';
+      const tab = (id: View, label: string, badge = '') =>
+        tabs.append(h('button', { class: 'ks-tab' + (view === id ? ' on' : ''), role: 'tab', 'aria-selected': view === id ? 'true' : 'false', onclick: () => (id === 'table' && !active ? (dishes.length ? select(dishes[0]) : toast('Empezá un pedido primero.')) : show(id)) }, label, badge && view !== id ? h('span', { class: 'ks-badge' }, badge) : null));
+      tab('orders', 'Pedidos');
+      tab('table', 'Mesa');
+      tab('grill', 'Plancha', grill.badge());
     }
 
     function renderChips() {
@@ -191,6 +204,13 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
     const off = bus.on('state:changed', () => { if (view === 'orders' && !leaving) renderOrders(); });
     // chips show live progress
     const tick = window.setInterval(() => { if (!leaving && dishes.length) renderChips(); }, 600);
+
+    let last = performance.now();
+    const ticker = window.setInterval(() => {
+      const now = performance.now();
+      grill.tick(Math.min(1, (now - last) / 1000), view === 'grill');
+      last = now;
+    }, 90);
 
     render();
     const first = firstUid != null ? hooks.orders().find((o) => o.uid === firstUid && o.ready) : undefined;

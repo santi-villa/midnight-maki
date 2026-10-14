@@ -50,12 +50,13 @@ import {
   type PressKind,
   type RiceKind,
 } from './cookScore';
+import { doneness } from './grill';
 
 export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; variant?: string; variantItem?: string; variantBonus: number; }
 
 const STEP_NAMES: Record<CookStep['t'], string> = {
   nori: 'Alga', rice: 'Arroz', place: 'Relleno', slice: 'Cortar', roll: 'Enrollar', cut: 'Porciones',
-  shape: 'Moldear', top: 'Cubrir', wrap: 'Envolver', cone: 'Cono', garnish: 'Decorar', plate: 'Emplatar',
+  shape: 'Moldear', top: 'Cubrir', wrap: 'Envolver', cone: 'Cono', garnish: 'Decorar', cook: 'Cocinar', plate: 'Emplatar',
 };
 
 const STEP_HELP: Record<CookStep['t'], string> = {
@@ -70,6 +71,7 @@ const STEP_HELP: Record<CookStep['t'], string> = {
   wrap: 'Deslizá de izquierda a derecha para envolver con alga.',
   cone: 'Arrastrá en diagonal, de la esquina de abajo hacia arriba a la derecha, para armar el cono.',
   garnish: 'Arrastrá los ingredientes para decorar.',
+  cook: 'Esto se cocina en la plancha. Ponelo allá y volvé cuando esté en su punto; mientras tanto podés avanzar con otros platos.',
   plate: 'Arrastrá cada pieza hasta el centro del plato.',
 };
 
@@ -91,7 +93,14 @@ export function cook(recipeId: string, title = ''): Promise<CookResult> {
 }
 
 /** Where an embedded board lives (the multi-dish kitchen) and how it talks back to it. */
-export interface CookHost { el: HTMLElement; onBack: () => void; }
+export interface CookHost {
+  el: HTMLElement;
+  onBack: () => void;
+  /** switches the kitchen to the griddle station */
+  goGrill: () => void;
+  /** what the stove says about this dish's piece right now (for the waiting board) */
+  status: (game: CookingGame, item: string) => { text: string; p: number } | null;
+}
 
 export class CookingGame {
   private root!: HTMLElement;
@@ -176,12 +185,39 @@ export class CookingGame {
   private landing: { x: number; y: number; age: number } | null = null;
   private stageResize: ResizeObserver | null = null;
 
+  private cookRaw: { item: string; how: 'plancha' | 'sarten' }[] = [];
+  private cookedPieces: { item: string; p: number }[] = [];
   private pausedAt = 0;
   private active = true;
 
   constructor(private r: RecipeDef, private title: string, private finish: (r: CookResult) => void, private host?: CookHost) {}
 
   get recipe() { return this.r; }
+  /** pieces of this dish that still wait to be put on the stove */
+  get rawPieces() { return this.cookRaw; }
+  takeRaw(i: number) { return this.cookRaw.splice(i, 1)[0] ?? null; }
+  /** a piece came off the stove at cooking point `p` */
+  putCooked(item: string, p: number) {
+    this.cookedPieces.push({ item, p });
+    this.tryCook();
+  }
+  /** the item this dish is stuck waiting for, if any */
+  get waitingFor(): string | null {
+    const s = this.step;
+    return !this.done && s?.t === 'cook' ? s.item : null;
+  }
+
+  private tryCook() {
+    const s = this.step;
+    if (this.done || this.advancing || s?.t !== 'cook') return;
+    const i = this.cookedPieces.findIndex((c) => c.item === s.item);
+    if (i < 0) return;
+    const d = doneness(this.cookedPieces.splice(i, 1)[0].p);
+    this.prec.push(d.score);
+    if (d.mistake) this.mistakes++;
+    this.respond(d.label, d.mistake ? 'gentle' : 'good');
+    this.nextStep();
+  }
   get customer() { return this.title; }
   get finished() { return this.done; }
   /** 0..1 of the steps already done, for the dish chip */
@@ -221,6 +257,7 @@ export class CookingGame {
     this.mat = { x: Math.round((this.W - 192) / 2), y: Math.round(this.H * 0.3), w: 192, h: 100 };
     const mode = settings.cookMode;
     if (mode === 'challenge') this.timeLimit = challengeLimit(this.r.steps.length);
+    this.cookRaw = this.r.steps.flatMap((st) => (st.t === 'cook' ? [{ item: st.item, how: st.how }] : []));
     if (!this.host) {
       this.musicBefore = audio.currentTrack();
       audio.crossfade('kitchen');
@@ -366,6 +403,11 @@ export class CookingGame {
       case 'garnish':
         this.needGarnish = [...s.items];
         for (const id of new Set(s.items)) this.addTrayItem(id);
+        break;
+      case 'cook':
+        if (!this.host) { setTimeout(() => this.nextStep(), 0); break; } // alone on the board there is no stove: skip
+        this.tray.append(h('button', { class: 'btn primary', onclick: () => this.host?.goGrill() }, s.how === 'sarten' ? 'Ir a la sartén' : 'Ir a la plancha'));
+        setTimeout(() => this.tryCook(), 0);
         break;
       case 'plate':
         this.plated = 0;
@@ -1046,12 +1088,37 @@ export class CookingGame {
       this.bits = this.bits.filter((bit) => bit.t > 0);
     }
     this.draw();
+    this.drawCookWait();
     if (this.timeLimit) {
       const left = Math.max(0, this.timeLimit - this.elapsed());
       this.timerEl.textContent = `⏱ ${Math.ceil(left)}s (opcional)`;
     } else this.timerEl.textContent = settings.cookMode === 'relaxed' ? 'Relajado' : 'Normal';
     this.raf = requestAnimationFrame(this.loop);
   };
+
+  /** while a dish waits for the stove, the board says how its piece is doing */
+  private drawCookWait() {
+    const s = this.step;
+    if (this.done || s?.t !== 'cook') return;
+    const g = this.g;
+    g.fillStyle = 'rgba(30,18,24,.72)';
+    g.fillRect(0, 0, this.W, this.H);
+    const st = this.host?.status(this, s.item) ?? null;
+    const cx = this.W / 2;
+    g.drawImage(cookingIngredient(s.item), cx - 32, this.H / 2 - 62, 64, 48);
+    g.textAlign = 'center';
+    g.fillStyle = '#fff1d0';
+    g.font = 'bold 11px sans-serif';
+    g.fillText(st?.text ?? 'Falta ponerlo en la plancha', cx, this.H / 2 + 8);
+    if (st) {
+      const w = 120;
+      g.fillStyle = '#2b1d17';
+      g.fillRect(cx - w / 2 - 1, this.H / 2 + 18, w + 2, 8);
+      g.fillStyle = st.p < 0.3 ? '#e8b24a' : st.p < 0.72 ? '#8cc063' : st.p < 0.9 ? '#e6892f' : '#c8483f';
+      g.fillRect(cx - w / 2, this.H / 2 + 19, Math.min(1, st.p) * w, 6);
+    }
+    g.textAlign = 'left';
+  }
 
   private draw() {
     const g = this.g;

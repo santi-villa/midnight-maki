@@ -12,6 +12,8 @@ export type CookStep =
   | { t: 'wrap' }
   | { t: 'cone' }
   | { t: 'garnish'; items: string[] }
+  /** goes to the griddle/pan station: the dish waits here for a piece cooked to taste */
+  | { t: 'cook'; item: string; how: 'plancha' | 'sarten' }
   | { t: 'plate' };
 
 export type RecipeCat = 'basic' | 'intermediate' | 'special';
@@ -46,6 +48,12 @@ const nigiri = (fish: string, garnish: string[] = []): CookStep[] => [
   ...(garnish.length ? [{ t: 'garnish', items: garnish } as CookStep] : []), { t: 'plate' },
 ];
 
+/** puts a cooking step right before the first step of kind `before`, so earlier steps can run while it cooks */
+const withCook = (steps: CookStep[], cookStep: CookStep, before: CookStep['t']): CookStep[] => {
+  const i = steps.findIndex((x) => x.t === before);
+  return [...steps.slice(0, i), cookStep, ...steps.slice(i)];
+};
+
 const R = (r: RecipeDef) => r;
 
 export const RECIPES: RecipeDef[] = [
@@ -67,7 +75,7 @@ export const RECIPES: RecipeDef[] = [
     id: 'tamago', name: 'Tamago nigiri', cat: 'basic', difficulty: 1,
     desc: 'Omelette dulce sobre arroz, con su cinturón de alga.',
     ingredients: { rice: 1, egg: 1, nori: 1 },
-    steps: [{ t: 'slice', item: 'egg', cuts: 2 }, { t: 'shape', count: 2 }, { t: 'top', item: 'egg' }, { t: 'wrap' }, { t: 'plate' }],
+    steps: [{ t: 'cook', item: 'egg', how: 'sarten' }, { t: 'slice', item: 'egg', cuts: 2 }, { t: 'shape', count: 2 }, { t: 'top', item: 'egg' }, { t: 'wrap' }, { t: 'plate' }],
     price: 18, xp: 9, unlock: { level: 2, text: 'Restaurante nivel 2' }, icon: { type: 'nigiri', c1: '#f2d27a', c2: '#2f3b33' },
   }),
   R({
@@ -110,7 +118,7 @@ export const RECIPES: RecipeDef[] = [
   R({
     id: 'ebi', name: 'Ebi nigiri', cat: 'intermediate', difficulty: 2,
     desc: 'Langostino abierto en mariposa sobre arroz.',
-    ingredients: { rice: 1, shrimp: 1 }, steps: nigiri('shrimp'), price: 38, xp: 16,
+    ingredients: { rice: 1, shrimp: 1 }, steps: [{ t: 'cook', item: 'shrimp', how: 'plancha' }, ...nigiri('shrimp')], price: 38, xp: 16,
     unlock: { level: 3, text: 'Restaurante nivel 3' }, icon: { type: 'nigiri', c1: '#f09a7a', c2: '#fbf6ea' },
   }),
   R({
@@ -145,7 +153,7 @@ export const RECIPES: RecipeDef[] = [
     id: 'crunchy', name: 'Roll crocante', cat: 'intermediate', difficulty: 3,
     desc: 'Langostino y queso crema con lluvia de tempura.',
     ingredients: { rice: 1, nori: 1, shrimp: 1, cream: 1, tempura: 1 },
-    steps: uramaki(['shrimp', 'cream'], ['tempura']), price: 52, xp: 21,
+    steps: withCook(uramaki(['shrimp', 'cream'], ['tempura']), { t: 'cook', item: 'shrimp', how: 'plancha' }, 'place'), price: 52, xp: 21,
     unlock: { level: 4, text: 'Restaurante nivel 4' }, icon: { type: 'uramaki', c1: '#f09a7a', c2: '#e8c070' },
   }),
   // ------------------------------------------------------------- special
@@ -181,7 +189,7 @@ export const RECIPES: RecipeDef[] = [
     id: 'dragon', name: 'Dragon Roll', cat: 'special', difficulty: 5,
     desc: 'Langostino tempura bajo escamas de palta y anguila.',
     ingredients: { rice: 1, nori: 1, shrimp: 1, tempura: 1, avocado: 1, eel: 1 },
-    steps: [{ t: 'nori' }, { t: 'rice' }, { t: 'place', items: ['shrimp', 'tempura'] }, { t: 'roll' }, { t: 'slice', item: 'avocado', cuts: 4 }, { t: 'garnish', items: ['avocado', 'eel'] }, { t: 'cut', pieces: 8 }, { t: 'plate' }],
+    steps: [{ t: 'nori' }, { t: 'rice' }, { t: 'cook', item: 'shrimp', how: 'plancha' }, { t: 'place', items: ['shrimp', 'tempura'] }, { t: 'roll' }, { t: 'slice', item: 'avocado', cuts: 4 }, { t: 'cook', item: 'eel', how: 'plancha' }, { t: 'garnish', items: ['avocado', 'eel'] }, { t: 'cut', pieces: 8 }, { t: 'plate' }],
     price: 110, xp: 40, unlock: { level: 6, text: 'Restaurante nivel 6' }, icon: { type: 'uramaki', c1: '#f09a7a', c2: '#7fa356', c3: '#8a5a3c' },
   }),
   R({
