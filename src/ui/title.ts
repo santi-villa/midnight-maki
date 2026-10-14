@@ -1,13 +1,15 @@
 import type Phaser from 'phaser';
 import { audio } from '../audio/audio';
 import { continueGame, setPhaser, startNewGame } from '../core/flow';
+import type { SaveData } from '../core/types';
 import { bus } from '../core/events';
 import { runTask } from '../core/errors';
 import { lowFx } from '../core/perf';
 import { settings } from '../core/settings';
-import { hasSave, importSaveFile, loadGame, saveFromCode } from '../persistence/storage';
+import { continueTarget, hasSave, importSaveFile, installSave, saveFromCode, setActiveSlot, takeResumeOnce } from '../persistence/storage';
 import { openCreator } from './creator';
 import { confirmBox, h, hideBoot, panel, toast, uiRoot } from './dom';
+import { loadChoiceList, resumeSnapshot, slotChoiceList, slotTitle } from './saves';
 import { openSettings } from './settingsPanel';
 
 /** Where the animated touches sit, in pixels of each illustration (768x1376 vertical, 1376x768 horizontal). */
@@ -49,24 +51,56 @@ export async function showTitle(phaser: Phaser.Game) {
 
   // ---- actions (same behaviour as before; only the presentation changed)
   const doContinue = async () => {
-    const s = await loadGame();
-    if (!s) {
+    const found = await continueTarget();
+    if (!found) {
       toast('No se pudo leer la partida guardada.');
       return;
     }
+    setActiveSlot(found.slot);
     close();
-    await continueGame(s);
+    await continueGame(found.data);
   };
   const doNew = async () => {
-    if (saved && !(await confirmBox('Ya hay una partida guardada. Si empezás una nueva, se reemplazará. ¿Seguir?', 'Empezar de nuevo'))) return;
-    openCreator({
-      title: 'Tu personaje',
-      askNames: true,
-      confirmLabel: 'Comenzar',
-      onDone: (a, name, rest) => {
-        close();
-        void runTask('flow:new', () => startNewGame(a, name, rest));
-      },
+    let picker: { close: () => void } | null = null;
+    const list = await slotChoiceList(async (slot, info) => {
+      const occupied = info.auto ?? info.manual;
+      if (occupied && !(await confirmBox(`${slotTitle(slot)} ya tiene la partida de ${occupied.name}. Si empezás de nuevo y confirmás el personaje, se borran el guardado automático y el manual. ¿Seguir?`, 'Empezar de nuevo'))) return;
+      picker?.close();
+      openCreator({
+        title: 'Tu personaje',
+        askNames: true,
+        confirmLabel: 'Comenzar',
+        onDone: (a, name, rest) => {
+          close();
+          void runTask('flow:new', () => startNewGame(a, name, rest, slot));
+        },
+      });
+    });
+    picker = panel({
+      title: 'Nueva partida',
+      wide: true,
+      body: h('div', { class: 'col' }, h('p', { class: 'hint' }, 'Hay tres partidas. Una vacía empieza de cero. En una ocupada, la anterior se borra recién cuando confirmás el personaje.'), list),
+    });
+  };
+  let loadPanel: { close: () => void } | null = null;
+  const offerImport = async (data: SaveData) => {
+    let picker: { close: () => void } | null = null;
+    const list = await slotChoiceList(async (slot, info) => {
+      if ((info.auto || info.manual) && !(await confirmBox(`${slotTitle(slot)} ya está ocupada. Esta copia reemplaza su guardado automático y su manual. ¿Seguir?`, 'Reemplazar'))) return;
+      if (!(await installSave(slot, data))) {
+        toast('No se pudo guardar la copia.');
+        return;
+      }
+      picker?.close();
+      loadPanel?.close();
+      close();
+      await continueGame(data);
+      toast('Partida importada.');
+    });
+    picker = panel({
+      title: 'Elegir partida',
+      wide: true,
+      body: h('div', { class: 'col' }, h('p', { class: 'hint' }, `La copia es de ${data.player.name}. Elegí en qué partida guardarla.`), list),
     });
   };
   const imp = h('input', { type: 'file', accept: 'application/json,.json', style: { display: 'none' } }) as HTMLInputElement;
@@ -74,43 +108,45 @@ export async function showTitle(phaser: Phaser.Game) {
     const f = imp.files?.[0];
     if (!f) return;
     try {
-      const s = await importSaveFile(f);
-      loadPanel?.close();
-      close();
-      await continueGame(s);
-      toast('Partida importada.');
+      await offerImport(await importSaveFile(f));
     } catch (err: any) {
       toast(err?.message ?? 'No se pudo importar.');
     }
     imp.value = '';
   });
-  let loadPanel: { close: () => void } | null = null;
-  const doLoad = () => {
+  const doLoad = async () => {
     const codeBox = h('textarea', { rows: '3', placeholder: 'Pegá acá el código (empieza con MM1:)', style: { width: '100%', fontSize: '.8em', userSelect: 'text', WebkitUserSelect: 'text', display: 'none' } }) as HTMLTextAreaElement;
     const codeGo = h('button', {
       class: 'btn small rose', style: { display: 'none' }, onclick: () => {
         try {
-          const s = saveFromCode(codeBox.value);
-          loadPanel?.close();
-          close();
-          void runTask('flow:import-code', () => continueGame(s));
-          toast('Partida cargada desde el código.');
+          const loaded = saveFromCode(codeBox.value);
+          void runTask('flow:import-code', () => offerImport(loaded));
         } catch (err: any) {
           toast(err?.message ?? 'No se pudo leer el código.');
         }
       },
     }, 'Cargar desde el código');
+    const list = await loadChoiceList((slot, kind) => {
+      loadPanel?.close();
+      void runTask('flow:load-slot', async () => {
+        const data = await resumeSnapshot(slot, kind);
+        if (!data) return;
+        close();
+        await continueGame(data);
+      });
+    });
     const body = h(
       'div',
       { class: 'col' },
-      h('p', { class: 'hint' }, 'Si tenés una copia de seguridad (un archivo o un código), podés cargarla acá.'),
-      saved ? h('button', { class: 'btn primary', onclick: () => { loadPanel?.close(); void runTask('flow:continue', doContinue); } }, 'Seguir con la partida de este dispositivo') : null,
+      list,
+      h('h3', null, 'Copia de seguridad'),
+      h('p', { class: 'hint' }, 'Un archivo o un código se guarda en la partida que elijas.'),
       h('button', { class: 'btn', onclick: () => imp.click() }, 'Abrir archivo de copia'),
       h('button', { class: 'btn', onclick: () => { codeBox.style.display = ''; codeGo.style.display = ''; codeBox.focus(); } }, 'Pegar código de copia'),
       codeBox,
       codeGo,
     );
-    loadPanel = panel({ title: 'Cargar partida', body, onClose: () => { loadPanel = null; } });
+    loadPanel = panel({ title: 'Cargar partida', body, wide: true, onClose: () => { loadPanel = null; } });
   };
 
   // ---- artwork, framed so that nothing is ever cropped (the logo is part of the picture)
@@ -172,7 +208,7 @@ export async function showTitle(phaser: Phaser.Game) {
   const buttons: HTMLButtonElement[] = [];
   if (saved) buttons.push(btn('Continuar', 'primary', 6, () => void runTask('flow:continue', doContinue)));
   buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', saved ? 6 : 12, () => void runTask('flow:new-menu', doNew)));
-  buttons.push(btn('Cargar partida', '', 5, doLoad), btn('Opciones', '', 4, () => openSettings(false)), btn('Créditos', '', 3, credits));
+  buttons.push(btn('Cargar partida', '', 5, () => void runTask('flow:load-menu', doLoad)), btn('Opciones', '', 4, () => openSettings(false)), btn('Créditos', '', 3, credits));
   const menu = h('div', { class: 'tt-menu', role: 'menu' }, ...buttons, imp);
   const prompt = h('div', { class: 'tt-prompt' }, 'Tocá para comenzar');
 
@@ -211,6 +247,7 @@ export async function showTitle(phaser: Phaser.Game) {
   uiRoot().append(root);
   await artwork;
   hideBoot();
+  if (saved && takeResumeOnce()) void runTask('flow:resume', doContinue);
   // keep the calm / battery flags in sync with the settings panel
   bus.on('settings:changed', () => { if (document.body.contains(root)) refreshCalm(); });
 }
