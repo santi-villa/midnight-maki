@@ -8,6 +8,7 @@ import { haptic } from '../core/haptics';
  * The board is drawn in board pixels and shown at an integer scale.
  */
 import { iconElement } from '../art/icons';
+import { cookSprite, preloadCookSprites } from '../art/cookingSprites';
 import { cookingIngredient, drawCookingKnife, drawCookingPlate, kitchenOval } from '../art/cooking';
 import { recipePresentation } from './recipeCollection';
 import { audio } from '../audio/audio';
@@ -261,6 +262,7 @@ export class CookingGame {
     this.mat = { x: Math.round((this.W - 192) / 2), y: Math.round(this.H * 0.3), w: 192, h: 100 };
     const mode = settings.cookMode;
     if (mode === 'challenge') this.timeLimit = challengeLimit(this.r.steps.length);
+    preloadCookSprites(['mesa', 'esterilla']);
     this.cookRaw = this.r.steps.flatMap((st) => (st.t === 'cook' ? [{ item: st.item, how: st.how }] : []));
     if (!this.host) {
       this.musicBefore = audio.currentTrack();
@@ -1249,9 +1251,13 @@ export class CookingGame {
     const g = this.g;
     const W = this.W;
     const H = this.H;
-    // counter: warm hinoki boards with grain, seams and a soft highlight
+    // counter: warm hinoki boards with grain, seams and a soft highlight (or public/cocina/mesa.png tiled)
+    const tile = cookSprite('mesa');
+    if (tile) {
+      for (let y = 0; y < H; y += 64) for (let x = 0; x < W; x += 64) g.drawImage(tile, x, y, 64, 64);
+    }
     const tones = ['#c48d5e', '#b98252', '#c9935f', '#bd8656'];
-    for (let y = 0, i = 0; y < H; y += 14, i++) {
+    for (let y = 0, i = 0; !tile && y < H; y += 14, i++) {
       g.fillStyle = tones[i % tones.length];
       g.fillRect(0, y, W, 14);
       g.fillStyle = 'rgba(255,240,210,.18)';

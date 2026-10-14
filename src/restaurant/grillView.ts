@@ -4,6 +4,7 @@
  * Tap a raw piece, tap a free spot to put it on; tap a cooking piece to take it off.
  */
 import { cookingIngredient } from '../art/cooking';
+import { cookSprite, preloadCookSprites } from '../art/cookingSprites';
 import { audio } from '../audio/audio';
 import { haptic } from '../core/haptics';
 import { settings } from '../core/settings';
@@ -46,6 +47,7 @@ export class Grill {
       h('p', { class: 'hint' }, 'Tocá un ingrediente de abajo y después un lugar libre para ponerlo. Cuando esté en su punto, tocalo para sacarlo: si te olvidás, se quema (pero tarda).'),
       this.note, board,
       h('b', { class: 'gr-h' }, 'Para cocinar'), this.tray);
+    preloadCookSprites(['plancha', 'sarten-tamago']);
     this.render();
   }
 
@@ -158,7 +160,10 @@ export class Grill {
       g.imageSmoothingEnabled = false;
       g.clearRect(0, 0, CW, CH);
       const pan = p?.how === 'sarten';
-      // iron plate with a lit edge and grill marks
+      // art from public/cocina when it exists; otherwise an iron plate drawn here
+      const art = cookSprite(pan ? 'sarten-tamago' : 'plancha');
+      if (art) g.drawImage(art, 0, 4, CW, CH - 10);
+      else {
       g.fillStyle = '#1d1a1f';
       g.fillRect(2, 6, CW - 4, CH - 14);
       g.fillStyle = '#3b3640';
@@ -174,6 +179,7 @@ export class Grill {
         g.beginPath(); g.ellipse(CW / 2, 25, 24, 12, 0, 0, Math.PI * 2); g.fill();
         g.fillStyle = '#6b4a35';
         g.fillRect(CW - 12, 24, 12, 3);
+      }
       }
       if (p) {
         const sprite = tinted(p.item, p.p);
