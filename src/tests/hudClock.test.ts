@@ -2,6 +2,7 @@ import { beforeEach, expect, it } from 'vitest';
 import { BALANCE } from '../core/balance';
 import { game, newSave } from '../core/state';
 import { clock } from '../systems/time';
+import { restaurantPhase } from '../systems/schedule';
 import { formatHudTime, hudTime } from '../ui/hudClock';
 beforeEach(() => { game.load(newSave()); clock.resetPause(); });
 
@@ -25,4 +26,17 @@ it('uses the existing period rollover and pause, without advancing a separate cl
   clock.tick(60); expect(game.save.time).toEqual(before);
   clock.resume(); clock.tick(BALANCE.realSecondsPerGameMinute);
   expect(game.save.time.minutes).toBe(1);
+});
+it('keeps the night clock moving past midnight and holds it before morning', () => {
+  game.save.time.period = 3;
+  game.save.time.minutes = BALANCE.periodMinutes;
+  expect(formatHudTime(hudTime(3, game.save.time.minutes))).toBe('00:00');
+  clock.tick(BALANCE.realSecondsPerGameMinute);
+  expect(game.save.time.period).toBe(3);
+  expect(formatHudTime(hudTime(3, game.save.time.minutes))).toBe('00:02');
+  expect(restaurantPhase(3, game.save.time.minutes)).toBe('closed');
+  clock.tick(10_000);
+  expect(game.save.time.period).toBe(3);
+  expect(formatHudTime(hudTime(3, game.save.time.minutes))).toBe('05:59');
+  expect(restaurantPhase(3, game.save.time.minutes)).toBe('closed');
 });
