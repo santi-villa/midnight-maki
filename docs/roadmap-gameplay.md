@@ -129,3 +129,15 @@ Guardado opcional del salón y sus pedidos conserva mesas, paciencia, bandeja, t
 Detalles, archivos, instrucciones y comprobaciones: [restaurant-service.md](restaurant-service.md). Typecheck/build, modelo focalizado, interfaz PC/móvil emulado y recarga real en la versión compilada; las suites completas y ajustes de sus expectativas siguen reservados para el punto 8.
 
 Orden restante: **5 (progresión y hogar)** → **7 (narrativa)** → **8 (pulido, balance y pruebas completas)**. Punto 1 aplazado. Recomendación siguiente: costes y renovaciones del restaurante sobre las mejoras actuales, y luego los rincones de Pip, Spicy y Rigg. Avanzar cuando el usuario confirme el punto 5.
+
+## Nuevo orden — Punto 5: progresión y hogar
+
+Completados XP total conservada y migración de la experiencia antigua, nivel 2 gratuito y ascensos explícitos desde nivel 3 con requisitos de experiencia, reputación, monedas y materiales. Se mantienen las cuatro etapas y compras previas. Mejoras opcionales usan materiales y cobro único.
+
+Dos mejoras por rincón amplían los cuartos de Pip, Spicy y Rigg; conservan muebles y caminos, ofrecen detalles elegibles y actividades existentes. Los tres caminan a sus rincones durante sus descansos y regresan a sus puestos. Bandeja de servicio permite dos pedidos guardables, devolución individual y entregas en cualquier orden a las mesas correctas.
+
+Se corrigió una superposición demostrada del borde del NoriPhone con el botón Entregar en móvil. No se modificaron reloj, iluminación, estaciones, historia ni el mapa ampliado recientemente.
+
+Detalle, archivos, costes, comprobaciones y límites: [progression-home.md](progression-home.md). Typecheck/build, cálculo económico y comprobaciones puntuales de modelo, interfaz PC/móvil y versión compilada con recarga. Suites completas aplazadas para el punto 8.
+
+Restan **7 (narrativa y vínculos)** → **8 (pulido, balance y verificación completa)**. Prompts separados: [prompts-puntos-7-8.md](prompts-puntos-7-8.md). El punto 1 sigue aplazado; no comenzar otra entrega sin confirmación.
