@@ -2,7 +2,7 @@
 export const BALANCE = {
   startCoins: 120,
   periodMinutes: 90,             // in-game minutes per period
-  realSecondsPerGameMinute: 2.7, // 06:00–23:00 is about 15 real minutes of walking. Menus pause the clock.
+  realSecondsPerGameMinute: 1, // one minute on the clock per real second, day and night. Menus pause the clock.
   periodNames: ['Mañana', 'Tarde', 'Atardecer', 'Noche'],
   daysPerSeason: 14,
   maxOrders: 3,
