@@ -32,14 +32,14 @@ export const clock = {
 
   /** advance by real seconds of exploration */
   tick(dt: number) {
-    if (pauseCount > 0 || !game.loaded) return;
+    if (pauseCount > 0 || !game.loaded || !Number.isFinite(dt) || dt <= 0) return;
     const t = game.save.time;
-    if (t.period === 3 && t.minutes >= BALANCE.periodMinutes) return; // late night: waits for rest
+    // One night period is 21:00–24:00. Three of those reach 06:00, which is the next morning.
+    const cap = t.period === 3 ? BALANCE.periodMinutes * 3 - 0.05 : Number.POSITIVE_INFINITY;
+    if (t.minutes >= cap) return;
     t.minutes += dt / BALANCE.realSecondsPerGameMinute;
-    if (t.minutes >= BALANCE.periodMinutes) {
-      if (t.period < 3) this.advancePeriod();
-      else t.minutes = BALANCE.periodMinutes;
-    }
+    if (t.minutes >= BALANCE.periodMinutes && t.period < 3) this.advancePeriod();
+    else if (t.minutes > cap) t.minutes = cap;
   },
 
   advancePeriod(): boolean {
