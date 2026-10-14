@@ -198,14 +198,18 @@ function storage(): ZoneDef {
 
 // ================================================================== BEACH
 function beach(): ZoneDef {
-  const b = new Builder(30, 22, 's');
-  b.rect(0, 0, 30, 3, 'g');
+  const b = new Builder(48, 26, 's');
+  b.rect(0, 0, 48, 3, 'g');
   b.rect(14, 0, 2, 4, 'p');
-  b.rect(0, 15, 30, 1, 'h');
-  b.rect(0, 16, 30, 6, 'w');
-  b.rect(0, 19, 30, 3, 'd');
+  b.rect(0, 15, 48, 1, 'h');
+  b.rect(0, 16, 48, 10, 'w');
+  b.rect(0, 19, 48, 7, 'd');
   b.rect(19, 12, 2, 8, 'b'); // pier
   b.rect(19, 15, 2, 1, 'b');
+  // the east cove: a boardwalk, a second pier and a row of fishermen's shacks
+  b.rect(30, 3, 18, 4, 'g').rect(31, 7, 15, 1, 'p').rect(34, 8, 2, 4, 'p').rect(41, 8, 2, 4, 'p').rect(31, 12, 15, 1, 'p');
+  b.rect(38, 12, 2, 8, 'b'); // second pier
+  b.rect(44, 8, 4, 7, 'G');
   treeBorder(b, [[14, 0], [15, 0]], ['tree', 'pine']);
   b.prop('stall_sage', 5, 7).prop('stall_rose', 9, 7).prop('boat', 23, 14)
     .prop('crate', 21, 11).prop('barrel', 18, 11).prop('lantern_cream', 18, 12).prop('lantern_cream', 21, 12)
@@ -217,6 +221,14 @@ function beach(): ZoneDef {
     .prop('pot_cream', 29, 5)
     .prop('lanternstring', 4, 9)
     .prop('puddle', 12, 9, 'rain');
+  // east cove: shacks with their door on the side, boats pulled up on the sand, nets and rocks
+  b.prop('bld_th_fish_l', 32, 3).prop('bld_th_home_r', 40, 3).prop('bld_th_tea_l', 33, 9).prop('bld_th_flower_r', 40, 9);
+  b.prop('boat', 31, 14).prop('boat', 44, 13).prop('bigrock', 36, 14).prop('bigrock', 42, 15).prop('rock', 46, 12).prop('rock', 33, 13).prop('stump', 30, 13)
+    .prop('crate', 37, 13).prop('barrel', 38, 13).prop('sack', 39, 11).prop('lanternstring', 34, 12).prop('lanternstring', 41, 12)
+    .prop('lamppost', 31, 8).prop('lamppost', 44, 8).prop('lamppost', 37, 8).prop('lantern_cream', 37, 12).prop('lantern_cream', 40, 12)
+    .prop('bench', 33, 7).prop('bench', 44, 7).prop('reeds', 30, 14).prop('reeds', 47, 14).prop('flowers', 36, 6).prop('pot_rose', 39, 7)
+    .prop('bush_flower', 30, 4).prop('bush', 46, 7).prop('sakura', 47, 3).prop('tree', 46, 9).prop('pine', 46, 10).prop('pot_cream', 35, 8)
+    .prop('lantern_cream', 37, 14).prop('lantern_cream', 40, 14);
   return zone(b, {
     id: 'beach', name: 'Playa de las Conchas', music: 'beach', outdoor: true,
     doors: [
@@ -232,6 +244,9 @@ function beach(): ZoneDef {
       { id: 'market_stall2', x: 10, y: 8, label: 'Puesto de conchas', action: 'shop:shells' },
       { id: 'lh_door', x: 3, y: 4, label: 'Faro', action: 'door:lighthouse', cond: 'unlock_lighthouse_view' },
       { id: 'sunset', x: 16, y: 13, label: 'Mirar el mar', action: 'sunset' },
+      { id: 'fish4', x: 38, y: 19, label: 'Pescar', action: 'fish:sea' },
+      { id: 'fish5', x: 39, y: 19, label: 'Pescar', action: 'fish:sea' },
+      { id: 'beach_fish_note', x: 36, y: 5, label: 'Cabañas de pescadores', action: 'note:fish' },
     ],
     rooms: [],
     gather: [
@@ -241,6 +256,9 @@ function beach(): ZoneDef {
       { x: 26, y: 13, pool: ['sh_scallop', 'sh_blue', 'sh_pearl', 'bottle_msg'] },
       { x: 7, y: 11, pool: ['sh_cowrie', 'st_seaglass'] },
       { x: 23, y: 9, pool: ['sh_spiral', 'sh_pink'] },
+      { x: 35, y: 13, pool: ['sh_cowrie', 'sh_scallop', 'st_seaglass'] },
+      { x: 41, y: 14, pool: ['sh_pink', 'sh_spiral', 'sh_blue'] },
+      { x: 45, y: 11, pool: ['sh_pearl', 'sh_cowrie', 'bottle_msg'] },
     ],
     fishing: 'sea',
     bugs: false,
@@ -249,9 +267,13 @@ function beach(): ZoneDef {
 
 // ================================================================== FOREST
 function forest(): ZoneDef {
-  const b = new Builder(30, 24, 'G');
+  const b = new Builder(48, 24, 'G');
   b.rect(14, 16, 2, 8, 'p');
-  b.rect(6, 12, 20, 2, 'p');
+  b.rect(6, 12, 42, 2, 'p');
+  b.rect(36, 1, 2, 13, 'w'); // stream into a pond
+  b.rect(33, 14, 8, 6, 'w').rect(35, 15, 4, 4, 'd');
+  b.rect(36, 12, 2, 2, 'b');
+  b.rect(42, 2, 5, 6, 'g').rect(41, 8, 2, 4, 'p').rect(30, 15, 3, 5, 'g');
   b.rect(6, 6, 2, 7, 'p');
   b.rect(19, 3, 9, 7, 'w');
   b.rect(21, 4, 5, 4, 'd');
@@ -263,6 +285,16 @@ function forest(): ZoneDef {
   b.prop('bld_cabin', 2, 3).prop('stump', 10, 11).prop('bigrock', 22, 14).prop('reeds', 19, 10).prop('reeds', 27, 10)
     .prop('mushroom', 8, 16).prop('mushroom', 18, 19).prop('bush_berry', 12, 18).prop('bush_berry', 23, 21)
     .prop('stonelantern', 9, 13).prop('stonelantern', 17, 11).prop('flowers_lav', 6, 15).prop('rock', 25, 16);
+  // east: the stream, the pond, a hunter's cabin and an old shrine in a clearing
+  const east: [string, number, number][] = [
+    ['pine', 30, 3], ['tree_dark', 32, 5], ['pine', 33, 8], ['tree_dark', 31, 10], ['pine', 40, 4], ['tree_dark', 39, 8], ['pine', 34, 21], ['tree_dark', 40, 21],
+    ['pine', 44, 15], ['tree_dark', 46, 18], ['pine', 43, 20], ['tree_dark', 30, 18], ['pine', 45, 11], ['tree_autumn', 42, 16], ['tree_dark', 31, 14],
+  ];
+  for (const [id, x, y] of east) b.prop(id, x, y);
+  b.prop('bld_cabin', 42, 2).prop('shrine', 44, 8).prop('torii', 41, 10).prop('stonelantern', 41, 9).prop('stonelantern', 43, 9).prop('stonelantern', 41, 14).prop('stonelantern', 45, 14)
+    .prop('reeds', 35, 12).prop('reeds', 38, 12).prop('reeds', 33, 13).prop('reeds', 40, 14).prop('reeds', 35, 2).prop('reeds', 38, 6)
+    .prop('mushroom', 32, 16).prop('mushroom', 33, 17).prop('mushroom', 31, 17).prop('flowers_lav', 44, 5).prop('flowers', 46, 6).prop('flowers_lav', 43, 12)
+    .prop('stump', 38, 20).prop('bigrock', 44, 17).prop('rock', 32, 12).prop('bush_berry', 46, 6).prop('bush_berry', 31, 20).prop('sign', 40, 11);
   return zone(b, {
     id: 'forest', name: 'Bosque Susurrante', music: 'forest', outdoor: true,
     doors: [
@@ -275,6 +307,10 @@ function forest(): ZoneDef {
       { id: 'lake2', x: 24, y: 11, label: 'Pescar', action: 'fish:lake' },
       { id: 'stump', x: 10, y: 12, label: 'Tocón tallado', action: 'puzzle:stump' },
       { id: 'kiki_path', x: 28, y: 20, label: 'Sendero oculto', action: 'secret:forest_path' },
+      { id: 'pond_fish1', x: 34, y: 13, label: 'Pescar', action: 'fish:lake' },
+      { id: 'pond_fish2', x: 38, y: 13, label: 'Pescar', action: 'fish:lake' },
+      { id: 'forest_shrine', x: 44, y: 8, label: 'Santuario del bosque', action: 'note:shrine' },
+      { id: 'hunter_cabin', x: 45, y: 4, label: 'Cabaña vieja', action: 'note:house' },
     ],
     rooms: [],
     gather: [
@@ -285,6 +321,10 @@ function forest(): ZoneDef {
       { x: 5, y: 10, pool: ['wood', 'stone', 'st_quartz'] },
       { x: 15, y: 10, pool: ['fl_bell', 'shiitake'] },
       { x: 27, y: 16, pool: ['wood', 'fl_camellia'] },
+      { x: 32, y: 6, pool: ['wood', 'shiitake'] },
+      { x: 42, y: 17, pool: ['fl_bell', 'shiitake'] },
+      { x: 45, y: 13, pool: ['berry', 'st_amethyst'] },
+      { x: 31, y: 19, pool: ['berry', 'fl_bell'] },
     ],
     fishing: 'lake',
     bugs: true,
@@ -293,8 +333,12 @@ function forest(): ZoneDef {
 
 // ================================================================== GARDEN
 function garden(): ZoneDef {
-  const b = new Builder(24, 18, 'g');
+  const b = new Builder(38, 26, 'g');
   b.rect(0, 10, 12, 2, 'p');
+  b.rect(22, 10, 16, 2, 'p'); // path on to the eastern garden
+  b.rect(26, 16, 10, 8, 'w').rect(28, 17, 6, 6, 'd').rect(30, 15, 2, 10, 'b'); // koi pond and its bridge
+  b.rect(24, 3, 12, 6, 'g').rect(3, 19, 18, 1, 'p').rect(10, 16, 2, 4, 'p');
+  b.rect(26, 13, 9, 1, 'y').rect(26, 14, 9, 1, 'l');
   b.rect(10, 4, 2, 12, 'p');
   b.rect(14, 3, 7, 4, 'w');
   b.rect(16, 4, 3, 2, 'd');
@@ -309,6 +353,16 @@ function garden(): ZoneDef {
     .prop('pot_rose', 9, 8)
     .prop('lanternstring', 13, 16)
     .prop('puddle', 7, 11, 'rain');
+  // eastern garden: a tea house with its door on the side, wisteria lanterns and an orchard of cherry trees
+  b.prop('bld_th_tea_l', 25, 4).prop('bld_th_flower_r', 31, 4);
+  const orchard: [number, number][] = [[3, 21], [6, 22], [9, 21], [13, 22], [16, 21], [19, 22], [4, 24], [8, 24], [12, 24], [17, 24], [22, 22], [23, 19]];
+  for (const [x, y] of orchard) b.prop('sakura', x, y);
+  b.prop('stonelantern', 29, 15).prop('stonelantern', 32, 15).prop('stonelantern', 29, 24).prop('stonelantern', 32, 24)
+    .prop('lantern_red', 25, 9).prop('lantern_cream', 35, 9).prop('lantern_red', 24, 12).prop('lantern_cream', 36, 12)
+    .prop('bench', 25, 15).prop('bench', 35, 15).prop('bench', 14, 20).prop('reeds', 26, 20).prop('reeds', 35, 18).prop('reeds', 27, 23)
+    .prop('flowers', 22, 14).prop('flowers_lav', 23, 15).prop('flowers', 36, 11).prop('flowers_lav', 20, 18).prop('pot_rose', 24, 8).prop('pot_cream', 36, 8)
+    .prop('bush_flower', 22, 7).prop('bush', 37, 5).prop('fence', 22, 20).prop('fence', 23, 20).prop('fence', 24, 20)
+    .prop('lanternstring', 26, 12).prop('lanternstring', 31, 12).prop('lanternstring', 8, 20);
   return zone(b, {
     id: 'garden', name: 'Jardín de los Faroles', music: 'garden', outdoor: true,
     doors: [
@@ -319,6 +373,10 @@ function garden(): ZoneDef {
       ...GARDEN_PLOT_POSITIONS.map(([x, y], i) => ({ id: 'plot' + i, x, y, label: 'Parcela', action: 'plot:' + i, ...(i >= 6 ? { cond: 'proj_garden_lanterns_4' } : {}) })),
       { id: 'pond', x: 17, y: 7, label: 'Estanque', action: 'fish:lake' },
       { id: 'merge', x: 13, y: 9, label: 'Banco de macetas', action: 'minigame:merge' },
+      { id: 'koi_fish1', x: 30, y: 19, label: 'Pescar', action: 'fish:lake' },
+      { id: 'koi_fish2', x: 31, y: 21, label: 'Pescar', action: 'fish:lake' },
+      { id: 'garden_tea', x: 28, y: 6, label: 'Casa de té', action: 'note:tea' },
+      { id: 'garden_flower', x: 35, y: 6, label: 'Florería', action: 'note:flower' },
     ],
     rooms: [],
     gather: [
@@ -326,6 +384,9 @@ function garden(): ZoneDef {
       { x: 19, y: 12, pool: ['fl_sun', 'fl_daisy'] },
       { x: 5, y: 16, pool: ['sakura', 'fl_tulip'] },
       { x: 20, y: 8, pool: ['fl_lily'] },
+      { x: 23, y: 17, pool: ['sakura', 'fl_tulip'] },
+      { x: 34, y: 12, pool: ['fl_sun', 'fl_daisy'] },
+      { x: 12, y: 23, pool: ['sakura', 'fl_tulip'] },
     ],
     fishing: 'lake',
     bugs: true,
@@ -334,12 +395,16 @@ function garden(): ZoneDef {
 
 // ================================================================== STATION
 function station(): ZoneDef {
-  const b = new Builder(24, 16, 'G');
+  const b = new Builder(24, 26, 'G');
   b.rect(0, 9, 24, 4, 'p');
+  b.rect(9, 13, 3, 9, 'p').rect(0, 22, 24, 2, 'R').rect(2, 16, 5, 3, 'p'); // depot yard and a siding
   b.rect(2, 4, 18, 4, 'S');
   b.rect(0, 2, 24, 2, 'R');
   b.prop('bld_station', 4, 4).prop('tree_dark', 1, 13).prop('tree_dark', 21, 14).prop('bigrock', 20, 5).prop('bush', 22, 6)
     .prop('sign', 15, 9).prop('crate', 3, 8).prop('barrel', 13, 8).prop('lamppost', 18, 8);
+  b.prop('bld_cabin', 14, 15).prop('crate', 3, 17).prop('crate', 4, 17).prop('barrel', 6, 18).prop('sack', 2, 18).prop('lamppost', 8, 14).prop('lamppost', 12, 20)
+    .prop('tree_dark', 1, 15).prop('tree_dark', 21, 17).prop('pine', 18, 21).prop('pine', 22, 13).prop('tree_dark', 4, 24).prop('tree_dark', 20, 24).prop('bush', 7, 21)
+    .prop('bush', 12, 15).prop('rock', 13, 23).prop('bigrock', 2, 21).prop('reeds', 16, 19).prop('mushroom', 5, 20).prop('flowers_lav', 10, 22).prop('stonelantern', 8, 17);
   return zone(b, {
     id: 'station', name: 'Estación Abandonada', music: 'mystery', outdoor: true,
     doors: [
@@ -360,8 +425,8 @@ function station(): ZoneDef {
 
 // ================================================================== NIGHT MARKET
 function market(): ZoneDef {
-  const b = new Builder(26, 18, 'c');
-  b.rect(0, 0, 26, 2, 'G');
+  const b = new Builder(40, 18, 'c');
+  b.rect(0, 0, 40, 2, 'G');
   b.rect(11, 16, 4, 2, 'p');
   treeBorder(b, [[12, 17], [13, 17]], ['sakura', 'tree_dark']);
   b.prop('stall_night', 3, 4).prop('stall_gold', 9, 4).prop('stall_rose', 15, 4).prop('stall_sage', 20, 4)
@@ -373,6 +438,12 @@ function market(): ZoneDef {
     .prop('bush_flower', 1, 8).prop('bush', 24, 9).prop('bush_berry', 2, 14).prop('bush_flower', 23, 14)
     .prop('pot_rose', 8, 9).prop('pot_cream', 17, 9).prop('lanternstring', 3, 9).prop('lanternstring', 19, 9)
     .prop('crate', 7, 12).prop('barrel', 22, 12).prop('vending_red', 14, 12);
+  // the market runs on to the east: more stalls, a second row of lanterns and a small tea corner
+  b.prop('stall_rose', 27, 4).prop('stall_sage', 32, 4).prop('stall_gold', 37, 4).prop('stall_night', 28, 11).prop('stall_rose', 34, 11)
+    .prop('lantern_red', 26, 7).prop('lantern_cream', 31, 7).prop('lantern_red', 36, 7).prop('lantern_cream', 27, 13).prop('lantern_red', 33, 13).prop('lantern_cream', 38, 13)
+    .prop('lamppost', 26, 5).prop('lamppost', 38, 7).prop('lamppost', 26, 12).prop('lamppost', 38, 12)
+    .prop('bench', 31, 10).prop('pot_rose', 30, 9).prop('pot_cream', 36, 9).prop('crate', 29, 15).prop('barrel', 36, 15).prop('bamboo', 38, 15).prop('bamboo', 25, 15)
+    .prop('lanternstring', 28, 9).prop('lanternstring', 33, 9).prop('bush_flower', 38, 3).prop('bush', 25, 3).prop('sakura', 39, 9).prop('sakura', 25, 9);
   return zone(b, {
     id: 'market', name: 'Mercado Nocturno', music: 'market', outdoor: true,
     doors: [
