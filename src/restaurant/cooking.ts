@@ -75,6 +75,7 @@ const STEP_HELP: Record<CookStep['t'], string> = {
   plate: 'Arrastrá cada pieza hasta el centro del plato.',
 };
 
+const TRAY_SLOTS = 6;
 const RICE = '#fbf7ee';
 const NORI = '#2f3b33';
 
@@ -187,6 +188,9 @@ export class CookingGame {
 
   private cookRaw: { item: string; how: 'plancha' | 'sarten' }[] = [];
   private cookedPieces: { item: string; p: number }[] = [];
+  private tools!: HTMLElement;
+  private knifeUses = 0;
+  private knifeDirty = false;
   private pausedAt = 0;
   private active = true;
 
@@ -277,7 +281,10 @@ export class CookingGame {
       h('div', { class: 'cook-order' }, iconElement(this.r.icon), h('div', { class: 'col', style: { gap: '2px' } }, h('b', null, this.r.name + (this.title ? ` — ${this.title}` : '')), this.stepsEl)),
       h('div', { class: 'col', style: { alignItems: 'flex-end', gap: '4px' } }, this.timerEl, this.host ? null : h('button', { class: 'close-x', 'aria-label': 'Salir', onclick: () => this.abort() }, '✕')),
     );
-    this.root = h('div', { class: 'cook' }, head, instruction, stage, this.tray);
+    this.tools = h('div', { class: 'cook-tools' },
+      h('button', { class: 'btn small', title: 'Saca el último ingrediente que pusiste', onclick: () => this.undoLast() }, 'Sacar último'),
+      h('button', { class: 'btn small', title: 'Tira lo de este paso y empezá de nuevo (cuenta como un error)', onclick: () => this.trash() }, '🗑 Tacho'));
+    this.root = h('div', { class: 'cook' }, head, instruction, stage, h('div', { class: 'cook-trayrow' }, this.tray, this.tools));
     if (this.host) {
       this.host.el.append(this.root);
       this.close = () => this.root.remove();
@@ -418,6 +425,108 @@ export class CookingGame {
     }
     // Every recipe can receive its extra before serving, including nigiri with no garnish step.
     if (this.variant && !this.variantUsed && ['place', 'garnish', 'plate'].includes(s.t)) this.addTrayItem(this.variant.item, true);
+    // the tray always shows its six compartments, empty ones included
+    if (s.t !== 'plate' && s.t !== 'cook') for (let n = this.tray.querySelectorAll('.ing').length; n < TRAY_SLOTS; n++) this.tray.append(h('div', { class: 'ing slot-empty', 'aria-hidden': 'true' }));
+    this.syncTools();
+  }
+
+  /** Takes back the last ingredient she put down (filling or garnish). */
+  private undoLast() {
+    const s = this.step;
+    if (this.advancing || this.done || !s) return;
+    let id: string | undefined;
+    if (s.t === 'place' && this.fillings.length) {
+      id = this.fillings.pop()!.id;
+      this.needPlace.push(id);
+      this.fillPrec.pop();
+      this.prec.pop();
+    } else if (s.t === 'garnish' && this.garnish.length) {
+      const g = this.garnish[this.garnish.length - 1];
+      if (g.id === this.variant?.item && this.variantUsed) { this.garnish.pop(); this.variantUsed = false; id = g.id; }
+      else if (this.needGarnish.length < s.items.length) { id = this.garnish.pop()!.id; this.needGarnish.push(id); }
+    }
+    if (!id) { this.say('No hay nada para sacar en este paso.'); return; }
+    (this.tray.querySelector(`[data-id="${id}"]`) as HTMLElement | null)?.classList.remove('empty');
+    audio.sfxPlay('tap');
+    this.respond('Lo sacaste: ponelo de nuevo', 'gentle');
+  }
+
+  /** Throws away what was done in this step and starts it again. It costs one mistake. */
+  private trash() {
+    const s = this.step;
+    if (this.advancing || this.done || !s) return;
+    if (s.t === 'rice' && this.riceAdded) {
+      this.riceCover.fill(0);
+      this.riceTime.fill(0);
+      this.riceAdded = false;
+      this.riceBtn?.remove();
+      this.riceBtn = null;
+      this.enterStep();
+    } else if (s.t === 'place' && this.fillings.length) {
+      this.fillings = [];
+      this.fillPrec = [];
+      this.enterStep();
+    } else if (s.t === 'garnish' && this.garnish.length) {
+      this.garnish = [];
+      this.variantUsed = false;
+      this.enterStep();
+    } else { this.say('Todavía no hay nada para tirar en este paso.'); return; }
+    this.mistakes++;
+    audio.sfxPlay('tap');
+    this.respond('Al tacho. ¡Otra vez!', 'gentle');
+  }
+
+  /** The cloth shows up beside the tray whenever the knife needs cleaning; the other tools follow the step. */
+  private syncTools() {
+    const s = this.step;
+    const sel = (t: string) => this.tools.querySelector(t) as HTMLButtonElement | null;
+    const [undo, bin] = Array.from(this.tools.querySelectorAll('button')) as HTMLButtonElement[];
+    const items = s?.t === 'place' || s?.t === 'garnish';
+    if (undo) undo.disabled = !items;
+    if (bin) bin.disabled = !(items || s?.t === 'rice');
+    void sel;
+    this.tools.querySelector('.cloth')?.remove();
+    if (this.knifeDirty) {
+      const sprite = h('canvas') as HTMLCanvasElement;
+      sprite.width = 32; sprite.height = 24;
+      const g = sprite.getContext('2d')!;
+      g.fillStyle = '#e8e4da'; g.fillRect(4, 5, 24, 15);
+      g.fillStyle = '#b9c9d6'; for (let y = 8; y < 20; y += 4) g.fillRect(4, y, 24, 1);
+      g.fillStyle = '#c8a46a'; g.fillRect(8, 11, 4, 2); g.fillRect(19, 8, 3, 2);
+      const el = h('div', { class: 'ing cloth', 'data-id': 'cloth', 'aria-label': 'Trapo para limpiar el cuchillo' }, sprite, h('span', null, 'Trapo'));
+      el.addEventListener('pointerdown', (e) => this.startDrag(e, 'cloth', false));
+      this.tools.append(el);
+    }
+  }
+
+  /** every few cuts the blade gets sticky: she has to wipe it before the next one */
+  private knifeUsed() {
+    this.knifeUses++;
+    const limit = game.save.restaurant.upgrades.includes('knife') ? 4 : 3;
+    const s = this.step;
+    const more = (s?.t === 'slice' && this.sliceDone < this.sliceNeeded) || (s?.t === 'cut' && this.cutsDone < this.cutsNeeded) || this.r.steps.slice(this.stepIdx + 1).some((x) => x.t === 'slice' || x.t === 'cut');
+    if (this.knifeUses >= limit && more) {
+      this.knifeDirty = true;
+      this.respond('El cuchillo se ensució: pasale el trapo', 'gentle');
+      this.syncTools();
+    }
+  }
+
+  private knifeBlocked(): boolean {
+    if (!this.knifeDirty) return false;
+    this.say('El cuchillo está sucio: arrastrá el trapo (abajo a la derecha) sobre la mesa.');
+    audio.sfxPlay('tap');
+    return true;
+  }
+
+  private drawKnife(g: CanvasRenderingContext2D, x: number, y: number) {
+    drawCookingKnife(g, x, y);
+    if (this.knifeDirty) {
+      g.fillStyle = '#f2ecda';
+      for (const [dx, dy] of [[2, 22], [5, 27], [3, 32], [6, 36]]) g.fillRect(Math.round(x) + dx, Math.round(y) + dy, 2, 2);
+      g.fillStyle = '#d96a5a';
+      g.fillRect(Math.round(x) + 4, Math.round(y) + 30, 2, 2);
+    }
   }
 
   private addTrayItem(id: string, optional = false) {
@@ -494,7 +603,8 @@ export class CookingGame {
     ghost.height = 48;
     const gg = ghost.getContext('2d')!;
     gg.imageSmoothingEnabled = false;
-    gg.drawImage(cookingIngredient(id), 0, 0, 64, 48);
+    if (id === 'cloth') { gg.fillStyle = '#e8e4da'; gg.fillRect(10, 12, 44, 26); gg.fillStyle = '#b9c9d6'; for (let y = 18; y < 38; y += 8) gg.fillRect(10, y, 44, 2); }
+    else gg.drawImage(cookingIngredient(id), 0, 0, 64, 48);
     document.body.append(ghost);
     const move = (ev: PointerEvent) => {
       ghost.style.left = ev.clientX + 'px';
@@ -532,6 +642,15 @@ export class CookingGame {
   private onDrop(id: string, x: number, y: number, optional: boolean) {
     const s = this.step;
     if (!s) return;
+    if (id === 'cloth') {
+      this.knifeDirty = false;
+      this.knifeUses = 0;
+      audio.sfxPlay('place');
+      this.respond('Cuchillo limpio');
+      this.puff(x, y, '#ffffff');
+      this.syncTools();
+      return;
+    }
     if (optional && this.variant && id === this.variant.item && !this.variantUsed) {
       const box = this.plateBox();
       if (!(s.t === 'plate' ? inPlate(x, y, box.cx, box.cy, box.rx, box.ry) : this.inMat(x, y))) {
@@ -677,7 +796,7 @@ export class CookingGame {
 
   /** One knife stroke on the fish: judged by where the marker is when the player taps. A miss never restarts anything. */
   private tapCut() {
-    if (this.sliceDone >= this.sliceNeeded) return;
+    if (this.sliceDone >= this.sliceNeeded || this.knifeBlocked()) return;
     const knife = game.save.restaurant.upgrades.includes('knife');
     const v = fishCutVerdict(this.sliceMark(), settings.cookMode, knife);
     if (v.kind === 'perfect') haptic('cut');
@@ -694,6 +813,7 @@ export class CookingGame {
     this.say(v.kind === 'perfect' ? '¡Corte limpio!' : v.kind === 'good' ? 'Buen corte.' : 'Corte irregular, pero seguimos.');
     this.respond(v.kind === 'perfect' ? '¡Corte limpio!' : v.kind === 'good' ? 'Buen corte' : 'Corte irregular, seguimos', v.kind === 'miss' ? 'gentle' : 'good');
     if (this.sliceDone >= this.sliceNeeded) this.asp.fish = fishCutSummary(this.fishCuts);
+    this.knifeUsed();
     this.checkStep();
   }
 
@@ -797,6 +917,7 @@ export class CookingGame {
       const guide = nextGuide(done, needed, layout.x0, layout.w);
       const midX = (a.x + b.x) / 2;
       const hit = swipeCuts(dx, dy, midX, guide, guideTolerance(settings.cookMode));
+      if (hit === 'hit' && this.knifeBlocked()) return;
       if (hit === 'hit') {
         this.cutsDone++;
         const tol = guideTolerance(settings.cookMode);
@@ -807,6 +928,7 @@ export class CookingGame {
         audio.sfxPlay('cut');
         this.sparkles.push({ x: midX, y: (a.y + b.y) / 2, t: 0.4 });
         this.puff(midX, (a.y + b.y) / 2, ingColor('rice'));
+        this.knifeUsed();
         this.checkStep();
       } else if (hit === 'miss') {
         if (missCosts(settings.cookMode)) this.mistakes++;
@@ -1373,10 +1495,10 @@ export class CookingGame {
     if (this.knifeStroke && !settings.reduceMotion) {
       const k = this.knifeStroke;
       const travel = Math.sin((k.age / 0.24) * Math.PI) * 16;
-      drawCookingKnife(g, k.x, k.y - 15 + travel);
+      this.drawKnife(g, k.x, k.y - 15 + travel);
     } else if ((s?.t === 'slice' || s?.t === 'cut') && !this.advancing) {
       // Resting tool also identifies the cutting station with reduced motion.
-      drawCookingKnife(g, W - 24, 18);
+      this.drawKnife(g, W - 24, 18);
     }
     if (this.landing && !settings.reduceMotion) {
       const l = this.landing;
