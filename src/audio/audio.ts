@@ -7,7 +7,7 @@ import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
 import { voiceNote, voicePhraseCount, voiceWhen, type VoiceNote } from './voices';
 
-type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
+type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'kitchen_hard' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
 
 interface TrackDef {
   bpm: number;
@@ -22,6 +22,8 @@ interface TrackDef {
   melody?: string;
   /** gentle chord-tone arpeggio on the off-beats */
   arp?: boolean;
+  /** cooking groove: wood-block chops, a walking bass and (optionally) a ticking clock on every beat */
+  groove?: { tick?: boolean };
 }
 
 const PENTA = [0, 2, 4, 7, 9];
@@ -32,7 +34,9 @@ const TRACKS: Record<Exclude<Track, 'none'>, TrackDef> = {
   title: { bpm: 70, scale: PENTA, root: 57, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'piano', density: 0.35, bass: true, swing: 0.1 },
   town: { bpm: 84, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [7, 11, 14, 17]], lead: 'pluck', density: 0.5, bass: true, swing: 0.15 },
   restaurant: { bpm: 78, scale: PENTA, root: 62, chords: [[0, 4, 7, 11], [5, 9, 12, 16], [-1, 2, 5, 9], [4, 7, 11, 14]], lead: 'piano', density: 0.45, bass: true, swing: 0.2 },
-  kitchen: { bpm: 68, scale: MIYAKO, root: 60, chords: [[0, 7, 12], [5, 12, 17], [-2, 5, 10], [0, 7, 12]], lead: 'pluck', density: 0.28, bass: true, swing: 0.05 },
+  // a cheerful lunchtime kitchen: koto-like pluck theme, marimba answers, wood-block chopping and a walking bass (16 bars: A B A' B')
+  kitchen: { bpm: 96, scale: PENTA, root: 60, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'pluck', density: 0.3, bass: true, swing: 0.1, groove: {} },
+  kitchen_hard: { bpm: 122, scale: PENTA, root: 62, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'pluck', density: 0.36, bass: true, swing: 0.05, groove: { tick: true } },
   restaurant_night: { bpm: 66, scale: PENTA, root: 57, chords: [[0, 3, 7, 10], [5, 8, 12, 15], [-2, 2, 5, 9], [3, 7, 10, 14]], lead: 'piano', density: 0.3, bass: true, swing: 0.2 },
   home: { bpm: 64, scale: PENTA, root: 60, chords: [[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]], lead: 'bell', density: 0.25, bass: false, swing: 0.1 },
   forest: { bpm: 72, scale: MIYAKO, root: 57, chords: [[0, 7, 12], [1, 8, 13], [-2, 5, 10], [0, 7, 12]], lead: 'flute', density: 0.3, bass: true, swing: 0 },
@@ -51,7 +55,8 @@ const MELODIES: Partial<Record<Exclude<Track, 'none'>, string>> = {
   title:      '4 - 3 - 2 - 1 2 | 3 - - - . . 2 1 | 0 - 1 - 2 - 4 3 | 2 - - - - - . . ',
   town:       '0 2 4 2 3 - 2 1 | 2 - 0 - . 1 2 3 | 4 - 5 4 3 2 1 2 | 0 - - - . . . . ',
   restaurant: '2 - 4 - 5 4 2 - | 3 - 2 1 0 - . . | 1 2 3 - 4 - 3 2 | 1 - - - 0 - . . ',
-  kitchen:    '0 - 2 - 4 - 3 2 | 1 - - - 0 - . . | 2 - 3 - 4 - 2 - | 0 - - - - - . . ',
+  kitchen:    '0 - 2 - 4 - 3 2 | 1 - 2 - 1 0 . . | 2 - 3 - 4 - 5 4 | 3 - 2 1 0 - . . ',
+  kitchen_hard: '0 2 4 2 0 2 4 5 | 4 2 1 - 0 - . . | 2 3 4 3 2 3 5 4 | 3 - 2 - 0 - . . ',
   restaurant_night: '4 - - 3 2 - - . | 3 - - 2 1 - . . | 0 - 2 - 3 - 4 - | 2 - - - - - . . ',
   home:       '0 - 2 - 4 - - . | 3 - 2 - 1 - - . | 2 - 1 - 0 - 2 - | 1 - - - - - . . ',
   forest:     '0 - - 1 2 - - . | 3 - 2 - 1 - . . | 0 - 1 - 2 - 4 - | 3 - - - 2 - . . ',
@@ -64,7 +69,12 @@ const MELODIES: Partial<Record<Exclude<Track, 'none'>, string>> = {
   intro:      '2 - - 3 4 - - . | 3 - 2 - 1 - - . | 0 - - 1 2 - - . | 1 - - - - - - . ',
   emotional:  '2 - - 3 4 - - . | 3 - 2 - 1 - - . | 0 - - 1 2 - - . | 1 - - - - - - . ',
 };
-const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { title: true, town: true, restaurant: true, restaurant_night: true, kitchen: true, home: true, garden: true, stars: true, emotional: true, intro: true, beach: true };
+/** second theme: tracks that have one play A B A' B' (the answering phrase on a marimba) */
+const MELODIES_B: Partial<Record<Exclude<Track, 'none'>, string>> = {
+  kitchen:      '4 - 5 - 4 2 0 - | 1 - 2 - 4 - . . | 5 - 4 - 2 - 4 5 | 4 - 2 - 0 - . . ',
+  kitchen_hard: '4 5 4 2 0 2 4 - | 5 4 2 - 1 - . . | 4 5 6 5 4 2 4 5 | 4 2 1 - 0 - . . ',
+};
+const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { kitchen_hard: true, title: true, town: true, restaurant: true, restaurant_night: true, kitchen: true, home: true, garden: true, stars: true, emotional: true, intro: true, beach: true };
 
 function parseMelody(src: string): (number | null | '-')[] {
   return src.replace(/\|/g, ' ').trim().split(/\s+/).map((t) => (t === '.' ? null : t === '-' ? '-' : Number(t)));
@@ -78,7 +88,7 @@ const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
  * Scenes without a file keep the generated music.
  */
 const MUSIC_FILES = import.meta.glob('../music/*.{mp3,ogg,m4a,wav,webm,opus}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-const SONG_MATCH: Partial<Record<Track, RegExp>> = { title: /menu|title|principal/i, intro: /intro/i, kitchen: /kitchen|cocina/i };
+const SONG_MATCH: Partial<Record<Track, RegExp>> = { title: /menu|title|principal/i, intro: /intro/i, kitchen: /^(?!.*(hard|dificil|difícil)).*(kitchen|cocina)/i, kitchen_hard: /(kitchen|cocina).*(hard|dificil|difícil)/i };
 
 function songURL(track: Track): string | null {
   const re = SONG_MATCH[track];
@@ -297,22 +307,30 @@ class AudioEngine {
         for (const n of chord) this.note(def.root + n - 12, t, eighth * 7.5, 'pad', 0.05);
         if (def.bass) this.note(def.root + chord[0] - 24, t, eighth * 3, 'bass', 0.12);
       }
-      if (def.bass && inBar === 4) this.note(def.root + chord[0] - 24 + (this.rng() < 0.5 ? 7 : 0), t, eighth * 3, 'bass', 0.09);
-      const melody = MELODIES[this.current as Exclude<Track, 'none'>];
+      if (def.bass && !def.groove && inBar === 4) this.note(def.root + chord[0] - 24 + (this.rng() < 0.5 ? 7 : 0), t, eighth * 3, 'bass', 0.09);
+      const trackId = this.current as Exclude<Track, 'none'>;
+      const melodyA = MELODIES[trackId];
+      const melodyB = MELODIES_B[trackId];
+      const mel0 = melodyA ? parseMelody(melodyA) : null;
+      // with a second theme the form is A B A' B' (each theme is 4 bars)
+      const pass = mel0 ? Math.floor(this.step / mel0.length) : 0;
+      const melody = melodyB && pass % 2 === 1 ? melodyB : melodyA;
       if (melody) {
         const mel = parseMelody(melody);
-        const pass = Math.floor(this.step / mel.length);
         const i = this.step % mel.length;
         const tok = mel[i];
+        const answering = !!melodyB && pass % 2 === 1;
         if (typeof tok === 'number') {
           let len = 1;
           while (mel[(i + len) % mel.length] === '-' && len < 8) len++;
           const n = def.scale.length;
           const deg = def.scale[((tok % n) + n) % n] + Math.floor(tok / n) * 12;
           // every other pass the theme rises an octave on its last half, for variety
-          const lift = pass % 2 === 1 && i >= mel.length / 2 ? 12 : 0;
-          this.note(def.root + deg + lift, t, eighth * len * 0.95, def.lead, 0.1);
-        } else if (tok === null && pass % 2 === 1 && this.rng() < def.density * 0.5) {
+          const lift = pass % 2 === 1 && i >= mel.length / 2 && !melodyB ? 12 : 0;
+          const prime = !!melodyB && pass >= 2 && inBar % 4 === 0; // second time round the lead is doubled by a glockenspiel
+          this.note(def.root + deg + lift, t, eighth * len * 0.95, answering ? 'bell' : def.lead, answering ? 0.085 : 0.1);
+          if (prime) this.note(def.root + deg + 12, t, eighth * 0.9, 'bell', 0.04);
+        } else if (tok === null && pass % 2 === 1 && !melodyB && this.rng() < def.density * 0.5) {
           // gentle improvised fill in the rests of the second pass
           const deg = def.scale[Math.floor(this.rng() * def.scale.length)];
           this.note(def.root + deg + 12, t, eighth * 1.4, def.lead, 0.05);
@@ -322,6 +340,7 @@ class AudioEngine {
         const oct = this.rng() < 0.3 ? 12 : 0;
         this.note(def.root + deg + oct, t, eighth * (this.rng() < 0.3 ? 3 : 1.6), def.lead, 0.09);
       }
+      if (def.groove) this.groove(def, chord, inBar, t, eighth, pass);
       if (ARP[this.current as Exclude<Track, 'none'>] && inBar % 2 === 1) {
         const tone = chord[Math.floor(inBar / 2) % chord.length];
         this.note(def.root + tone - 12, t, eighth * 1.2, 'pluck', 0.035);
@@ -405,6 +424,26 @@ class AudioEngine {
     }
     this.noiseBuf = buf;
     return buf;
+  }
+
+  /** Kitchen groove: knife-on-board chops (a noise tick plus a short wood tone), a walking bass and an optional ticking clock. */
+  private groove(def: TrackDef, chord: number[], inBar: number, t: number, eighth: number, pass: number) {
+    const bars = Math.floor(this.step / 8);
+    // chop pattern, one per bar of the 4-bar phrase; the last bar of each phrase is a busier "fill"
+    const PAT = ['x . x . x . x .', 'x . x . x . x x', 'x . x x x . x .', 'x x x . x x x x'][bars % 4].split(' ');
+    const accent = inBar === 0 ? 1 : inBar === 4 ? 0.8 : 0.45;
+    if (PAT[inBar] === 'x' && this.noiseBuf) {
+      this.hat(t, 0.05 * accent + (pass % 2 ? 0.01 : 0));
+      this.note(def.root + 24 + (inBar % 4 === 0 ? 0 : 5), t, 0.05, 'pluck', 0.012 * accent);
+    }
+    // walking bass: root, fifth, octave, third (one note on every other eighth)
+    if (def.bass && inBar % 2 === 0) {
+      const walk = [0, 7, 12, 4][inBar / 2];
+      this.note(def.root + chord[0] - 24 + (walk === 4 ? (chord[1] - chord[0]) : walk), t, eighth * 1.6, 'bass', inBar === 0 ? 0.13 : 0.08);
+    }
+    // wood-block "tok" on the off-beats, a shaker on the quarter notes
+    if (inBar % 4 === 2) this.note(def.root + 31, t, 0.04, 'pluck', 0.02);
+    if (def.groove?.tick && inBar % 2 === 0) this.note(def.root + 43 + (inBar === 0 ? 0 : -2), t, 0.03, 'pluck', 0.022);
   }
 
   private hat(t: number, vol: number) {

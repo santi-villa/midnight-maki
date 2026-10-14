@@ -1,7 +1,11 @@
 Canciones propias
 =================
-Poné acá los archivos de audio (mp3, ogg, m4a, wav, webm u opus). El nombre elige la escena:
+Poné acá los archivos de audio (m4a, mp3, ogg, wav, webm u opus). El nombre elige la escena:
   menu / title / principal  -> menú principal
   intro                     -> introducción de la historia
   kitchen / cocina          -> minijuego de cocina
-Suenan en loop con entrada suave y se apagan al cambiar de escena. Las escenas sin archivo siguen con la música generada.
+  kitchen-hard / cocina-dificil -> minijuego de cocina en modo difícil
+Suenan en loop con entrada suave y se apagan al cambiar de escena. Las escenas sin archivo siguen con la música generada
+(la de cocina ya es generada por código; si ponés un archivo, lo reemplaza).
+Para celular conviene m4a (AAC) a ~96 kbps: suena en todos los dispositivos y pesa poco. Las dos canciones actuales
+ya están así (antes eran mp3 de 4 MB cada una).
