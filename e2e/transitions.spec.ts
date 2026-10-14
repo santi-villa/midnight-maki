@@ -159,7 +159,7 @@ test('library reading and Rigg’s existing book quest remain usable and save in
   await expect(page.locator('.dlg')).toContainText('Mapas de la costa');
   await page.locator('.dlg').click();
   await page.evaluate(async () => (await import('/src/ui/worldmap.ts')).openWorldMap());
-  await expect(page.locator('.wmap-plate.here')).toContainText('Plaza');
+  await expect(page.locator('.wmap-plate.here')).toHaveAttribute('aria-label', /^Plaza/);
   await page.keyboard.press('Escape');
   const saved = await page.evaluate(async () => {
     const d = (window as any).mmDebug;
