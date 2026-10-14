@@ -25,6 +25,7 @@ export interface BuiltZone {
 
 export function condOk(cond?: string): boolean {
   if (!cond) return true;
+  if (cond.startsWith('upgrade:')) return game.save.restaurant.upgrades.includes(cond.slice(8));
   if (cond === 'rain') return game.flag('weather') === 'rain';
   // restaurant stage: 'stage=2' exactly, 'stage>=1' from that stage on, 'stage<1' only before it
   const st = cond.match(/^stage(=|>=|<)(\d)$/);

@@ -3,20 +3,22 @@ import { DRINK_BY_ID, canPrepareDrink } from './drinkData';
 import { prepareDrink, openDrinks } from './drinks';
 import { runTask } from '../core/errors';
 import './tray';
+import './cornerPanel';
 import { iconElement } from '../art/icons';
 import { recipeIllustration } from '../art/cooking';
 import { audio } from '../audio/audio';
 import { game } from '../core/state';
 import { ITEMS_BY_ID } from '../data/items';
 import { EXPERIMENTS, RECIPES, RECIPES_BY_ID, type RecipeDef } from '../data/recipes';
-import { BALANCE } from '../core/balance';
+import { bus } from '../core/events';
 import { add, h, panel, toast, openModal } from '../ui/dom';
 import { registerAction } from '../systems/actions';
 import { cook, type CookResult } from './cooking';
 import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeCollection';
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
-import { UPGRADES, buyUpgrade } from './upgrades';
+import { UPGRADES, buyUpgrade, upgradeMissing } from './upgrades';
+import { advanceMissing, advanceRestaurant, levelProgress, nextAdvance, xpFloor } from './progression';
 import { freeCookCoins } from './economy';
 import { runScene, say } from '../dialogue/dialogue';
 import { STAGE_NAMES, applyStageGrants, stageForLevel } from './stages';
@@ -73,9 +75,9 @@ export function openOrders() {
     const rs = game.save.restaurant;
     body.append(
       h('div', { class: 'card row', style: { justifyContent: 'space-between', flexWrap: 'wrap' } },
-        h('div', null, h('b', null, `Nivel ${rs.level}`), h('div', { class: 'bar', style: { width: '140px', marginTop: '4px' } }, h('i', { style: { width: `${Math.min(100, (rs.xp / BALANCE.restaurantXpPerLevel(rs.level)) * 100)}%` } }))),
+        h('div', null, h('b', null, `Nivel ${rs.level}`), h('div', { class: 'bar', style: { width: '140px', marginTop: '4px' } }, h('i', { style: { width: `${levelProgress() * 100}%` } })), h('div', { class: 'hint' }, `XP total: ${rs.totalXp ?? xpFloor(rs.level) + rs.xp}${nextAdvance() && !advanceMissing().length ? ' · Ascenso disponible' : ''}`)),
         h('div', { class: 'hint' }, `Reputación ${rs.reputation} · Encanto ${charm()} · Servidos ${rs.served}`),
-        h('button', { class: 'btn small', onclick: () => openUpgrades() }, 'Mejoras'),
+        h('button', { class: 'btn small', onclick: () => openUpgrades(render) }, 'Mejoras'),
       ),
     );
     const note = serviceBoardNote();
@@ -428,23 +430,46 @@ async function experiment(sel: string[]) {
 }
 
 // ------------------------------------------------------------------ upgrades
-export function openUpgrades() {
+export function openUpgrades(onClose?: () => void) {
   const body = h('div', { class: 'col' });
+  const resources = (coins: number, items: Record<string, number>) => `${coins} ●${Object.entries(items).map(([id, q]) => ` · ${ITEMS_BY_ID[id]?.name ?? id} ${game.count(id)}/${q}`).join('')}`;
   const render = () => {
     body.innerHTML = '';
-    body.append(h('p', { class: 'hint' }, `Monedas: ${game.coins} ●. Las mejoras se ven en el restaurante.`));
+    const rs = game.save.restaurant, advance = nextAdvance();
+    body.append(h('p', { class: 'hint' }, `Monedas: ${game.coins} ●. Elegí qué construir; las compras anteriores se conservan.`));
+    body.append(h('div', { class: 'card col' }, h('b', null, `Midnight Maki · Nivel ${rs.level}`), h('p', { class: 'hint' }, `XP total: ${rs.totalXp ?? xpFloor(rs.level) + rs.xp}. La experiencia y reputación no se gastan.`),
+      advance ? h('div', { class: 'col' }, h('span', null, `Ascenso a nivel ${advance.level}`),
+        h('span', { class: 'hint' }, `XP ${rs.totalXp ?? xpFloor(rs.level) + rs.xp}/${xpFloor(advance.level)} · Reputación ${rs.reputation}/${advance.reputation}`),
+        h('span', { class: 'hint' }, resources(advance.coins, advance.items)),
+        advanceMissing().length ? h('span', { class: 'hint' }, `Falta: ${advanceMissing().join(' · ')}`) : null,
+        h('button', { class: 'btn primary', disabled: !!advanceMissing().length, onclick: () => {
+          void runTask('restaurant:advance', async () => {
+            const before = rs.level;
+            if (!advanceRestaurant(advance.level)) { toast('Revisá los requisitos del ascenso.'); render(); return; }
+            const recipes = unlockLevelRecipes(); applyStageGrants(); audio.sfxPlay('success');
+            toast(`¡Nivel ${advance.level}!${recipes.length ? ' Nuevas recetas: ' + recipes.map(id => RECIPES_BY_ID[id].name).join(', ') : ''}`);
+            p.close();
+            if (stageForLevel(before) !== stageForLevel(advance.level)) {
+              const { world } = await import('../scenes/WorldScene');
+              if (world.zoneId === 'restaurant' && world.player) await world.enterZone('restaurant', world.player.tx, world.player.ty, world.player.dir, false);
+            }
+          });
+        } }, 'Ascender')) : h('p', { class: 'hint' }, rs.level === 1 ? 'El nivel 2 se alcanza cocinando, sin cobrar monedas ni materiales.' : 'Nivel máximo alcanzado. Seguí eligiendo mejoras y disfrutando del pueblo.')));
     for (const u of UPGRADES) {
       const owned = game.save.restaurant.upgrades.includes(u.id);
-      const locked = game.save.restaurant.level < u.level;
+      const missing = upgradeMissing(u);
       body.append(
-        h('div', { class: 'card row', style: { justifyContent: 'space-between', gap: '10px', opacity: locked ? '.6' : '1' } },
-          h('div', null, h('b', null, u.name), h('div', { class: 'hint' }, u.desc), locked ? h('div', { class: 'hint' }, `Requiere nivel ${u.level}`) : null),
-          owned ? h('span', { class: 'pill' }, 'Comprada') : h('button', { class: 'btn small primary', disabled: locked || game.coins < u.price, onclick: () => { if (buyUpgrade(u.id)) { audio.sfxPlay('coin'); toast(`¡${u.name}!`); render(); } } }, `${u.price} ●`)),
+        h('div', { class: 'card col' },
+          h('b', null, u.name), h('div', { class: 'hint' }, u.desc),
+          owned ? h('span', { class: 'pill' }, 'Comprada') : h('div', { class: 'col' }, h('span', { class: 'hint' }, resources(u.price, u.items ?? {})),
+            missing.length ? h('span', { class: 'hint' }, `Falta: ${missing.join(' · ')}`) : null,
+            h('button', { class: 'btn primary', disabled: !!missing.length, onclick: () => { if (buyUpgrade(u.id)) { audio.sfxPlay('coin'); toast(`¡${u.name}!`); render(); } else { toast('No se pudo construir: revisá los recursos o el espacio libre del cuarto. No se cobró nada.'); render(); } } }, 'Construir'))),
       );
     }
   };
   render();
-  panel({ title: 'Mejoras del restaurante', body });
+  const off = bus.on('state:changed', render);
+  const p = panel({ title: 'Mejoras del restaurante', body, onClose: () => { off(); onClose?.(); } });
 }
 
 registerAction('orders', () => openOrders());

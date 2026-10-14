@@ -167,7 +167,7 @@ function photoCards() {
   if (!game.save.photos.length) body.append(h('p', { class: 'hint' }, 'Todavía no guardaste fotos. Usá Cámara cerca de Pip, Spicy o Rigg para crear un recuerdo juntos.'));
   return body;
 }
-function openPhotoAlbum() { panel({ title: 'Álbum de fotos', body: photoCards() }); }
+export function openPhotoAlbum() { panel({ title: 'Álbum de fotos', body: photoCards() }); }
 
 /** The phone only navigates: each app opens one of the game's existing screens. */
 function phoneApps(): PhoneApp[] {

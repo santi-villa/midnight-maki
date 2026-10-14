@@ -1,6 +1,7 @@
 import { game } from '../core/state';
 import type { RoutineStop } from './characters';
 import { FURN_BY_ID } from './furniture';
+import { cornerStop } from '../restaurant/corners';
 
 const stop = (x: number, y: number, act: RoutineStop['act'], alternatives: [number, number][], dir: RoutineStop['dir'] = 'down'): RoutineStop =>
   ({ zone: 'restaurant', x, y, act, alternatives, wander: 0, dir });
@@ -43,13 +44,13 @@ export function raccoonRoutine(id: string, period: number, minutes: number, open
     return bedStop(id);
   }
   if (id === 'pip') {
-    if (period === 1 && minutes >= 25 && minutes < 35) return { ...stop(4, 6, 'sit', [[3, 6], [6, 7]]), seatLift: 4 };
+    if (period === 1 && minutes >= 25 && minutes < 35) return cornerStop(id) ?? { ...stop(4, 6, 'sit', [[3, 6], [6, 7]]), seatLift: 4 };
     return stop(6, 10, 'work', [[5, 10], [6, 11]]);
   }
   if (id === 'spicy') {
-    if (period === 1 && minutes >= 45 && minutes < 55) return { ...stop(1, 6, 'drink', [[2, 6], [3, 6]]), seatLift: 4 };
+    if (period === 1 && minutes >= 45 && minutes < 55) return cornerStop(id) ?? { ...stop(1, 6, 'drink', [[2, 6], [3, 6]]), seatLift: 4 };
     return stop(3, 3, 'cook', [[2, 3], [3, 4]], 'up');
   }
-  if (period === 1 && minutes >= 65 && minutes < 75) return { ...stop(2, 6, 'read', [[3, 6], [4, 6]]), seatLift: 4 };
+  if (period === 1 && minutes >= 65 && minutes < 75) return cornerStop(id) ?? { ...stop(2, 6, 'read', [[3, 6], [4, 6]]), seatLift: 4 };
   return stop(10, 4, 'read', [[10, 3], [11, 4]]);
 }
