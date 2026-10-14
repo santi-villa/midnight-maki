@@ -2,7 +2,7 @@
 export const BALANCE = {
   startCoins: 120,
   periodMinutes: 90,             // in-game minutes per period
-  realSecondsPerGameMinute: 1.2, // => ~1.8 real minutes per period while exploring
+  realSecondsPerGameMinute: 1, // one minute on the clock per real second, day and night. Menus pause the clock.
   periodNames: ['Mañana', 'Tarde', 'Atardecer', 'Noche'],
   daysPerSeason: 14,
   maxOrders: 3,
