@@ -7,6 +7,7 @@ import { audio } from '../audio/audio';
 import type { Track } from '../audio/audio';
 import { iconElement } from '../art/icons';
 import { bus } from '../core/events';
+import { settings } from '../core/settings';
 import { h, openModal, toast } from '../ui/dom';
 import type { RecipeDef } from '../data/recipes';
 import { CookingGame, type CookResult } from './cooking';
@@ -62,7 +63,7 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
     const root = h('div', { class: 'ks' }, h('div', { class: 'ks-top' }, tabs, exit), chips, body);
 
     const musicBefore: Track = audio.currentTrack();
-    audio.crossfade('kitchen');
+    audio.crossfade(settings.cookMode === 'challenge' ? 'kitchen_hard' : 'kitchen');
     const closeModal = openModal(root);
     (root as any).__close = () => tryLeave();
 

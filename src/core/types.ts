@@ -138,6 +138,8 @@ export interface SaveData {
   inventory: Record<string, number>;
   recipesKnown: string[];
   recipesCooked: Record<string, number>;
+  /** best time in hard mode, seconds per recipe */
+  bestTimes?: Record<string, number>;
   /** mastery per recipe (see restaurant/mastery.ts); missing in older saves */
   recipeMastery?: Record<string, { n: number; g: number; p: number }>;
   /** Hand-cooked records, discovered variant ingredient IDs and chosen plate style. */

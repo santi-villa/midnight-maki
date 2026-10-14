@@ -83,7 +83,7 @@ export function openSettings(inGame: boolean) {
     choice('Tamaño de texto', [[0.9, 'Chico'], [1, 'Normal'], [1.15, 'Grande'], [1.3, 'Enorme']], () => settings.textScale, (v) => updateSettings({ textScale: v })),
     choice('Velocidad del texto', [[25, 'Lenta'], [45, 'Normal'], [90, 'Rápida'], [0, 'Instantánea']], () => settings.textSpeed, (v) => updateSettings({ textSpeed: v })),
     h('h3', null, 'Juego'),
-    choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Desafío']], () => settings.cookMode, (v) => updateSettings({ cookMode: v })),
+    choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Difícil (con reloj)']], () => settings.cookMode, (v) => updateSettings({ cookMode: v })),
     toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
     toggle('Vibración', 'haptics', supportsHaptics() ? 'Toques breves en momentos especiales. El dispositivo puede limitar la vibración.' : 'Este navegador no ofrece vibración. Tu preferencia se guarda para dispositivos compatibles.'),
     choice<string>('Atajo del NoriPhone (teclado)', [['p', 'P'], ['n', 'N'], ['t', 'T']], () => settings.phoneKey ?? 'p', (v) => updateSettings({ phoneKey: v })),
