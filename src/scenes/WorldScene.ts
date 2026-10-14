@@ -257,7 +257,7 @@ export class WorldScene extends Phaser.Scene {
   /** Flags that decide which obstacles stand in this zone right now. */
   private blockStamp(): string {
     const flags = new Set<string>();
-    for (const p of this.zone?.def.props ?? []) if (p.cond?.startsWith('!')) flags.add(p.cond);
+    for (const p of this.zone?.def.props ?? []) if (p.id.startsWith('block_') || p.id === 'sawhorse') if (p.cond?.startsWith('!')) flags.add(p.cond);
     return [...flags].map((c) => c + (condOk(c) ? 1 : 0)).join(',');
   }
 
