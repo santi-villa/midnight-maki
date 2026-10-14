@@ -49,6 +49,15 @@ export async function talkTo(id: string) {
     await scene();
     return;
   }
+  // personal scenes with Pip, Spicy and Rigg (optional, tied to what the player did; see story/bonds.ts)
+  if (RACCOONS.includes(id)) {
+    const { bondTalk } = await import('../story/bonds');
+    const bond = bondTalk(id, currentZone);
+    if (bond) {
+      await bond();
+      return;
+    }
+  }
   const def = CHAR_BY_ID[id];
   if (!def) return;
   const side = await import('../quests/side');

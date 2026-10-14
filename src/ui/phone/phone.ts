@@ -212,6 +212,7 @@ function badgeFor(id: string, n = noveltyCounts()): boolean {
   if (id === 'recipes') return n.recipes > (seen.recipes ?? n.recipes);
   if (id === 'quests') return n.quests > (seen.quests ?? n.quests);
   if (id === 'customize') return n.designs > 0;
+  if (id === 'friends') return n.bonds > 0;
   return false;
 }
 

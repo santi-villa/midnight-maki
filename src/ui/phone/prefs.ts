@@ -2,6 +2,7 @@
 import { bus } from '../../core/events';
 import { game } from '../../core/state';
 import type { PhonePrefs } from '../../core/types';
+import { bondsNews } from '../bonds';
 import { projectsDoneTotal } from '../../restaurant/projects';
 import { DEFAULT_PHONE, ITEMS, itemOf, ruleMet, type PhoneKind, type UnlockCtx } from './catalog';
 
@@ -73,7 +74,7 @@ export function choose(kind: PhoneKind, id: string): boolean {
 }
 
 /** Counters used for the little "new" dots on the home screen. */
-export function noveltyCounts(): { recipes: number; quests: number; designs: number } {
+export function noveltyCounts(): { recipes: number; quests: number; designs: number; bonds: number } {
   const s = game.save;
-  return { recipes: s.recipesKnown.length, quests: Object.keys(s.quests.active).length + s.quests.done.length, designs: unseenDesigns() };
+  return { recipes: s.recipesKnown.length, quests: Object.keys(s.quests.active).length + s.quests.done.length, designs: unseenDesigns(), bonds: bondsNews() };
 }

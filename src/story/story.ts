@@ -9,7 +9,7 @@ import { runTask } from '../core/errors';
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
-import { choose, runScene, say } from '../dialogue/dialogue';
+import { choose, fmt, runScene, say } from '../dialogue/dialogue';
 import { check, defineQuests, isDone } from '../quests/quests';
 import { learnRecipe } from '../restaurant/orders';
 import { world } from '../scenes/WorldScene';
@@ -274,6 +274,8 @@ export function storyTalk(id: string): Beat | null {
   if (id === 'pip' && game.has('story_done') && !game.has('sofi_dinner') && ['pip', 'spicy', 'rigg'].every((r) => game.friendLevel(r) >= 3)) {
     if (world.zoneId === 'restaurant' && clock.period >= 2) return S('sofi_dinner', sofiDinner);
   }
+  // after the dinner: a short, optional look back at the pages of the album the player actually filled
+  if (id === 'pip' && game.has('sofi_dinner') && !game.has('epilogue_album') && world.zoneId === 'restaurant') return S('epilogue_album', epilogueAlbum);
   return null;
 }
 
@@ -776,19 +778,27 @@ async function sofiDinner() {
     await say('narr', 'Un sobre con una estrella dibujada. Adentro, una carta escrita a mano:');
     await new Promise<void>((resolve) => {
       import('../ui/dom').then(({ h, uiRoot }) => {
+        // The letter text is unchanged. It now fills in {name}, and it can also be closed with Enter, Space or Escape.
         const paper = h(
           'div',
           { style: { background: '#f6ecd6', border: '4px solid #6b4330', borderRadius: '6px', padding: '24px 20px', maxWidth: '420px', width: '90%', lineHeight: '1.6', fontSize: '1.1em', color: '#2a2230', animation: 'popin .8s ease-out' } },
-          h('p', null, 'Este pequeño mundo es para vos, {name}.'),
+          h('p', null, fmt('Este pequeño mundo es para vos, {name}.')),
           h('p', null, 'Para que tengas un lugar al que volver, tres mapaches que siempre te esperen y todas las aventuras que quieras vivir.'),
           h('p', { style: { textAlign: 'right', fontStyle: 'italic' } }, 'Con amor, Santi.'),
           h('p', { class: 'hint', style: { textAlign: 'center' } }, 'Tocá para cerrar'),
         );
-        const wrap = h('div', { style: { position: 'fixed', inset: '0', background: 'rgba(20,22,42,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '70' } }, paper);
-        wrap.addEventListener('pointerup', () => {
+        const wrap = h('div', { role: 'dialog', 'aria-label': 'Carta', style: { position: 'fixed', inset: '0', background: 'rgba(20,22,42,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '70' } }, paper);
+        let closed = false;
+        const close = () => {
+          if (closed) return;
+          closed = true;
+          window.removeEventListener('keydown', onKey, true);
           wrap.remove();
           resolve();
-        });
+        };
+        const onKey = (e: KeyboardEvent) => { if (['Enter', ' ', 'Escape'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); close(); } };
+        window.addEventListener('keydown', onKey, true);
+        wrap.addEventListener('pointerup', close);
         uiRoot().append(wrap);
       });
     });
@@ -796,4 +806,27 @@ async function sofiDinner() {
     await say('narr', 'Comen juntos hasta tarde. Afuera, el faro gira despacio sobre Villa Nori.');
   });
   game.setFlag('sofi_dinner');
+}
+
+/** After the dinner. Reads the personal scenes the player lived (src/story/bonds.ts); nothing here is required. */
+async function epilogueAlbum() {
+  const { BONDS, bondsDone, epilogueRecap } = await import('./bonds');
+  let completed = false;
+  await lock(async () => {
+    await say('narr', 'Pip aparece con una caja de zapatos llena de papelitos, dibujos y una pluma de gaviota. La apoya en el mostrador con muchísimo cuidado.');
+    await say('pip', '¡Hicimos un álbum! Bueno: lo estamos haciendo. Las páginas se llenan solas, cuando pasan cosas.', 'happy');
+    for (const [who, text, expr] of epilogueRecap()) await say(who, text, expr ?? 'neutral');
+    const left = BONDS.length - bondsDone();
+    await say('spicy', left > 0 ? 'Todavía quedan páginas. Sin apuro. Las buenas se escriben despacito.' : 'Está completo. Y en cuanto cerremos la tapa, seguro pasa algo nuevo.', 'smug');
+    await say('rigg', 'La luz del faro sigue girando. El resto lo vamos anotando entre todos.', 'neutral');
+    await say('narr', 'Pip pone el álbum junto al portarretratos. Esa noche, el restaurante tiene una página más.');
+    completed = true;
+  });
+  if (!completed || game.has('epilogue_album')) return;
+  game.setFlag('epilogue_album', game.save.time.day);
+  game.save.furnitureOwned.bond_dinner_frame = (game.save.furnitureOwned.bond_dinner_frame ?? 0) + 1;
+  game.collect('memories', 'epilogue_album');
+  game.setFlag('memory_epilogue_album', 'El álbum de la cena');
+  toast('Nuevo recuerdo: El álbum de la cena · Decoración: Cuadro: la cena');
+  game.touch('epilogue');
 }
