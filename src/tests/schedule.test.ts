@@ -204,9 +204,10 @@ describe('consistent storefront indicators', () => {
     expect(shopGate('mika').open).toBe(false);
   });
 
-  it('keeps physical entrance distinct from public service and respects story exceptions', () => {
+  it('keeps a shut counter behind a closed door and respects story exceptions', () => {
     at(3, 70);
-    expect(shopInteractionText(shopGate('taro'), true)).toContain('Podés entrar al edificio');
+    expect(shopInteractionText(shopGate('taro'), true)).toContain('La puerta está cerrada.');
+    expect(shopInteractionText(shopGate('taro'), true)).not.toContain('Podés entrar');
     game.setFlag('at_taro', 'shop_taro,5,3,work');
     expect(shopSignText(shopGate('taro'))).toBe('');
     game.setFlag('shop_shut_taro');

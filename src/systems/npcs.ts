@@ -3,7 +3,7 @@ import { game } from '../core/state';
 import { CHARACTERS, type CharacterDef, type RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
 import { raccoonRoutine } from '../data/raccoons';
-import { applyBeat, businessPhase, SHOP_PLACES, FESTIVAL_SPOT, phaseOf, restaurantPhase, shopPlace, shopStatus, type ShopStatus } from './schedule';
+import { applyBeat, businessPhase, SHOP_PLACES, FESTIVAL_SPOT, phaseOf, restaurantPhase, shopInteractionText, shopPlace, shopStatus, type ShopStatus } from './schedule';
 
 function minutesNow(): number {
   return game.save.time.minutes;
@@ -87,6 +87,18 @@ export function charactersIn(zone: string, period: number): { id: string; stop: 
 
 export function whereIs(id: string): string | null {
   return stopFor(id, game.save.time.period)?.zone ?? null;
+}
+
+/**
+ * Door into a shop or the library while the counter is shut.
+ * The restaurant, streets and story places are not locals.
+ */
+export function closedLocalNotice(zone: string): string | null {
+  const id = zone === 'library' ? zone : zone.startsWith('shop_') ? zone.slice(5) : null;
+  if (!id) return null;
+  const status = shopGate(id);
+  if (!status.tracked || status.open) return null;
+  return shopInteractionText(status, true);
 }
 
 /** Whether a counter will sell right now. Market stalls stay on their own night rule. */

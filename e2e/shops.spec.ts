@@ -65,16 +65,19 @@ test('Bento, Taro and Yuki have small closed/transition plaques and no open faca
   expect(errors).toEqual([]);
 });
 
-test('a closed shop allows physical entry but refuses trade and shows hours on interaction', async ({ page }) => {
+test('a closed shop keeps its door shut and still refuses trade', async ({ page }) => {
   await begin(page);
   for (const id of SHOPS) {
     await at(page, 3, 70);
-    await page.evaluate(async (id) => {
+    const stayed = await page.evaluate(async (id) => {
       const w = (window as any).mmDebug.world;
-      await w.enterZone('shop_' + id, 5, 6, 'up', false);
+      const before = w.zoneId;
+      const entered = await w.enterZone('shop_' + id, 5, 6, 'up', false);
+      return { entered, zone: w.zoneId, before };
     }, id);
-    expect(await page.evaluate(() => (window as any).mmDebug.world.zoneId)).toBe('shop_' + id);
-    await expect(page.locator('.toast').filter({ hasText: 'Podés entrar al edificio' }).last()).toBeVisible();
+    expect(stayed.entered).toBe(false);
+    expect(stayed.zone).toBe(stayed.before);
+    await expect(page.locator('.toast').filter({ hasText: 'La puerta está cerrada' }).last()).toBeVisible();
     await page.evaluate(async (id) => (await import('/src/ui/shops.ts')).openShop(id), id);
     await expect(page.locator('.panel')).toHaveCount(0);
     await expect(page.locator('.toast').filter({ hasText: 'Horario: 08:00–23:00' }).last()).toBeVisible();

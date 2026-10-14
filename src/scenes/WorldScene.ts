@@ -16,7 +16,8 @@ import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
 import { ZONES, GARDEN_PLOT_POSITIONS } from '../data/zones';
 import { Actor, TILE, type Act } from '../entities/Actor';
-import { shopGate, stopFor } from '../systems/npcs';
+import { bedtimeReason, settleBedtime } from '../systems/bedtime';
+import { closedLocalNotice, shopGate, stopFor } from '../systems/npcs';
 import { businessPhase, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
@@ -80,6 +81,7 @@ export class WorldScene extends Phaser.Scene {
   private hoursTick = 0;
   private busOff: Array<() => void> = [];
   private mealBusy = false;
+  private bedtimeBusy = false;
   private mealQueue: PaidMeal[] = [];
   extras = new Map<string, Actor>(); // cutscene-only actors
   joy = { x: 0, y: 0 };
@@ -199,8 +201,15 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------------ zones
-  async enterZone(id: string, tx: number, ty: number, dir: Dir = 'down', withFade = true): Promise<boolean> {
+  async enterZone(id: string, tx: number, ty: number, dir: Dir = 'down', withFade = true, allowClosed = false): Promise<boolean> {
     if (this.transitioning) return false;
+    if (!allowClosed && id !== this.zoneId) {
+      const closed = closedLocalNotice(id);
+      if (closed) {
+        bus.emit('toast', { text: closed });
+        return false;
+      }
+    }
     this.transitioning = true;
     const previous = this.zone;
     const position = this.player ? { zone: this.zoneId, x: this.player.tx, y: this.player.ty, dir: this.player.dir } : null;
@@ -227,7 +236,10 @@ export class WorldScene extends Phaser.Scene {
         await screenTransition(zoneTransitionKind(this.zoneId, id), load);
       } else await load();
       this.transitioning = false;
-      if (id.startsWith('shop_') || id === 'library') bus.emit('toast', { text: shopInteractionText(shopGate(id === 'library' ? id : id.slice(5)), true) });
+      if (id.startsWith('shop_') || id === 'library') {
+        const status = shopGate(id === 'library' ? id : id.slice(5));
+        if (status.tracked && status.open) bus.emit('toast', { text: shopInteractionText(status) });
+      }
       bus.emit('zone:enter', { zone: id });
       void runTask('world:zone-story', () => this.onEnterZone(id));
       return true;
@@ -821,6 +833,20 @@ export class WorldScene extends Phaser.Scene {
       this.npc('pip')?.emote('¡Por acá! Esta es tu mesa.', 4);
       this.town.duty('pip', { zone: 'restaurant', x: seat.x - 1, y: seat.y, wander: 0, act: 'work' });
     }
+  }
+
+  /** Restaurant work ends when the door is closing. A long night ends later, after time to explore. */
+  private watchBedtime() {
+    if (this.bedtimeBusy || !this.player || !game.has('intro_done')) return;
+    if (this.transitioning || this.inputLocked || this.decorMode || this.mealBusy || clock.paused) return;
+    const t = game.save.time;
+    const reason = bedtimeReason(t.period, t.minutes, currentQuestTarget(), (id) => this.characterZone(id));
+    if (!reason) return;
+    this.bedtimeBusy = true;
+    void runTask('world:bedtime', async () => {
+      try { await settleBedtime(reason); }
+      finally { this.bedtimeBusy = false; }
+    });
   }
 
   /** Closing still announces outside the restaurant. The door check itself is cheap. */
@@ -1489,6 +1515,7 @@ export class WorldScene extends Phaser.Scene {
     const dt = Math.min(0.05, dms / 1000);
     if (!this.player || !this.zone) return;
     if (!this.transitioning) clock.tick(dt);
+    this.watchBedtime();
     this.pollHours(dt);
     this.updatePlayer(dt);
     this.tickTown(dt);
@@ -1696,21 +1723,30 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private lastDoorMsg = 0;
+  private blockDoor(dir: Dir, text: string) {
+    if (performance.now() - this.lastDoorMsg > 2500) {
+      this.lastDoorMsg = performance.now();
+      bus.emit('toast', { text });
+    }
+    const back: Record<Dir, [number, number]> = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] };
+    const [bx, by] = back[dir];
+    const p = this.player;
+    p.stop();
+    p.teleport(p.tx + bx, p.ty + by);
+  }
+
   private checkWalkDoor() {
     if (this.transitioning || this.inputLocked) return;
     const p = this.player;
     const d = this.zone.def.doors.find((dd) => dd.walk && dd.x === p.tx && dd.y === p.ty);
     if (!d) return;
     if (d.lock && !game.has(d.lock.flag) && !this.lockHook(d.to)) {
-      if (performance.now() - this.lastDoorMsg > 2500) {
-        this.lastDoorMsg = performance.now();
-        bus.emit('toast', { text: d.lock.msg });
-      }
-      // step back out of the door tile
-      const back: Record<Dir, [number, number]> = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] };
-      const [bx, by] = back[d.dir];
-      p.stop();
-      p.teleport(p.tx + bx, p.ty + by);
+      this.blockDoor(d.dir, d.lock.msg);
+      return;
+    }
+    const closed = closedLocalNotice(d.to);
+    if (closed) {
+      this.blockDoor(d.dir, closed);
       return;
     }
     audio.sfxPlay('door');

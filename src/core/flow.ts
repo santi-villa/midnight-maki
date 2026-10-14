@@ -64,7 +64,7 @@ async function startWorld(isNew: boolean) {
     } else {
       let zone = p.zone;
       if (zone === 'arrival' || !zone) zone = 'restaurant';
-      await world.enterZone(zone, p.x || 8, p.y || 10, p.dir, false);
+      await world.enterZone(zone, p.x || 8, p.y || 10, p.dir, false, true);
       const { onContinue } = await import('../story/story');
       await onContinue();
     }
