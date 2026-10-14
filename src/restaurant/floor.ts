@@ -67,7 +67,28 @@ export interface FurnPiece {
   sit?: boolean;
 }
 
+export interface MealItem {
+  kind: 'food' | 'drink';
+  recipe: string;
+  reward: number;
+  ticket: number;
+  orderUid: number | null;
+  quality: 0 | 1 | 2 | null;
+  variantBonus: number;
+}
+export interface MemberView {
+  id: string;
+  customerId: string;
+  patience: number;
+  maxPatience: number;
+  impatient: boolean;
+  items: MealItem[];
+}
+
 export interface PartyView {
+  members: MemberView[];
+  maxPatience: number;
+  impatient: boolean;
   id: string;
   customerId: string;
   size: number;
@@ -131,6 +152,7 @@ export type ServiceEvent =
 export interface ArriveInput {
   id: string;
   customerId: string;
+  customers?: string[];
   size?: number;
   patience?: number;
   /** Charm and friendship, already summed by the caller. Clamped to 0..1. */
@@ -138,6 +160,7 @@ export interface ArriveInput {
 }
 
 export interface OrderDraft {
+  kind?: 'food' | 'drink';
   recipe: string;
   reward: number;
 }
@@ -187,6 +210,10 @@ const HOLDS: ReadonlySet<PartyPhase> = new Set([
 ]);
 
 interface Party {
+  members: MemberView[];
+  individual: boolean;
+  maxPatience: number;
+  impatient: boolean;
   id: string;
   customerId: string;
   size: number;
@@ -288,7 +315,10 @@ export interface ServiceOptions {
   timing?: Partial<ServiceTiming>;
   /** The world reports arrival, Pip's seating decision, chairs and the exit. */
   physical?: boolean;
+  relaxed?: boolean;
 }
+
+export interface DiningSnapshot { tables: TableState[]; parties: Party[]; nextTicket: number }
 
 export class DiningFloor {
   private readonly tables: TableState[];
@@ -297,9 +327,11 @@ export class DiningFloor {
   private readonly timing: ServiceTiming;
   private nextTicket = 1;
   private physical: boolean;
+  private relaxed: boolean;
 
   constructor(tables: ServiceTable[], opts: ServiceOptions = {}) {
     this.physical = opts.physical ?? false;
+    this.relaxed = opts.relaxed ?? false;
     this.rng = opts.rng ?? Math.random;
     this.timing = { ...DEFAULT_TIMING, ...opts.timing };
     const seen = new Set<string>();
@@ -324,13 +356,19 @@ export class DiningFloor {
 
   arrive(input: ArriveInput): PartyView | null {
     if (!input.id || this.guests.some((p) => p.id === input.id)) return null;
+    const customers = input.customers?.slice(0, 4) ?? Array.from({ length: partySizeFor(input.customerId, input.size) }, () => input.customerId);
+    if (!customers.length || input.customers && new Set(customers).size !== customers.length) return null;
+    const members = customers.map((customerId, i) => ({ id: input.id + ':' + i, customerId,
+      patience: Math.max(0, input.patience ?? patienceFor(customerId)), maxPatience: Math.max(1, input.patience ?? patienceFor(customerId)),
+      impatient: false, items: [] as MealItem[] }));
     const party: Party = {
+      members, individual: !!input.customers, maxPatience: Math.min(...members.map(m => m.maxPatience)), impatient: false,
       id: input.id,
       customerId: input.customerId,
-      size: partySizeFor(input.customerId, input.size),
+      size: members.length,
       phase: 'outside',
       phaseT: 0,
-      patience: Math.max(0, input.patience ?? patienceFor(input.customerId)),
+      patience: Math.min(...members.map(m => m.patience)),
       tableId: null,
       seatIds: [],
       recipe: null,
@@ -361,6 +399,22 @@ export class DiningFloor {
   }
 
   setPhysical(value: boolean) { this.physical = value; }
+  setRelaxed(value: boolean) { this.relaxed = value; }
+  snapshot(): DiningSnapshot { return structuredClone({ tables: this.tables, parties: this.guests, nextTicket: this.nextTicket }); }
+  restore(snapshot: DiningSnapshot) {
+    this.tables.splice(0, this.tables.length, ...structuredClone(snapshot.tables));
+    this.guests.splice(0, this.guests.length, ...structuredClone(snapshot.parties));
+    this.nextTicket = snapshot.nextTicket;
+  }
+  /** Keep occupied tables/tickets when a renovation adds furniture. */
+  relayout(layout: ServiceTable[]) {
+    for (const def of layout) {
+      const old = this.tables.find(t => t.id === def.id);
+      if (!old) this.tables.push({ ...def, status: 'free', partyId: null, tip: 0 });
+      else if (!old.partyId && !old.tip) Object.assign(old, { x: def.x, y: def.y, seats: def.seats, capacity: def.capacity });
+    }
+    for (let i = this.tables.length - 1; i >= 0; i--) if (!this.tables[i].partyId && !this.tables[i].tip && !layout.some(t => t.id === this.tables[i].id)) this.tables.splice(i, 1);
+  }
 
   reachReception(id: string): ServiceEvent[] {
     const party = this.guests.find((p) => p.id === id);
@@ -405,19 +459,23 @@ export class DiningFloor {
   windDown(): ServiceEvent[] {
     const events: ServiceEvent[] = [];
     for (const party of [...this.guests]) {
-      if (party.phase === 'waiting_food' || party.phase === 'eating' || party.phase === 'paying' || party.phase === 'leaving') continue;
+      if (party.members.some(m => m.items.length) || party.phase === 'waiting_food' || party.phase === 'eating' || party.phase === 'paying' || party.phase === 'leaving') continue;
       this.dismiss(party, 'closed', events);
     }
     return events;
   }
 
   /** Player takes the order at the table. Does not create a saved Order. */
-  takeOrder(partyId: string, draft: OrderDraft): OrderTicket | null {
+  takeOrder(partyId: string, draft: OrderDraft, memberId?: string): OrderTicket | null {
     const party = this.guests.find((p) => p.id === partyId);
-    if (!party || party.phase !== 'waiting_order' || !party.tableId) return null;
+    if (!party || !['waiting_order', 'waiting_food'].includes(party.phase) || !party.tableId) return null;
+    const member = party.members.find(m => m.id === (memberId ?? party.members[0].id));
+    if (!member || member.items.some(i => i.kind === (draft.kind ?? 'food'))) return null;
     if (!draft.recipe || !Number.isFinite(draft.reward)) return null;
     const ticket = this.nextTicket++;
-    party.recipe = draft.recipe;
+    member.items.push({ kind: draft.kind ?? 'food', recipe: draft.recipe, reward: Math.max(0, Math.round(draft.reward)),
+      ticket, orderUid: null, quality: null, variantBonus: 0 });
+    if (!party.recipe) party.recipe = draft.recipe;
     party.reward = Math.max(0, Math.round(draft.reward));
     party.ticket = ticket;
     party.phase = 'waiting_food';
@@ -434,20 +492,29 @@ export class DiningFloor {
   }
 
   /** Attach the uid from `game.addOrder` once the kitchen owns the ticket. */
-  linkOrder(partyId: string, uid: number): boolean {
+  linkOrder(partyId: string, uid: number, memberId?: string, kind: 'food' | 'drink' = 'food'): boolean {
     const party = this.guests.find((p) => p.id === partyId);
     if (!party || party.phase !== 'waiting_food' || party.ticket === null) return false;
     if (!Number.isFinite(uid) || uid <= 0 || this.guests.some((p) => p.orderUid === uid)) return false;
-    party.orderUid = uid;
+    const member = party.members.find(m => m.id === (memberId ?? party.members[0].id));
+    const item = member?.items.find(i => i.kind === kind);
+    if (!item || item.orderUid || this.guests.some(p => p.members.some(m => m.items.some(i => i.orderUid === uid)))) return false;
+    item.orderUid = uid;
+    party.orderUid ??= uid;
     return true;
   }
 
   /** Dish arrives. Quality is remembered for the bill. Still no coins. */
-  deliver(partyId: string, quality: 0 | 1 | 2, variantBonus = 0): { partyId: string; tableId: string; quality: 0 | 1 | 2 } | null {
+  deliver(partyId: string, quality: 0 | 1 | 2, variantBonus = 0, uid?: number): { partyId: string; tableId: string; quality: 0 | 1 | 2 } | null {
     const party = this.guests.find((p) => p.id === partyId);
     if (!party || party.phase !== 'waiting_food' || !party.tableId || party.ticket === null) return null;
     if (quality !== 0 && quality !== 1 && quality !== 2) return null;
-    party.quality = quality;
+    const item = party.members.flatMap(m => m.items).find(i => uid ? i.orderUid === uid : i.quality === null);
+    if (!item || item.quality !== null) return null;
+    item.quality = quality; item.variantBonus = Number.isFinite(variantBonus) ? variantBonus : 0;
+    const all = party.individual ? party.members : [party.members[0]];
+    if (!all.every(m => m.items.length && m.items.every(i => i.quality !== null))) return { partyId: party.id, tableId: party.tableId, quality };
+    party.quality = Math.min(...all.flatMap(m => m.items).map(i => i.quality!)) as 0 | 1 | 2;
     party.variantBonus = Number.isFinite(variantBonus) ? variantBonus : 0;
     party.phase = 'eating';
     party.phaseT = 0;
@@ -470,13 +537,14 @@ export class DiningFloor {
    * Replace the preview rolled in `finishPay` so the player picks up that amount.
    * Only valid while the party is still walking out.
    */
-  setHeldTip(partyId: string, tip: number): boolean {
+  setHeldTip(partyId: string, tip: number, bill?: number): boolean {
     const party = this.guests.find((p) => p.id === partyId);
     if (!party || party.phase !== 'leaving' || party.leftReason !== 'done' || !party.tableId) return false;
     const table = this.tables.find((t) => t.id === party.tableId);
     if (!table || table.partyId !== party.id) return false;
     const amount = Math.max(0, Math.round(Number.isFinite(tip) ? tip : 0));
     party.tip = amount;
+    if (bill !== undefined && Number.isFinite(bill)) party.bill = Math.max(0, Math.round(bill));
     table.tip = amount;
     table.status = amount > 0 ? 'tip' : 'cleanup';
     return true;
@@ -486,6 +554,7 @@ export class DiningFloor {
   cancelTicket(partyId: string): boolean {
     const party = this.guests.find((p) => p.id === partyId);
     if (!party || party.phase !== 'waiting_food' || party.orderUid !== null) return false;
+    party.members[0].items = [];
     party.phase = 'waiting_order';
     party.phaseT = 0;
     party.recipe = null;
@@ -569,12 +638,15 @@ export class DiningFloor {
   }
 
   private advance(party: Party, dt: number, events: ServiceEvent[]) {
-    if (dt > 0 && (party.phase === 'queued' || party.phase === 'waiting_order' || this.physical && party.phase === 'reception')) {
-      party.patience -= dt;
-      if (party.patience <= 0) {
-        this.abandon(party, events);
-        return;
+    if (!this.relaxed && dt > 0 && ['queued', 'reception', 'waiting_order', 'waiting_food'].includes(party.phase)) {
+      for (const member of party.members) {
+        if (member.items.length && member.items.every(i => i.quality !== null)) continue;
+        member.patience = Math.max(0, member.patience - dt);
+        if (member.patience === 0) member.impatient = true;
       }
+      party.patience = Math.min(...party.members.filter(m => !m.items.length || m.items.some(i => i.quality === null)).map(m => m.patience));
+      if (!Number.isFinite(party.patience)) party.patience = 0;
+      if (!party.impatient && party.members.some(m => m.impatient)) { party.impatient = true; events.push({ type: 'impatient', partyId: party.id }); }
     }
     if (party.phase === 'queued') return;
     if (this.physical && (party.phase === 'outside' || party.phase === 'reception' || party.phase === 'walking' || party.phase === 'leaving')) return;
@@ -604,7 +676,7 @@ export class DiningFloor {
         events.push({ type: 'seated', partyId: party.id, tableId: party.tableId ?? '', seats: [...party.seatIds] });
         return;
       case 'seated':
-        party.phase = 'waiting_order';
+        party.phase = party.members.some(m => m.items.length) ? 'waiting_food' : 'waiting_order';
         party.phaseT = 0;
         this.syncTable(party);
         events.push({ type: 'ready', partyId: party.id, tableId: party.tableId ?? '' });
@@ -665,11 +737,7 @@ export class DiningFloor {
     return open[0] ?? null;
   }
 
-  private abandon(party: Party, events: ServiceEvent[]) {
-    this.dismiss(party, 'patience', events);
-  }
-
-  /** Free the table and walk them out. Patience is the only case that complains. */
+  /** Closing releases groups that have not ordered; old leave reasons remain readable. */
   private dismiss(party: Party, reason: 'patience' | 'closed', events: ServiceEvent[]) {
     const table = this.tables.find((t) => t.id === party.tableId);
     if (table && table.partyId === party.id) {
@@ -689,9 +757,9 @@ export class DiningFloor {
 
   private finishPay(party: Party, events: ServiceEvent[]) {
     const quality = party.quality ?? 0;
-    party.bill = quoteBill(party.reward, quality, party.tipRate, party.variantBonus);
+    party.bill = party.members.flatMap(m => m.items).reduce((total, i) => total + quoteBill(i.reward, i.quality ?? quality, party.tipRate, i.variantBonus), 0);
     const chanceRoll = this.rng();
-    party.tip = quality >= 1 && chanceRoll < (quality === 2 ? 0.55 : 0.25)
+    party.tip = !party.impatient && quality >= 1 && chanceRoll < (quality === 2 ? 0.55 : 0.25)
       ? rollTip(party.reward, quality, 0, this.rng())
       : 0;
     party.phase = 'leaving';
@@ -760,6 +828,7 @@ function expectedStatus(phase: PartyPhase, tip: number): TableStatus | null {
 
 function viewParty(party: Party): PartyView {
   return {
+    members: structuredClone(party.members), maxPatience: party.maxPatience, impatient: party.impatient,
     id: party.id,
     customerId: party.customerId,
     size: party.size,
