@@ -270,7 +270,7 @@ export const TOWN_KINDS: Record<string, DrawFn> = {
     const wins: number[] = [];
     for (let x = mainX + 8 + 12; x + 14 < mainX + mainW - 4; x += 24) wins.push(x);
     for (const wx of wins.slice(0, 2)) {
-      const wy = wallY + 11;
+      const wy = wallY + (kind >= 4 ? 15 : 11);
       px(c, wx - 1, wy - 1, INK, 15, 15);
       px(c, wx, wy, kind === 1 ? '#f7dc8f' : '#f0d894', 13, 13);
       px(c, wx, wy, '#fff0be', 5, 2);
@@ -327,6 +327,26 @@ export const TOWN_KINDS: Record<string, DrawFn> = {
         px(c, sx + 2 + i * 8, H - 16, ['#f4a6c0', '#ffd36a', '#b9a0ec'][i], 2, 2);
       }
       for (let x = sx - 2; x < sx + 26; x += 4) { px(c, x, wallY + 2, ((x - sx) / 4) % 2 ? '#f6ecd6' : '#d9a3a6', 4, 5); }
+    } else if (kind >= 4) {
+      // a shop: striped awning under the sign, window goods and things stacked by the wall
+      const [a, b2] = kind === 4 ? ['#b0533f', '#f6ecd6'] : kind === 5 ? ['#d9a3a6', '#f6ecd6'] : ['#2f6b4f', '#f6ecd6'];
+      const ax = mainX + 6;
+      for (let i = 0; i < mainW - 12; i += 4) {
+        const col = (i / 4) % 2 ? b2 : a;
+        px(c, ax + i, wallY + 12, col, 4, 4);
+        px(c, ax + i, wallY + 16, shade(col, -0.25), 4, 1);
+        px(c, ax + i, wallY + 12, shade(col, 0.2), 4, 1);
+      }
+      for (const wx of wins.slice(0, 2)) {
+        const wy = wallY + 15;
+        if (kind === 4) for (let i = 0; i < 3; i++) { ellipse(c, wx + 3 + i * 4, wy + 10, 2, 1.5, '#d9a05b'); px(c, wx + 2 + i * 4, wy + 9, '#f2c66d', 2, 1); }
+        else if (kind === 5) { px(c, wx + 6, wy + 3, '#f4a6c0', 3, 7); px(c, wx + 4, wy + 8, '#f4a6c0', 7, 3); px(c, wx + 7, wy + 1, '#e8c9a8', 2, 2); }
+        else { px(c, wx + 1, wy + 8, '#c48d5e', 5, 4); px(c, wx + 7, wy + 6, '#8a5a3c', 5, 6); px(c, wx + 2, wy + 5, '#e0424f', 3, 3); }
+      }
+      const gx = right ? mainX + 3 : mainX + mainW - 22;
+      if (kind === 4) { px(c, gx, H - 14, INK, 10, 9); px(c, gx + 1, H - 13, '#d9a05b', 8, 7); px(c, gx + 1, H - 13, '#f2c66d', 8, 1); px(c, gx + 12, H - 12, INK, 6, 7); px(c, gx + 13, H - 11, '#f6ecd6', 4, 5); }
+      else if (kind === 5) { px(c, gx + 4, H - 20, '#f4a6c0', 8, 10); px(c, gx + 6, H - 24, '#e8c9a8', 4, 4); px(c, gx + 7, H - 10, INK, 2, 5); }
+      else { for (let i = 0; i < 2; i++) { px(c, gx + i * 9, H - 14, INK, 8, 9); px(c, gx + 1 + i * 9, H - 13, '#c48d5e', 6, 7); } px(c, gx + 2, H - 20, INK, 7, 6); px(c, gx + 3, H - 19, '#d8b98a', 5, 4); }
     } else {
       px(c, sx + 4, H - 14, INK, 10, 10); px(c, sx + 5, H - 13, '#8a5a3c', 8, 8);
       px(c, sx + 5, H - 13, shade('#8a5a3c', 0.25), 8, 1);

@@ -4,6 +4,7 @@ import { ZONES } from '../data/zones';
 import { buildZone } from '../world/zoneRuntime';
 
 const OUTDOOR = Object.values(ZONES).filter((z) => z.outdoor).map((z) => z.id);
+const HOUSE_ZONES = Object.keys(ZONES).filter((id) => id.startsWith('house_'));
 const FLAGS = ['unlock_forest', 'unlock_beach', 'unlock_garden', 'unlock_station', 'market_open', 'unlock_lighthouse_view'];
 
 beforeEach(() => { game.load(newSave('Tester')); });
@@ -64,4 +65,13 @@ describe('outdoor zones', () => {
       }
     }
   });
+
+  for (const id of HOUSE_ZONES) {
+    it(`${id}: the porch door leads in and every interaction can be reached from it`, () => {
+      const built = buildZone(id);
+      const door = built.def.doors[0];
+      expect(ZONES[door.to].doors.some((d) => d.to === id), 'the porch door points back at this house').toBe(true);
+      for (const i of built.def.interact) expect(near(built.grid, i.x, i.y).some(([x, y]) => reach(id, [door.x, door.y], [x, y])), `${id} ${i.id}`).toBe(true);
+    });
+  }
 });

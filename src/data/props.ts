@@ -129,6 +129,12 @@ export const PROPS: Record<string, PropDef> = {
   bld_th_fish_r: P('townhouse', 6, 3, 96, 80, '#e9e1cf', '#45507f', { variant: 5 }),
   bld_th_flower_l: P('townhouse', 6, 3, 96, 80, '#f8e8ee', '#7a5fb0', { variant: 6 }),
   bld_th_flower_r: P('townhouse', 6, 3, 96, 80, '#f6ecd6', '#b0533f', { variant: 7 }),
+  bld_th_bakery_l: P('townhouse', 6, 3, 96, 80, '#f6e8cc', '#b0533f', { variant: 8, label: 'PANADERÍA' }),
+  bld_th_bakery_r: P('townhouse', 6, 3, 96, 80, '#f6e8cc', '#b0533f', { variant: 9, label: 'PANADERÍA' }),
+  bld_th_clothes_l: P('townhouse', 6, 3, 96, 80, '#f6e2d6', '#c25a6a', { variant: 10, label: 'ROPA DE YUKI' }),
+  bld_th_clothes_r: P('townhouse', 6, 3, 96, 80, '#f6e2d6', '#c25a6a', { variant: 11, label: 'ROPA DE YUKI' }),
+  bld_th_store_l: P('townhouse', 6, 3, 96, 80, '#f3e3c3', '#2f6b4f', { variant: 12, label: 'ALMACÉN DE TARO' }),
+  bld_th_store_r: P('townhouse', 6, 3, 96, 80, '#f3e3c3', '#2f6b4f', { variant: 13, label: 'ALMACÉN DE TARO' }),
   // things that visibly close a path until the story opens it (see data/plazaMap.ts)
   block_logs: P('logpile', 2, 1, 32, 30),
   block_vines: P('vinegate', 2, 1, 32, 36),
