@@ -72,13 +72,14 @@ describe('daily rhythm', () => {
     expect(pip?.y).toBe(13);
   });
 
-  it('keeps staff working at 22:00 while other raccoons follow their evening routine', () => {
+  it('keeps the raccoons working in the restaurant while the night door is still open', () => {
     game.setFlag('intro_done');
     at(3, 30);
     expect(stopFor('yuki', 3)?.zone).toBe('shop_yuki');
     expect(whereIs('kumo')).toBe('library');
     expect(whereIs('pip')).toBe('restaurant');
-    expect(stopFor('rigg', 3)).toMatchObject({ zone: 'home', x: 24, y: 4, act: 'read' });
+    expect(stopFor('spicy', 3)).toMatchObject({ zone: 'restaurant', act: 'cook' });
+    expect(stopFor('rigg', 3)).toMatchObject({ zone: 'restaurant', x: 10, y: 4, act: 'read' });
   });
   it('hides sleeping staff and sends Pip home after closing', () => {
     at(3, 70);

@@ -164,7 +164,7 @@ describe('table assignment', () => {
 });
 
 describe('patience', () => {
-  it('sends a queued guest home without freeing a table they never had', () => {
+  it('marks a queued guest impatient without giving them a table', () => {
     expect(patienceFor('c_runner')).toBeLessThan(patienceFor('c_grandpa'));
     const svc = floor([]);
     svc.arrive({ id: 'rush', customerId: 'c_runner', patience: 5 });
@@ -174,14 +174,13 @@ describe('patience', () => {
     expect(svc.party('rush')?.patience).toBe(1);
     const left = svc.tick(1);
     expect(left.some((e) => e.type === 'impatient' && e.partyId === 'rush')).toBe(true);
-    expect(svc.party('rush')?.phase).toBe('leaving');
+    expect(svc.party('rush')).toMatchObject({ phase: 'queued', patience: 0, impatient: true, tableId: null });
     svc.tick(1);
-    expect(svc.party('rush')).toBeNull();
-    expect(svc.parties()).toEqual([]);
+    expect(svc.party('rush')?.phase).toBe('queued');
     expect(svc.audit()).toEqual([]);
   });
 
-  it('frees the table when the order is ignored, and seats the next guest on that tick', () => {
+  it('keeps an ignored order seated and leaves the next guest queued', () => {
     const svc = floor([table('t', 1)]);
     svc.arrive({ id: 'a', customerId: 'c_tourist', patience: 3 });
     steps(svc, 3);
@@ -192,22 +191,25 @@ describe('patience', () => {
     expect(svc.party('b')?.phase).toBe('queued');
     const events = svc.tick(3);
     expect(events.some((e) => e.type === 'impatient' && e.partyId === 'a')).toBe(true);
-    expect(events.some((e) => e.type === 'assigned' && e.partyId === 'b')).toBe(true);
-    expect(svc.party('a')).toMatchObject({ phase: 'leaving', tableId: null, bill: 0, tip: 0 });
-    expect(svc.party('b')).toMatchObject({ phase: 'walking', tableId: 't' });
-    expect(svc.table('t')?.partyId).toBe('b');
+    expect(events.some((e) => e.type === 'assigned' && e.partyId === 'b')).toBe(false);
+    expect(svc.party('a')).toMatchObject({ phase: 'waiting_order', tableId: 't', impatient: true, patience: 0, bill: 0, tip: 0 });
+    expect(svc.party('b')).toMatchObject({ phase: 'queued', tableId: null });
+    expect(svc.table('t')?.partyId).toBe('a');
     expect(svc.audit()).toEqual([]);
   });
 
-  it('stops the clock once the order is in the kitchen', () => {
+  it('waits out a slow kitchen and stops the clock once the plate is on the table', () => {
     const svc = floor([table('t', 1)]);
     svc.arrive({ id: 'a', customerId: 'c_sailor', patience: 9 });
     steps(svc, 3);
     svc.takeOrder('a', { recipe: 'onigiri', reward: 20 });
-    const left = svc.party('a')?.patience;
     svc.tick(40);
-    expect(svc.party('a')).toMatchObject({ phase: 'waiting_food', patience: left });
+    expect(svc.party('a')).toMatchObject({ phase: 'waiting_food', patience: 0, impatient: true });
     expect(svc.table('t')?.status).toBe('waiting_food');
+    expect(svc.deliver('a', 2)?.quality).toBe(2);
+    const left = svc.party('a')?.patience;
+    svc.tick(0.5);
+    expect(svc.party('a')).toMatchObject({ phase: 'eating', patience: left });
     expect(svc.audit()).toEqual([]);
   });
 });

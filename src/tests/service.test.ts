@@ -7,6 +7,7 @@ import {
   collectTipAt,
   deliverTo,
   guestViews,
+  pickupPlate,
   plateState,
   pumpService,
   resetService,
@@ -68,6 +69,9 @@ describe('dining service', () => {
     const uid = game.save.orders[0].uid;
     expect(stagePlate(uid, 2, 0, 'con sésamo')).toBe(true);
     expect(plateState(uid)).toBe('plated');
+    expect(deliverTo('1')).toMatch(/bandeja/);
+    expect(pickupPlate(uid)).toMatch(/Llevás/);
+    expect(plateState(uid)).toBe('carried');
     expect(deliverTo('1')).toMatch(/provecho/);
     expect(stepService(1).paid).toEqual([]);
     const paid = stepService(1).paid;
@@ -78,7 +82,6 @@ describe('dining service', () => {
     expect(game.coins).toBe(138);
     expect(game.save.orders).toEqual([]);
     expect(game.save.restaurant.served).toBe(1);
-    expect(plateState(uid)).toBe('none');
     expect(stepService(1).paid).toEqual([]);
     expect(game.coins).toBe(138);
     expect(tableJobs()).toEqual([expect.objectContaining({ tableId: '1', status: 'tip', tip: 1 })]);
@@ -87,15 +90,14 @@ describe('dining service', () => {
     expect(collectTipAt('1')).toMatch(/No hay/);
     expect(game.coins).toBe(139);
     expect(guestViews()).toEqual([]);
+    expect(plateState(uid)).toBe('none');
     expect(serviceAudit()).toEqual([]);
   });
 
-  it('lets an ignored guest leave without an order or a bill', () => {
+  it('keeps an ignored guest seated without an order or a bill', () => {
     seatOne();
     stepService(80);
-    expect(guestViews()[0]?.phase).toBe('leaving');
-    stepService(1);
-    expect(guestViews()).toEqual([]);
+    expect(guestViews()[0]).toMatchObject({ phase: 'waiting_order', impatient: true, patience: 0 });
     expect(game.save.orders).toEqual([]);
     expect(game.coins).toBe(120);
     expect(game.save.restaurant.served).toBe(0);
@@ -110,7 +112,7 @@ describe('dining service', () => {
     expect(serviceAudit()).toEqual([]);
   });
 
-  it('drops unfinished visits at dawn and still pays a plate that was already cooked', () => {
+  it('keeps a plated table order overnight and does not charge it by surprise', () => {
     game.addOrder({ recipe: 'kappa', customer: 'rigg', reward: 20, special: 'tutorial' });
     seatOne();
     takeOrderAt('1');
@@ -118,13 +120,14 @@ describe('dining service', () => {
     expect(stagePlate(uid, 2, 0)).toBe(true);
     closeServiceForNight();
     refreshOrders(true);
-    expect(game.save.orders.map((o) => o.special)).toEqual(['tutorial']);
-    expect(game.save.restaurant.served).toBe(1);
-    expect(game.coins).toBe(139);
-    expect(guestViews()).toEqual([]);
+    expect(game.save.orders.map((o) => o.special)).toEqual(['tutorial', undefined]);
+    expect(game.save.orders.find((o) => o.uid === uid)?.plate?.quality).toBe(2);
+    expect(game.save.restaurant.served).toBe(0);
+    expect(game.coins).toBe(120);
+    expect(guestViews()[0]?.phase).toBe('waiting_food');
   });
 
-  it('pays a cooked plate if the room is gone when you come back', () => {
+  it('keeps a cooked plate when the room is rebuilt', () => {
     seatOne();
     takeOrderAt('1');
     const uid = game.save.orders[0].uid;
@@ -132,9 +135,11 @@ describe('dining service', () => {
     expect(game.save.orders[0].plate?.quality).toBe(2);
     resetService({ timing: FAST, rng: () => 0 });
     pumpService(0, room);
-    expect(game.save.orders).toEqual([]);
-    expect(game.save.restaurant.served).toBe(1);
-    expect(game.coins).toBe(139);
+    expect(game.save.orders.map((o) => o.uid)).toEqual([uid]);
+    expect(game.save.orders[0].plate?.quality).toBe(2);
+    expect(game.save.restaurant.served).toBe(0);
+    expect(game.coins).toBe(120);
+    expect(guestViews()[0]?.phase).toBe('waiting_food');
   });
 
   it('walks a guest in on the service timer', () => {
