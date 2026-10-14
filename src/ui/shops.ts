@@ -38,7 +38,7 @@ export const SHOPS: Record<string, ShopDef> = {
   taro: {
     title: 'Almacén de Taro', keeper: 'taro', greet: '¡{Bienvenido|Bienvenida}! Arroz, nori, muebles y rumores. Lo último es gratis.',
     tabs: [
-      { name: 'Ingredientes', list: () => items(['rice', 'nori', 'salmon', 'tuna', 'cucumber', 'avocado', 'egg', 'shrimp', 'crab', 'cream', 'sesame', 'wasabi', 'chili', 'tempura', 'mango', 'eel', 'roe', 'scallion', 'carrot', 'ginger', 'umeboshi']) },
+      { name: 'Ingredientes', list: () => items(['rice', 'nori', 'salmon', 'tuna', 'cucumber', 'avocado', 'egg', 'shrimp', 'crab', 'cream', 'sesame', 'wasabi', 'chili', 'tempura', 'mango', 'eel', 'roe', 'scallion', 'carrot', 'ginger', 'umeboshi', 'tea_leaves', 'ramune_bottle', 'milk', 'berry']) },
       { name: 'Semillas', list: () => items(['sd_scallion', 'sd_cucumber', 'sd_carrot', 'sd_chili', 'sd_flower', ...(game.has('unlock_garden') ? ['sd_sakura'] : [])]) },
       { name: 'Muebles', list: () => furn('taro') },
       { name: 'Pisos y paredes', list: styles },

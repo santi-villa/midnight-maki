@@ -8,7 +8,7 @@ import { CHAR_BY_ID } from '../data/characters';
 import { portraitURL } from '../systems/appearance';
 import { h, panel } from './dom';
 
-const TRACKED = ['served', 'coinsEarned', 'fishCaught', 'bugsCaught', 'gathered', 'harvests', 'gifts', 'purchases', 'photos'] as const;
+const TRACKED = ['served', 'drinksServed', 'groupsReceived', 'coinsEarned', 'fishCaught', 'bugsCaught', 'gathered', 'harvests', 'gifts', 'purchases', 'photos'] as const;
 type Snap = { stats: Record<string, number>; friends: Record<string, number> };
 
 function current(): Snap {
@@ -36,6 +36,8 @@ function previous(): Snap {
 
 const LABELS: Record<(typeof TRACKED)[number], [string, string]> = {
   served: ['🍣', 'platos servidos'],
+  drinksServed: ['☕', 'bebidas servidas'],
+  groupsReceived: ['♥', 'grupos recibidos'],
   coinsEarned: ['●', 'monedas ganadas'],
   fishCaught: ['🐟', 'peces pescados'],
   bugsCaught: ['🦋', 'bichitos atrapados'],

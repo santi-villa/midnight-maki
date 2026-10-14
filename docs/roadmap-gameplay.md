@@ -119,3 +119,13 @@ Completada la entrega de puestos y alternativas seguras, retorno explícito de P
 Detalles, archivos, instrucciones de uso y comprobaciones puntuales: [companionship.md](companionship.md). Typecheck/build y comprobaciones de navegador en PC y celular emulado; suites completas aplazadas para el cierre por pedido del usuario.
 
 Pendientes del nuevo orden: **4 (restaurante)** → **5 (progresión y hogar)** → **7 (narrativa)** → **8 (pulido y pruebas completas)**. El punto 1 sigue aplazado. Próxima recomendación: ampliar los grupos y pedidos individuales sobre el servicio físico existente, y después bandeja/transporte y bebidas. Avanzar solamente cuando el usuario confirme el siguiente punto.
+
+## Nuevo orden — Punto 4: restaurante
+
+Completados grupos de hasta cuatro según sillas reales, identidades/sprites estables y bolsa sin reemplazo, pedidos individuales de comida y bebida, paciencia sin expulsión y modo relajado. Bandeja física junto al mostrador, transporte visible de un pedido por viaje, marcador de mesa, devolución a bandeja y rechazo de entregas cruzadas. Té verde, ramune y leche de frutilla desde nivel 2, con preparaciones breves y suministros en Taro. Cobro agregado del grupo, propinas manuales y estadísticas separadas.
+
+Guardado opcional del salón y sus pedidos conserva mesas, paciencia, bandeja, transporte y entregas parciales. Recargar ya no paga automáticamente los platos nuevos sin entregar; dormir conserva pendientes. Reforma visual y añadidos de mesas mantienen el servicio activo.
+
+Detalles, archivos, instrucciones y comprobaciones: [restaurant-service.md](restaurant-service.md). Typecheck/build, modelo focalizado, interfaz PC/móvil emulado y recarga real en la versión compilada; las suites completas y ajustes de sus expectativas siguen reservados para el punto 8.
+
+Orden restante: **5 (progresión y hogar)** → **7 (narrativa)** → **8 (pulido, balance y pruebas completas)**. Punto 1 aplazado. Recomendación siguiente: costes y renovaciones del restaurante sobre las mejoras actuales, y luego los rincones de Pip, Spicy y Rigg. Avanzar cuando el usuario confirme el punto 5.
