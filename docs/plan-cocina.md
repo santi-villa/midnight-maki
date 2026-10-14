@@ -58,7 +58,24 @@ Cada etapa se prueba y se sube por separado. Si algo sale mal, se vuelve atrás 
 - Más cosas en pantalla en un celular chico: las pestañas y la bandeja deben quedar a más de 44 px de toque.
 - El balance: Difícil paga más, pero no debe ser obligatorio para progresar.
 
-## Preguntas abiertas
-1. ¿Un plato a la vez con estaciones en paralelo, o varios pedidos a la vez desde el principio?
-2. ¿Qué recetas llevan "Cocinar" y si es obligatorio o variante?
-3. ¿Qué pasa con una cocción en Relajado si te olvidás?
+## Estado actual (lo que ya está en el juego)
+- **Varios pedidos a la vez.** La cocina (`src/restaurant/kitchenSession.ts`) tiene pestañas *Pedidos · Mesa · Plancha*. Se pueden empezar hasta 4 platos y saltar entre ellos con las etiquetas de arriba; cada plato es su propio tablero y se congela (con su reloj) mientras no se mira. Al empezar un plato se consumen los ingredientes; al descartarlo o salir se devuelven. Salir con platos sin terminar pide un segundo toque.
+- **Plancha en segundo plano** (`grill.ts` reglas puras, `grillView.ts` pantalla). Cuatro lugares; se toca un ingrediente de abajo y después un lugar libre; se cocina solo y avisa con globito en la pestaña, sonido y vibración. Zonas: falta · en su punto · pasado · quemado. Se quema, pero despacio (la barra completa tarda unos 40 s; en Relajado, 1,5 veces más). Un plato que llega a su paso "Cocinar" sin pieza lista espera y muestra cómo va; las anteriores (alga, arroz) se pueden adelantar.
+- **Recetas con cocción:** Tamago (sartén), Ebi (langostino), Roll crocante (langostino), Dragon Roll (langostino antes de rellenar y anguila antes de decorar). Pieza cruda → punto justo da precisión; cruda o quemada cuenta como error.
+- **Cocina libre** usa la misma cocina (un cliente sin reserva compra el plato). El flujo de escenas se muestra al cerrar la cocina.
+- **Bandeja de seis compartimientos**, *Sacar último* (relleno/decoración) y *Tacho* (rehace arroz, relleno o decoración; cuenta un error).
+- **Cuchillo que se ensucia** cada 3 cortes (4 con la mejora de cuchillo) mientras queden cortes por hacer: aparece el trapo, se arrastra sobre la mesa y listo.
+- **Modo Difícil (con reloj)**: reloj real; terminar a tiempo sube el plato un nivel, pasarse lo limita a "muy bueno"; plato perfecto paga +25 % y se guarda el mejor tiempo por receta (`save.bestTimes`); suena `kitchen_hard`.
+- **Arte:** `src/art/cookingSprites.ts` carga `public/cocina/<nombre>.png` si existe (hoy: `mesa`, `plancha`, `sarten-tamago`, `esterilla` ya enchufadas); si falta usa el dibujo por código.
+
+## Falta
+- Pasar el resto de las piezas de `docs/cocina-assets.md` y enchufarlas (tabla, bandeja, herramientas, interfaz).
+- Freidora y variante de salmón a la plancha para el Sake Maki (opcional).
+- Espátula, pinzas, sal y aceite en la plancha (dar vuelta para dorado parejo).
+- Racha en Difícil y reloj por fase si se quiere más presión.
+- Prueba en celular real (pestañas y bandeja a más de 44 px de toque).
+
+## Preguntas que quedaron resueltas
+1. Varios pedidos a la vez, ella decide cuáles y en qué orden; pone cada ingrediente.
+2. Tamago, Ebi, Dragon y Crunchy llevan "Cocinar"; el salmón a la plancha es variante opcional.
+3. En Relajado también se quema, pero tarda más.
