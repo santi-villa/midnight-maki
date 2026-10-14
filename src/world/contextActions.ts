@@ -16,7 +16,7 @@ export const TILE = 16;
 const FACING: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const TABLE_KINDS = new Set(['table', 'roundtable', 'kotatsu']);
 
-export type ActionIcon = 'talk' | 'gift' | 'act' | 'door' | 'bed' | 'decor' | 'maki' | 'clipboard' | 'serve' | 'coin' | 'inspect' | 'shop';
+export type ActionIcon = 'talk' | 'gift' | 'act' | 'door' | 'bed' | 'decor' | 'maki' | 'clipboard' | 'serve' | 'coin' | 'inspect' | 'shop' | 'heart';
 
 export type Target =
   | { kind: 'npc'; id: string; label: string }
@@ -28,6 +28,7 @@ export type Target =
 export type ContextIntent =
   | { type: 'target'; target: Target }
   | { type: 'gift'; npcId: string }
+  | { type: 'company'; npcId: string }
   | { type: 'decorate' }
   | { type: 'orders' }
   | { type: 'takeOrder'; tableId: string }
@@ -74,7 +75,7 @@ export interface ContextSense {
   py: number;
   dir: Dir;
   room: RoomDef | null;
-  npcs: { id: string; name: string; x: number; y: number }[];
+  npcs: { id: string; name: string; x: number; y: number; company?: boolean }[];
   interacts: InteractDef[];
   doors: DoorDef[];
   gathers: { x: number; y: number; label: string; spot: GatherSpot }[];
@@ -203,6 +204,10 @@ export function resolveContext(sense: ContextSense): ContextOffer {
       icon: 'talk',
       intent: { type: 'target', target: { kind: 'npc', id: n.id, label: 'Hablar' } },
     }, n.x, n.y, 22, sense, 0);
+    if (n.company) consider(bag, {
+      id: `company:${n.id}`, label: 'Compañía', detail: `Compartir un rato con ${n.name}`, icon: 'heart',
+      intent: { type: 'company', npcId: n.id },
+    }, n.x, n.y, 22, sense, 2);
     const gifted = (game.save.relationships[n.id]?.lastGiftDay ?? -1) === game.save.time.day;
     if (!gifted) {
       consider(bag, {

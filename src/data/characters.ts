@@ -13,6 +13,8 @@ export interface RoutineStop {
   /** Visual seating lift; pathfinding still targets the free tile in front of a bench. */
   seatLift?: number;
   dir?: Dir;
+  /** Safe alternate destinations for shared work/rest areas. */
+  alternatives?: [number, number][];
 }
 
 export interface CharacterDef {
