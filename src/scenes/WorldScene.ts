@@ -118,6 +118,7 @@ export class WorldScene extends Phaser.Scene {
   /** story hook: may unlock a door when the player tries it (returns true if now open) */
   lockHook: (to: string) => boolean = () => false;
   private quirkT = 20;
+  private blockKey = '';
   private stepT = 0;
   private transitioning = false;
   private pointerDown: { x: number; y: number; t: number } | null = null;
@@ -164,6 +165,7 @@ export class WorldScene extends Phaser.Scene {
       }),
       bus.on('state:changed', () => {
         if (this.zoneId === 'restaurant') this.syncGuests();
+        if (this.zone && this.blockKey !== this.blockStamp() && !clock.paused) { this.blockKey = this.blockStamp(); this.refreshZone(); }
       }),
       bus.on('appearance:changed', () => this.refreshLooks()),
       bus.on('settings:changed', () => this.enterLowFx()),
@@ -246,6 +248,19 @@ export class WorldScene extends Phaser.Scene {
     } finally { this.transitioning = false; }
   }
 
+  /** Rebuilds the current zone in place (an obstacle was cleared, a gate opened). */
+  refreshZone() {
+    if (!this.player || this.transitioning) return;
+    void runTask('world:refresh-zone', () => this.enterZone(this.zoneId, this.player.tx, this.player.ty, this.player.dir, false, true));
+  }
+
+  /** Flags that decide which obstacles stand in this zone right now. */
+  private blockStamp(): string {
+    const flags = new Set<string>();
+    for (const p of this.zone?.def.props ?? []) if (p.cond?.startsWith('!')) flags.add(p.cond);
+    return [...flags].map((c) => c + (condOk(c) ? 1 : 0)).join(',');
+  }
+
   private mountZone(built: BuiltZone, tx: number, ty: number, dir: Dir) {
     this.buildZoneObjects(built.def.id, built);
     if (!this.player || !this.player.sprite.active) {
@@ -257,6 +272,7 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.centerOn(this.player.x, this.player.y);
     Object.assign(game.save.player, { zone: built.def.id, x: tx, y: ty, dir });
     this.spawnNpcs(false);
+    this.blockKey = this.blockStamp();
     this.npcKey = this.npcStamp();
     this.shopKey = this.shopStamp();
     this.refreshShopSigns();
