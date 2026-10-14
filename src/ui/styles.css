@@ -996,3 +996,13 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .gr-raw canvas { width: 32px; height: 32px; image-rendering: pixelated; }
 .gr-raw span { display: flex; flex-direction: column; line-height: 1.15; }
 .gr-raw small { opacity: .7; }
+/* six-compartment tray + tools */
+.cook-trayrow { display: flex; gap: 8px; align-items: stretch; flex-shrink: 0; }
+.cook-trayrow .cook-tray { flex: 1; min-width: 0; }
+.cook-tools { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.cook-tools .btn[disabled] { opacity: .45; }
+.cook-tools .ing.cloth { width: 72px; height: 64px; background: var(--cream); border: 3px solid var(--gold); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: .65em; touch-action: none; animation: ks-pulse 1s ease-in-out infinite; color: var(--ink); }
+.cook-tools .ing.cloth canvas { width: 32px; height: 28px; image-rendering: pixelated; pointer-events: none; }
+.cook .cook-tray .ing.slot-empty { opacity: .3; pointer-events: none; border-style: dashed; }
+@media (max-width: 700px) { .cook .cook-tray .ing { width: 64px; height: 70px; } }
+.ks .cook { color: var(--ink); }
