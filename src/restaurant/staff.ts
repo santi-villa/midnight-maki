@@ -36,7 +36,8 @@ export interface Employee {
 }
 
 export type CrewId = 'pip' | 'rigg' | 'spicy';
-export interface CrewMember { level: number; xp: number; on: boolean }
+/** `carry`: extra plates Rigg can hold on his tray (0..2), bought with coins */
+export interface CrewMember { level: number; xp: number; on: boolean; carry?: number }
 export interface StaffSave {
   employees: Employee[];
   nextId: number;
@@ -88,7 +89,7 @@ export const employees = () => staffSave().employees;
 
 export const CREW_INFO: Record<CrewId, { name: string; job: string; tasks: Task[]; unlock: number }> = {
   pip: { name: 'Pip', job: 'Recibe a los clientes y los lleva a su mesa.', tasks: [], unlock: 0 },
-  rigg: { name: 'Rigg', job: 'Toma los pedidos y recoge las propinas.', tasks: ['order', 'tip'], unlock: 2 },
+  rigg: { name: 'Rigg', job: 'Lleva los platos de la bandeja a las mesas, toma los pedidos y recoge las propinas.', tasks: ['serve', 'order', 'tip'], unlock: 2 },
   spicy: { name: 'Spicy', job: 'Cocina los pedidos del salón.', tasks: ['cook'], unlock: 2 },
 };
 export function crew(id: CrewId): CrewMember {
@@ -157,6 +158,18 @@ export function trainCrew(id: CrewId): string | null {
   game.touch('staff');
   return null;
 }
+export const MAX_CARRY_UPGRADES = 2;
+/** plates Rigg carries at once: one at the start, up to three */
+export const riggCapacity = () => 1 + (crew('rigg').carry ?? 0);
+export const carryUpgradeCost = () => 160 + 200 * (crew('rigg').carry ?? 0);
+export function upgradeRiggTray(): string | null {
+  const m = crew('rigg');
+  if ((m.carry ?? 0) >= MAX_CARRY_UPGRADES) return 'Ya lleva todo lo que puede.';
+  if (!game.spend(carryUpgradeCost(), 'train')) return 'No te alcanzan las monedas.';
+  m.carry = (m.carry ?? 0) + 1;
+  game.touch('staff');
+  return null;
+}
 export function setStaff(patch: Partial<Pick<StaffSave, 'paused'>>) { Object.assign(staffSave(), patch); game.touch('staff'); }
 export function setCrew(id: CrewId, on: boolean) { crew(id).on = on; game.touch('staff'); }
 
@@ -199,6 +212,8 @@ interface Worker {
   cap: number;
   /** raccoons: why they are not working right now */
   note?: string;
+  /** plates carried at once */
+  carry: number;
 }
 
 function workers(env: StaffEnv): Worker[] {
@@ -207,14 +222,14 @@ function workers(env: StaffEnv): Worker[] {
   for (const e of s.employees) {
     const t = TRAITS[e.trait];
     const tasks: Task[] = e.role === 'cook' ? ['cook'] : (e.priority === 'orders' ? ['order', 'serve'] : ['serve', 'order']).filter((k) => (k === 'order' ? e.takeOrders : e.serve)) as Task[];
-    out.push({ id: e.id, kind: 'hired', level: e.level, tasks, walk: WALK_TILES[e.level] * t.walk, mul: t.work, off: s.paused || !!e.unpaid, member: e, cap: HIRED_PRACTICE_CAP });
+    out.push({ id: e.id, kind: 'hired', level: e.level, tasks, walk: WALK_TILES[e.level] * t.walk, mul: t.work, off: s.paused || !!e.unpaid, member: e, cap: HIRED_PRACTICE_CAP, carry: 1 });
   }
   for (const id of ['rigg', 'spicy'] as CrewId[]) {
     const m = crew(id);
     if (!m.on) continue;
     const w = env.crew.where(id);
     const away = !crewUnlocked(id) || !w || w.zone !== 'restaurant';
-    out.push({ id, kind: 'crew', level: m.level, tasks: CREW_INFO[id].tasks, walk: WALK_TILES[m.level], mul: 1, off: s.paused || away || !env.crew.working(), member: m, cap: MAX_LEVEL, note: away ? 'Fuera del restaurante' : undefined });
+    out.push({ id, kind: 'crew', level: m.level, tasks: CREW_INFO[id].tasks, walk: WALK_TILES[m.level], mul: 1, off: s.paused || away || !env.crew.working(), member: m, cap: MAX_LEVEL, note: away ? 'Fuera del restaurante' : undefined, carry: id === 'rigg' ? riggCapacity() : 1 });
   }
   return out;
 }
@@ -240,6 +255,8 @@ export interface Runtime {
   wait: number;
   /** ingredients already taken from the pantry for the dish being cooked */
   taken: boolean;
+  /** more plates picked up for other tables, served one after another */
+  queue: { uid: number; tableId: string }[];
   target: { x: number; y: number } | null;
   lost: number;
 }
@@ -266,7 +283,7 @@ function rt(id: string, env: StaffEnv, crewId: boolean): Runtime {
   let r = runtime.get(id);
   if (!r) {
     const h = crewId ? env.crew.where(id as CrewId) ?? env.home() : env.home();
-    r = { x: h.x, y: h.y, dir: 'down', act: 'idle', claim: null, doing: 'Esperando', carrying: null, path: [], work: 0, step: null, wait: 0, taken: false, target: null, lost: 0 };
+    r = { x: h.x, y: h.y, dir: 'down', act: 'idle', claim: null, doing: 'Esperando', carrying: null, path: [], work: 0, step: null, wait: 0, taken: false, queue: [], target: null, lost: 0 };
     runtime.set(id, r);
   }
   return r;
@@ -280,6 +297,8 @@ function release(r: Runtime, workerId?: string) {
     if (o) delete o.cook;
     if (r.taken && o) for (const [id, q] of Object.entries(RECIPES_BY_ID[o.recipe]?.ingredients ?? {})) game.addItem(id, q, 'refund');
   }
+  for (const q of r.queue) claimPlate(q.uid, null);
+  r.queue = [];
   r.claim = null; r.carrying = null; r.work = 0; r.taken = false;
   void workerId;
 }
@@ -418,10 +437,27 @@ function finishWork(w: Worker, r: Runtime, env: StaffEnv) {
     release(r); goHome(w, r, env);
   } else if (r.step === 'picking' && c?.kind === 'serve') {
     r.carrying = c.uid;
+    // a bigger tray takes more plates (for other tables too) before leaving the counter
+    const waiting = new Set(guestViews().filter((g) => g.phase === 'waiting_food').map((g) => g.id));
+    const taken = claimedByOthers(w.id);
+    while (r.queue.length + 1 < w.carry) {
+      const more = game.save.orders.find((o) => o.plate && o.service && o.uid !== c.uid && plateState(o.uid) === 'plated' && !o.plate.claim && waiting.has(o.service.partyId) && !taken.has('serve:' + o.uid) && claimPlate(o.uid, w.id));
+      if (!more) break;
+      r.queue.push({ uid: more.uid, tableId: more.service!.tableId });
+    }
     const spot = nearest(r, env.tableSpots(c.tableId));
     if (!spot || !goTo(w, r, env, spot, 'toServe', `Lleva el plato a la ${tableNames(c.tableId)}`)) { release(r); goHome(w, r, env); }
   } else if (r.step === 'serving' && c?.kind === 'serve') {
     if (!staffDeliver(c.uid, w.id)) gainXp(w.member, 8, w.cap);
+    else claimPlate(c.uid, null);
+    // next plate on the tray, if any
+    const next = r.queue.shift();
+    const spot = next ? nearest(r, env.tableSpots(next.tableId)) : null;
+    if (next && spot) {
+      r.claim = { kind: 'serve', uid: next.uid, tableId: next.tableId };
+      r.carrying = next.uid;
+      if (goTo(w, r, env, spot, 'toServe', `Lleva el plato a la ${tableNames(next.tableId)}`)) return;
+    }
     release(r); goHome(w, r, env);
   } else if (r.step === 'cooking' && c?.kind === 'cook') {
     const roll = rand();

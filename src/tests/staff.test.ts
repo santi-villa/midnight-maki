@@ -5,7 +5,7 @@ import { validateSave } from '../persistence/validate';
 import type { FurnPiece } from '../restaurant/floor';
 import { guestViews, pickupPlate, plateState, resetService, spawnGuest, stagePlate, stepService, takeOrderAt, tableJobs } from '../restaurant/service';
 import {
-  COOK_SECONDS, candidates, crew, employees, hire, orderSecondsFor, payWages, resetStaffRuntime, runtime, setCrew, staffLimit, tickStaff, trainCrew, type StaffEnv,
+  COOK_SECONDS, candidates, riggCapacity, upgradeRiggTray, crew, employees, hire, orderSecondsFor, payWages, resetStaffRuntime, runtime, setCrew, staffLimit, tickStaff, trainCrew, type StaffEnv,
 } from '../restaurant/staff';
 
 const FAST = { approach: 1, walk: 1, settle: 1, eat: 1, pay: 1, leave: 1 };
@@ -142,6 +142,44 @@ describe('restaurant crew', () => {
     expect(game.save.orders).toHaveLength(0);
     run(15);
     expect(game.save.orders.length).toBeGreaterThan(0);
+  });
+
+  it('Rigg carries plates from the tray one at a time, and two after the tray upgrade', () => {
+    const two = [piece(1, 'table', 4, 4), piece(2, 'chair', 4, 5, true), piece(3, 'table', 9, 4), piece(4, 'chair', 9, 5, true)];
+    game.save.restaurant.level = 4; game.save.restaurant.upgrades = ['tables2', 'second_room'];
+    spawnGuest(two, 'c_tourist'); stepService(1);
+    expect(spawnGuest(two, 'c_student')).toBeTruthy();
+    for (let i = 0; i < 14; i++) stepService(1);
+    const jobs = tableJobs().filter((j) => j.phase === 'waiting_order');
+    expect(jobs.length).toBe(2);
+    for (const j of jobs) takeOrderAt(j.tableId);
+    for (const o of game.save.orders.filter((x) => x.kind !== 'drink')) stagePlate(o.uid, 1);
+    game.addFriendship('rigg', 300);
+    setCrew('rigg', true);
+    expect(riggCapacity()).toBe(1);
+    /** the most plates he holds at once during a minute of work */
+    const peak = () => { let best = 0; for (let t = 0; t < 60; t += 0.25) { tickStaff(0.25, env); const r = runtime.get('rigg'); if (r) best = Math.max(best, r.queue.length + (r.carrying != null ? 1 : 0)); } return best; };
+    expect(peak()).toBe(1);
+    expect(game.save.orders.filter((o) => o.plate?.state === 'delivered')).toHaveLength(2);
+  });
+
+  it('Rigg with the bigger tray takes both plates in one trip', () => {
+    const two = [piece(1, 'table', 4, 4), piece(2, 'chair', 4, 5, true), piece(3, 'table', 9, 4), piece(4, 'chair', 9, 5, true)];
+    game.save.restaurant.level = 4; game.save.restaurant.upgrades = ['tables2', 'second_room'];
+    spawnGuest(two, 'c_tourist'); stepService(1);
+    spawnGuest(two, 'c_student');
+    for (let i = 0; i < 14; i++) stepService(1);
+    for (const j of tableJobs().filter((x) => x.phase === 'waiting_order')) takeOrderAt(j.tableId);
+    for (const o of game.save.orders.filter((x) => x.kind !== 'drink')) stagePlate(o.uid, 1);
+    game.addFriendship('rigg', 300);
+    setCrew('rigg', true);
+    game.save.coins = 5000;
+    expect(upgradeRiggTray()).toBeNull();
+    expect(riggCapacity()).toBe(2);
+    let best = 0;
+    for (let t = 0; t < 60; t += 0.25) { tickStaff(0.25, env); const r = runtime.get('rigg'); if (r) best = Math.max(best, r.queue.length + (r.carrying != null ? 1 : 0)); }
+    expect(best).toBe(2);
+    expect(game.save.orders.filter((o) => o.plate?.state === 'delivered')).toHaveLength(2);
   });
 
   it('pays wages daily, leaves unpaid staff idle, and keeps the crew when the game is saved and loaded', () => {

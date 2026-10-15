@@ -3,7 +3,7 @@ import { game } from '../core/state';
 import { audio } from '../audio/audio';
 import {
   COOK_SECONDS, CREW_INFO, LEVEL_NAMES, MAX_LEVEL, TRAITS, candidates, cookLimit, crew, crewUnlocked, employees, fire, hire, hireCost, runtime, setCrew, setStaff,
-  staffLimit, staffSave, train, trainCost, trainCrew, wageOf, type CrewId, type Employee, type StaffRole,
+  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffLimit, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, type CrewId, type Employee, type StaffRole,
 } from '../restaurant/staff';
 import { h, panel, toast } from './dom';
 import { previewCanvas } from './creator';
@@ -36,7 +36,7 @@ export function openStaff() {
     );
     for (const id of ['pip', 'rigg', 'spicy'] as CrewId[]) {
       const info = CREW_INFO[id], m = crew(id), ok = crewUnlocked(id);
-      const speed = id === 'spicy' ? `Un plato cada ${COOK_SECONDS.crew[m.level]} s` : id === 'rigg' ? 'Atiende una mesa a la vez' : 'Recibe un grupo a la vez';
+      const speed = id === 'spicy' ? `Un plato cada ${COOK_SECONDS.crew[m.level]} s` : id === 'rigg' ? `Lleva ${riggCapacity()} plato${riggCapacity() > 1 ? 's' : ''} por viaje` : 'Recibe un grupo a la vez';
       body.append(
         h('div', { class: 'card col', style: { gap: '6px', opacity: ok ? '1' : '.7' } },
           h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, info.name), h('span', { class: 'hint' }, `${LEVEL_NAMES[m.level]} ${stars(m.level)}`)),
@@ -45,6 +45,9 @@ export function openStaff() {
           ok && id !== 'pip' ? h('div', { class: 'staff-doing' }, m.on ? runtime.get(id)?.doing ?? 'Esperando' : 'Descansando (no ayuda hoy)') : null,
           h('div', { class: 'row', style: { gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' } },
             ok && id !== 'pip' ? h('button', { class: 'btn small' + (m.on ? ' primary' : ''), onclick: () => { setCrew(id, !m.on); render(); } }, m.on ? '✓ Ayudando en el salón' : 'Pedirle que ayude') : null,
+            ok && id === 'rigg' ? (crew('rigg').carry ?? 0) < MAX_CARRY_UPGRADES
+              ? h('button', { class: 'btn small', title: 'Una bandeja más grande para llevar más platos por viaje', disabled: game.coins < carryUpgradeCost(), onclick: () => { const err = upgradeRiggTray(); if (err) toast(err); else { audio.sfxPlay('success'); toast(`Rigg ahora lleva ${riggCapacity()} platos por viaje.`); } render(); } }, `Bandeja de Rigg: ${riggCapacity()} → ${riggCapacity() + 1} (${carryUpgradeCost()} ●)`)
+              : h('span', { class: 'hint' }, `Bandeja al máximo: ${riggCapacity()} platos`) : null,
             ok && m.level < MAX_LEVEL ? h('button', { class: 'btn small', disabled: game.coins < trainCost(m.level, true), onclick: () => { const err = trainCrew(id); if (err) toast(err); else { audio.sfxPlay('success'); toast(`${info.name} mejoró: ahora es ${LEVEL_NAMES[crew(id).level].toLowerCase()}.`); } render(); } }, `Capacitar (${trainCost(m.level, true)} ●)`) : null)),
       );
     }

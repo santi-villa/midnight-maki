@@ -18,6 +18,8 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'second_room', name: 'Segundo sector', desc: '+1 grupo simultáneo y muebles para el salón.', price: 1200, level: 5, items: { wood: 4, stone: 2 } },
   { id: 'garden_patio', name: 'Jardín exterior', desc: 'Macetas y faroles en la entrada del restaurante.', price: 900, level: 5, items: { wood: 3, stone: 2 } },
   { id: 'carry_tray', name: 'Bandeja de servicio', desc: 'Llevá dos pedidos a la vez, incluso de mesas diferentes.', price: 180, level: 2, items: { wood: 2 } },
+  { id: 'carry_tray2', name: 'Bandeja grande', desc: 'Llevá tres pedidos a la vez.', price: 420, level: 4, items: { wood: 3 }, needs: 'carry_tray' },
+  { id: 'carry_tray3', name: 'Carrito de servicio', desc: 'Llevá cuatro pedidos a la vez.', price: 780, level: 6, items: { wood: 4, stone: 1 }, needs: 'carry_tray2' },
   { id: 'pip_corner', name: 'Rincón de tesoros de Pip', desc: 'Zabuton y baúl en su cuarto. Pip juega allí durante su descanso.', price: 140, level: 2, items: { wood: 2 }, friendship: { id: 'pip', points: 20 } },
   { id: 'spicy_corner', name: 'Rincón de sabores de Spicy', desc: 'Mesa y hierbas en su cuarto. Spicy se toma una pausa para merendar.', price: 160, level: 2, items: { wood: 2 }, friendship: { id: 'spicy', points: 20 } },
   { id: 'rigg_corner', name: 'Rincón de lectura de Rigg', desc: 'Escritorio y zabuton en su cuarto. Rigg lo usa para leer.', price: 160, level: 2, items: { wood: 2 }, friendship: { id: 'rigg', points: 20 } },
