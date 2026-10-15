@@ -24,6 +24,7 @@ let coinEl: HTMLElement;
 let clockEl: HTMLCanvasElement;
 let questEl: HTMLElement;
 let suggestEl: HTMLElement;
+let phoneBtn: HTMLButtonElement | null = null;
 let joyEl: HTMLElement | null = null;
 let dock: HTMLElement | null = null;
 let tagEl: HTMLElement | null = null;
@@ -84,6 +85,12 @@ export function mountHud(hd: HudHandlers) {
   try { if (localStorage.getItem('mm_questmini') === '0') questEl.classList.remove('mini'); } catch { /* ignore */ }
   questEl.setAttribute('aria-expanded', String(!questEl.classList.contains('mini')));
   suggestEl = h('div', { class: 'hud-suggest' });
+  phoneBtn = h('button', {
+    type: 'button',
+    class: 'hud-phone',
+    onclick: () => { audio.sfxPlay('open'); void import('./menus').then((m) => m.openNoriPhone()); },
+  }, skinIconEl('phone'), h('span', { class: 'lbl' }, 'NoriPhone'));
+  const corner = h('div', { class: 'hud-corner' }, suggestEl, phoneBtn);
   tagEl = h('div', { class: 'room-tag' });
   tagEl.style.display = 'none';
   menuEl = h('div', { class: 'ctx-menu' });
@@ -91,7 +98,7 @@ export function mountHud(hd: HudHandlers) {
   actionBtns.clear();
   menuOpen = false;
   overflowKey = '';
-  root = h('div', { class: 'passthrough game-hud' }, h('div', { class: 'hud-top' }, statusWrap, buttons), questEl, tagEl, dock, suggestEl);
+  root = h('div', { class: 'passthrough game-hud' }, h('div', { class: 'hud-top' }, statusWrap, buttons), questEl, tagEl, dock, corner);
   uiRoot().append(root);
   refresh();
   refreshSuggestions();
@@ -184,6 +191,7 @@ function renderContext() {
   }
   paintMenu(offer);
   if (suggestEl) suggestEl.style.display = offer.primary ? 'none' : '';
+  phoneBtn?.classList.toggle('is-parked', !!offer.primary);
 }
 
 function buttonSpecs(offer: ContextOffer): BtnSpec[] {
@@ -336,7 +344,22 @@ function paintTag(name: string | null) {
 }
 
 // ------------------------------------------------------------------ optional virtual joystick
+function paintPhoneButton() {
+  if (!phoneBtn) return;
+  const keyboard = inputMethod() === 'keyboard';
+  const span = phoneBtn.querySelector('span');
+  if (span) {
+    span.replaceChildren();
+    if (keyboard) span.append(h('kbd', null, 'Tab'), document.createTextNode(' NoriPhone'));
+    else span.textContent = 'NoriPhone';
+  }
+  const title = keyboard ? 'NoriPhone [Tab]' : 'NoriPhone';
+  phoneBtn.title = title;
+  phoneBtn.setAttribute('aria-label', title);
+}
+
 function paintChrome() {
+  paintPhoneButton();
   for (const item of chrome) {
     const key = inputMethod() === 'touch' ? null : keyLabel(bindingMap(settings.bindings)[item.action]);
     const title = key ? `${item.name} [${key}]` : item.name;
