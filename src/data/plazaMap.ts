@@ -121,7 +121,7 @@ export function plaza(): ZoneDef {
     .prop('torii_w4', 28, 3)
     .prop('flowers', 6, 10)
     .prop('flowers_lav', 18, 21)
-    .prop('stall_wood', REN_STALL.x, REN_STALL.y).prop('sack', REN_STALL.x + 3, REN_STALL.y).prop('lantern_cream', REN_STALL.x - 1, REN_STALL.y - 1)
+    .prop('stall_wood', REN_STALL.x, REN_STALL.y).prop('deco_woodpile', REN_STALL.x + 3, REN_STALL.y)
     .prop('crate', 30, 15)
     .prop('barrel', 22, 20)
     .prop('pot_rose', 3, 7)
