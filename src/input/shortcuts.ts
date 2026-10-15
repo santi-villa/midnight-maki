@@ -7,6 +7,7 @@ import { game } from '../core/state';
 import { inDialogue } from '../dialogue/dialogue';
 import { world } from '../scenes/WorldScene';
 import { modalOpen } from '../ui/dom';
+import { setPhoneExploreCheck } from '../ui/phone/phoneKey';
 import { actionForCode, bindingMap, isMoveCode, isTypingTarget, type GameAction } from './bindings';
 import { consumeKeyCapture, installInputSession, isCodeSwallowed, noteKeyboard, swallowCode, type KeyPress } from './keys';
 
@@ -17,6 +18,7 @@ export function installPcControls() {
   if (installed || typeof window === 'undefined') return;
   installed = true;
   installInputSession();
+  setPhoneExploreCheck(explorationActive);
   window.addEventListener('keydown', onKey, true);
 }
 
