@@ -24,6 +24,7 @@ import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
 import { employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
+import { NeighborLife } from '../systems/neighbors';
 import { facingTable } from '../restaurant/seating';
 import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
@@ -328,7 +329,7 @@ export class WorldScene extends Phaser.Scene {
     this.gatherSprites = [];
     for (const b of this.bugs) b.sprite.destroy();
     this.bugs = [];
-    this.clearGuests(); this.clearStaff();
+    this.clearGuests(); this.clearStaff(); this.clearNeighbors();
     this.serviceArt?.destroy(); this.serviceArt = null;
     for (const sprite of this.carriedSprites) sprite.destroy(); this.carriedSprites = [];
     for (const c of this.critters) c.s.destroy();
@@ -651,6 +652,62 @@ export class WorldScene extends Phaser.Scene {
   private hostId: string | null = null;
   private hostWait = 0;
   private diningCache: FurnPiece[] | null = null;
+
+  // ------------------------------------------------------------------ ambient neighbours
+  private neighborLife = new NeighborLife();
+  private neighborBodies = new Map<string, { actor: Actor; bike: Phaser.GameObjects.Image | null; barkAt: number }>();
+
+  private clearNeighbors() {
+    for (const b of this.neighborBodies.values()) { b.actor.destroy(); b.bike?.destroy(); }
+    this.neighborBodies.clear();
+  }
+
+  private updateNeighbors(dt: number) {
+    if (!game.has('intro_done') || !this.zone || !this.player || this.transitioning || this.decorMode || clock.paused) return;
+    this.neighborLife.tick(dt);
+    const here = new Set<string>();
+    const now = performance.now();
+    for (const st of this.neighborLife.inZone(this.zoneId)) {
+      const n = st.n, trip = st.trip;
+      here.add(n.id);
+      let body = this.neighborBodies.get(n.id);
+      if (!body) {
+        const actor = new Actor(this, 'nb_' + n.id, lookTexture(this, n.look), trip.position.x, trip.position.y);
+        actor.manual = true;
+        body = { actor, bike: null, barkAt: now + 8000 + (n.id.length * 1700) % 6000 };
+        this.neighborBodies.set(n.id, body);
+      }
+      const a = body.actor;
+      const riding = st.ride && trip.moving;
+      a.x = trip.position.x * TILE + TILE / 2;
+      a.y = trip.position.y * TILE + TILE - 2;
+      a.dir = trip.dir;
+      a.moving = trip.moving && !riding;
+      a.seatLift = trip.settled ? st.place.seatLift ?? 0 : 0;
+      const act = riding ? 'sit' : trip.moving ? 'idle' : trip.settled ? st.place.act ?? 'idle' : 'idle';
+      if (a.act !== act) a.setAct(act);
+      a.sync();
+      // a bicycle under whoever is riding
+      if (riding) {
+        if (!body.bike?.active) body.bike = this.add.image(0, 0, propTexture(this, 'bicycle')).setOrigin(0.5, 1);
+        body.bike.setVisible(true).setPosition(a.x, a.y + 1).setDepth(a.y - 0.5).setFlipX(a.dir === 'left').setScale(a.dir === 'up' || a.dir === 'down' ? 0.6 : 1, 1);
+        a.setAct('sit'); a.seatLift = 6;
+      } else if (st.ride && trip.settled && st.place.kind !== 'home') {
+        // parked beside them while they stop
+        if (!body.bike?.active) body.bike = this.add.image(0, 0, propTexture(this, 'bicycle')).setOrigin(0.5, 1);
+        body.bike.setVisible(true).setPosition(a.x + 14, a.y + 1).setDepth(a.y - 0.5).setFlipX(false).setScale(1, 1);
+      } else body.bike?.setVisible(false);
+      // a word for whoever walks by
+      if (now > body.barkAt && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 60 && !a.bubble) {
+        a.emote(n.lines[Math.floor((now / 1000 + n.id.length) % n.lines.length)], 3);
+        body.barkAt = now + 25000 + (n.id.length * 2300) % 15000;
+      }
+    }
+    for (const [id, body] of this.neighborBodies) {
+      if (here.has(id)) continue;
+      body.actor.destroy(); body.bike?.destroy(); this.neighborBodies.delete(id);
+    }
+  }
 
   // ------------------------------------------------------------------ staff (hired waiters)
   private staffBodies = new Map<string, { actor: Actor; plate: Phaser.GameObjects.Image | null }>();
@@ -1647,6 +1704,7 @@ export class WorldScene extends Phaser.Scene {
     for (const e of this.extras.values()) e.update(dt);
     this.pumpFloor(dt);
     this.updateStaff(dt);
+    this.updateNeighbors(dt);
     for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);
     this.updateBugs(dt);
@@ -1742,6 +1800,7 @@ export class WorldScene extends Phaser.Scene {
     for (const e of this.extras.values()) if (e.sprite.visible) actors.push(e);
     // a guest sitting at a table is meant to be partly behind it: only walking guests make furniture see-through
     for (const b of this.staffBodies.values()) if (b.actor.sprite.visible) actors.push(b.actor);
+    for (const b of this.neighborBodies.values()) if (b.actor.sprite.visible) actors.push(b.actor);
     for (const g of this.guests.values()) if (g.actor.sprite.visible && !SEATED_PHASES.includes(g.phase)) actors.push(g.actor);
 
     const lerp = Math.min(1, dt * 10);
