@@ -20,6 +20,7 @@ import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, max
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade, upgradeMissing } from './upgrades';
 import { advanceMissing, advanceRestaurant, levelProgress, nextAdvance, xpFloor } from './progression';
+import { shortageText } from './supplies';
 import { freeCookCoins } from './economy';
 import { runScene, say } from '../dialogue/dialogue';
 import { STAGE_NAMES, applyStageGrants, stageForLevel } from './stages';
@@ -39,32 +40,6 @@ function ingList(r: { ingredients: Record<string, number> }) {
       return h('span', { class: 'pill', title: ITEMS_BY_ID[id]?.name, style: { background: ok ? '#dfe9d6' : '#f2d0cf' } }, c, ` ${have}/${q}`);
     }),
   );
-}
-
-/** cost to buy what's missing for a recipe (basic shop ingredients only) */
-function missingCost(r: { ingredients: Record<string, number> }): number | null {
-  let cost = 0;
-  for (const [id, q] of Object.entries(r.ingredients)) {
-    const miss = q - game.countUsable(id);
-    if (miss <= 0) continue;
-    const it = ITEMS_BY_ID[id];
-    if (!it?.buy) return null;
-    cost += Math.ceil(it.buy * 1.2) * miss;
-  }
-  return cost;
-}
-
-function buyMissing(r: { ingredients: Record<string, number> }): boolean {
-  const cost = missingCost(r);
-  if (cost == null) return false;
-  if (!game.spend(cost, 'restock')) return false;
-  for (const [id, q] of Object.entries(r.ingredients)) {
-    const miss = q - game.countUsable(id);
-    if (miss > 0) game.addItem(id, miss, 'restock');
-  }
-  game.stat('purchases');
-  audio.sfxPlay('coin');
-  return true;
 }
 
 // ------------------------------------------------------------------ order board
@@ -112,7 +87,6 @@ export function openOrders() {
       const held = plateState(o.uid);
       const cooked = ['plated', 'carried', 'delivered'].includes(held);
       const ready = !cooked && (o.kind === 'drink' ? canPrepareDrink(r.id) : canCook(r.id));
-      const cost = ready || cooked ? 0 : missingCost(r);
       const special = o.special === 'odd' ? 'Pedido sin remitente' : o.special === 'tutorial' ? 'Pedido de práctica' : '';
       body.append(
         h(
@@ -124,8 +98,7 @@ export function openOrders() {
           !special && customerAsk(o.customer, o.uid) ? h('div', { class: 'order-ask' }, `“${customerAsk(o.customer, o.uid)}”`) : null,
           cooked ? h('div', { class: 'hint' }, held === 'carried' ? 'Lo estás llevando a su mesa.' : held === 'delivered' ? 'Entregado. El grupo está comiendo o esperando el resto.' : 'Listo en la bandeja de salida.') : ingList(r),
           h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
-            !cooked && !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) render(); else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
-            !cooked && !ready && cost == null ? h('span', { class: 'hint' }, 'Faltan ingredientes que no se compran acá.') : null,
+            !cooked && !ready ? h('span', { class: 'hint', style: { textAlign: 'right' } }, `Faltan: ${shortageText(r)}`) : null,
             !cooked && o.kind !== 'drink' && ready && quickQuality(recipeStars(r.id))
               ? h('button', { class: 'btn small', title: 'Receta dominada: se prepara en un toque', onclick: async () => {
                   p.root.parentElement!.style.display = 'none';
@@ -424,13 +397,12 @@ function openFreeCook() {
   const known = RECIPES.filter((r) => game.save.recipesKnown.includes(r.id));
   for (const r of known) {
     const ready = canCook(r.id);
-    const cost = ready ? 0 : missingCost(r);
     body.append(
       h('div', { class: 'card col', style: { gap: '6px' } },
         h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('div', { class: 'row' }, iconElement(r.icon), h('div', null, h('b', null, r.name), h('div', { class: 'hint' }, `${CAT_NAME[r.cat]} · ${'★'.repeat(r.difficulty)}`))), h('span', { class: 'coin' }, `${freeCookCoins(r, 0)}–${freeCookCoins(r, 2)} ●`)),
         ingList(r),
         h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
-          !ready && cost != null ? h('button', { class: 'btn small', onclick: () => { if (buyMissing(r)) { p.close(); openFreeCook(); } else toast('No te alcanzan las monedas.'); } }, `Comprar lo que falta (${cost} ●)`) : null,
+          !ready ? h('span', { class: 'hint', style: { textAlign: 'right' } }, `Faltan: ${shortageText(r)}`) : null,
           h('button', { class: 'btn small primary', disabled: !ready, onclick: () => { p.close(); void runTask('kitchen:free', () => freeCook(r.id)); } }, 'Cocinar')),
       ),
     );

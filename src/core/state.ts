@@ -107,8 +107,19 @@ class GameStore {
     return this.save.inventory[id] ?? 0;
   }
   /** count including aliases (e.g. caught salmon counts as salmon ingredient) */
+  /** units of an ingredient stocked in the restaurant pantry */
+  pantryCount(id: string): number {
+    return this.save.pantry?.[id] ?? 0;
+  }
+  setPantry(id: string, qty: number) {
+    const pantry = (this.save.pantry ??= {});
+    if (qty > 0) pantry[id] = Math.floor(qty);
+    else delete pantry[id];
+    bus.emit('inventory:changed', { id, qty: this.pantryCount(id), delta: 0 });
+    this.touch('pantry');
+  }
   countUsable(id: string): number {
-    let n = this.count(id);
+    let n = this.count(id) + this.pantryCount(id);
     for (const [alias, target] of Object.entries(INGREDIENT_ALIASES)) if (target === id) n += this.count(alias);
     return n;
   }
@@ -132,6 +143,10 @@ class GameStore {
     for (const [id, q] of Object.entries(req)) if (this.countUsable(id) < q) return false;
     for (const [id, q] of Object.entries(req)) {
       let left = q;
+      // the restaurant pantry is used first, then what she carries
+      const stocked = Math.min(this.pantryCount(id), left);
+      if (stocked) this.setPantry(id, this.pantryCount(id) - stocked);
+      left -= stocked;
       const direct = Math.min(this.count(id), left);
       if (direct) this.removeItem(id, direct);
       left -= direct;

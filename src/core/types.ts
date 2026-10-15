@@ -138,6 +138,8 @@ export interface SaveData {
   inventory: Record<string, number>;
   recipesKnown: string[];
   recipesCooked: Record<string, number>;
+  /** restaurant supplies kept in the kitchen pantry (ingredient id -> units); optional so older saves load */
+  pantry?: Record<string, number>;
   /** best time in hard mode, seconds per recipe */
   bestTimes?: Record<string, number>;
   /** mastery per recipe (see restaurant/mastery.ts); missing in older saves */

@@ -7,7 +7,7 @@ import { bus } from '../core/events';
 import { game } from '../core/state';
 import { CLOTHES, CLOTHES_BY_ID } from '../data/clothes';
 import { FURNITURE, FURN_BY_ID } from '../data/furniture';
-import { ITEMS_BY_ID, type ItemCat } from '../data/items';
+import { ITEMS_BY_ID, PACKS, type ItemCat } from '../data/items';
 import { runScene, say } from '../dialogue/dialogue';
 import { shopGate } from '../systems/npcs';
 import { shopInteractionText } from '../systems/schedule';
@@ -27,6 +27,8 @@ interface ShopDef {
 }
 
 const items = (ids: string[], mult = 1): Entry[] => ids.map((id) => ({ kind: 'item', id, price: Math.ceil((ITEMS_BY_ID[id]?.buy || ITEMS_BY_ID[id]?.sell * 3 || 10) * mult) }));
+/** packs and boxes: the discount is already in the price of the pack item */
+const packEntries = (only?: string[]): Entry[] => PACKS.filter((p) => !only || only.includes(p.item)).map((p) => ({ kind: 'item' as const, id: p.id, price: ITEMS_BY_ID[p.id].buy }));
 const furn = (shop: string) => FURNITURE.filter((f) => f.shop === shop && f.price > 0 && (!f.unlock || game.has(f.unlock))).map((f) => ({ kind: 'furn' as const, id: f.id, price: f.price }));
 const clothes = (shop: string) => CLOTHES.filter((c) => c.shop === shop && c.price > 0 && !game.save.clothesOwned.includes(c.id) && (!c.unlock || game.has(c.unlock))).map((c) => ({ kind: 'cloth' as const, id: c.id, price: c.price }));
 const styles = (): Entry[] => [
@@ -39,6 +41,7 @@ export const SHOPS: Record<string, ShopDef> = {
     title: 'Almacén de Taro', keeper: 'taro', greet: '¡{Bienvenido|Bienvenida}! Arroz, nori, muebles y rumores. Lo último es gratis.',
     tabs: [
       { name: 'Ingredientes', list: () => items(['rice', 'nori', 'salmon', 'tuna', 'cucumber', 'avocado', 'egg', 'shrimp', 'crab', 'cream', 'sesame', 'wasabi', 'chili', 'tempura', 'mango', 'eel', 'roe', 'scallion', 'carrot', 'ginger', 'umeboshi', 'tea_leaves', 'ramune_bottle', 'milk', 'berry']) },
+      { name: 'Paquetes y cajas', list: () => packEntries() },
       { name: 'Semillas', list: () => items(['sd_scallion', 'sd_cucumber', 'sd_carrot', 'sd_chili', 'sd_flower', ...(game.has('unlock_garden') ? ['sd_sakura'] : [])]) },
       { name: 'Muebles', list: () => furn('taro') },
       { name: 'Pisos y paredes', list: styles },
@@ -59,7 +62,7 @@ export const SHOPS: Record<string, ShopDef> = {
   },
   nami: {
     title: 'Puesto de pescado', keeper: 'nami', greet: '¡Fresquito del mar! Y si pescaste algo, te lo compro.',
-    tabs: [{ name: 'Pescado', list: () => items(['salmon', 'tuna', 'shrimp', 'eel', 'roe', 'crab'], 0.9) }],
+    tabs: [{ name: 'Pescado', list: () => items(['salmon', 'tuna', 'shrimp', 'eel', 'roe', 'crab'], 0.9) }, { name: 'Cajas de pescado', list: () => packEntries(['salmon', 'tuna', 'shrimp', 'eel', 'roe', 'crab']) }],
     sell: ['fish'],
   },
   shells: {

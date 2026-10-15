@@ -1,7 +1,7 @@
 import type { IconSpec } from '../art/icons';
 
 export type ItemCat =
-  | 'ingredient' | 'fish' | 'bug' | 'flower' | 'shell' | 'material' | 'seed' | 'gift' | 'key' | 'dish' | 'rare';
+  | 'ingredient' | 'supply' | 'fish' | 'bug' | 'flower' | 'shell' | 'material' | 'seed' | 'gift' | 'key' | 'dish' | 'rare';
 
 export interface ItemDef {
   id: string;
@@ -123,6 +123,32 @@ export const ITEMS: ItemDef[] = [
   I('star3', 'Estrella de Rigg', 'key', { type: 'star', c1: '#94c0d2' }, 0, 0, 'Una pieza del mecanismo del faro. Fría y precisa.'),
   I('bottle_msg', 'Botella con mensaje', 'rare', { type: 'bottle', c1: '#9fd0c0' }, 0, 0, 'Algo escrito adentro.', { rarity: 2 }),
 ];
+
+/** Restaurant supplies come in a pack (a few units) or a box (more, cheaper per unit). Opening one at the pantry stocks its ingredient. */
+export interface PackDef { id: string; item: string; qty: number; tier: 'pack' | 'box' }
+const PACK_SIZES: Record<string, [number, number]> = {
+  rice: [6, 15], nori: [8, 20], salmon: [4, 10], tuna: [4, 10], shrimp: [4, 10], crab: [4, 10], eel: [3, 8], roe: [3, 8],
+  cucumber: [6, 15], avocado: [4, 10], carrot: [6, 15], scallion: [6, 15], mango: [4, 10], egg: [6, 15], cream: [4, 10],
+  sesame: [8, 20], wasabi: [6, 15], ginger: [6, 15], tempura: [8, 20], chili: [6, 15], umeboshi: [4, 10],
+  tea_leaves: [8, 20], ramune_bottle: [6, 12], milk: [6, 12],
+};
+/** discount against buying the same units one by one */
+export const PACK_DISCOUNT = { pack: 0.1, box: 0.2 } as const;
+export const PACKS: PackDef[] = [];
+for (const [item, sizes] of Object.entries(PACK_SIZES)) {
+  const base = ITEMS.find((i) => i.id === item);
+  if (!base) continue;
+  (['pack', 'box'] as const).forEach((tier, k) => {
+    const qty = sizes[k];
+    const id = `${tier === 'pack' ? 'pk' : 'bx'}_${item}`;
+    PACKS.push({ id, item, qty, tier });
+    ITEMS.push({
+      id, name: `${tier === 'pack' ? 'Paquete' : 'Caja'} de ${base.name.toLowerCase()} (×${qty})`, cat: 'supply', icon: base.icon,
+      buy: Math.ceil(base.buy * qty * (1 - PACK_DISCOUNT[tier])), sell: 0, desc: `${qty} unidades para la despensa del restaurante. Se abre y se guarda en la despensa de la cocina.`,
+    });
+  });
+}
+export const PACKS_BY_ID: Record<string, PackDef> = Object.fromEntries(PACKS.map((p) => [p.id, p]));
 
 export const ITEMS_BY_ID: Record<string, ItemDef> = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
 

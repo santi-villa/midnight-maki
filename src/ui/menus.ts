@@ -31,7 +31,7 @@ function tabs(names: string[], onPick: (i: number) => void, start = 0) {
 
 // ------------------------------------------------------------------ bag
 const BAG_CATS: { name: string; cats: ItemCat[] }[] = [
-  { name: 'Ingredientes', cats: ['ingredient', 'seed'] },
+  { name: 'Ingredientes', cats: ['ingredient', 'supply', 'seed'] },
   { name: 'Colección', cats: ['fish', 'bug', 'flower', 'shell', 'material', 'rare'] },
   { name: 'Regalos', cats: ['gift'] },
   { name: 'Especiales', cats: ['key'] },
