@@ -74,7 +74,8 @@ export class KitchenBoard {
   private done = false; private active = true; private raf = 0; private lastFrame = 0; private startT = performance.now(); private pausedAt = 0;
   private musicBefore: Track = 'none'; private timeLimit = 0;
   private mistakes = 0; private prec: number[] = [];
-  private cookRaw: { item: string; how: 'plancha' | 'sarten' }[] = [];
+  private cookRaw: { item: string; how: 'plancha' | 'sarten' | 'olla' }[] = [];
+  private needPot = false; private riceReady = false; private waitItem: string | null = null;
   private cookedPieces: { item: string; p: number }[] = [];
   private variant: { item: string; name: string; bonus: number } | null = null; private variantUsed = false;
   // table state
@@ -103,7 +104,7 @@ export class KitchenBoard {
   get rawPieces() { return this.cookRaw; }
   takeRaw(i: number) { return this.cookRaw.splice(i, 1)[0] ?? null; }
   putCooked(item: string, p: number) { this.cookedPieces.push({ item, p }); this.tryCook(); }
-  get waitingFor(): string | null { const s = this.step; return !this.done && s?.t === 'cook' ? s.item : null; }
+  get waitingFor(): string | null { return !this.done && this.mode === 'wait' ? this.waitItem : null; }
   get customer() { return this.title; }
   get finished() { return this.done; }
   get progress() { return this.done ? 1 : this.stepIdx / Math.max(1, this.r.steps.length); }
@@ -133,6 +134,9 @@ export class KitchenBoard {
     this.layout();
     this.timeLimit = settings.cookMode === 'challenge' ? challengeLimit(this.r.steps.length) : 0;
     this.cookRaw = this.r.steps.flatMap((st) => (st.t === 'cook' ? [{ item: st.item, how: st.how }] : []));
+    // in the kitchen the rice of each dish is cooked in the pot, a batch at a time (alone on the board there is no pot)
+    this.needPot = !!this.host && this.r.steps.some((st) => st.t === 'rice' || st.t === 'shape');
+    if (this.needPot) this.cookRaw.unshift({ item: 'rice', how: 'olla' });
     const ri = this.r.steps.findIndex((s) => s.t === 'roll'), gi = this.r.steps.findIndex((s) => s.t === 'garnish'), ci = this.r.steps.findIndex((s) => s.t === 'cut');
     this.uramaki = ri >= 0 && gi > ri && ci > gi;
     if (!this.host) { this.musicBefore = audio.currentTrack(); audio.crossfade('kitchen'); }
@@ -207,16 +211,23 @@ export class KitchenBoard {
   private later(sec: number, fn: () => void) { const at = this.clock + sec; this.advanceAt = at; this.pending = fn; }
   private pending: (() => void) | null = null;
 
-  private tryCook() {
-    const s = this.step;
-    if (this.done || s?.t !== 'cook') return;
-    const i = this.cookedPieces.findIndex((c) => c.item === s.item);
-    if (i < 0) return;
+  /** takes a cooked piece of `item` that came off the stove: its doneness counts for the dish */
+  private useCooked(item: string): boolean {
+    const i = this.cookedPieces.findIndex((c) => c.item === item);
+    if (i < 0) return false;
     const d = doneness(this.cookedPieces.splice(i, 1)[0].p);
     this.prec.push(d.score);
     if (d.mistake) this.mistakes++;
-    this.respond(d.label, d.mistake ? 'gentle' : 'good');
-    this.nextStep();
+    if (item === 'rice') this.riceReady = true;
+    this.respond(item === 'rice' ? `Arroz: ${d.label.toLowerCase()}` : d.label, d.mistake ? 'gentle' : 'good');
+    return true;
+  }
+  private tryCook() {
+    if (this.done || this.mode !== 'wait' || !this.waitItem) return;
+    if (!this.useCooked(this.waitItem)) return;
+    const wasCook = this.step?.t === 'cook';
+    this.waitItem = null;
+    if (wasCook) this.nextStep(); else this.enterStep();
   }
 
   private setShelf(items: ShelfItem[]) { this.shelf = items; }
@@ -230,10 +241,16 @@ export class KitchenBoard {
     this.renderSteps();
     const s = this.step;
     if (!s) return this.beginPlateOrFinish();
+    if ((s.t === 'rice' || s.t === 'shape') && this.needPot && !this.riceReady && !this.useCooked('rice')) {
+      this.mode = 'wait'; this.waitItem = 'rice'; this.setShelf([]);
+      this.say('Falta el arroz: ponelo en la olla (pestaña Plancha). Mientras se cocina podés seguir con otros platos.');
+      this.syncUI(); return;
+    }
     switch (s.t) {
       case 'cook':
         if (!this.host) { setTimeout(() => this.nextStep(), 0); return; }
-        this.mode = 'wait'; this.setShelf([]); this.say('Esto se cocina en la plancha. Ponelo allá y volvé cuando esté en su punto; mientras tanto podés avanzar con otros platos.');
+        this.mode = 'wait'; this.waitItem = s.item; this.setShelf([]); this.say('Esto se cocina en la plancha. Ponelo allá y volvé cuando esté en su punto; mientras tanto podés avanzar con otros platos.');
+        this.syncUI();
         setTimeout(() => this.tryCook(), 0);
         break;
       case 'nori': this.mode = 'nori'; this.setShelf([{ id: 'nori', left: 1 }]); this.say('Arrastrá el alga hasta la esterilla.'); break;
@@ -315,13 +332,15 @@ export class KitchenBoard {
     else if (m === 'place') { label = this.needPlace.length ? `Faltan ${this.needPlace.length}` : 'Listo el relleno'; disabled = this.needPlace.length > 0; }
     else if (m === 'garnish') { label = this.needGarnish.length ? `Faltan ${this.needGarnish.length}` : 'Listo'; disabled = this.needGarnish.length > 0; }
     else if (m === 'plate') { const left = this.pieces.filter((p) => !p.plated).length; label = left ? `Faltan ${left} piezas` : 'Servir'; disabled = left > 0; }
+    else if (m === 'wait' && this.host) label = this.waitItem === 'rice' ? 'Ir a la olla' : 'Ir a la plancha';
     else show = false;
     this.actionBtn.style.display = show ? '' : 'none'; this.actionBtn.textContent = label; this.actionBtn.disabled = disabled;
   }
 
   private onAction() {
     if (this.done) return;
-    if (this.mode === 'rice') { const st = riceStats(this.mask); if (st.ok) this.finishRice(); }
+    if (this.mode === 'wait') this.host?.goGrill();
+    else if (this.mode === 'rice') { const st = riceStats(this.mask); if (st.ok) this.finishRice(); }
     else if (this.mode === 'flip') this.flip();
     else if (this.mode === 'place' && !this.needPlace.length) this.finishPlace();
     else if (this.mode === 'garnish' && !this.needGarnish.length) { this.nextStep(); }
@@ -641,8 +660,8 @@ export class KitchenBoard {
       if (p.hold >= 0.7) { p.molded = true; p.hold = 0; this.sfx('place'); this.puff(p.x, p.y, '#fbf7ee', 6); this.prec.push(0.9); if (this.pieces.filter((q) => q.molded).length >= this.needShape) this.later(0.5, () => this.nextStep()); }
     }
     if (this.mode === 'wait') {
-      const s = this.step; const st = s?.t === 'cook' ? this.host?.status(this, s.item) : null;
-      this.say(st ? st.text : 'Esto se cocina en la plancha. Ponelo allá y volvé cuando esté en su punto.');
+      const st = this.waitItem ? this.host?.status(this, this.waitItem) : null;
+      this.say(st ? st.text : this.waitItem === 'rice' ? 'Falta el arroz: ponelo en la olla.' : 'Esto se cocina en la plancha. Ponelo allá y volvé cuando esté en su punto.');
     }
     for (const b of this.bits) { b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt; b.vy += 120 * dt; }
     this.bits = this.bits.filter((b) => b.t < 0.7);
@@ -821,8 +840,9 @@ export class KitchenBoard {
 
   private drawWait(g: G) {
     const cx = this.W / 2, cy = this.mat.y + this.mat.h / 2;
-    kitchenOval(g, cx, cy + 6, 40, 14, '#2b2b2b'); kitchenOval(g, cx, cy + 3, 38, 12, '#4a4a4a'); kitchenOval(g, cx, cy + 2, 32, 9, '#1f1f1f');
-    const s = this.step; const st = s?.t === 'cook' ? this.host?.status(this, s.item) : null;
+    if (this.waitItem === 'rice') { kitchenOval(g, cx, cy + 8, 30, 12, '#3a3a3f'); rect(g, cx - 30, cy - 12, 60, 20, '#8e9aa3'); rect(g, cx - 30, cy - 12, 60, 3, '#c7d2d8'); kitchenOval(g, cx, cy - 12, 30, 7, '#b4bec5'); kitchenOval(g, cx, cy - 13, 27, 5, '#ede7d4'); rect(g, cx - 40, cy - 6, 10, 3, '#5b4636'); rect(g, cx + 30, cy - 6, 10, 3, '#5b4636'); }
+    else { kitchenOval(g, cx, cy + 6, 40, 14, '#2b2b2b'); kitchenOval(g, cx, cy + 3, 38, 12, '#4a4a4a'); kitchenOval(g, cx, cy + 2, 32, 9, '#1f1f1f'); }
+    const st = this.waitItem ? this.host?.status(this, this.waitItem) : null;
     if (st) { rect(g, cx - 30, cy + 26, 60, 4, '#2b2236'); rect(g, cx - 29, cy + 27, Math.round(58 * Math.max(0, Math.min(1, st.p))), 2, '#ffd36b'); }
   }
 

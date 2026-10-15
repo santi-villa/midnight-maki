@@ -986,6 +986,9 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .gr-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 @media (max-width: 640px) { .gr-board { grid-template-columns: repeat(2, 1fr); } }
 .gr-slot { font: inherit; background: #2a2530; border: 4px solid var(--wood-dark); border-radius: 12px; padding: 6px; cursor: pointer; color: var(--cream); display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 120px; }
+.gr-slot.gr-pot { width: 100%; min-height: 0; flex-direction: row; justify-content: center; gap: 14px; padding: 4px 10px; }
+.gr-slot.gr-pot canvas { width: 192px; max-width: 45%; aspect-ratio: 128 / 56; }
+.gr-pot .gr-label { text-align: left; }
 .gr-slot canvas { width: 100%; max-width: 256px; aspect-ratio: 64 / 56; image-rendering: pixelated; }
 .gr-slot[data-zone="ready"] { border-color: #7fb35f; box-shadow: 0 0 10px #7fb35f88; }
 .gr-slot[data-zone="over"] { border-color: #e6892f; }
