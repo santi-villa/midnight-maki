@@ -8,6 +8,8 @@ export interface PropDef {
   sw: number; // sprite width px
   sh: number; // sprite height px
   solid: boolean;
+  /** Flat scenery under actors; it does not cast a standing object's shadow. */
+  ground?: boolean;
   variant?: number;
   light?: string;
   /** look of the restaurant facade: 0 inherited .. 3 heart of the village (see restaurant/stages.ts) */
@@ -110,13 +112,19 @@ export const PROPS: Record<string, PropDef> = {
   mechanism: P('mechanism', 3, 1, 48, 44),
   // buildings (variant selects details)
   bld_restaurant: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI' }),
-  bld_restaurant_s0: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI', stage: 0 }),
-  bld_restaurant_s1: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI', stage: 1 }),
-  bld_restaurant_s2: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI', stage: 2 }),
-  bld_restaurant_s3: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI', stage: 3 }),
+  bld_restaurant_s0: P('building', 7, 3, 112, 112, '#e4d3b3', '#3e5362', { variant: 0, label: 'MIDNIGHT MAKI', stage: 0 }),
+  bld_restaurant_s1: P('building', 7, 3, 112, 112, '#f0dfc0', '#3e5362', { variant: 0, label: 'MIDNIGHT MAKI', stage: 1 }),
+  bld_restaurant_s2: P('building', 7, 3, 112, 112, '#f0dfc0', '#3e5362', { variant: 0, label: 'MIDNIGHT MAKI', stage: 2 }),
+  bld_restaurant_s3: P('building', 7, 3, 112, 112, '#f0dfc0', '#3e5362', { variant: 0, label: 'MIDNIGHT MAKI', stage: 3 }),
   bld_clothes: P('building', 6, 3, 96, 80, '#f6e2d6', '#c25a6a', { variant: 1, label: 'ROPA DE YUKI' }),
-  bld_store: P('building', 6, 3, 96, 80, '#f3e3c3', '#2f6b4f', { variant: 6, label: 'ALMACÉN DE TARO' }),
-  bld_bakery: P('building', 6, 3, 96, 80, '#f6e8cc', '#b0533f', { variant: 7, label: 'PANADERÍA' }),
+  bld_store: P('building', 6, 3, 96, 96, '#e7dfc6', '#4c6a57', { variant: 20, label: 'ALMACÉN DE TARO' }),
+  bld_bakery: P('building', 6, 3, 96, 96, '#f0dfbd', '#a06b57', { variant: 21, label: 'PANADERÍA' }),
+  village_bridge: P('village_deck', 4, 2, 64, 32, '', '', { solid: false, ground: true }),
+  village_pier_e: P('village_deck', 7, 2, 112, 32, '', '', { solid: false, ground: true }),
+  village_pier_n: P('village_deck', 2, 5, 32, 80, '', '', { variant: 1, solid: false, ground: true }),
+  village_bank_w: P('village_bank', 1, 1, 16, 16, '', '', { solid: false, ground: true }),
+  village_bank_e: P('village_bank', 1, 1, 16, 16, '', '', { variant: 1, solid: false, ground: true }),
+  village_net: P('village_net', 2, 1, 32, 16, '', '', { solid: false, ground: true }),
   bld_library: P('building', 6, 3, 96, 80, '#ece2f2', '#45507f', { variant: 4, label: 'BIBLIOTECA' }),
   bld_house: P('building', 5, 3, 80, 72, '#f3e3c3', '#2f6b4f', { variant: 2 }),
   bld_cabin: P('building', 5, 3, 80, 72, '#a8734d', '#4f6b52', { variant: 3 }),
