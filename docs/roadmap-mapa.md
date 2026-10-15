@@ -44,7 +44,7 @@ Los costados de cada salida están cerrados con árboles, rocas o piedras, para 
 `src/tests/zones.test.ts` recorre todas las zonas al aire libre: puertas, interacciones y recolecciones alcanzables, props sólidos sin superponerse ni caer al agua, y que cada camino cerrado de la plaza esté realmente cerrado hasta que se pone su bandera.
 
 ## Casas con entrada lateral
-- Las tres tiendas (Ropa de Yuki, Almacén de Taro, Panadería) ahora tienen la puerta en el costado, **en el mismo tile de siempre**, así que sus interiores, rutinas y misiones no cambian. Se dibujan con `townhouse` (oficios 4–6) y un cartel sobre la fachada.
+- La primera ampliación usó `townhouse` (oficios 4–6) en las tres tiendas, con la puerta en el costado y en el mismo tile de siempre. La muestra visual posterior reemplaza las fachadas de Bento y Taro por el kit descrito abajo; Yuki conserva `townhouse`. Interiores, rutinas y misiones mantienen sus destinos.
 - Las 16 casas del pueblo, la cala, el puerto, la ribera y el jardín este (`src/data/houses.ts`) se pueden **visitar por dentro**: cada una es una zona propia de 10×8, amueblada según el oficio (casa, casa de té, pescadería, florería), con textos para mirar (`note:in_*`). Siempre abiertas.
 
 ## Pendiente / ideas
@@ -59,3 +59,7 @@ Los costados de cada salida están cerrados con árboles, rocas o piedras, para 
 - **Frentes de negocio:** panadería (cajón, bolsa y maceta), almacén (bolsas y cajones), ropa (macetas), biblioteca (libros).
 - **Plaza:** flores sueltas y arbustos florecidos repartidos solo en pasto abierto (nunca junto a caminos, puertas ni otros objetos), siempre en los mismos lugares.
 - **Casas de costado (4.3):** `sidehouse` (`src/art/townart.ts`): la pared larga mira a la cámara bajo el tejado largo y en un extremo se ve el **hastial** con el tejado de perfil; la entrada está en ese extremo (puerta fuera de vista), marcada por farol, noren de canto, alero y un caminito empedrado de dos casilleros que llega hasta ella. Se usa en 10 casas: las 4 de la costa, las 2 del jardín y 4 de Villa Nori (`view: 'side'` en `src/data/houses.ts`); las demás siguen con su porche. La puerta queda en el casillero exterior del hastial (`houseDoorTile`).
+
+## Primera muestra de zonificación y kit visual
+
+El [plan de distribución de Villa Nori](villa-nori-distribucion.md) ubica el contenido actual por necesidades y documenta la muestra jugable: Midnight Maki en sus cuatro etapas, Bento, Taro, plaza más contenida, paseo comercial, puente, ribera y muelle. Se conservan las entradas y las huellas sólidas para mantener guardados y misiones. No se han trasladado todos los edificios ni rediseñado todas las regiones; la siguiente entrega requiere revisar primero el estilo de esta muestra.
