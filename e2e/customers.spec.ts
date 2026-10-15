@@ -22,8 +22,8 @@ test('customer sheets follow the shared layout plus eating frames', async ({ pag
   });
   expect(Object.keys(report)).toHaveLength(8);
   for (const [id, r] of Object.entries<any>(report)) {
-    expect([r.fw, r.fh, r.count], id).toEqual([28, 40, 35]);
-    expect(r.w, id).toBe(28 * 35);
+    expect([r.fw, r.fh, r.count], id).toEqual([28, 40, 47]);
+    expect(r.w, id).toBe(28 * 47);
     expect(r.empty, id).toBe(0);
     expect(r.walkA, id).not.toBe(r.walkB);
     expect(r.left, id).not.toBe(r.right); // mirrored, so different pixels

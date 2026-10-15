@@ -316,7 +316,7 @@ const K: Record<string, DrawFn> = {
     for (const [sx, sy] of [[cx - 12, 4], [cx + 11, 7], [cx + 2, -1]]) px(c, sx, sy + 1, PAL.gold, 1, 1);
   },
   // ------------------------------------------------------------ furniture
-  table(c, W, H, c1, _c2, _rot, r) {
+  table(c, W, H, c1, _c2, _rot) {
     const o = '#2b1d17';
     const top = shade(c1, 0.14);
     const legH = H > 18 ? 7 : 4;
@@ -331,13 +331,21 @@ const K: Record<string, DrawFn> = {
     px(c, 1, H - legH - 8, shade(top, 0.18), W - 2, 1);
     px(c, 1, H - legH - 2, shade(c1, -0.25), W - 2, 2);
     for (let x = 6; x < W - 4; x += 9) px(c, x, H - legH - 6, shade(top, -0.06), 5, 1);
-    // little table setting: soy bottle and a tea cup
+    // table setting: a placemat with chopsticks for each side, soy sauce and a tea cup in the middle
     if (W >= 28) {
-      const sx = 4 + Math.floor(r() * 6);
+      const ty = H - legH - 7;
+      for (const mx of [3, W - 11]) {
+        px(c, mx, ty, '#f2e9d4', 8, 4);
+        px(c, mx, ty, '#ffffff', 8, 1);
+        px(c, mx, ty + 3, '#cdbf9f', 8, 1);
+        px(c, mx + 2, ty + 1, '#8a3a2e', 4, 1);
+        px(c, mx + 2, ty + 2, '#5a4a3a', 4, 1);
+      }
+      const sx = Math.floor(W / 2) - 4;
       px(c, sx, H - legH - 12, o, 3, 5);
       px(c, sx + 1, H - legH - 11, '#7a3a2a', 1, 3);
       px(c, sx + 1, H - legH - 13, '#c94a3f', 1, 1);
-      const cx = W - 10;
+      const cx = Math.floor(W / 2) + 2;
       px(c, cx, H - legH - 10, o, 4, 3);
       px(c, cx + 1, H - legH - 10, '#9bb59a', 2, 2);
     }

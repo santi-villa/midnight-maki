@@ -67,7 +67,21 @@ function roundEar(b: PixBuf, x: number, y: number, s: CustomerStyle, large = fal
   b.ellipse(x, y - 1, large ? 2 : 1, large ? 2 : 1, s.light);
 }
 
-function head(s: CustomerStyle, side: boolean, blink: boolean, chew = false) {
+/** Seen from behind there is no face: the front drawing is covered with the fur (or mane) of the back of the head. */
+function backOfHead(b: PixBuf, s: CustomerStyle, cx: number) {
+  const fur = s.id === 'leo' ? '#795031' : s.fur;
+  const dims: Record<CustomerId, [number, number, number, number]> = {
+    oli: [13, 8, 7, 0], toby: [14, 7, 7, 0], fredi: [13, 8, 6, 0], pipo: [14, 8, 9, 0], po: [13, 7, 7, 0],
+    gigi: [12, 6, 6, 0], nico: [14, 7, 7, 0], leo: [14, 7, 7, 0],
+  };
+  const [cy, rx, ry] = dims[s.id];
+  b.ellipse(cx, cy, rx, ry, fur);
+  if (s.id === 'nico') { b.rect(cx - 5, 8, 10, 13, fur); b.rect(cx - 7, 10, 14, 9, fur); }
+  b.hline(cx - 3, cy - ry + 1, 7, s.id === 'leo' ? '#9c6936' : s.light);
+  b.hline(cx - 4, cy + ry - 2, 9, s.id === 'leo' ? '#64432d' : s.shade);
+}
+
+function head(s: CustomerStyle, side: boolean, blink: boolean, chew = false, back = false) {
   const b = new PixBuf(CUSTOMER_W, 26);
   const cx = side ? 14 : 13;
   const muzzleX = side ? 20 : 13;
@@ -186,6 +200,7 @@ function head(s: CustomerStyle, side: boolean, blink: boolean, chew = false) {
       b.set(muzzleX - 1, 19, s.shade).set(muzzleX + 1, 19, s.shade);
       break;
   }
+  if (back) backOfHead(b, s, cx);
   if (chew) b.hline(muzzleX, s.id === 'gigi' ? 19 : 20, 2, OUT);
   return b.outline(OUT);
 }
@@ -197,12 +212,15 @@ interface Pose {
   seated?: boolean;
   breath?: boolean;
   bite?: number;
+  /** seen from behind (sitting with their back to the camera) */
+  back?: boolean;
 }
 
 function customerFrame(s: CustomerStyle, p: Pose = {}) {
   const b = new PixBuf(CUSTOMER_W, CUSTOMER_H);
   const side = p.side ?? false;
   const seated = p.seated ?? false;
+  const back = p.back ?? false;
   const penguin = s.id === 'pipo';
   const giraffe = s.id === 'gigi';
   const step = p.step;
@@ -224,7 +242,16 @@ function customerFrame(s: CustomerStyle, p: Pose = {}) {
 
   // Rodillas hacia delante al sentarse. Los pies conservan el mismo apoyo.
   const legColor = penguin || s.id === 'leo' || giraffe ? s.fur : s.id === 'oli' ? s.shirt : INK;
-  if (seated) {
+  if (seated && back) {
+    // the chair hides the legs from behind
+  } else if (seated && !side) {
+    // facing the camera: thighs forward, then the lower legs and shoes
+    for (const lx of [x - 5, x + 2]) {
+      body.rect(lx, 33, 4, 3, legColor);
+      body.rect(lx, 36, 4, 2, legColor);
+      body.hline(lx - 1, 38, 6, penguin ? '#d79544' : SHOE);
+    }
+  } else if (seated) {
     body.rect(x - 4, 33, 13, 3, legColor);
     body.rect(x + 6, 35, 3, 3, legColor).rect(x + 1, 35, 3, 3, legColor);
     body.hline(x + 6, 38, 5, penguin ? '#d79544' : SHOE);
@@ -246,7 +273,10 @@ function customerFrame(s: CustomerStyle, p: Pose = {}) {
   body.vline(x - 4, top + 2, seated ? 4 : 7, penguin ? s.light : s.shirtLight);
   body.vline(x + 5, top + 2, seated ? 4 : 7, penguin ? s.shade : s.shirtShade);
 
-  if (s.id === 'oli') {
+  if (back) {
+    if (giraffe) body.rect(x - 1, y - 3, 3, 7, s.fur);
+    body.hline(x - 4, top + (seated ? 4 : 6), 9, penguin ? s.shade : s.shirtShade);
+  } else if (s.id === 'oli') {
     body.hline(x - 5, top, 11, '#e5bf59');
     body.rect(x - 4, top, 2, 5, s.shirtLight).rect(x + 3, top, 2, 5, s.shirtLight);
     body.set(x - 3, top + 4, '#f0d785').set(x + 3, top + 4, '#f0d785');
@@ -283,7 +313,12 @@ function customerFrame(s: CustomerStyle, p: Pose = {}) {
   // Brazos alternados al caminar; manos cerca de la boca solamente al comer.
   const armShift = step === 0 ? 1 : step === 2 ? -1 : 0;
   const hand = penguin || s.id === 'po' ? INK : s.fur;
-  if (!side) {
+  if (back) {
+    // elbows out to the table: the right one lifts a little with each bite
+    const lift = p.bite === 1 || p.bite === 2 ? 2 : p.bite === 0 || p.bite === 3 ? 1 : 0;
+    body.rect(x - 7, top + 1, 2, 5, s.id === 'oli' ? '#e5bf59' : penguin ? s.fur : s.shirt);
+    body.rect(x + 6, top + 1 - lift, 2, 5, s.id === 'oli' ? '#e5bf59' : penguin ? s.fur : s.shirt);
+  } else if (!side) {
     for (const ax of [x - 7, x + 6]) {
       body.rect(ax, top + 2, 2, 5, s.id === 'oli' ? '#e5bf59' : penguin ? s.fur : s.shirt);
       body.rect(ax, top + 7, 2, 3, hand).set(ax, top + 7, s.light);
@@ -295,9 +330,9 @@ function customerFrame(s: CustomerStyle, p: Pose = {}) {
   body.outline(OUT);
   b.blit(body, 0, 0);
   const headY = (seated ? 5 : 0) + bob;
-  b.blit(head(s, side, p.blink ?? false, p.bite === 2), 0, headY);
+  b.blit(head(s, side, p.blink ?? false, p.bite === 2, back), 0, headY);
 
-  if (p.bite !== undefined) {
+  if (p.bite !== undefined && !back) {
     // Pequeño pan: levantar, morder, masticar, bajar. Sin mesa ni silla dibujadas.
     const foodY = headY + (p.bite === 0 || p.bite === 3 ? 22 : 19);
     const food = new PixBuf(CUSTOMER_W, CUSTOMER_H);
@@ -326,5 +361,13 @@ export function buildCustomerFrames(id: CustomerId): PixBuf[] {
     customerFrame(s, { side: true, seated: true }),
     customerFrame(s, { side: true, seated: true, breath: true, blink: true }),
     ...[0, 1, 2, 3].map((bite) => customerFrame(s, { side: true, seated: true, bite, blink: bite === 2 })),
+    // 14..19: sitting facing the camera (rest, breathe, eat x4)
+    customerFrame(s, { seated: true }),
+    customerFrame(s, { seated: true, breath: true, blink: true }),
+    ...[0, 1, 2, 3].map((bite) => customerFrame(s, { seated: true, bite, blink: bite === 2 })),
+    // 20..25: sitting with their back to the camera
+    customerFrame(s, { seated: true, back: true }),
+    customerFrame(s, { seated: true, back: true, breath: true }),
+    ...[0, 1, 2, 3].map((bite) => customerFrame(s, { seated: true, back: true, bite })),
   ];
 }
