@@ -5,7 +5,7 @@
 import type { Dir } from '../core/types';
 import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import { plaza } from './plazaMap';
-import { houseDoorDef, housePropId, housesIn, houseZones } from './houses';
+import { houseDoorDef, houseEntrancePaths, housePropId, housesIn, houseZones } from './houses';
 export { Builder, treeBorder, zone, RESTAURANT_ENTRY };
 
 export interface PropPlace { id: string; x: number; y: number; cond?: string; }
@@ -227,6 +227,7 @@ function beach(): ZoneDef {
     .prop('puddle', 12, 9, 'rain');
   // east cove: shacks with their door on the side, boats pulled up on the sand, nets and rocks
   for (const h of housesIn('beach')) b.prop(housePropId(h), h.x, h.y);
+  houseEntrancePaths(b, 'beach');
   b.prop('boat', 31, 14).prop('boat', 44, 13).prop('bigrock', 36, 14).prop('bigrock', 42, 15).prop('rock', 46, 12).prop('rock', 33, 13).prop('stump', 30, 13)
     .prop('crate', 37, 13).prop('barrel', 38, 13).prop('sack', 39, 11).prop('lanternstring', 34, 12).prop('lanternstring', 41, 12)
     .prop('lamppost', 31, 8).prop('lamppost', 44, 8).prop('lamppost', 37, 8).prop('lantern_cream', 37, 12).prop('lantern_cream', 40, 12)
@@ -359,6 +360,7 @@ function garden(): ZoneDef {
     .prop('puddle', 7, 11, 'rain');
   // eastern garden: a tea house with its door on the side, wisteria lanterns and an orchard of cherry trees
   for (const h of housesIn('garden')) b.prop(housePropId(h), h.x, h.y);
+  houseEntrancePaths(b, 'garden');
   const orchard: [number, number][] = [[3, 21], [6, 22], [9, 21], [13, 22], [16, 21], [19, 22], [4, 24], [8, 24], [12, 24], [17, 24], [22, 22], [23, 19]];
   for (const [x, y] of orchard) b.prop('sakura', x, y);
   b.prop('stonelantern', 29, 15).prop('stonelantern', 32, 15).prop('stonelantern', 29, 24).prop('stonelantern', 32, 24)

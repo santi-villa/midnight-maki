@@ -247,6 +247,84 @@ export const TOWN_KINDS: Record<string, DrawFn> = {
   },
 
   /**
+   * A house seen from the SIDE: the long wall faces us with its shuttered windows under the long roof, and at one end
+   * the gable shows the roof in profile. The entrance is on that gable end, round the corner: a small porch roof, a
+   * lantern and a noren edge-on tell where to go. `rot` bit 0 = 0 gable on the left, 1 on the right; `rot >> 1` picks
+   * the trade (0 home, 1 tea, 2 fish, 3 flower). c1 = walls, c2 = roof.
+   */
+  sidehouse(c, W, H, c1, c2, rot, r) {
+    const right = (rot & 1) === 1;
+    const kind = rot >> 1;
+    const endW = 30;
+    const gx = right ? W - endW : 0; // gable end (narrow face)
+    const lx = right ? 0 : endW - 2; // long wall
+    const lw = W - endW + 2;
+    const eaveY = 40;
+    const wood = '#a8714a';
+    // ---- long wall
+    px(c, lx + 1, eaveY, INK, lw - 2, H - eaveY - 3);
+    px(c, lx + 2, eaveY, c1, lw - 4, H - eaveY - 4);
+    px(c, lx + 2, eaveY, shade(c1, -0.2), lw - 4, 3);
+    for (let x = lx + 8; x < lx + lw - 6; x += 14) px(c, x, eaveY + 3, shade(c1, -0.3), 2, H - eaveY - 8);
+    px(c, lx + 2, H - 12, shade(c1, -0.2), lw - 4, 1);
+    px(c, lx + 2, H - 6, '#6f6a72', lw - 4, 3);
+    for (let x = lx + 3; x < lx + lw - 3; x += 5) px(c, x, H - 6, shade('#6f6a72', 0.3), 4, 1);
+    // shuttered windows
+    const wins = [lx + Math.floor(lw * 0.22), lx + Math.floor(lw * 0.62)];
+    for (const wx of wins) {
+      const wy = eaveY + 9;
+      px(c, wx - 1, wy - 1, INK, 16, 17);
+      px(c, wx, wy, kind === 1 ? '#f7dc8f' : '#f0d894', 14, 15);
+      px(c, wx, wy, '#fff0be', 5, 2);
+      for (let i = 3; i < 14; i += 3) px(c, wx + i, wy, '#7a4a2f', 1, 15);
+      px(c, wx, wy + 7, '#7a4a2f', 14, 1);
+      px(c, wx - 3, wy - 1, '#7a4a2f', 3, 16); px(c, wx + 14, wy - 1, '#7a4a2f', 3, 16); // open shutters
+      px(c, wx - 2, wy + 15, wood, 18, 2);
+      if (kind === 3) for (let i = 0; i < 3; i++) { ellipse(c, wx + 3 + i * 4, wy + 14, 2, 1.5, '#5f8a47'); px(c, wx + 2 + i * 4, wy + 12, ['#f4a6c0', '#ffd36a', '#b9a0ec'][i], 2, 2); }
+    }
+    // ---- long roof (a plane seen from the front), with overhang
+    tiles(c, lx - 2, 10, lw + 4, eaveY - 8, c2);
+    px(c, lx - 2, 8, shade(c2, -0.6), lw + 4, 3);
+    px(c, lx - 2, eaveY - 1, shade(c2, -0.6), lw + 4, 3);
+    // ---- gable end: wall below, roof in profile above
+    px(c, gx + 1, eaveY, INK, endW - 2, H - eaveY - 3);
+    px(c, gx + 2, eaveY, shade(c1, 0.04), endW - 4, H - eaveY - 4);
+    for (let y = eaveY + 3; y < H - 8; y += 4) px(c, gx + 2, y, shade(c1, -0.12), endW - 4, 1);
+    px(c, gx + 2, H - 6, '#6f6a72', endW - 4, 3);
+    const cx = gx + endW / 2;
+    const apex = 4;
+    for (let y = apex; y < eaveY; y++) {
+      const half = Math.round(((y - apex + 1) / (eaveY - apex)) * (endW / 2));
+      px(c, cx - half, y, INK, half * 2, 1);
+      if (half > 2) px(c, cx - half + 1, y, y % 3 === 2 ? shade(c2, -0.3) : c2, half * 2 - 2, 1);
+      if (half > 4 && y % 3 !== 2) px(c, cx - half + 2 + (y % 2) * 3, y, shade(c2, 0.2), 3, 1);
+    }
+    // barge boards along the slopes
+    for (let y = apex; y < eaveY; y++) {
+      const half = Math.round(((y - apex + 1) / (eaveY - apex)) * (endW / 2));
+      px(c, cx - half, y, shade(c2, -0.55), 2, 1); px(c, cx + half - 2, y, shade(c2, -0.55), 2, 1);
+    }
+    // round attic window in the gable
+    ellipse(c, cx, eaveY - 9, 4, 4, INK); ellipse(c, cx, eaveY - 9, 3, 3, kind === 1 ? '#f7dc8f' : '#e8d9a8');
+    px(c, cx - 3, eaveY - 9, '#7a4a2f', 6, 1); px(c, cx, eaveY - 12, '#7a4a2f', 1, 6);
+    // ---- the entrance is round the corner: porch roof, lantern and noren edge-on
+    const nearEdge = right ? gx + endW - 5 : gx + 2;
+    px(c, nearEdge - (right ? 7 : 0), eaveY + 6, INK, 12, 3);
+    px(c, nearEdge - (right ? 6 : -1), eaveY + 7, shade(c2, 0.05), 10, 1);
+    const norenCol = kind === 1 ? '#b8524f' : kind === 2 ? '#2f4f7a' : kind === 3 ? '#d9a3a6' : '#3b4470';
+    px(c, right ? gx + endW - 4 : gx + 3, eaveY + 9, norenCol, 2, 12); // the noren seen from its edge
+    px(c, right ? gx + endW - 4 : gx + 3, eaveY + 9, shade(norenCol, 0.3), 2, 1);
+    lantern(c, right ? gx + endW - 10 : gx + 9, eaveY + 11, kind === 1 ? '#d9675f' : '#f3e6c8');
+    px(c, right ? gx + endW - 7 : gx + 2, H - 8, '#c6c2cc', 5, 2); // doorstep
+    // ---- trade details on the long wall
+    const sx = lx + Math.floor(lw * 0.40);
+    if (kind === 1) { px(c, sx, eaveY + 3, INK, 14, 8); px(c, sx + 1, eaveY + 4, '#f6ecd6', 12, 6); for (let i = 0; i < 3; i++) px(c, sx + 3 + i * 4, eaveY + 6, '#b2585e', 2, 2); }
+    else if (kind === 2) { for (let i = 0; i < 3; i++) { px(c, sx - 4 + i * 8, H - 16, INK, 7, 9); px(c, sx - 3 + i * 8, H - 15, '#c48d5e', 5, 7); px(c, sx - 2 + i * 8, H - 18, '#8fb7d6', 3, 2); } }
+    else if (kind === 0) { px(c, sx + 2, H - 15, INK, 10, 10); px(c, sx + 3, H - 14, '#8a5a3c', 8, 8); for (let i = 0; i < 4; i++) px(c, sx + 16 + i * 2, H - 8 - i, '#5f8a47', 2, 2); }
+    void r;
+  },
+
+  /**
    * A townhouse seen from the front with its entrance on one SIDE: a lower porch (genkan) sticks out to the left
    * (`rot` bit 0 = 0) or right (1), with its own door, noren, lantern and steps. `rot >> 1` picks the trade:
    * 0 plain home, 1 tea house, 2 fishmonger, 3 flower shop. c1 = walls, c2 = roof.

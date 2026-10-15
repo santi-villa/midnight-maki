@@ -5,7 +5,7 @@
  */
 import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import type { DoorDef, InteractDef, ZoneDef } from './zones';
-import { houseDoorDef, housePropId, housesIn } from './houses';
+import { houseDoorDef, houseEntrancePaths, housePropId, housesIn } from './houses';
 import { PROPS } from './props';
 
 export const PLAZA_SIZE = { w: 58, h: 44 } as const;
@@ -160,6 +160,7 @@ export function plaza(): ZoneDef {
 
   // ---------------------------------------------------------------- side-entrance houses
   for (const h of housesIn('plaza')) b.prop(housePropId(h), h.x, h.y);
+  houseEntrancePaths(b, 'plaza');
   // lane details
   for (const x of [6, 13, 19, 25, 34]) b.prop('lamppost', x, 30);
   for (const x of [4, 12, 21, 27]) b.prop('lamppost', x, 39);
