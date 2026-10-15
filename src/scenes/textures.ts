@@ -7,6 +7,7 @@ import { buildFolkSheet, FOLK_PAD } from '../art/folk';
 import { heroSheet, isHeroLook } from '../art/heroRender';
 import { buildingLayout } from '../art/nature';
 import { villageShopLayout } from '../art/village';
+import { homeLayout } from '../art/homes';
 import { buildCustomerSheet } from '../art/customerSheet';
 import type { CustomerId } from '../art/customers';
 import { FOLK_SPECS } from '../data/folkSpecs';
@@ -81,11 +82,11 @@ export function customerTexture(scene: Phaser.Scene, id: CustomerId): string {
   return key;
 }
 
-export function propTexture(scene: Phaser.Scene, key: string): string {
-  const k = 'pr_' + key;
+export function propTexture(scene: Phaser.Scene, key: string, closed = false): string {
+  const k = 'pr_' + key + (closed ? '_closed' : '');
   if (!scene.textures.exists(k)) {
     const d = PROPS[key];
-    scene.textures.addCanvas(k, drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage));
+    scene.textures.addCanvas(k, drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
   }
   return k;
 }
@@ -143,11 +144,26 @@ export function lightTexture(scene: Phaser.Scene): string {
  * Warm window panes (and, for the restaurant, its door) of a building sprite, as an overlay that is added on top at night.
  * Built once per building size and variant, from the same layout the sprite itself was drawn with.
  */
-export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot: number, door: boolean): string {
-  const key = `winglow_${W}x${H}_${rot}_${door ? 'd' : 'w'}`;
+export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot: number, door: boolean, home?: 'front' | 'side'): string {
+  const key = `winglow_${W}x${H}_${rot}_${door ? 'd' : 'w'}${home ? '_' + home : ''}`;
   if (scene.textures.exists(key)) return key;
   const c = makeCanvas(W, H);
   const g = ctx2d(c);
+  if (home) {
+    // a house: warm panes, the light through the glass of the door and the lantern beside it
+    const L = homeLayout(W, H, rot, home === 'side');
+    for (const w of L.windows) {
+      px(g, w.x, w.y, '#ffb855', w.w, w.h);
+      px(g, w.x, w.y, '#ffe2a0', Math.floor(w.w / 2), 3);
+      if (L.trade === 1) { for (let i = 4; i < w.w; i += 4) px(g, w.x + i, w.y, '#b8661e', 1, w.h); for (let j = 4; j < w.h; j += 5) px(g, w.x, w.y + j, '#b8661e', w.w, 1); }
+      else { px(g, w.x + Math.floor(w.w / 2), w.y, '#b8661e', 1, w.h); px(g, w.x, w.y + Math.floor(w.h / 2), '#cf7a26', w.w, 1); }
+    }
+    px(g, L.door.x + 2, L.door.y + 3, '#ffcf80', L.door.w - 4, 7);
+    const lx = L.right ? L.door.x - 9 : L.door.x + L.door.w + 9;
+    px(g, lx - 1, L.door.y - 2, '#ffe9b0', 3, 6);
+    scene.textures.addCanvas(key, c);
+    return key;
+  }
   const L = rot >= 20 && rot <= 23 ? villageShopLayout(W, H, rot) : buildingLayout(W, H);
   if (door) {
     // the noren doorway: an orange wash with a brighter slit

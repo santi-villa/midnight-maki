@@ -61,7 +61,7 @@ export function villageShopLayout(W: number, H: number, variant: number) {
 }
 
 /** Specialised frontages retain the saved street doorway: restaurant centre, Taro right, Bento left. */
-export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: number, stage: number, plaster: string, tiles: string) {
+export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: number, stage: number, plaster: string, tiles: string, closed = false) {
   const maki = variant === 0, baker = variant === 21, tailor = variant === 22, library = variant === 23;
   const L = maki ? buildingLayout(W, H) : villageShopLayout(W, H, variant);
   const wall = L.wallY, floor = H - 5, side = W - 10;
@@ -79,14 +79,8 @@ export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: numbe
   roof(c, W, 5, wall - 2, tiles, maki && stage === 0);
   // Raised ridge details keep the three roof silhouettes distinct at gameplay zoom.
   if (maki) {
-    const ax = Math.floor(W / 2);
-    for (let y = 18; y < 33; y++) {
-      const half = Math.min(12, y - 17);
-      px(c, ax - half, y, DARK, half * 2 + 1, 1);
-      if (half > 2) px(c, ax - half + 2, y, '#bfae8b', half * 2 - 3, 1);
-    }
-    window(c, ax - 4, 27, 8, 7, true);
-    px(c, ax - 13, 32, DARK, 27, 2); px(c, ax - 12, 32, LIGHT, 25, 1);
+    // a pair of ridge-end ornaments (onigawara) instead of an attic window
+    for (const x of [13, W - 20]) { px(c, x, 2, INK, 7, 6); px(c, x + 1, 3, '#7f8da0', 5, 4); px(c, x + 2, 1, INK, 3, 2); }
   } else if (baker) {
     rect(c, W - 26, 2, 9, 15, '#ad8571');
     for (let y = 4; y < 16; y += 3) px(c, W - 24, y, '#dfb99a', 6, 1);
@@ -96,16 +90,33 @@ export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: numbe
   }
   // Recessed entry, visible threshold and a short stone step aligned with the walk-through tile.
   rect(c, L.dx - 2, L.doorY - 2, L.doorW + 4, L.doorH + 4, DARK);
-  px(c, L.dx + 1, L.doorY + 1, '#362a30', L.doorW - 2, L.doorH - 1);
-  for (let x = L.dx + 2; x < L.dx + L.doorW - 1; x += 4) px(c, x, L.doorY + 2, WOOD, 1, L.doorH - 3);
+  if (closed) {
+    // shut: planked door, iron strap and a small padlock
+    px(c, L.dx, L.doorY, '#7b5a40', L.doorW, L.doorH);
+    for (let x = L.dx + 3; x < L.dx + L.doorW; x += 4) px(c, x, L.doorY, '#5c4231', 1, L.doorH);
+    px(c, L.dx, L.doorY + 8, '#4a4448', L.doorW, 2);
+    px(c, L.dx + L.doorW - 5, L.doorY + 10, '#bda76a', 3, 4);
+  } else {
+    // open: a warm dim hall behind a half-drawn curtain
+    px(c, L.dx + 1, L.doorY + 1, '#362a30', L.doorW - 2, L.doorH - 1);
+    px(c, L.dx + 2, L.doorY + 8, '#8a5a38', L.doorW - 4, L.doorH - 9);
+    px(c, L.dx + 3, L.doorY + 12, '#c88a4a', L.doorW - 6, L.doorH - 13);
+    for (let x = L.dx + 2; x < L.dx + L.doorW - 1; x += 4) px(c, x, L.doorY + 2, WOOD, 1, 6);
+  }
   px(c, L.dx - 4, floor, '#928678', L.doorW + 8, 4);
   px(c, L.dx - 4, floor, '#c6b59a', L.doorW + 8, 1);
-  for (const win of L.windows) window(c, win.x, win.y, win.w, win.h, maki);
+  for (const win of L.windows) {
+    window(c, win.x, win.y, win.w, win.h, maki);
+    if (closed) {
+      px(c, win.x - 1, win.y - 1, INK, win.w + 2, win.h + 2); px(c, win.x, win.y, '#8a6444', win.w, win.h);
+      for (let y = win.y + 2; y < win.y + win.h; y += 3) { px(c, win.x, y, '#5c4231', win.w, 1); px(c, win.x, y - 1, '#a67a55', win.w, 1); }
+    }
+  }
   if (maki) {
     // Upper shoji, lower noren and the two familiar red lanterns remain in all four stages.
     px(c, 10, L.doorY - 8, DARK, W - 23, 4);
     px(c, 10, L.doorY - 8, LIGHT, W - 23, 1);
-    for (let i = 0; i < 3; i++) rect(c, L.dx - 2 + i * 6, L.doorY, 6, 7 + i % 2, stage === 0 ? '#626c84' : '#384969');
+    if (!closed) for (let i = 0; i < 3; i++) rect(c, L.dx - 2 + i * 6, L.doorY, 6, 7 + i % 2, stage === 0 ? '#626c84' : '#384969');
     lantern(c, 44, H - 24); lantern(c, 68, H - 24);
     // Clear restoration changes: patched boards, plants, balcony details and star trim.
     if (stage === 0) { px(c, 16, H - 22, '#726157', 13, 3); px(c, 20, H - 29, '#726157', 3, 15); }
@@ -117,12 +128,8 @@ export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: numbe
     if (stage >= 3) for (const x of [W / 2 - 6, W / 2, W / 2 + 6]) { px(c, x, 9, '#e5c175', 1, 5); px(c, x - 1, 11, '#e5c175', 3, 1); }
   } else if (library) {
     // A small civic library: gabled reading window, book return and carved shelf below it.
-    const cx = 24;
-    for (let y = 16; y < 31; y++) {
-      const h = Math.min(12, y - 15); px(c, cx - h, y, DARK, h * 2 + 1, 1);
-      if (h > 2) px(c, cx - h + 2, y, '#bfae8b', h * 2 - 3, 1);
-    }
-    window(c, cx - 4, 25, 8, 7, true);
+    // a clock on the ridge board instead of an attic window
+    ellipse(c, W - 22, 17, 6, 6, INK); ellipse(c, W - 22, 17, 5, 5, '#f1e4c1'); px(c, W - 22, 13, INK, 1, 5); px(c, W - 22, 17, INK, 3, 1);
     rect(c, 12, H - 20, 23, 12, WOOD);
     for (let i = 0; i < 6; i++) px(c, 14 + i * 3, H - 18 + i % 2, ['#678177', '#b77b6c', '#d7b36c'][i % 3], 2, 7 - i % 2);
     rect(c, W - 22, H - 18, 12, 11, '#708178'); px(c, W - 20, H - 15, INK, 8, 2);
@@ -131,18 +138,22 @@ export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: numbe
     const color = baker ? '#b77962' : tailor ? '#ba8498' : '#64826a';
     const sx = baker ? 40 : 8, width = baker ? 42 : 48, sy = L.windows[0].y - 5;
     // Small canvas awning, with wood supports instead of a flat rectangular facade.
-    for (let x = sx; x < sx + width; x += 6) {
+    if (closed) {
+      // awning rolled up against the wall
+      px(c, sx, sy, INK, width, 5); px(c, sx + 1, sy + 1, shade(color, -0.1), width - 2, 3); px(c, sx + 1, sy + 1, shade(color, 0.2), width - 2, 1);
+      for (let x = sx + 5; x < sx + width - 2; x += 9) px(c, x, sy, DARK, 1, 5);
+    } else for (let x = sx; x < sx + width; x += 6) {
       px(c, x, sy, Math.floor((x - sx) / 6) % 2 ? '#eddbc0' : color, 6, 5);
       px(c, x, sy + 5, DARK, 6, 1);
     }
     lantern(c, baker ? 35 : 84, L.doorY - 5, baker ? '#c78159' : '#aa6553');
     if (baker) {
-      for (let i = 0; i < 4; i++) { const x = 46 + i * 7; ellipse(c, x, L.windows[0].y + 9, 3, 2, '#b97b47'); px(c, x - 1, L.windows[0].y + 7, '#edc47e', 3, 1); }
+      if (!closed) for (let i = 0; i < 4; i++) { const x = 46 + i * 7; ellipse(c, x, L.windows[0].y + 9, 3, 2, '#b97b47'); px(c, x - 1, L.windows[0].y + 7, '#edc47e', 3, 1); }
       planter(c, 8, H - 10, true);
-      rect(c, W - 23, H - 17, 13, 10, '#a4754d'); px(c, W - 22, H - 14, '#e8c27e', 10, 3);
+      rect(c, W - 23, H - 17, 13, 10, '#a4754d'); px(c, W - 22, H - 14, closed ? '#e6dcc4' : '#e8c27e', 10, 3);
     } else if (tailor) {
       // Fabric rolls and a dress in the display make Yuki distinct from the grocer.
-      for (const win of L.windows) {
+      if (!closed) for (const win of L.windows) {
         px(c, win.x + 7, win.y + 2, '#f2d7b0', 3, 2);
         px(c, win.x + 5, win.y + 4, '#b77c99', 7, 4);
         px(c, win.x + 3, win.y + 8, '#d4a3b1', 11, 4);
@@ -151,7 +162,7 @@ export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: numbe
       planter(c, W - 18, H - 10, true);
     } else {
       for (const [x, col] of [[12, '#e8b35b'], [25, '#a1b56b'], [40, '#c97f65']] as const) {
-        rect(c, x, H - 15, 11, 8, WOOD); px(c, x + 2, H - 17, col, 7, 4);
+        rect(c, x, H - 15, 11, 8, WOOD); px(c, x + 2, H - 17, closed ? '#e6dcc4' : col, 7, closed ? 3 : 4);
       }
       px(c, 12, H - 10, LIGHT, 40, 1);
     }
