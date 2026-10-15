@@ -97,4 +97,18 @@ describe('colour helpers', () => {
     expect(mixHex(0x000000, 0xffffff, 0.5)).toBe(0x808080);
     expect(mulHex(0xffffff, 0x336699)).toBe(0x336699);
   });
+
+  it('never jumps when one period ends and the next begins (outside, in the rain and indoors)', () => {
+    const channel = (a: number, b: number) => Math.max(...[16, 8, 0].map((sh) => Math.abs(((a >> sh) & 255) - ((b >> sh) & 255))));
+    for (const [outdoor, rain] of [[true, false], [true, true], [false, false]] as const) {
+      for (let p = 0; p < 3; p++) {
+        const a = lightState({ period: p, prog: 1, outdoor, rain, season: 0 });
+        const b = lightState({ period: p + 1, prog: 0, outdoor, rain, season: 0 });
+        const label = `${outdoor ? 'out' : 'in'}${rain ? ' rain' : ''} ${p}->${p + 1}`;
+        expect(channel(a.tint, b.tint), label + ' tint').toBeLessThanOrEqual(6);
+        for (const key of ['lamp', 'windows', 'vig', 'moon'] as const) expect(Math.abs(a[key] - b[key]), `${label} ${key}`).toBeLessThanOrEqual(0.03);
+      }
+    }
+  });
 });
+
