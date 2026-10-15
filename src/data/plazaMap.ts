@@ -18,7 +18,10 @@ export function plaza(): ZoneDef {
   const b = new Builder(W, H, 'g');
 
   // ---------------------------------------------------------------- streets (old centre keeps its layout)
-  b.rect(9, 7, 14, 12, 'c'); // square
+  // A smaller civic square leaves green edges between the shops instead of one huge stone apron.
+  b.rect(11, 8, 10, 9, 'c');
+  b.rect(9, 11, 14, 3, 'c');
+  b.rect(15, 7, 2, 12, 'c');
   b.rect(3, 7, 7, 2, 'c'); // to the restaurant
   b.rect(15, 0, 2, 7, 'p'); // north
   b.rect(15, 19, 2, 24, 'p'); // south, all the way down to the harbour lanes and the beach
@@ -30,6 +33,8 @@ export function plaza(): ZoneDef {
   b.rect(4, 19, 2, 1, 'c');
   b.rect(4, 13, 2, 3, 'p');
   b.rect(10, 19, 3, 2, 'c');
+  b.rect(5, 20, 23, 2, 'p'); // daily shopping loop: Bento -> Taro, with the library just below
+  b.rect(26, 13, 2, 8, 'c'); // Taro's forecourt links directly to the river crossing
   b.rect(9, 9, 2, 1, 'r').rect(21, 9, 2, 1, 'y').rect(9, 16, 2, 1, 'l').rect(21, 16, 2, 1, 'r');
   b.rect(8, 25, 8, 1, 'p'); // library step
   // lanes of the harbour quarter
@@ -83,10 +88,10 @@ export function plaza(): ZoneDef {
     .prop('bamboo', 8, 5, 'stage>=3')
     .prop('bamboo', 1, 7, 'stage>=3')
     .prop('flowers', 6, 6, 'stage>=1')
-    // the three shops now have their door on the side, at the same tile as before
+    // All shop doors retain their original tiles; Bento and Taro use the new frontage kit.
     .prop('bld_th_clothes_r', 22, 4)
-    .prop('bld_th_store_r', 23, 16)
-    .prop('bld_th_bakery_l', 4, 16)
+    .prop('bld_store', 23, 16)
+    .prop('bld_bakery', 4, 16)
     .prop('bld_library', 8, 22)
     .prop('fountain', 14, 11)
     .prop('board', 11, 7)
@@ -139,6 +144,14 @@ export function plaza(): ZoneDef {
   wall('lamppost', [33, 11], [33, 14], [39, 11], [45, 18]);
   b.prop('bench', 31, 16).prop('flowers_lav', 34, 20).prop('flowers', 32, 21).prop('pot_cream', 33, 17);
   b.prop('sign_riverside', 33, 10);
+  // First river kit: a single coherent crossing and low stone edging on the accessible banks.
+  const crossing = riverX(12);
+  b.prop('village_bridge', crossing - 2, 12);
+  for (let y = 8; y <= 21; y++) {
+    if (y === 12 || y === 13) continue;
+    const cx = riverX(y);
+    b.prop('village_bank_w', cx - 3, y).prop('village_bank_e', cx + 2, y);
+  }
   // reeds along both banks
   for (const y of [4, 8, 17, 21, 25, 33]) { const cx = riverX(y); b.prop('reeds', cx - 3, y).prop('reeds', cx + 2, y + 1); }
 
@@ -174,6 +187,8 @@ export function plaza(): ZoneDef {
 
   // ---------------------------------------------------------------- harbour: bay, piers, boats, stalls
   b.prop('boat', 43, 40).prop('boat', 34, 42).prop('boat', 38, 38);
+  b.prop('village_pier_e', 30, 39).prop('village_pier_n', 36, 35);
+  b.prop('village_net', 30, 37);
   b.prop('crate', 30, 38).prop('barrel', 31, 38).prop('crate', 35, 35).prop('barrel', 35, 34).prop('sack', 29, 40).prop('lantern_cream', 36, 34).prop('lantern_cream', 37, 34);
   b.prop('stall_rose', 44, 34).prop('stall_sage', 49, 34).prop('crate', 48, 33).prop('barrel', 53, 34).prop('sack', 47, 34).prop('lantern_red', 44, 33).prop('lantern_red', 52, 33);
   wall('tree', [51, 37], [54, 38], [56, 41], [50, 41]);
