@@ -517,11 +517,32 @@ export function stagePlate(uid: number, quality: 0 | 1 | 2, variantBonus = 0, va
 }
 
 export function pickupPlate(uid: number): string {
+  if (game.save.orders.find(o => o.uid === uid)?.plate?.claim) return 'Alguien del personal ya lo está llevando.';
   if (carriedOrders().length >= carryCapacity(game.save)) return 'La bandeja está llena. Entregá un pedido o dejalo en la bandeja de salida.';
   const order = game.save.orders.find(o => o.uid === uid);
   if (!order?.plate || plateState(uid) !== 'plated') return 'Ese pedido todavía no está listo.';
   order.plate.state = 'carried'; persist(); game.touch('carry');
   return `Llevás ${servingName(order)} para ${customerName(order.customer)}.`;
+}
+/** Reserves a plate in the tray for an employee (null releases it). False when it is no longer available. */
+export function claimPlate(uid: number, empId: string | null): boolean {
+  const order = game.save.orders.find(o => o.uid === uid);
+  if (!order?.plate) return false;
+  if (empId === null) { delete order.plate.claim; return true; }
+  if (order.plate.claim && order.plate.claim !== empId) return false;
+  if (plateState(uid) !== 'plated') return false;
+  order.plate.claim = empId;
+  return true;
+}
+/** An employee serves the plate they claimed. Returns null on success or the reason it failed. */
+export function staffDeliver(uid: number, empId: string): string | null {
+  const order = game.save.orders.find(o => o.uid === uid);
+  if (!order?.plate || order.plate.claim !== empId || !order.service) return 'claim';
+  const party = salon?.party(order.service.partyId);
+  if (!party || party.phase !== 'waiting_food') return 'table';
+  if (!salon!.deliver(party.id, order.plate.quality, order.plate.variantBonus, order.uid)) return 'done';
+  order.plate.state = 'delivered'; delete order.plate.claim; persist(); game.touch('delivery');
+  return null;
 }
 export function returnPlate(uid?: number): string {
   const order = uid === undefined ? carriedOrder() : carriedOrders().find(o => o.uid === uid); if (!order?.plate) return 'No llevás ese pedido.';

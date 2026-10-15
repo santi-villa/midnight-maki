@@ -23,6 +23,7 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
+import { employees, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
 import { facingTable } from '../restaurant/seating';
 import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
@@ -32,7 +33,7 @@ import { type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, shopSignTexture } from './textures';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife } from '../systems/townLife';
@@ -327,7 +328,7 @@ export class WorldScene extends Phaser.Scene {
     this.gatherSprites = [];
     for (const b of this.bugs) b.sprite.destroy();
     this.bugs = [];
-    this.clearGuests();
+    this.clearGuests(); this.clearStaff();
     this.serviceArt?.destroy(); this.serviceArt = null;
     for (const sprite of this.carriedSprites) sprite.destroy(); this.carriedSprites = [];
     for (const c of this.critters) c.s.destroy();
@@ -650,6 +651,73 @@ export class WorldScene extends Phaser.Scene {
   private hostId: string | null = null;
   private hostWait = 0;
   private diningCache: FurnPiece[] | null = null;
+
+  // ------------------------------------------------------------------ staff (hired waiters)
+  private staffBodies = new Map<string, { actor: Actor; plate: Phaser.GameObjects.Image | null }>();
+
+  private clearStaff() {
+    for (const b of this.staffBodies.values()) { b.actor.destroy(); b.plate?.destroy(); }
+    this.staffBodies.clear();
+  }
+
+  private staffEnv(): StaffEnv {
+    const grid = this.zoneId === 'restaurant' ? this.zone.grid : this.town.grid('restaurant');
+    const near = (x: number, y: number) => (grid.isSolid(x, y) ? grid.nearestWalkable(x, y) : [x, y]) ?? [x, y];
+    return {
+      home: () => { const [x, y] = near(7, 6); return { x, y }; },
+      tray: () => { const [x, y] = near(6, 5); return { x, y }; },
+      tableSpots: (tableId) => {
+        const t = this.diningPieces().find((pc) => String(pc.uid) === tableId);
+        if (!t) return [];
+        const out: { x: number; y: number }[] = [];
+        for (let dy = -1; dy <= t.h; dy++) for (let dx = -1; dx <= t.w; dx++) {
+          const inside = dx >= 0 && dx < t.w && dy >= 0 && dy < t.h;
+          if (!inside && !grid.isSolid(t.x + dx, t.y + dy)) out.push({ x: t.x + dx, y: t.y + dy });
+        }
+        return out;
+      },
+      path: (a, b) => grid.path(a.x, a.y, b.x, b.y),
+    };
+  }
+
+  private updateStaff(dt: number) {
+    if (!game.has('intro_done') || !this.zone || this.transitioning || this.inputLocked || this.decorMode || clock.paused) return;
+    setTableNamer((id) => tableLabel(id));
+    tickStaff(dt, this.staffEnv());
+    const live = new Set<string>();
+    if (this.zoneId === 'restaurant') {
+      for (const e of employees()) {
+        const r = staffRuntime.get(e.id);
+        if (!r) continue;
+        live.add(e.id);
+        let body = this.staffBodies.get(e.id);
+        if (!body) {
+          const actor = new Actor(this, e.id, lookTexture(this, e.look), r.x, r.y);
+          actor.manual = true;
+          body = { actor, plate: null };
+          this.staffBodies.set(e.id, body);
+        }
+        const a = body.actor;
+        a.x = r.x * TILE + TILE / 2;
+        a.y = r.y * TILE + TILE - 2;
+        a.moving = r.act === 'walk';
+        a.dir = r.dir;
+        const act = r.act === 'work' && r.step === 'ordering' ? 'talk' : 'idle';
+        if (a.act !== act) a.setAct(act);
+        a.sync();
+        const order = r.carrying != null ? game.save.orders.find((o) => o.uid === r.carrying) : null;
+        const def = order ? (order.kind === 'drink' ? DRINK_BY_ID[order.recipe] : RECIPES_BY_ID[order.recipe]) : null;
+        if (def) {
+          if (!body.plate?.active) body.plate = this.add.image(0, 0, iconTexture(this, def.icon)).setScale(.65);
+          body.plate.setVisible(true).setPosition(a.x + (a.dir === 'left' ? -7 : 7), a.y - 17).setDepth(a.y + 1);
+        } else body.plate?.setVisible(false);
+      }
+    }
+    for (const [id, body] of this.staffBodies) {
+      if (live.has(id)) continue;
+      body.actor.destroy(); body.plate?.destroy(); this.staffBodies.delete(id);
+    }
+  }
 
   private clearGuests() {
     for (const g of this.guests.values()) g.actor.destroy();
@@ -1563,6 +1631,7 @@ export class WorldScene extends Phaser.Scene {
     for (const [, n] of this.npcs) this.updateNpc(n, dt);
     for (const e of this.extras.values()) e.update(dt);
     this.pumpFloor(dt);
+    this.updateStaff(dt);
     for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);
     this.updateBugs(dt);
@@ -1657,6 +1726,7 @@ export class WorldScene extends Phaser.Scene {
     for (const [, n] of this.npcs) if (n.actor.sprite.visible) actors.push(n.actor);
     for (const e of this.extras.values()) if (e.sprite.visible) actors.push(e);
     // a guest sitting at a table is meant to be partly behind it: only walking guests make furniture see-through
+    for (const b of this.staffBodies.values()) if (b.actor.sprite.visible) actors.push(b.actor);
     for (const g of this.guests.values()) if (g.actor.sprite.visible && !SEATED_PHASES.includes(g.phase)) actors.push(g.actor);
 
     const lerp = Math.min(1, dt * 10);

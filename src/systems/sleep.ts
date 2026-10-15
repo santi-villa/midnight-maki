@@ -39,6 +39,13 @@ export async function sleepNow() {
         await say('narr', 'Anoche el restaurante cerró con la misión a medias. Hoy podés seguirla.');
         game.setFlag('slept_closing', false);
       }
+      const wage = game.flag('wage_report');
+      if (typeof wage === 'string') {
+        game.setFlag('wage_report', false);
+        const [paid, unpaid] = wage.split('|');
+        if (Number(paid) > 0) await say('narr', `Pagaste ${paid} monedas en sueldos del personal.`);
+        if (unpaid) await say('narr', `No alcanzó para pagarle a ${unpaid}: no trabaja hasta que le pagues.`);
+      }
       if (game.has('starter_bundle')) { game.setFlag('starter_bundle', false); await say('rigg', 'Anoche vi la despensa vacía y dejé lo básico: arroz, alga y pepino. Después me lo devolvés con sushi.'); }
       if (game.save.restaurant.upgrades.includes('pantry')) await say('narr', 'Rigg dejó ingredientes básicos en la despensa: arroz y alga.');
       if (fest) await say('narr', 'Hoy hay un evento especial en el pueblo. Revisá el calendario del Diario.');
