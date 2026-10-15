@@ -29,5 +29,5 @@ Cada visita que termina contenta suma +1 reputación (aparte de la de cada plato
 
 ## Pendiente / límites
 - Los vecinos piden una sola cosa (un plato); no hay grupos de vecinos todavía.
-- Sin pantalla de "libreta de clientes" (los datos ya están en `save.clients`; falta UI).
+- La libreta está en el NoriPhone, app **Clientes** (`ui/clients.ts`): vienen pronto, estado, corazones, plato favorito, visitas y esperas.
 - Sin probar en teléfono real.

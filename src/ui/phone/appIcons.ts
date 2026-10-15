@@ -405,7 +405,7 @@ function signals(g: Grid) {
 }
 
 const DRAW: Record<string, (g: Grid) => void> = {
-  camera, photos, map, quests, friends, collections, recipes, restaurant, supplies, staff, calendar, memories, investigation, bag, customize, settings, more,
+  camera, photos, map, quests, friends, collections, recipes, restaurant, supplies, staff, clients: staff, calendar, memories, investigation, bag, customize, settings, more,
 };
 
 let cache: Record<string, Grid> | null = null;
