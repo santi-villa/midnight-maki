@@ -11,6 +11,7 @@ import type { Order } from '../core/types';
 import { CHARACTERS } from '../data/characters';
 import { RECIPES, RECIPES_BY_ID, type RecipeDef } from '../data/recipes';
 import { FURN_BY_ID } from '../data/furniture';
+import { arrivalLine, emptyClients, neighborOf, rememberedDish } from './townClients';
 
 export interface GenericCustomer {
   id: string;
@@ -66,6 +67,8 @@ export const GENERIC_CUSTOMERS: GenericCustomer[] = [
 ];
 
 export function customerAsk(id: string, seed: number): string | null {
+  const nb = neighborOf(id);
+  if (nb) return arrivalLine(game.save.clients ?? emptyClients(), id, (r) => RECIPES_BY_ID[r]?.name ?? r) || nb.lines[Math.abs(seed) % nb.lines.length];
   const c = GENERIC_CUSTOMERS.find((x) => x.id === id);
   if (!c) return null;
   const all = [c.line, ...(c.asks ?? [])];
@@ -74,7 +77,7 @@ export function customerAsk(id: string, seed: number): string | null {
 
 
 export function customerName(id: string): string {
-  return CHARACTERS.find((c) => c.id === id)?.name ?? GENERIC_CUSTOMERS.find((c) => c.id === id)?.name ?? 'Cliente';
+  return neighborOf(id)?.name ?? CHARACTERS.find((c) => c.id === id)?.name ?? GENERIC_CUSTOMERS.find((c) => c.id === id)?.name ?? 'Cliente';
 }
 
 export function maxOrders(): number {
@@ -118,10 +121,11 @@ export function orderForCustomer(customer: string, r: () => number = Math.random
   const recipes = availableRecipes();
   if (!recipes.length || !customer) return null;
   let recipe = recipes[Math.floor(r() * recipes.length)];
-  const fav = favoriteOf(customer);
-  if (fav && game.save.recipesKnown.includes(fav) && r() < 0.6) recipe = RECIPES_BY_ID[fav];
+  const remembered = rememberedDish(game.save.clients ?? emptyClients(), customer, game.save.recipesKnown, r());
+  const fav = remembered ?? favoriteOf(customer);
+  if (fav && game.save.recipesKnown.includes(fav) && (remembered || r() < 0.6)) recipe = RECIPES_BY_ID[fav];
   // newer, pricier recipes appear a bit more often as the restaurant grows
-  if (r() < 0.3) {
+  if (!remembered && r() < 0.3) {
     const best = [...recipes].sort((a, b) => b.price - a.price).slice(0, 3);
     recipe = best[Math.floor(r() * best.length)];
   }

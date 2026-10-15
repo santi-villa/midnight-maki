@@ -145,6 +145,8 @@ export interface SaveData {
   pantry?: Record<string, number>;
   /** hired staff (optional so older saves load) */
   staff?: import('../restaurant/staff').StaffSave;
+  /** neighbours as customers: regulars' memory and planned visits (optional so older saves load) */
+  clients?: import('../restaurant/townClients').ClientsSave;
   /** best time in hard mode, seconds per recipe */
   bestTimes?: Record<string, number>;
   /** mastery per recipe (see restaurant/mastery.ts); missing in older saves */
