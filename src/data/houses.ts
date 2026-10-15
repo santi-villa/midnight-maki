@@ -6,7 +6,8 @@ import { Builder, zone } from './zoneKit';
 import type { DoorDef, InteractDef, ZoneDef } from './zones';
 
 export type Trade = 'home' | 'tea' | 'fish' | 'flower';
-export interface HouseDef { id: string; zone: 'plaza' | 'beach' | 'garden'; trade: Trade; side: 'l' | 'r'; x: number; y: number; name: string }
+/** `front`: seen from the front with a porch at one side. `side`: the whole house seen from the side, entrance on its gable end. */
+export interface HouseDef { id: string; zone: 'plaza' | 'beach' | 'garden'; trade: Trade; side: 'l' | 'r'; view: 'front' | 'side'; x: number; y: number; name: string }
 
 const NAMES: Record<Trade, string[]> = {
   home: ['Casa de los Sato', 'Casa Hayashi', 'Casa de la abuela Fuyu', 'Casa Kimura', 'Casa de los Mori', 'Casa Tanabe'],
@@ -15,22 +16,32 @@ const NAMES: Record<Trade, string[]> = {
   flower: ['Florería Pétalo', 'Florería Tulipán', 'Florería Rocío', 'Florería Girasol'],
 };
 
-const RAW: [HouseDef['zone'], Trade, 'l' | 'r', number, number][] = [
+const RAW: [HouseDef['zone'], Trade, 'l' | 'r', number, number, ('front' | 'side')?][] = [
   // Villa Nori: south row, then the harbour row, then the cherry bank
   ['plaza', 'home', 'l', 1, 27], ['plaza', 'flower', 'r', 18, 27], ['plaza', 'home', 'r', 24, 27], ['plaza', 'fish', 'l', 30, 27],
-  ['plaza', 'tea', 'r', 1, 36], ['plaza', 'home', 'l', 8, 36], ['plaza', 'fish', 'r', 18, 36], ['plaza', 'flower', 'l', 24, 36],
-  ['plaza', 'tea', 'r', 46, 15], ['plaza', 'flower', 'l', 50, 20],
+  ['plaza', 'tea', 'r', 1, 36], ['plaza', 'home', 'l', 8, 36, 'side'], ['plaza', 'fish', 'r', 18, 36, 'side'], ['plaza', 'flower', 'l', 24, 36],
+  ['plaza', 'tea', 'r', 46, 15, 'side'], ['plaza', 'flower', 'l', 50, 20, 'side'],
   // east cove of the beach
-  ['beach', 'fish', 'l', 32, 3], ['beach', 'home', 'r', 40, 3], ['beach', 'tea', 'l', 33, 9], ['beach', 'flower', 'r', 40, 9],
+  ['beach', 'fish', 'l', 32, 3, 'side'], ['beach', 'home', 'r', 40, 3, 'side'], ['beach', 'tea', 'l', 33, 9, 'side'], ['beach', 'flower', 'r', 40, 9, 'side'],
   // eastern garden
-  ['garden', 'tea', 'l', 25, 4], ['garden', 'flower', 'r', 31, 4],
+  ['garden', 'tea', 'l', 25, 4, 'side'], ['garden', 'flower', 'r', 31, 4, 'side'],
 ];
 const used: Record<Trade, number> = { home: 0, tea: 0, fish: 0, flower: 0 };
-export const HOUSES: HouseDef[] = RAW.map(([zone, trade, side, x, y]) => ({ id: `house_${zone}_${x}_${y}`, zone, trade, side, x, y, name: NAMES[trade][used[trade]++ % NAMES[trade].length] }));
+export const HOUSES: HouseDef[] = RAW.map(([zone, trade, side, x, y, view]) => ({ id: `house_${zone}_${x}_${y}`, zone, trade, side, view: view ?? 'front', x, y, name: NAMES[trade][used[trade]++ % NAMES[trade].length] }));
 
 export const housesIn = (zone: HouseDef['zone']) => HOUSES.filter((h) => h.zone === zone);
-export const houseDoorTile = (h: HouseDef): [number, number] => [h.x + (h.side === 'l' ? 1 : 4), h.y + 2];
-export const housePropId = (h: HouseDef) => `bld_th_${h.trade}_${h.side}`;
+/** the porch door of a front house; the outer end of the gable for a house seen from the side */
+export const houseDoorTile = (h: HouseDef): [number, number] => h.view === 'side' ? [h.x + (h.side === 'l' ? 0 : 5), h.y + 2] : [h.x + (h.side === 'l' ? 1 : 4), h.y + 2];
+export const housePropId = (h: HouseDef) => `bld_${h.view === 'side' ? 'sh' : 'th'}_${h.trade}_${h.side}`;
+
+/** a short cobbled path from the entrance of every side house, so it is clear where to go in */
+export function houseEntrancePaths(b: { g: string[][]; set(x: number, y: number, ch: string): unknown }, zone: HouseDef['zone']) {
+  for (const h of housesIn(zone)) {
+    if (h.view !== 'side') continue;
+    const [dx, dy] = houseDoorTile(h);
+    for (const y of [dy + 1, dy + 2]) if ('gGsp'.includes(b.g[y]?.[dx] ?? 'x')) b.set(dx, y, 'c');
+  }
+}
 export const houseDoorDef = (h: HouseDef): DoorDef => { const [x, y] = houseDoorTile(h); return { x, y, to: h.id, tx: 5, ty: 6, dir: 'up', walk: true, label: h.name }; };
 
 const LOOK: Record<Trade, { walls: string; floor: string; music: string }> = {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
 import { ZONES } from '../data/zones';
+import { HOUSES, houseDoorTile } from '../data/houses';
 import { buildZone } from '../world/zoneRuntime';
 
 const OUTDOOR = Object.values(ZONES).filter((z) => z.outdoor).map((z) => z.id);
@@ -15,6 +16,17 @@ function reach(zone: string, from: [number, number], to: [number, number]) {
 }
 const near = (g: ReturnType<typeof buildZone>['grid'], x: number, y: number): [number, number][] =>
   ([[0, 1], [0, -1], [1, 0], [-1, 0], [0, 0]] as const).map(([dx, dy]) => [x + dx, y + dy] as [number, number]).filter(([a, b]) => !g.isSolid(a, b));
+
+describe('houses seen from the side', () => {
+  it('have their entrance at the outer end of the gable, with a path leading to it', () => {
+    for (const h of HOUSES.filter((x) => x.view === 'side')) {
+      const [dx, dy] = houseDoorTile(h);
+      expect(dx, h.id).toBe(h.x + (h.side === 'l' ? 0 : 5));
+      expect(ZONES[h.zone].props.some((p) => p.id === `bld_sh_${h.trade}_${h.side}` && p.x === h.x && p.y === h.y), `${h.id} prop`).toBe(true);
+      expect('pc'.includes(ZONES[h.zone].ground[dy + 1][dx]), `${h.id} path below the door`).toBe(true);
+    }
+  });
+});
 
 describe('outdoor zones', () => {
   for (const id of OUTDOOR) {
