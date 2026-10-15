@@ -130,6 +130,32 @@ function voidTile(): TileDraw {
 }
 
 
+/** Rock face of a hillside: 0 = the rim with grass hanging over it, 1 = the face, 2 = the foot with its shadow. */
+function cliffTile(part: 0 | 1 | 2): TileDraw {
+  return (c, x, y, r) => {
+    const base = '#8d7a64', dark = '#5b4b3d', light = '#b9a38a', mid = '#7a6753';
+    px(c, x, y, base, 16, 16);
+    for (let j = 0; j < 16; j += 5) {
+      const off = (j / 5) % 2 ? 4 : 0;
+      px(c, x, y + j + 4, dark, 16, 1);
+      for (let i = off; i < 16; i += 7 + ((i + j) % 3)) px(c, x + i, y + j, dark, 1, 5);
+      px(c, x, y + j, light, 16, 1);
+      for (let i = off + 1; i < 16; i += 8) px(c, x + i, y + j + 1, mid, 3, 2);
+    }
+    for (let k = 0; k < 10; k++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? dark : light, 1, 1);
+    if (part === 0) {
+      px(c, x, y, '#6e9f4f', 16, 3);
+      for (let i = 0; i < 16; i += 3) px(c, x + i, y + 3, '#5a8a40', 2, 1 + (i % 2));
+      px(c, x, y, '#8fc066', 16, 1);
+    }
+    if (part === 2) {
+      px(c, x, y + 11, shade(base, -0.25), 16, 5);
+      px(c, x, y + 14, shade(base, -0.45), 16, 2);
+      for (let i = 1; i < 16; i += 5) px(c, x + i, y + 12, '#6a8f4c', 2, 1);
+    }
+  };
+}
+
 function rail(): TileDraw {
   return (c, x, y, r) => {
     dirt()(c, x, y, r);
@@ -203,6 +229,9 @@ for (let m = 1; m < 16; m++) add('bk' + m, false, bank(m));
 for (let m = 1; m < 16; m++) add('bkb' + m, false, bank(m, 1)); // second foam frame
 add('station', false, paverTile(2, GREY_STONE));
 add('rail', false, rail());
+add('cliff_top', true, cliffTile(0));
+add('cliff_face', true, cliffTile(1));
+add('cliff_foot', true, cliffTile(2));
 add('kitchen', false, barFloor);
 add('kitchen1', false, barFloor);
 add('kitchen2', false, barFloor);

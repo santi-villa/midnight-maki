@@ -36,8 +36,8 @@ const PLACES: Place[] = [
 function plazaPlace(): string {
   const p = world?.player;
   if (!p) return 'plaza';
-  if (p.tx >= 43 && p.ty < 11) return 'shrine';
-  if (p.tx >= 43 && p.ty < 29) return 'riverside';
+  if (p.tx >= 47 && p.ty < 16) return 'shrine';
+  if (p.tx >= 36 && p.ty >= 16 && p.ty < 34) return 'riverside';
   if (p.ty >= 26) return 'harbor';
   return 'plaza';
 }

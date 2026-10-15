@@ -4,6 +4,7 @@
 import type { PropPlace, ZoneDef } from './zones';
 import { HOUSES, houseDoorTile } from './houses';
 import { PROPS } from './props';
+import { EAST_PROPS } from './plazaEast';
 
 type Place = readonly [id: string, x: number, y: number, cond?: string];
 type Path = readonly [x: number, y: number, w: number, h: number, tile: string];
@@ -22,8 +23,7 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       [31, 8, 2, 5, 'p'], // florist's garden opens onto the west-bank landing
       [0, 31, 36, 2, 'c'], [15, 26, 2, 17, 'p'], // residential street and town axis
       [0, 39, 30, 2, 'c'], [28, 32, 2, 8, 'c'], // harbour lane and loading approach
-      [44, 18, 9, 2, 'p'], [44, 26, 12, 2, 'p'], // tea terrace and florist garden
-      [35, 30, 6, 3, 'b'], // lower bridge covers the bend, with open approaches
+      [35, 30, 6, 3, 'b'], [56, 30, 4, 3, 'b'], // lower bridges over both branches, with open approaches
       [6, 25, 10, 2, 'c'], // library forecourt, connected to the south axis
     ],
     props: [
@@ -51,19 +51,6 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['street_lamp_l', 33, 11], ['street_lamp_l', 33, 14],
       ['bench', 31, 16], ['pot_cream', 34, 17], ['flowers_lav', 34, 20], ['flowers_lav', 35, 20],
       ['bush_flower', 32, 18], ['bush_flower', 33, 19],
-      // East bank: entry courts, cherry shade, unobstructed riverside promenade.
-      ['sakura', 45, 9], ['sakura', 53, 14], ['sakura', 55, 17], ['sakura', 48, 21],
-      ['sakura', 54, 21], ['sakura', 46, 24],
-      ['stonelantern', 45, 14], ['stonelantern', 45, 21], ['stonelantern', 45, 28],
-      ['bench', 45, 23], ['bench', 53, 15], ['bench', 45, 29],
-      ['flowers', 53, 16], ['flowers', 54, 16], ['flowers_lav', 54, 28], ['flowers_lav', 55, 28],
-      ['pot_rose', 52, 17], ['pot_cream', 49, 25],
-      // Shrine approach: pairs frame the stair, rather than standing in it.
-      ['stonelantern', 45, 5], ['stonelantern', 50, 5], ['stonelantern', 45, 8], ['stonelantern', 50, 8],
-      ['sakura', 44, 2], ['sakura', 52, 2], ['sakura', 54, 5], ['sakura', 44, 6], ['sakura', 53, 9],
-      ['flowers_lav', 51, 3], ['flowers_lav', 52, 3],
-      // These flank the locked garden gate and must remain solid until it opens.
-      ['stonelantern', 56, 11], ['stonelantern', 56, 14], ['bush_flower', 57, 11], ['bush_flower', 57, 14],
       // Residential veredas and communal courtyard, clear of the new porches.
       ['street_lamp_l', 1, 30], ['street_lamp_l', 8, 30], ['street_lamp_r', 17, 30], ['street_lamp_r', 25, 33],
       ['pot_rose', 1, 29], ['pot_cream', 17, 29], ['pot_rose', 24, 30],
@@ -76,15 +63,11 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['crate', 30, 38], ['barrel', 31, 38], ['sack', 32, 36], ['village_net', 31, 37],
       ['deco_flowerstand', 25, 29],
       ['lantern_cream', 35, 34], ['lantern_cream', 38, 34],
-      ['boat', 43, 40], ['boat', 34, 42], ['boat', 39, 38],
-      ['crate', 48, 33], ['barrel', 53, 34], ['sack', 47, 34],
-      ['street_lamp_r', 42, 29], ['street_lamp_r', 47, 29], ['street_lamp_r', 54, 29],
-      ['bench', 41, 33], ['tree', 51, 37], ['tree', 54, 38],
-      ['bush_flower', 52, 35], ['bush_flower', 55, 37], ['flowers', 50, 38], ['flowers_lav', 53, 39],
+      ['boat', 34, 42], ['boat', 39, 38],
       ['puddle', 12, 10, 'rain'], ['puddle', 19, 12, 'rain'], ['puddle', 16, 17, 'rain'],
-      ['sign_forest', 17, 3], ['sign_station', 2, 10], ['sign_market', 32, 1],
-      ['sign_garden', 55, 10], ['sign_riverside', 34, 10], ['sign_shrine', 50, 10],
+      ['sign_forest', 17, 3], ['sign_station', 2, 10], ['sign_riverside', 34, 10],
       ['sign_harbor', 17, 26], ['sign_beach', 19, 41],
+      ...EAST_PROPS,
     ],
   },
   beach: {
@@ -207,12 +190,6 @@ export function arrangeOutdoors(zones: Record<string, ZoneDef>) {
   }
   const plaza = zones.plaza;
   plaza.props.push({ id: 'village_bridge_s', x: 35, y: 30 });
-  // Continuous stone embankments stop at the bridge mouths and the working harbour.
-  for (let y = 3; y < 35; y++) {
-    if (y === 12 || y === 13 || y >= 30 && y <= 32) continue;
-    const cx = 40 + Math.round(2.2 * Math.sin(y / 5.5));
-    plaza.props.push({ id: 'village_bank_w', x: cx - 3, y }, { id: 'village_bank_e', x: cx + 2, y });
-  }
 }
 
 /** Used in review/tests to distinguish street fixtures from natural vegetation and working docks. */

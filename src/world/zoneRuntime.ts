@@ -108,6 +108,7 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case 'o': return varied('soil', x, y, 2);
     case 'S': return TILE_INDEX.station;
     case 'R': return TILE_INDEX.rail;
+    case 'C': return TILE_INDEX[def.ground[y - 1]?.[x] !== 'C' ? 'cliff_top' : def.ground[y + 1]?.[x] !== 'C' ? 'cliff_foot' : 'cliff_face'];
     case 'x': return TILE_INDEX.void;
     default: return TILE_INDEX.void;
   }
