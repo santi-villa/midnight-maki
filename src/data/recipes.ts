@@ -153,7 +153,7 @@ export const RECIPES: RecipeDef[] = [
     id: 'crunchy', name: 'Roll crocante', cat: 'intermediate', difficulty: 3,
     desc: 'Langostino y queso crema con lluvia de tempura.',
     ingredients: { rice: 1, nori: 1, shrimp: 1, cream: 1, tempura: 1 },
-    steps: withCook(uramaki(['shrimp', 'cream'], ['tempura']), { t: 'cook', item: 'shrimp', how: 'plancha' }, 'place'), price: 52, xp: 21,
+    steps: withCook(uramaki(['shrimp', 'cream'], ['tempura']), { t: 'cook', item: 'shrimp', how: 'plancha' }, 'nori'), price: 52, xp: 21,
     unlock: { level: 4, text: 'Restaurante nivel 4' }, icon: { type: 'uramaki', c1: '#f09a7a', c2: '#e8c070' },
   }),
   // ------------------------------------------------------------- special
@@ -182,14 +182,14 @@ export const RECIPES: RecipeDef[] = [
     id: 'rainbow', name: 'Rainbow Roll', cat: 'special', difficulty: 4,
     desc: 'California cubierto con láminas de salmón, atún y palta.',
     ingredients: { rice: 1, nori: 1, crab: 1, cucumber: 1, salmon: 1, tuna: 1, avocado: 1 },
-    steps: [{ t: 'nori' }, { t: 'rice' }, { t: 'place', items: ['crab', 'cucumber'] }, { t: 'roll' }, { t: 'slice', item: 'salmon', cuts: 3 }, { t: 'garnish', items: ['salmon', 'tuna', 'avocado'] }, { t: 'cut', pieces: 8 }, { t: 'plate' }],
+    steps: [{ t: 'slice', item: 'salmon', cuts: 3 }, { t: 'nori' }, { t: 'rice' }, { t: 'place', items: ['crab', 'cucumber'] }, { t: 'roll' }, { t: 'garnish', items: ['salmon', 'tuna', 'avocado'] }, { t: 'cut', pieces: 8 }, { t: 'plate' }],
     price: 95, xp: 36, unlock: { level: 5, text: 'Restaurante nivel 5' }, icon: { type: 'uramaki', c1: '#e8826f', c2: '#ef9a78', c3: '#7fa356' },
   }),
   R({
     id: 'dragon', name: 'Dragon Roll', cat: 'special', difficulty: 5,
     desc: 'Langostino tempura bajo escamas de palta y anguila.',
     ingredients: { rice: 1, nori: 1, shrimp: 1, tempura: 1, avocado: 1, eel: 1 },
-    steps: [{ t: 'nori' }, { t: 'rice' }, { t: 'cook', item: 'shrimp', how: 'plancha' }, { t: 'place', items: ['shrimp', 'tempura'] }, { t: 'roll' }, { t: 'slice', item: 'avocado', cuts: 4 }, { t: 'cook', item: 'eel', how: 'plancha' }, { t: 'garnish', items: ['avocado', 'eel'] }, { t: 'cut', pieces: 8 }, { t: 'plate' }],
+    steps: [{ t: 'cook', item: 'shrimp', how: 'plancha' }, { t: 'cook', item: 'eel', how: 'plancha' }, { t: 'slice', item: 'avocado', cuts: 4 }, { t: 'nori' }, { t: 'rice' }, { t: 'place', items: ['shrimp', 'tempura'] }, { t: 'roll' }, { t: 'garnish', items: ['avocado', 'eel'] }, { t: 'cut', pieces: 8 }, { t: 'plate' }],
     price: 110, xp: 40, unlock: { level: 6, text: 'Restaurante nivel 6' }, icon: { type: 'uramaki', c1: '#f09a7a', c2: '#7fa356', c3: '#8a5a3c' },
   }),
   R({
