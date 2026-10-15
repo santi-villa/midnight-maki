@@ -23,7 +23,6 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
-import { facingTable } from '../restaurant/seating';
 import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
 import { customerAsk } from '../restaurant/orders';
@@ -940,8 +939,8 @@ export class WorldScene extends Phaser.Scene {
         a.y = (sitting && seat ? seat.y : p.y) * TILE + TILE - 2 - (sitting ? 3 : 0);
         a.moving = trip.moving && !sitting;
         a.depthBoost = 0;
-        const table = g?.tableId ? this.diningPieces().find((pc) => String(pc.uid) === g.tableId) : undefined;
-        a.dir = sitting && seat ? (table ? facingTable(seat, table) : seat.rot === 2 ? 'up' : seat.rot === 1 ? 'right' : seat.rot === 3 ? 'left' : 'down') : trip.dir;
+        // seated guests always face the camera for now (no back or side views at the table)
+        a.dir = sitting && seat ? 'down' : trip.dir;
         // facing down = the chair back is behind them: sit in front of it, not behind it
         if (sitting && a.dir === 'down') a.depthBoost = 7;
         const fed = g?.members[i]?.items.some(item => item.kind === 'food' && item.quality !== null);
