@@ -23,7 +23,7 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
-import { employees, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
+import { employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
 import { facingTable } from '../restaurant/seating';
 import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
@@ -676,7 +676,20 @@ export class WorldScene extends Phaser.Scene {
         }
         return out;
       },
+      stove: () => { const [x, y] = near(5, 4); return { x, y }; },
       path: (a, b) => grid.path(a.x, a.y, b.x, b.y),
+      crew: {
+        where: (id) => {
+          const res = this.town.residents.get(id);
+          if (!res || typeof game.flag('at_' + id) === 'string') return null;
+          return { zone: res.trip.position.zone, x: res.trip.position.x, y: res.trip.position.y, settled: res.trip.settled };
+        },
+        move: (id, tile) => {
+          if (tile) this.rememberResidents();
+          this.town.duty(id, tile ? { zone: 'restaurant', x: tile.x, y: tile.y, wander: 0, act: 'work' } : null);
+        },
+        working: () => ['open', 'closing'].includes(restaurantPhase(clock.period, game.save.time.minutes)),
+      },
     };
   }
 
@@ -917,7 +930,8 @@ export class WorldScene extends Phaser.Scene {
     if (!pip.trip.settled) return;
     if (!visitor.greeted) {
       visitor.greeted = true;
-      this.hostWait = 3.5;
+      this.hostWait = 3.5 * hostSlowdown();
+      practicePip();
       this.npc('pip')?.emote(party.size > 1 ? `¡Bienvenidos! ¿Mesa para ${party.size}?` : '¡Hola! Bienvenido a Midnight Maki.', 3.5);
       this.sayVisitor(party.id, party.size > 1 ? 'Sí, gracias. Venimos a comer juntos.' : '¡Hola! ¿Tenés una mesa libre?');
       return;
@@ -927,7 +941,7 @@ export class WorldScene extends Phaser.Scene {
     const events = hostGuest(party.id);
     if (events.some((e) => e.type === 'queued')) {
       this.npc('pip')?.emote('Esperá acá. Enseguida queda una mesa.', 4);
-      this.hostWait = 3;
+      this.hostWait = 3 * hostSlowdown();
     }
     if (events.some((e) => e.type === 'assigned')) {
       const seated = guestViews().find((g) => g.id === party.id)!;

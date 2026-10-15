@@ -21,6 +21,7 @@ import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type
 import { UPGRADES, buyUpgrade, upgradeMissing } from './upgrades';
 import { advanceMissing, advanceRestaurant, levelProgress, nextAdvance, xpFloor } from './progression';
 import { shortageText } from './supplies';
+import { playerBusy } from './claims';
 import { freeCookCoins } from './economy';
 import { runScene, say } from '../dialogue/dialogue';
 import { STAGE_NAMES, applyStageGrants, stageForLevel } from './stages';
@@ -168,16 +169,18 @@ export async function enterKitchen(firstUid?: number, freeId?: string) {
   };
   const hooks: KitchenHooks = {
     orders: () => (free ? ([{ uid: FREE_UID, recipe: free, who: 'Cocina libre', reward: freeCookCoins(free, 1), ready: taken.has(FREE_UID) || canCook(free.id), note: 'un cliente sin reserva lo compra' }] as SessionOrder[]) : ([] as SessionOrder[])).concat(game.save.orders
-      .filter((o) => o.kind !== 'drink' && RECIPES_BY_ID[o.recipe] && !['plated', 'carried', 'delivered'].includes(plateState(o.uid)))
+      .filter((o) => o.kind !== 'drink' && RECIPES_BY_ID[o.recipe] && !o.cook && !['plated', 'carried', 'delivered'].includes(plateState(o.uid)))
       .map((o) => ({ uid: o.uid, recipe: RECIPES_BY_ID[o.recipe], who: customerName(o.customer), reward: o.reward, ready: taken.has(o.uid) || canCook(o.recipe), note: o.service ? tableLabel(o.service.tableId) : o.special === 'odd' ? 'sin remitente' : undefined }))),
     take: (uid) => {
       const p = plan(uid);
-      if (!p || taken.has(uid) || !game.consumeIngredients(p.r.ingredients)) return false;
+      if (!p || taken.has(uid) || p.o?.cook || !game.consumeIngredients(p.r.ingredients)) return false;
       taken.add(uid);
+      playerBusy.add(uid);
       return true;
     },
     cancel: (uid) => {
       const p = plan(uid);
+      playerBusy.delete(uid);
       if (!taken.delete(uid)) return;
       const r = p?.r ?? null;
       if (r) for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund');
@@ -185,6 +188,7 @@ export async function enterKitchen(firstUid?: number, freeId?: string) {
     done: (uid, res) => {
       const p = plan(uid);
       taken.delete(uid);
+      playerBusy.delete(uid);
       if (!p) return null;
       const { o, r } = p;
       hardModeExtras(r, res);
