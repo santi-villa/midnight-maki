@@ -19,6 +19,9 @@ import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeC
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade, upgradeMissing } from './upgrades';
+
+/** Where to get wood and stone, shown next to whatever is missing. */
+const materialHint = (missing: string[]) => (missing.some((m) => /^(Madera|Piedra)/.test(m)) ? '. La madera y la piedra se compran en la Carpintería de Ren (plaza) o se juntan por el pueblo.' : '');
 import { advanceMissing, advanceRestaurant, levelProgress, nextAdvance, xpFloor } from './progression';
 import { shortageText } from './supplies';
 import { playerBusy } from './claims';
@@ -500,7 +503,7 @@ export function openUpgrades(onClose?: () => void) {
       advance ? h('div', { class: 'col' }, h('span', null, `Ascenso a nivel ${advance.level}`),
         h('span', { class: 'hint' }, `XP ${rs.totalXp ?? xpFloor(rs.level) + rs.xp}/${xpFloor(advance.level)} · Reputación ${rs.reputation}/${advance.reputation}`),
         h('span', { class: 'hint' }, resources(advance.coins, advance.items)),
-        advanceMissing().length ? h('span', { class: 'hint' }, `Falta: ${advanceMissing().join(' · ')}`) : null,
+        advanceMissing().length ? h('span', { class: 'hint' }, `Falta: ${advanceMissing().join(' · ')}${materialHint(advanceMissing())}`) : null,
         h('button', { class: 'btn primary', disabled: !!advanceMissing().length, onclick: () => {
           void runTask('restaurant:advance', async () => {
             const before = rs.level;
@@ -521,7 +524,7 @@ export function openUpgrades(onClose?: () => void) {
         h('div', { class: 'card col' },
           h('b', null, u.name), h('div', { class: 'hint' }, u.desc),
           owned ? h('span', { class: 'pill' }, 'Comprada') : h('div', { class: 'col' }, h('span', { class: 'hint' }, resources(u.price, u.items ?? {})),
-            missing.length ? h('span', { class: 'hint' }, `Falta: ${missing.join(' · ')}`) : null,
+            missing.length ? h('span', { class: 'hint' }, `Falta: ${missing.join(' · ')}${materialHint(missing)}`) : null,
             h('button', { class: 'btn primary', disabled: !!missing.length, onclick: () => { if (buyUpgrade(u.id)) { audio.sfxPlay('coin'); toast(`¡${u.name}!`); render(); } else { toast('No se pudo construir: revisá los recursos o el espacio libre del cuarto. No se cobró nada.'); render(); } } }, 'Construir'))),
       );
     }

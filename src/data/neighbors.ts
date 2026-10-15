@@ -26,14 +26,17 @@ export interface Neighbor {
   lines: string[];
 }
 
+/** Ren's carpentry stall in the plaza: the prop's top-left tile; the counter is the row below it. */
+export const REN_STALL = { x: 24, y: 22 } as const;
+
 const look = (species: Appearance['species'], skin: string, hairColor: string, top: string, extra: Partial<Appearance> = {}): Appearance =>
   ({ species, skin, hairStyle: 1, hairColor, eyes: 0, eyeColor: '#3b2a22', top, bottom: '', shoes: '', head: '', face: '', extra: '', bag: '', ...extra });
 
 const H = HOUSES.map((h) => h.id);
 
 export const NEIGHBORS: Neighbor[] = [
-  { id: 'ren', name: 'Ren', job: 'Carpintero', look: look('bear', '#8a6a4a', '#2b2231', 'top_cardigan_moss'), traits: ['hardworking'], likes: ['bench', 'sea'], shop: 'shop_taro', friends: ['mika'], home: H[0],
-    lines: ['Hoy hay buena madera.', 'Si algo cruje, avisame.'] },
+  { id: 'ren', name: 'Ren', job: 'Carpintero', look: look('bear', '#8a6a4a', '#2b2231', 'top_cardigan_moss'), traits: ['hardworking'], likes: ['bench', 'sea'], shop: 'plaza_ren', friends: ['mika'], home: H[0],
+    lines: ['Hoy hay buena madera.', 'Si algo cruje, avisame.', 'Madera y piedra, si necesitás para el restaurante.'] },
   { id: 'mika', name: 'Mika', job: 'Repartidora', look: look('cat', '#e2a96b', '#a8503a', 'top_tee_sage'), traits: ['sporty', 'sociable'], likes: ['fountain', 'sea'], friends: ['ren', 'tomo'], bike: true, home: H[1],
     lines: ['¡Voy con el tiempo justo!', 'La bici hoy anda de maravilla.'] },
   { id: 'haru', name: 'Haru', job: 'Estudiante', look: look('bunny', '#f0e6d8', '#5b3a2e', 'top_hoodie_lav'), traits: ['shy'], likes: ['read', 'bench'], shop: 'library', friends: ['nene'], home: H[2],
