@@ -58,6 +58,18 @@ function hash(x: number, y: number) {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
+/** Pick one of `n` pre-drawn tiles. The same coordinates always return the same one. */
+function varied(base: string, x: number, y: number, n: number): number {
+  const i = hash(x, y) % n;
+  return TILE_INDEX[i ? base + i : base] ?? TILE_INDEX[base];
+}
+
+/** Lawn variants. The flower tile (grass3) stays uncommon. */
+function grassAt(x: number, y: number): number {
+  const which = [0, 4, 1, 5, 2, 0, 1, 3][hash(x, y) % 8];
+  return TILE_INDEX['grass' + which];
+}
+
 /** Which of the 3 look-alike water tiles sits at x,y (so the tile grid never shows). */
 export function waterVariant(x: number, y: number): number {
   return hash(x, y) % 3;
@@ -76,19 +88,16 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case '#': return TILE_INDEX['walltop_' + st.wall] ?? TILE_INDEX.walltop_cream;
     case 'W': return TILE_INDEX['wall_' + st.wall] ?? TILE_INDEX.wall_cream;
     case 'V': return TILE_INDEX[(night ? 'windowN_' : 'window_') + st.wall] ?? TILE_INDEX.window_cream;
-    case 'f': return TILE_INDEX['floor_' + st.floor] ?? TILE_INDEX.floor_wood;
+    case 'f': return varied('floor_' + st.floor, x, y, 3) || TILE_INDEX.floor_wood;
     case 'U': return TILE_INDEX['upper_' + st.wall] ?? TILE_INDEX['walltop_' + st.wall] ?? TILE_INDEX.walltop_cream;
-    case 'k': return TILE_INDEX.kitchen;
-    case 't': return TILE_INDEX.floor_tatami;
+    case 'k': return varied('kitchen', x, y, 3);
+    case 't': return varied('floor_tatami', x, y, 3);
     case 'm': return TILE_INDEX.mat;
-    case 'g': {
-      const h = hash(x, y) % 10;
-      return TILE_INDEX['grass' + (h < 5 ? 0 : h < 8 ? 1 : h < 9 ? 2 : 3)];
-    }
-    case 'G': return TILE_INDEX.dgrass;
-    case 'p': return TILE_INDEX.dirt;
+    case 'g': return grassAt(x, y);
+    case 'G': return varied('dgrass', x, y, 2);
+    case 'p': return varied('dirt', x, y, 3);
     case 'c': return TILE_INDEX['cobble' + (['', '1', '2'][hash(x, y) % 3])];
-    case 's': return TILE_INDEX.sand;
+    case 's': return varied('sand', x, y, 3);
     case 'h': return TILE_INDEX.shore;
     case 'w': return TILE_INDEX[`wtc${waterDepthAt(def.ground, x, y)}${waterVariant(x, y)}_0`];
     case 'd': return TILE_INDEX[`wtcd${waterVariant(x, y)}_0`];
@@ -96,7 +105,7 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case 'r': return TILE_INDEX.bed_rose;
     case 'y': return TILE_INDEX.bed_gold;
     case 'l': return TILE_INDEX.bed_lav;
-    case 'o': return TILE_INDEX.soil;
+    case 'o': return varied('soil', x, y, 2);
     case 'S': return TILE_INDEX.station;
     case 'R': return TILE_INDEX.rail;
     case 'x': return TILE_INDEX.void;
