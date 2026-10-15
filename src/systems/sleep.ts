@@ -39,6 +39,7 @@ export async function sleepNow() {
         await say('narr', 'Anoche el restaurante cerró con la misión a medias. Hoy podés seguirla.');
         game.setFlag('slept_closing', false);
       }
+      if (game.has('starter_bundle')) { game.setFlag('starter_bundle', false); await say('rigg', 'Anoche vi la despensa vacía y dejé lo básico: arroz, alga y pepino. Después me lo devolvés con sushi.'); }
       if (game.save.restaurant.upgrades.includes('pantry')) await say('narr', 'Rigg dejó ingredientes básicos en la despensa: arroz y alga.');
       if (fest) await say('narr', 'Hoy hay un evento especial en el pueblo. Revisá el calendario del Diario.');
       if (game.flag('market_night')) await say('narr', 'Esta noche abre el Mercado Nocturno.');

@@ -1,4 +1,5 @@
 /** Things that happen when a new day starts: weather, orders, garden growth, market nights, mail. */
+import { giveStarterBundle } from '../restaurant/supplies';
 import { seasonOf, weekday } from '../core/balance';
 import { game } from '../core/state';
 import { rng } from '../art/pixel';
@@ -30,6 +31,7 @@ export function installDaily() {
       game.addItem('rice', 3, 'pantry');
       game.addItem('nori', 3, 'pantry');
     }
+    if (giveStarterBundle()) game.setFlag('starter_bundle', true);
     const ev = eventToday(day);
     game.setFlag('festival_today', ev ?? false);
     // daily friendship talk/gift limits reset implicitly via lastTalkDay/lastGiftDay

@@ -51,7 +51,7 @@ registerAction('wardrobe', async () => {
 });
 
 registerAction('pantry', () => {
-  import('../ui/menus').then((m) => m.openBag(0));
+  import('../ui/pantry').then((m) => m.openPantry());
 });
 
 registerAction('door', async (to) => {
