@@ -218,6 +218,7 @@ h3 { margin: 4px 0 8px; font-size: 1.05em; }
 .dlg .choices button:active { background: var(--gold); }
 .dlg .tools { position: absolute; right: 10px; top: -18px; display: flex; gap: 4px; }
 .dlg .tools button { background: var(--cream-2); border: 2px solid var(--wood-dark); border-radius: 8px; padding: 2px 8px; font-size: .75em; min-height: 28px; }
+.dlg .tools button canvas { width: 14px; height: 14px; image-rendering: pixelated; vertical-align: -2px; }
 .dlg .next { position: absolute; right: 14px; bottom: 6px; animation: bob 1s infinite; color: var(--wood); }
 
 /* ---------- Title ---------- */

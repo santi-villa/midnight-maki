@@ -12,6 +12,7 @@ import { settings } from '../core/settings';
 import { game } from '../core/state';
 import { CHAR_BY_ID } from '../data/characters';
 import { displayName, portraitURL } from '../systems/appearance';
+import { iconElement } from '../art/icons';
 import { clock } from '../systems/time';
 import { h, panel, uiRoot } from '../ui/dom';
 
@@ -109,7 +110,7 @@ export function say(who: string, text: string, expr: Expr = 'neutral'): Promise<
     const tools = h(
       'div',
       { class: 'tools' },
-      h('button', { onclick: (e: Event) => { e.stopPropagation(); showLog(); } }, 'Historial'),
+      h('button', { class: 'log-btn', title: 'Historial', onclick: (e: Event) => { e.stopPropagation(); showLog(); } }, iconElement({ type: 'book', c1: '#b2585e' }), ' Historial'),
       sceneSeen ? h('button', { onclick: (e: Event) => { e.stopPropagation(); skipping = true; finish(); } }, 'Saltar escena') : null,
     );
     const dlg = h('div', { class: 'dlg', role: 'dialog' }, info.name ? h('div', { class: 'name' }, info.name) : null, tools, portrait, h('div', { class: 'body' }, txt), next);

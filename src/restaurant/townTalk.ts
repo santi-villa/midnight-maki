@@ -1,25 +1,56 @@
-/** A chat with an ambient neighbour: a few words, and the chance to invite them to Midnight Maki. */
+/** A chat with an ambient neighbour: topics, a joke, a photo and the chance to invite them to Midnight Maki. */
 import { runScene, say, choose } from '../dialogue/dialogue';
+import { baseTalkContext, chatMenu } from '../dialogue/talk';
+import { TOPIC_LABEL, topicLine, type TalkCtx } from '../dialogue/topics';
 import { game } from '../core/state';
 import { NEIGHBOR_BY_ID } from '../data/neighbors';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { inviteNeighbor, clients } from './townVisits';
 
+async function neighborContext(id: string): Promise<TalkCtx> {
+  const { world } = await import('../scenes/WorldScene');
+  const n = NEIGHBOR_BY_ID[id];
+  const sit = world.neighborSituation(id);
+  const reg = clients().regulars[id];
+  const fav = reg && Object.entries(reg.likes).sort((a, b) => b[1] - a[1])[0];
+  return {
+    ...(await baseTalkContext('nb_' + id)),
+    act: sit.act, place: sit.place, zone: sit.zone, work: n.job, flavour: n.lines, others: sit.others.filter((o) => o.name !== n.name),
+    favourite: fav ? RECIPES_BY_ID[fav[0]]?.name : undefined,
+  };
+}
+
 export async function talkToNeighbor(id: string) {
   const n = NEIGHBOR_BY_ID[id];
   if (!n) return;
+  const next: { run: (() => Promise<void>) | null } = { run: null };
   await runScene(`nb_${id}_${game.save.time.day}`, async () => {
+    const ctx = await neighborContext(id);
     const reg = clients().regulars[id];
     const fav = reg && Object.entries(reg.likes).sort((a, b) => b[1] - a[1])[0];
-    const hello = fav ? `¡Hola! Qué rico estaba el ${RECIPES_BY_ID[fav[0]]?.name ?? 'plato'} del otro día.` : n.lines[(game.save.time.day + id.length) % n.lines.length];
-    await say(n.name, hello);
-    const pick = await choose(['Invitar a Midnight Maki', 'Seguir charlando', 'Nada, hasta luego'], 'player');
-    if (pick === 0) {
-      const r = inviteNeighbor(id);
-      await say(n.name, r.line);
-      if (r.answer === 'later') await say('player', '¡Te esperamos!');
-    } else if (pick === 1) {
-      await say(n.name, n.lines[(game.save.time.day + id.length + 1) % n.lines.length]);
+    await say(n.name, fav ? `¡Hola! Qué rico estaba el ${RECIPES_BY_ID[fav[0]]?.name ?? 'plato'} del otro día.` : n.lines[(game.save.time.day + id.length) % n.lines.length]);
+    for (;;) {
+      const opts = ['Charlar…', 'Invitar a Midnight Maki', 'Más acciones…', 'Nada, hasta luego'];
+      const pick = opts[await choose(opts)];
+      if (pick === 'Charlar…') {
+        await chatMenu(n.name, ctx, async () => { await say(n.name, n.lines[(game.save.time.day + id.length + Math.floor(Math.random() * 7)) % n.lines.length]); });
+      } else if (pick === 'Invitar a Midnight Maki') {
+        const r = inviteNeighbor(id);
+        await say(n.name, r.line);
+        if (r.answer === 'later') await say('player', '¡Te esperamos!');
+        break;
+      } else if (pick === 'Más acciones…') {
+        const more = ['Sacarnos una foto', 'Contarle un chiste', 'Volver'];
+        const m = more[await choose(more, 'player', 'Más acciones…')];
+        if (m === 'Contarle un chiste') {
+          const l = topicLine('joke', ctx);
+          await say('player', l.joke!);
+          await say(n.name, l.t, 'happy');
+        } else if (m === 'Sacarnos una foto') { next.run = async () => { await import('../ui/camera').then((x) => x.takePhoto()); }; break; }
+      } else break;
     }
   });
+  if (next.run) await next.run();
 }
+
+void TOPIC_LABEL;
