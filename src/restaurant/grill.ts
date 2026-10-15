@@ -9,7 +9,7 @@ export type CookMode = 'relaxed' | 'normal' | 'challenge';
 export const ZONES = { ready: 0.3, over: 0.72, burnt: 0.9 } as const;
 
 /** Seconds to travel the whole bar for each ingredient (longer in Relajado). */
-const BASE_SECONDS: Record<string, number> = { egg: 38, shrimp: 42, eel: 46, salmon: 40 };
+const BASE_SECONDS: Record<string, number> = { egg: 38, shrimp: 42, eel: 46, salmon: 40, rice: 28 };
 
 export function grillSeconds(item: string, mode: CookMode): number {
   const base = BASE_SECONDS[item] ?? 42;

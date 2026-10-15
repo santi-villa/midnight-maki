@@ -19,6 +19,7 @@ async function advance(page: Page, rounds = 120) {
 }
 
 test('new game → restaurant → cook first sushi → progress persists', async ({ page }) => {
+  test.setTimeout(180_000);
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ textSpeed: 0, music: 0, sfx: 0, ambience: 0 })));
   await page.goto('/?debug');
   await page.locator('.tt').click(); // first tap reveals the menu
@@ -43,46 +44,47 @@ test('new game → restaurant → cook first sushi → progress persists', async
   await page.locator('.panel .card').filter({ hasText: 'Pedido de práctica' }).getByRole('button', { name: 'Cocinar' }).click();
   const board = page.locator('.cook canvas.board');
   await expect(board).toBeVisible();
-  const box = (await board.boundingBox())!;
-  const dims = await board.evaluate((c: HTMLCanvasElement) => [c.width, c.height]);
-  const pt = (x: number, y: number) => ({ x: box.x + (x / dims[0]) * box.width, y: box.y + (y / dims[1]) * box.height });
-  const dragTo = async (id: string, x: number, y: number) => {
-    const src = (await page.locator(`.cook-tray .ing[data-id="${id}"]`).boundingBox())!;
-    await page.mouse.move(src.x + 10, src.y + 10);
-    await page.mouse.down();
-    const p = pt(x, y);
-    await page.mouse.move(p.x, p.y, { steps: 5 });
-    await page.mouse.up();
-    await page.waitForTimeout(350);
+  // the board is a logical 320x240 (landscape) or 220x300 (portrait) table; gestures are real mouse input
+  const [BW, BH] = await page.evaluate(() => [(window as any).__board.W, (window as any).__board.H]);
+  const pt = async (x: number, y: number) => { const box = (await board.boundingBox())!; return { x: box.x + (x / BW) * box.width, y: box.y + (y / BH) * box.height }; };
+  const drag = async (from: [number, number], to: [number, number], steps = 8) => {
+    const box = (await board.boundingBox())!, at = (x: number, y: number) => ({ x: box.x + (x / BW) * box.width, y: box.y + (y / BH) * box.height });
+    const a = at(...from); await page.mouse.move(a.x, a.y); await page.mouse.down();
+    for (let i = 1; i <= steps; i++) { const q = at(from[0] + ((to[0] - from[0]) * i) / steps, from[1] + ((to[1] - from[1]) * i) / steps); await page.mouse.move(q.x, q.y); await page.waitForTimeout(12); }
+    await page.mouse.up(); await page.waitForTimeout(100);
   };
-  const swipe = async (x1: number, y1: number, x2: number, y2: number) => {
-    const a = pt(x1, y1);
-    const b = pt(x2, y2);
-    await page.mouse.move(a.x, a.y);
-    await page.mouse.down();
-    await page.mouse.move(b.x, b.y, { steps: 12 });
-    await page.mouse.up();
-    await page.waitForTimeout(300);
-  };
-  const W = dims[0];
-  const matY = Math.round(dims[1] * 0.3);
-  await dragTo('nori', W / 2, matY + 50);
-  await dragTo('rice', W / 2, matY + 50);
-  for (let y = matY + 4; y <= matY + 100; y += 8) await swipe(W / 2 - 100, y, W / 2 + 100, y);
-  // the player decides when the rice is right
-  await page.getByRole('button', { name: 'Listo' }).click();
-  await page.waitForTimeout(400);
-  await dragTo('cucumber', W / 2, matY + 60);
-  for (let i = 0; i < 3; i++) await swipe(W / 2, matY + 90, W / 2, matY + 20);
-  // Rolling ends with a pressure hold: press and release inside the green zone.
-  const c = pt(W / 2, matY + 50);
-  await page.mouse.move(c.x, c.y);
-  await page.mouse.down();
-  await page.waitForTimeout(1100);
-  await page.mouse.up();
+  const shelf = (i: number, n: number): [number, number] => [BW / 2 + (i - (n - 1) / 2) * Math.min(52, BW / n), 20];
+  const matW = Math.min(184, BW - 16), matX = (BW - matW) / 2, sheet = { x: matX + (matW - 150) / 2, y: 62 };
+  const rollY = 46 + 108 / 2 - 4;
+  // nori onto the mat, then the rice has to be cooked in the pot (Plancha tab) before it can be used
+  await drag(shelf(0, 1), [BW / 2, 96]);
+  await expect(page.locator('#cook-instruction')).toContainText('Falta poner el arroz');
+  await page.getByRole('button', { name: 'Ir a la olla' }).click();
+  await page.locator('.gr-pot').click();
+  await expect(page.locator('.gr-pot .gr-label')).toContainText(/En su punto/, { timeout: 30_000 });
+  await page.locator('.gr-pot').click();
+  await page.getByText('Mesa', { exact: true }).first().click();
+  // rice ball onto the nori, then real strokes spread it
+  await drag(shelf(0, 1), [BW / 2, sheet.y + 38]);
+  for (let pass = 0; pass < 3; pass++) for (let row = 0; row < 8; row++) { const y = sheet.y + 5 + row * 9; await drag([sheet.x + 3, y], [sheet.x + 147, y + 2], 14); }
+  await page.getByRole('button', { name: 'Listo el arroz' }).click();
+  await drag(shelf(0, 1), [BW / 2, sheet.y + 34]);
+  await page.getByRole('button', { name: 'Listo el relleno' }).click();
+  // roll slowly, then press and hold
+  await drag([BW / 2, 148], [BW / 2, 52], 64);
+  const c = await pt(BW / 2, rollY); await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.waitForTimeout(900); await page.mouse.up();
   await expect(page.locator('.cook-steps .s.now')).toHaveText('Porciones', { timeout: 12_000 });
-  for (const f of [0.2, 0.4, 0.6, 0.8]) await swipe(W * f, matY + 10, W * f, matY + 90);
-  await page.getByRole('button', { name: 'Servir todo' }).click();
+  // cut along the marks, middle first
+  for (const m of [0.5, 0.333, 0.167, 0.667, 0.833]) { const x = sheet.x + m * 150; await drag([x, rollY - 16], [x, rollY + 20], 6); }
+  await expect(page.locator('.cook-steps .s.now')).toHaveText('Emplatar', { timeout: 8_000 });
+  // every piece goes to the plate by hand
+  const plateCy = 46 + 108 + Math.round((BH - 154) / 2) + 1;
+  for (let i = 0; i < 6; i++) { const gap = Math.min(21, (matW - 20) / 6); await drag([BW / 2 + (i - 2.5) * gap, 46 + 108 * 0.55], [BW / 2 + ((i % 3) - 1) * 24, plateCy + (i < 3 ? -8 : 10)], 6); }
+  await page.getByRole('button', { name: 'Servir', exact: true }).click();
+  // the dish is handed over as soon as it is judged; leaving the kitchen shows the plated dish
+  await expect(page.locator('.cook-progress')).toHaveText('¡Listo!', { timeout: 10_000 });
+  await expect(page.locator('.cook canvas.board')).toHaveCount(0, { timeout: 10_000 }); // the verdict shows for a moment, then the dish is handed over
+  await page.getByRole('button', { name: 'Salir de la cocina' }).click();
   // the plated dish is shown first; a tap serves it
   await expect(page.locator('.plate-show')).toBeVisible({ timeout: 10_000 });
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
