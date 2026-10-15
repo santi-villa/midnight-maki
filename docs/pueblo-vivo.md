@@ -17,3 +17,9 @@ Doce vecinos sin misiones que llenan Villa Nori de vida (`src/data/neighbors.ts`
 
 ## Pruebas
 `src/tests/neighbors.test.ts`: doce personas distintas con casa propia y amigos reales; plan idéntico para el mismo día, sin casilleros compartidos y siempre alcanzables; lluvia, noctámbulos, charla y amigos juntos.
+
+## Personajes de la historia con más vida
+- **Gestos** (`systems/npcMicro.ts`): cuando un personaje espera en su lugar hace de vez en cuando algo propio unos segundos: cocinar, leer, tomar té, pintar, mirar el cielo, regar, saludar. Cada uno tiene los suyos y la lluvia y la noche suman otros ("¡Cómo llueve!", "Qué noche linda."). Nunca despiertan a quien duerme.
+- **Pasitos:** al aire libre, quien se queda "quieto" (sin recorrido propio) da unos pasos alrededor de su lugar.
+- **Frases al pasar:** si te acercás, dicen algo sobre lo que están haciendo o viendo (`dialogue/topics.ts`), una vez cada ~30–50 s.
+Ver `docs/charla.md`.
