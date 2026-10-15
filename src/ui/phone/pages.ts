@@ -1,6 +1,6 @@
 /** Home-screen paging for the NoriPhone. Pure, so the order can be tested without opening the phone. */
 
-export const APPS_PER_PAGE = 6;
+export const APPS_PER_PAGE = 12;
 
 /**
  * What the player reaches for while walking comes first.
