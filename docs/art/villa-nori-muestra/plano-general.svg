@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="860" viewBox="0 0 1200 860">
+ <style>text{font-family:monospace;fill:#392e2a}.title{font-size:28px;font-weight:bold}.name{font-size:17px;font-weight:bold}.body{font-size:12px}.small{font-size:11px}.road{stroke:#b79568;stroke-width:14;fill:none;stroke-linejoin:round}.card{stroke:#7c6852;stroke-width:3}.sample{stroke:#416b60;stroke-width:5}.future{stroke-dasharray:9 5}</style>
+ <rect width="1200" height="860" fill="#f1e5cc"/>
+ <text x="40" y="48" class="title">VILLA NORI · PLAN DE DISTRIBUCIÓN</text>
+ <text x="40" y="77" class="body">Esquema de sectores y necesidades · propuesta de evolución, no mapa a escala</text>
+ <path d="M50 792 Q360 750 640 796 T1200 790 L1200 860 H0 V802Z" fill="#78aeb7"/>
+ <path d="M770 110 Q720 290 780 420 T745 780" fill="none" stroke="#78aeb7" stroke-width="35"/>
+ <path class="road" d="M535 180 V705 M210 425 H1030 M390 290 H660 V425 M660 425 V690 H890 M780 180 H1030 V425"/>
+ <rect class="card future" x="345" y="112" width="340" height="122" rx="5" fill="#c9d7ba"/>
+ <text class="name" x="365" y="143">BOSQUE SUSURRANTE</text>
+ <text class="body" x="365" y="171">Lago · pesca · recolección · cabaña</text>
+ <text class="body" x="365" y="196">Santuario · recuerdos y pistas de Akio</text>
+ <rect class="card future" x="850" y="110" width="310" height="125" rx="5" fill="#d4c7d8"/>
+ <text class="name" x="870" y="141">SANTUARIO Y MERCADO</text>
+ <text class="body" x="870" y="169">Llegada especial · faroles · puestos</text>
+ <text class="body" x="870" y="194">Conservar horarios y desbloqueos</text>
+ <rect class="card sample" x="285" y="263" width="365" height="113" rx="5" fill="#e3c69e"/>
+ <text class="name" x="305" y="294">MIDNIGHT MAKI · HOGAR</text>
+ <text class="body" x="305" y="322">Cocina, mesas, bebidas, personal y clientes</text>
+ <text class="body" x="305" y="347">Habitaciones, rincones, depósito e historia</text>
+ <rect class="card future" x="30" y="360" width="225" height="130" rx="5" fill="#d5cfba"/>
+ <text class="name" x="50" y="391">ESTACIÓN</text>
+ <text class="body" x="50" y="419">Patio ferroviario</text>
+ <text class="body" x="50" y="443">Historia y exploración</text>
+ <text class="small" x="50" y="467">Conservar llave y progreso</text>
+ <rect class="card sample" x="300" y="407" width="350" height="105" rx="5" fill="#dfd8c5"/>
+ <text class="name" x="320" y="437">CENTRO CÍVICO</text>
+ <text class="body" x="320" y="464">Fuente · biblioteca · cartelera · eventos</text>
+ <text class="body" x="320" y="488">Proyectos, encargos y encuentros</text>
+ <rect class="card future" x="850" y="315" width="310" height="185" rx="5" fill="#d2dcba"/>
+ <text class="name" x="870" y="346">RIBERA Y JARDÍN</text>
+ <text class="body" x="870" y="375">Cerezos · estanque · huerta</text>
+ <text class="body" x="870" y="400">Casa de té · florería · fotografías</text>
+ <text class="body" x="870" y="425">Pesca, cultivos y descanso</text>
+ <text class="small" x="870" y="458">Cruce y borde de río: primera muestra</text>
+ <rect class="card sample" x="285" y="548" width="365" height="104" rx="5" fill="#edcdb1"/>
+ <text class="name" x="305" y="579">PASEO DE COMPRAS DIARIAS</text>
+ <text class="body" x="305" y="606">Bento · Taro · conexión con Yuki</text>
+ <text class="body" x="305" y="630">Entrada visible y trayectos cortos</text>
+ <rect class="card future" x="30" y="550" width="225" height="110" rx="5" fill="#e0ccd4"/>
+ <text class="name" x="50" y="581">BARRIO RESIDENCIAL</text>
+ <text class="body" x="50" y="608">Casas, patios y rutinas</text>
+ <text class="body" x="50" y="633">Amistades · visitas</text>
+ <rect class="card sample" x="490" y="693" width="390" height="88" rx="5" fill="#dbc8a4"/>
+ <text class="name" x="510" y="725">PUERTO Y PLAYA</text>
+ <text class="body" x="510" y="751">Nami · muelles · pesca · puestos · cala</text>
+ <rect class="card future" x="100" y="710" width="220" height="75" rx="5" fill="#d0d4db"/>
+ <text class="name" x="120" y="739">FARO</text>
+ <text class="body" x="120" y="763">Tres estrellas y desenlace</text>
+ <path d="M320 746 H488" class="road"/>
+ <text class="small" x="40" y="825">BORDE VERDE: SECTOR CON INTERVENCIÓN EN LA MUESTRA · TRAZOS: ETAPAS POSTERIORES</text>
+ <text class="small" x="40" y="846">Las actividades y los ocho capítulos se conservan. El plano no concede llaves ni abre regiones.</text>
+</svg>

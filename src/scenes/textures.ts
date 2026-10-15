@@ -6,6 +6,7 @@ import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
 import { buildFolkSheet, FOLK_PAD } from '../art/folk';
 import { heroSheet, isHeroLook } from '../art/heroRender';
 import { buildingLayout } from '../art/nature';
+import { villageShopLayout } from '../art/village';
 import { buildCustomerSheet } from '../art/customerSheet';
 import type { CustomerId } from '../art/customers';
 import { FOLK_SPECS } from '../data/folkSpecs';
@@ -14,7 +15,7 @@ import { ctx2d, makeCanvas, outline, px, shade } from '../art/pixel';
 import { buildTileset } from '../art/tiles';
 import { buildRaccoonSheet, type RaccoonBuild } from '../art/raccoon';
 import { iconCanvas, type IconSpec } from '../art/icons';
-import { FURN_BY_ID } from '../data/furniture';
+import { FURN_BY_ID, furnSize } from '../data/furniture';
 import { PROPS } from '../data/props';
 import { appearanceKey, appearanceOf, dropOf, folkCustom } from '../systems/appearance';
 
@@ -92,8 +93,10 @@ export function propTexture(scene: Phaser.Scene, key: string): string {
 export function furnTexture(scene: Phaser.Scene, id: string, rot = 0): string {
   const d = FURN_BY_ID[id];
   const variant = d.rotatable ? rot : d.variant ?? 0;
-  const k = `fu_${id}_${variant}`;
-  if (!scene.textures.exists(k)) scene.textures.addCanvas(k, drawObject(d.kind, d.w * 16, d.sh, d.c1, d.c2 || d.c1, variant, hashStr(id)));
+  const size = furnSize(d, d.rotatable ? rot : 0);
+  const sh = d.kind === 'table' ? Math.max(d.sh, size.h * 16) : d.sh;
+  const k = `fu_${id}_${variant}_${size.w}x${sh}`;
+  if (!scene.textures.exists(k)) scene.textures.addCanvas(k, drawObject(d.kind, size.w * 16, sh, d.c1, d.c2 || d.c1, variant, hashStr(id)));
   return k;
 }
 
@@ -145,7 +148,7 @@ export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot
   if (scene.textures.exists(key)) return key;
   const c = makeCanvas(W, H);
   const g = ctx2d(c);
-  const L = buildingLayout(W, H);
+  const L = rot >= 20 && rot <= 23 ? villageShopLayout(W, H, rot) : buildingLayout(W, H);
   if (door) {
     // the noren doorway: an orange wash with a brighter slit
     px(g, L.dx + 1, L.doorY + 2, '#ff9a48', L.doorW - 2, L.doorH - 3);

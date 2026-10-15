@@ -2,7 +2,7 @@ import { bus } from '../core/events';
 import { game } from '../core/state';
 import { payRenovation } from './progression';
 import { cornerForUpgrade, installCorner, planCorner } from './corners';
-import { FURN_BY_ID } from '../data/furniture';
+import { FURN_BY_ID, furnSize } from '../data/furniture';
 import { ensureDefaultDecor, placementKeepsPaths } from '../world/zoneRuntime';
 
 export interface UpgradeDef { id: string; name: string; desc: string; price: number; level: number; items?: Record<string, number>; friendship?: { id: string; points: number }; needs?: string; }
@@ -58,9 +58,10 @@ export function buyUpgrade(id: string): boolean {
     try {
       for (const [fid, x, y, rot] of VISUAL[id] ?? []) {
         const fd = FURN_BY_ID[fid];
-        const overlaps = (px: number, py: number) => px >= x && px < x + fd.w && py >= y && py < y + fd.h;
-        const blocked = room.some(f => { const d = FURN_BY_ID[f.id]; return d && x < f.x + d.w && x + fd.w > f.x && y < f.y + d.h && y + fd.h > f.y; }) ||
-          y + fd.h > 10 && x <= 9 && x + fd.w > 8 ||
+        const box = furnSize(fd, rot ?? 0);
+        const overlaps = (px: number, py: number) => px >= x && px < x + box.w && py >= y && py < y + box.h;
+        const blocked = room.some(f => { const d = FURN_BY_ID[f.id]; if (!d) return false; const s = furnSize(d, f.rot); return x < f.x + s.w && x + box.w > f.x && y < f.y + s.h && y + box.h > f.y; }) ||
+          y + box.h > 10 && x <= 9 && x + box.w > 8 ||
           game.save.player.zone === 'restaurant' && overlaps(game.save.player.x, game.save.player.y) ||
           !!game.save.dining?.floor.tables.some(t => t.partyId && t.seats.some(s => overlaps(s.x, s.y)));
         const placed = !blocked && placementKeepsPaths('restaurant', 'dining', { uid: -1, id: fid, x, y, rot: rot ?? 0 });

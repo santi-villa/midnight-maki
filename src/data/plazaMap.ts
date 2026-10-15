@@ -6,7 +6,6 @@
 import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import type { DoorDef, InteractDef, ZoneDef } from './zones';
 import { houseDoorDef, houseEntrancePaths, housePropId, housesIn } from './houses';
-import { PROPS } from './props';
 import { REN_STALL } from './neighbors';
 
 export const PLAZA_SIZE = { w: 58, h: 44 } as const;
@@ -19,7 +18,10 @@ export function plaza(): ZoneDef {
   const b = new Builder(W, H, 'g');
 
   // ---------------------------------------------------------------- streets (old centre keeps its layout)
-  b.rect(9, 7, 14, 12, 'c'); // square
+  // A smaller civic square leaves green edges between the shops instead of one huge stone apron.
+  b.rect(11, 8, 10, 9, 'c');
+  b.rect(9, 11, 14, 3, 'c');
+  b.rect(15, 7, 2, 12, 'c');
   b.rect(3, 7, 7, 2, 'c'); // to the restaurant
   b.rect(15, 0, 2, 7, 'p'); // north
   b.rect(15, 19, 2, 24, 'p'); // south, all the way down to the harbour lanes and the beach
@@ -31,6 +33,8 @@ export function plaza(): ZoneDef {
   b.rect(4, 19, 2, 1, 'c');
   b.rect(4, 13, 2, 3, 'p');
   b.rect(10, 19, 3, 2, 'c');
+  b.rect(5, 20, 23, 2, 'p'); // daily shopping loop: Bento -> Taro, with the library just below
+  b.rect(26, 13, 2, 8, 'c'); // Taro's forecourt links directly to the river crossing
   b.rect(9, 9, 2, 1, 'r').rect(21, 9, 2, 1, 'y').rect(9, 16, 2, 1, 'l').rect(21, 16, 2, 1, 'r');
   b.rect(8, 25, 8, 1, 'p'); // library step
   // lanes of the harbour quarter
@@ -81,13 +85,13 @@ export function plaza(): ZoneDef {
     .prop('bld_restaurant_s3', 2, 4, 'stage=3')
     .prop('sake_barrel', 1, 6, 'stage>=2')
     .prop('sake_barrel', 1, 5, 'stage>=2')
-    .prop('bamboo', 8, 5, 'stage>=3')
+    .prop('bamboo', 1, 8, 'stage>=3')
     .prop('bamboo', 1, 7, 'stage>=3')
     .prop('flowers', 6, 6, 'stage>=1')
-    // the three shops now have their door on the side, at the same tile as before
-    .prop('bld_th_clothes_r', 22, 4)
-    .prop('bld_th_store_r', 23, 16)
-    .prop('bld_th_bakery_l', 4, 16)
+    // All shop doors retain their original tiles; Bento and Taro use the new frontage kit.
+    .prop('bld_clothes', 22, 4)
+    .prop('bld_store', 23, 16)
+    .prop('bld_bakery', 4, 16)
     .prop('bld_library', 8, 22)
     .prop('fountain', 14, 11)
     .prop('board', 11, 7)
@@ -141,6 +145,14 @@ export function plaza(): ZoneDef {
   wall('lamppost', [33, 11], [33, 14], [39, 11], [45, 18]);
   b.prop('bench', 31, 16).prop('flowers_lav', 34, 20).prop('flowers', 32, 21).prop('pot_cream', 33, 17);
   b.prop('sign_riverside', 33, 10);
+  // First river kit: a single coherent crossing and low stone edging on the accessible banks.
+  const crossing = riverX(12);
+  b.prop('village_bridge', crossing - 2, 12);
+  for (let y = 8; y <= 21; y++) {
+    if (y === 12 || y === 13) continue;
+    const cx = riverX(y);
+    b.prop('village_bank_w', cx - 3, y).prop('village_bank_e', cx + 2, y);
+  }
   // reeds along both banks
   for (const y of [4, 8, 17, 21, 25, 33]) { const cx = riverX(y); b.prop('reeds', cx - 3, y).prop('reeds', cx + 2, y + 1); }
 
@@ -176,6 +188,8 @@ export function plaza(): ZoneDef {
 
   // ---------------------------------------------------------------- harbour: bay, piers, boats, stalls
   b.prop('boat', 43, 40).prop('boat', 34, 42).prop('boat', 38, 38);
+  b.prop('village_pier_e', 30, 39).prop('village_pier_n', 36, 35);
+  b.prop('village_net', 30, 37);
   b.prop('crate', 30, 38).prop('barrel', 31, 38).prop('crate', 35, 35).prop('barrel', 35, 34).prop('sack', 29, 40).prop('lantern_cream', 36, 34).prop('lantern_cream', 37, 34);
   b.prop('stall_rose', 44, 34).prop('stall_sage', 49, 34).prop('crate', 48, 33).prop('barrel', 53, 34).prop('sack', 47, 34).prop('lantern_red', 44, 33).prop('lantern_red', 52, 33);
   wall('tree', [51, 37], [54, 38], [56, 41], [50, 41]);
@@ -186,7 +200,6 @@ export function plaza(): ZoneDef {
   b.prop('bench', 41, 33).prop('flowers', 50, 38).prop('flowers_lav', 53, 39);
   for (const y of [34, 38]) b.prop('puddle', 20 + y / 2, y, 'rain');
 
-  scatterFlowers(b, 20231, 34, ['flowers', 'flowers_lav', 'flowers', 'bush_flower']);
 
   const doors: DoorDef[] = [
     { x: 26, y: 6, to: 'shop_yuki', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Ropa de Yuki' },
@@ -253,32 +266,4 @@ export function plaza(): ZoneDef {
     fishing: 'lake',
     bugs: true,
   });
-}
-
-
-/**
- * Small flowers and the odd flowering bush on open grass only: never next to a path, a door or another prop,
- * so the ground is varied without being covered. The same tiles every time (seeded).
- */
-function scatterFlowers(b: Builder, seed: number, count: number, kinds: string[]) {
-  const taken = new Set<string>();
-  for (const p of b.props) {
-    const def = PROPS[p.id];
-    for (let j = -1; j <= (def?.h ?? 1); j++) for (let i = -1; i <= (def?.w ?? 1); i++) taken.add(`${p.x + i},${p.y + j}`);
-  }
-  const open = (x: number, y: number) => {
-    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (b.g[y + j]?.[x + i] !== 'g') return false;
-    return !taken.has(`${x},${y}`);
-  };
-  let n = seed;
-  const next = () => (n = (n * 1664525 + 1013904223) >>> 0) / 4294967296;
-  let placed = 0;
-  for (let tries = 0; tries < count * 40 && placed < count; tries++) {
-    const x = 2 + Math.floor(next() * 28), y = 2 + Math.floor(next() * 30);
-    if (!open(x, y)) continue;
-    const kind = kinds[placed % kinds.length];
-    b.prop(kind, x, y);
-    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) taken.add(`${x + i},${y + j}`);
-    placed++;
-  }
 }

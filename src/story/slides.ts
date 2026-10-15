@@ -217,7 +217,7 @@ function arrival(c: Ctx, a: Appearance) {
   for (let i = 0; i < 14; i++) px(c, Math.floor(r() * SW), Math.floor(r() * 18), '#f6ecd6');
   // ground: grass + path to the restaurant
   const g = brightGrass(1);
-  const p = pathTile;
+  const p = pathTile();
   for (let ty = 3; ty < 10; ty++)
     for (let tx = 0; tx < 16; tx++) {
       const onPath = (tx === 7 || tx === 8) && ty >= 6;

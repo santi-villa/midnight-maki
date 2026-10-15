@@ -4,6 +4,7 @@ import { CHARACTERS, type CharacterDef, type RoutineStop } from '../data/charact
 import { ZONES } from '../data/zones';
 import { raccoonRoutine } from '../data/raccoons';
 import { applyBeat, businessPhase, SHOP_PLACES, FESTIVAL_SPOT, phaseOf, restaurantPhase, shopInteractionText, shopPlace, shopStatus, type ShopStatus } from './schedule';
+import { benchSpots } from './neighborSpots';
 
 function minutesNow(): number {
   return game.save.time.minutes;
@@ -14,14 +15,20 @@ function beat(c: CharacterDef, period: number, base: RoutineStop, hold = false):
   return plazaActivity(c.id, stop, minutesNow());
 }
 
-/** Give resting neighbors an actual bench, and standing neighbors a visible task. */
-const PLAZA_BENCHES: Record<string, [number, number]> = { yuki: [13, 15], taro: [19, 15], ume: [18, 15] };
+/** Give resting neighbors a real bench from the current plaza, and standing neighbors a visible task. */
+const PLAZA_REST = ['yuki', 'taro', 'ume'];
+function plazaBench(id: string): { x: number; y: number } | null {
+  const i = PLAZA_REST.indexOf(id);
+  if (i < 0) return null;
+  const seats = benchSpots('plaza');
+  return seats.length ? seats[i % seats.length] : null;
+}
 export function plazaActivity(id: string, stop: RoutineStop, minutes: number): RoutineStop {
   if (stop.zone !== 'plaza') return stop;
   if (phaseOf(minutes) === 'depart') return { ...stop, act: stop.act === 'look' || !stop.act ? 'work' : stop.act }; // keep the exit destination
-  const bench = PLAZA_BENCHES[id];
+  const bench = plazaBench(id);
   // A bench is a rest, including during the meal beat. Eating there only reused the sit pose and said "ñam".
-  if (bench) return { ...stop, x: bench[0], y: bench[1], wander: 0, seatLift: 12, dir: 'down', act: 'sit' };
+  if (bench) return { ...stop, x: bench.x, y: bench.y, wander: 0, seatLift: 12, dir: 'down', act: 'sit' };
   if (!stop.act || stop.act === 'look' || stop.act === 'talk') {
     const act: RoutineStop['act'] = id === 'pip' ? 'play' : id === 'rigg' || id === 'hoshi' || id === 'kumo' ? 'read' : 'work';
     return { ...stop, act };

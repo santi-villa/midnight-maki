@@ -28,6 +28,12 @@ export interface FurnitureDef {
   likes?: string[];  // raccoons that react happily
 }
 
+/** Footprint in tiles. An odd rotation turns a wide piece sideways. */
+export function furnSize(def: { w: number; h: number; rotatable?: boolean }, rot = 0): { w: number; h: number } {
+  if (def.rotatable && (rot & 1) === 1 && def.w !== def.h) return { w: def.h, h: def.w };
+  return { w: def.w, h: def.h };
+}
+
 const F = (
   id: string, name: string, cat: FurnCat, style: DecoStyle, price: number, kind: string, c1: string, c2: string,
   w: number, h: number, sh: number, extra: Partial<FurnitureDef> = {},
@@ -35,11 +41,13 @@ const F = (
 
 export const FURNITURE: FurnitureDef[] = [
   // ---------------- tables
-  F('table_wood', 'Mesa de madera', 'restaurant', 'natural', 90, 'table', '#a8734d', '', 2, 1, 22),
+  F('table_wood', 'Mesa de madera', 'restaurant', 'natural', 90, 'table', '#a8734d', '', 2, 1, 22, { rotatable: true }),
   F('table_round', 'Mesita redonda', 'restaurant', 'cozy', 70, 'roundtable', '#a8734d', '', 1, 1, 16),
-  F('table_dark', 'Mesa de nogal', 'restaurant', 'dark', 180, 'table', '#5e3f30', '', 2, 1, 22),
-  F('table_pink', 'Mesa pastel', 'restaurant', 'pastel', 160, 'table', '#e8b8c0', '', 2, 1, 22, { shop: 'sumi' }),
-  F('table_low', 'Chabudai', 'restaurant', 'japanese', 150, 'table', '#8a5a3c', '', 2, 1, 14),
+  F('table_dark', 'Mesa de nogal', 'restaurant', 'dark', 180, 'table', '#5e3f30', '', 2, 1, 22, { rotatable: true }),
+  F('table_pink', 'Mesa pastel', 'restaurant', 'pastel', 160, 'table', '#e8b8c0', '', 2, 1, 22, { rotatable: true, shop: 'sumi' }),
+  F('table_low', 'Chabudai', 'restaurant', 'japanese', 150, 'table', '#8a5a3c', '', 2, 1, 14, { rotatable: true }),
+  F('table_long', 'Mesa larga', 'restaurant', 'natural', 150, 'table', '#a8734d', '', 3, 1, 24, { rotatable: true }),
+  F('table_family', 'Mesa familiar', 'restaurant', 'cozy', 210, 'table', '#8a5a3c', '', 2, 2, 32),
   F('kotatsu', 'Kotatsu', 'bedroom', 'japanese', 420, 'kotatsu', '#b2585e', '#f2c66d', 2, 2, 30, { sit: true, likes: ['pip'] }),
   // ---------------- seats
   F('chair_wood', 'Silla de madera', 'restaurant', 'natural', 50, 'chair', '#8a5a3c', '#a8734d', 1, 1, 18, { rotatable: true, sit: true }),
@@ -127,7 +135,7 @@ export const FURNITURE: FurnitureDef[] = [
   F('bond_map_frame', 'Cuadro: el mapa de Rigg', 'wall', 'night', 0, 'painting', '#cfe0ef', '', 2, 1, 16, { wall: true, variant: 0, shop: 'reward', likes: ['rigg'] }),
   F('bond_star_notebook', 'Cuaderno de estrellas', 'small', 'night', 0, 'bookstack', '#2c3358', '#f2c66d', 1, 1, 12, { shop: 'reward', likes: ['rigg'] }),
   F('bond_tuesday_lamp', 'Farol de los martes', 'light', 'japanese', 0, 'andon', '#f6e3b0', '', 1, 1, 28, { light: '#f4d68c', shop: 'reward', likes: ['pip', 'spicy', 'rigg'] }),
-  F('bond_table_four', 'Mesa de los cuatro', 'restaurant', 'cozy', 0, 'table', '#a8734d', '', 2, 1, 22, { shop: 'reward', likes: ['pip', 'spicy', 'rigg'] }),
+  F('bond_table_four', 'Mesa de los cuatro', 'restaurant', 'cozy', 0, 'table', '#a8734d', '', 2, 1, 22, { rotatable: true, shop: 'reward', likes: ['pip', 'spicy', 'rigg'] }),
   F('bond_group_frame', 'Portarretrato de los cuatro', 'small', 'raccoon', 0, 'frame', '#f2c66d', '', 1, 1, 12, { shop: 'reward', likes: ['pip', 'spicy', 'rigg'] }),
   F('bond_dinner_frame', 'Cuadro: la cena', 'wall', 'cozy', 0, 'painting', '#e8b8c0', '', 1, 1, 16, { wall: true, variant: 3, shop: 'reward', likes: ['pip', 'spicy', 'rigg'] }),
   // Keepsakes earned from weekly errands, stored until the player chooses where to put them.

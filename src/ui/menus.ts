@@ -18,6 +18,7 @@ import { openSettings } from './settingsPanel';
 import type { HudHandlers } from './hud';
 import { whereIs } from '../systems/npcs';
 import { ZONES } from '../data/zones';
+import { hudSuggestionLabels } from './hudSuggestions';
 import { ACHIEVEMENTS } from '../systems/achievements';
 import { openPhone, registerPhoneApps, type PhoneApp } from './phone/phone';
 import { openTownMemories } from './townMemories';
@@ -258,14 +259,17 @@ function openMap() {
 
 // ------------------------------------------------------------------ suggestions (gentle, ignorable)
 function suggestions(): { label: string; run: () => void }[] {
-  const out: { label: string; run: () => void }[] = [];
-  if (!game.has('intro_done')) return out;
-  if (game.save.orders.length) out.push({ label: 'Preparar sushi', run: () => import('../restaurant/kitchen').then((m) => m.openOrders()) });
-  const r = ['pip', 'spicy', 'rigg'].sort((a, b) => game.rel(a).lastTalkDay - game.rel(b).lastTalkDay)[0];
-  if (game.rel(r).lastTalkDay !== game.save.time.day) out.push({ label: `Visitar a ${CHARACTERS.find((c) => c.id === r)!.name}`, run: () => toast(`${CHARACTERS.find((c) => c.id === r)!.name} está en: ${ZONES[whereIs(r) ?? '']?.name ?? 'su cuarto'}`) });
-  if (game.has('unlock_beach') && game.save.time.period < 3 && world.zoneId !== 'beach') out.push({ label: 'Ir a pescar', run: () => toast('La playa está al sur de la plaza.') });
-  else out.push({ label: 'Ver colección', run: () => openJournal(3) });
-  return out.slice(0, 3);
+  const run: Record<string, () => void> = {
+    'Preparar sushi': () => { void import('../restaurant/kitchen').then((m) => m.openOrders()); },
+    'Ir a pescar': () => toast('La playa está al sur de la plaza.'),
+  };
+  return hudSuggestionLabels({
+    introDone: game.has('intro_done'),
+    pendingOrders: game.save.orders.length > 0,
+    beachUnlocked: game.has('unlock_beach'),
+    period: game.save.time.period,
+    atBeach: world.zoneId === 'beach',
+  }).map((label) => ({ label, run: run[label] }));
 }
 
 export function hudHandlers(): HudHandlers {
