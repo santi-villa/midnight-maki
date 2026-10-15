@@ -70,7 +70,8 @@ export interface Order {
   reward: number;
   special?: string;   // marks story/quest orders
   /** Set once the dish is cooked and still needs to be carried to the table. */
-  plate?: { quality: 0 | 1 | 2; variantBonus?: number; variant?: string; state?: 'ready' | 'carried' | 'delivered' };
+  /** `claim`: id of the employee who is on the way to carry it (never saved across a reload) */
+  plate?: { quality: 0 | 1 | 2; variantBonus?: number; variant?: string; state?: 'ready' | 'carried' | 'delivered'; claim?: string };
 }
 
 export interface QuestState {
@@ -140,6 +141,8 @@ export interface SaveData {
   recipesCooked: Record<string, number>;
   /** restaurant supplies kept in the kitchen pantry (ingredient id -> units); optional so older saves load */
   pantry?: Record<string, number>;
+  /** hired staff (optional so older saves load) */
+  staff?: import('../restaurant/staff').StaffSave;
   /** best time in hard mode, seconds per recipe */
   bestTimes?: Record<string, number>;
   /** mastery per recipe (see restaurant/mastery.ts); missing in older saves */
