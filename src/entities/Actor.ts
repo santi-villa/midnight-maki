@@ -4,6 +4,7 @@ import type { Dir } from '../core/types';
 import type { NpcAct } from '../data/characters';
 import { lowFx } from '../core/perf';
 import type { Grid } from '../world/grid';
+import { castAnchor } from '../scenes/lightmath';
 import { restPose } from './restPose';
 
 export const TILE = 16;
@@ -319,10 +320,13 @@ export class Actor {
     if (!lying) {
       this.sprite.setPosition(rx, ry - this.bob - seated);
       this.sprite.setDepth(ry + this.depthBoost);
-      this.shadow.setPosition(rx, ry - 1);
+      const feet = ry - seated;
+      this.shadow.setPosition(rx, feet - 1);
       this.shadow.setDepth(ry - 0.5);
       const sun = Actor.sun;
-      this.cast.setPosition(rx + sun.dx * 0.6, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, 0.34 * (sun.sy / 0.3)).setAlpha(0.3 * sun.alpha);
+      const squash = 0.34 * (sun.sy / 0.3);
+      const pose = castAnchor(rx, feet - 1, sun.dx * 0.55, this.sprite.frame.height || 32, squash);
+      this.cast.setOrigin(0.5, 0).setPosition(pose.x, pose.y).setRotation(pose.angle).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, pose.scaleY).setAlpha(0.3 * sun.alpha);
       if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
     }
     if (this.bubble) {

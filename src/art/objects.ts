@@ -158,13 +158,15 @@ const K: Record<string, DrawFn> = {
   },
   paperlantern(c, W, H, c1) {
     const cx = Math.floor(W / 2);
-    px(c, cx, H - 24, OUT, 1, 4);
-    ellipse(c, cx, H - 14, 5, 6, shade(c1, -0.3));
-    ellipse(c, cx, H - 14, 4, 5, c1);
-    px(c, cx - 4, H - 14, shade(c1, -0.2), 9, 1);
-    px(c, cx - 2, H - 20, OUT, 5, 1);
-    px(c, cx - 2, H - 8, OUT, 5, 1);
-    px(c, cx - 2, H - 16, '#fff3c9', 2, 2);
+    // a stake to the ground: the oval is a lantern, not a balloon floating beside it
+    px(c, cx - 2, H - 2, '#3d3a4a', 5, 2);
+    px(c, cx, H - 20, '#3d3a4a', 1, 18);
+    ellipse(c, cx, H - 18, 5, 5, shade(c1, -0.3));
+    ellipse(c, cx, H - 18, 4, 4, c1);
+    px(c, cx - 3, H - 18, shade(c1, -0.2), 7, 1);
+    px(c, cx - 2, H - 23, OUT, 5, 1);
+    px(c, cx - 2, H - 13, OUT, 5, 1);
+    px(c, cx - 1, H - 20, '#fff3c9', 2, 2);
   },
   fence(c, W, H) {
     for (let x = 1; x < W; x += 5) box(c, x, H - 12, 4, 11, PAL.woodL);

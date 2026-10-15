@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
-import { lightState, type LightState } from './lightmath';
+import { castAnchor, lightState, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
@@ -2385,14 +2385,15 @@ export class WorldScene extends Phaser.Scene {
   private vignette: Phaser.GameObjects.Image | null = null;
 
   /**
-   * Cast shadow: the sprite's own silhouette, flipped onto the ground, squashed and offset as if lit
-   * from the upper left. This is what makes objects read as standing in 3D space.
+   * Projected shadow: the sprite's silhouette, flipped onto the ground and pivoted on the object's feet.
+   * The sun leans the tip. It does not slide the whole shape off the base.
+   * Paper lanterns keep only the contact oval: a flipped copy read as a second red balloon.
    */
   private castShadow(img: Phaser.GameObjects.Image, kind: string, track = true): Phaser.GameObjects.Image | null {
-    if (['flowers', 'reeds', 'mushroom', 'pier', 'stars', 'puddle', 'awning', 'poster', 'stairs', 'rug'].includes(kind)) return null;
-    const tall = ['tree', 'sakura', 'pine', 'lamppost', 'lighthouse', 'torii', 'lanternstring'].includes(kind);
+    if (['flowers', 'reeds', 'mushroom', 'pier', 'stars', 'puddle', 'awning', 'poster', 'stairs', 'rug', 'paperlantern', 'lanternstring'].includes(kind)) return null;
+    const tall = ['tree', 'sakura', 'pine', 'lamppost', 'lighthouse', 'torii'].includes(kind);
     const s = this.add
-      .image(img.x + (tall ? 5 : 3), img.y - 1, img.texture.key)
+      .image(img.x, img.y, img.texture.key)
       .setOrigin(0.5, 0)
       .setFlipY(true)
       .setTintFill(0x140c24)
@@ -2400,17 +2401,17 @@ export class WorldScene extends Phaser.Scene {
       .setScale(1.04, kind === 'building' || kind === 'stall' ? 0.18 : tall ? 0.4 : 0.28)
       .setDepth(-7);
     if (track) this.objs.push(s);
-    this.castList.push({ s, src: img, tall, sy: s.scaleY, a: s.alpha, x: s.x - img.x });
+    this.castList.push({ s, src: img, tall, sy: s.scaleY, a: s.alpha, x: 0 });
     return s;
   }
 
-  /** soft contact shadows ground props to the floor */
+  /** Contact shadow: a short mark on the ground, centered on the object's base. */
   private addShadow(kind: string, x: number, y: number, sw: number, w: number) {
     let sh: Phaser.GameObjects.Shape;
-    if (kind === 'building') sh = this.add.rectangle(x, y + 2, w * TILE + 6, 6, 0x1a1428, 0.28);
-    else if (['tree', 'sakura', 'pine'].includes(kind)) sh = this.add.ellipse(x + 2, y - 1, sw * 0.6, 8, 0x1a1428, 0.35);
+    if (kind === 'building') sh = this.add.rectangle(x, y + 1, w * TILE * 0.92, 5, 0x1a1428, 0.28);
+    else if (['tree', 'sakura', 'pine'].includes(kind)) sh = this.add.ellipse(x, y, Math.max(10, sw * 0.42), 5, 0x1a1428, 0.32);
     else if (['flowers', 'reeds', 'mushroom', 'pier', 'stars', 'torii'].includes(kind)) return;
-    else sh = this.add.ellipse(x, y - 1, Math.max(10, sw * 0.8), 5, 0x1a1428, 0.32);
+    else sh = this.add.ellipse(x, y, Math.max(8, sw * 0.7), 4, 0x1a1428, 0.28);
     sh.setDepth(-7);
     this.objs.push(sh);
   }
@@ -2458,9 +2459,9 @@ export class WorldScene extends Phaser.Scene {
     this.shadowKey = key;
     this.castList = this.castList.filter((c) => c.s.active && c.src.active);
     for (const c of this.castList) {
-      c.s.setPosition(c.src.x + st.dx * (c.tall ? 1.6 : 1), c.s.y);
-      c.s.setScale(c.s.scaleX, c.sy * (st.sy / 0.3));
-      c.s.setAlpha(c.a * st.alpha);
+      const squash = c.sy * (st.sy / 0.3);
+      const pose = castAnchor(c.src.x, c.src.y, st.dx * (c.tall ? 1.6 : 1), c.src.height || 32, squash);
+      c.s.setOrigin(0.5, 0).setPosition(pose.x, pose.y).setRotation(pose.angle).setScale(c.s.scaleX, pose.scaleY).setAlpha(c.a * st.alpha);
     }
   }
 

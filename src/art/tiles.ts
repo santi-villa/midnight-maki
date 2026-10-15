@@ -144,7 +144,7 @@ export const FLOOR_STYLES: Record<string, { name: string; draw: TileDraw; price:
   wood: { name: 'Madera cálida', draw: plankFloor('#b98252', '#7e4f31'), price: 0 },
   darkwood: { name: 'Madera oscura', draw: plankFloor('#7a5038', '#4e3426'), price: 150 },
   tatami: { name: 'Tatami', draw: tatamiMat, price: 200 },
-  izakaya: { name: 'Tablones de izakaya', draw: izakayaFloor, price: 180 },
+  izakaya: { name: 'Tablones de izakaya', draw: izakayaFloor(), price: 180 },
   checker: { name: 'Damero crema', draw: checker('#efe3c8', '#d2c3a2'), price: 150 },
   rose: { name: 'Baldosa rosa', draw: checker('#efc9c6', '#e0b0ae'), price: 180 },
   lavcarpet: { name: 'Alfombra lavanda', draw: carpet('#b7a8d6', '#cfc3e6'), price: 220 },
@@ -169,10 +169,17 @@ const add = (key: string, solid: boolean, draw: TileDraw) => DEFS.push({ key, so
 
 add('void', true, voidTile());
 for (let i = 0; i < 4; i++) add('grass' + i, false, brightGrass(i));
+add('grass4', false, brightGrass(0));
+add('grass5', false, brightGrass(1));
 add('dgrass', false, darkGrassBright);
-add('dirt', false, pathTile);
+add('dgrass1', false, darkGrassBright);
+add('dirt', false, pathTile(0));
+add('dirt1', false, pathTile(1));
+add('dirt2', false, pathTile(2));
 for (let i = 0; i < 3; i++) add('cobble' + (i || ''), false, paverTile(i));
-add('sand', false, sandTile);
+add('sand', false, sandTile(0));
+add('sand1', false, sandTile(1));
+add('sand2', false, sandTile(2));
 add('shore', true, shoreTile);
 for (let f = 1; f < 4; f++) add('shore' + f, true, shoreTileFrame(f));
 // water: wt<calm|rain><shallow|deep><variant>_<frame>; water0 / deep0 stay as aliases of the first calm frame
@@ -188,6 +195,7 @@ add('bed_rose', false, flowerBedBright('#f4a6c0'));
 add('bed_gold', false, flowerBedBright('#ffd36a'));
 add('bed_lav', false, flowerBedBright('#b9a0ec'));
 add('soil', false, soilTile(false));
+add('soil1', false, soilTile(false, 2));
 add('soilwet', false, soilTile(true));
 // transparent edge overlays (grass creeping over paths, grassy banks over water); index = mask 1..15
 for (let m = 1; m < 16; m++) add('fr' + m, false, fringe(m));
@@ -196,7 +204,17 @@ for (let m = 1; m < 16; m++) add('bkb' + m, false, bank(m, 1)); // second foam f
 add('station', false, paverTile(2, GREY_STONE));
 add('rail', false, rail());
 add('kitchen', false, barFloor);
+add('kitchen1', false, barFloor);
+add('kitchen2', false, barFloor);
 for (const [k, f] of Object.entries(FLOOR_STYLES)) add('floor_' + k, false, f.draw);
+add('floor_wood1', false, plankFloor('#b98252', '#7e4f31', 5));
+add('floor_wood2', false, plankFloor('#b98252', '#7e4f31', 9));
+add('floor_darkwood1', false, plankFloor('#7a5038', '#4e3426', 5));
+add('floor_darkwood2', false, plankFloor('#7a5038', '#4e3426', 9));
+add('floor_tatami1', false, tatamiMat);
+add('floor_tatami2', false, tatamiMat);
+add('floor_izakaya1', false, izakayaFloor(5));
+add('floor_izakaya2', false, izakayaFloor(9));
 for (const [k, w] of Object.entries(WALL_STYLES)) {
   add('walltop_' + k, true, wallTop(w.base));
   add('wall_' + k, true, wallFace(w.base, w.accent, w.pattern));

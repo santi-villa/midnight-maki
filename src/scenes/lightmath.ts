@@ -146,6 +146,24 @@ export function lightState(i: LightInput): LightState {
   return { tint, vig, lamp, windows, moon, halo, shadow: shadowStyle(per, k, i.rain && i.outdoor, i.outdoor) };
 }
 
+export interface CastAnchor {
+  /** feet of the shadow, in the same pixels as the object's base */
+  x: number;
+  y: number;
+  /** lean around the feet, radians. Positive reaches to the right. */
+  angle: number;
+  scaleY: number;
+}
+
+/**
+ * Projected shadow: the silhouette pivots on the object's feet.
+ * `reach` is how far the tip should travel. The whole shape is not slid sideways.
+ */
+export function castAnchor(baseX: number, baseY: number, reach: number, heightPx: number, scaleY: number): CastAnchor {
+  const h = Math.max(6, Math.abs(heightPx * scaleY));
+  return { x: baseX, y: baseY, angle: Math.atan2(reach, h), scaleY };
+}
+
 /** Sun direction by time of day: shadows lean right in the morning, left in the afternoon and stretch at dusk. */
 export function shadowStyle(period: number, prog: number, rain: boolean, outdoor: boolean): ShadowStyle {
   if (!outdoor) return { dx: 3, sy: 0.3, alpha: 1 };
