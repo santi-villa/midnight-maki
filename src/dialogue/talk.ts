@@ -91,7 +91,7 @@ export async function talkTo(id: string) {
       const up = game.addFriendship(id, BALANCE.talkPoints);
       if (up) await friendshipUp(id, up);
     }
-    const opts = ['Charlar un rato', 'Regalar algo', ...(RACCOONS.includes(id) && game.friendLevel(id) >= 1 ? ['Cambiar su atuendo'] : []), 'Nada, solo saludar'];
+    const opts = ['Charlar un rato', 'Regalar algo', ...(RACCOONS.includes(id) ? ['Regalar un mueble'] : []), ...(RACCOONS.includes(id) && game.friendLevel(id) >= 1 ? ['Cambiar su atuendo'] : []), 'Nada, solo saludar'];
     const c = await choose(opts);
     const pick = opts[c];
     if (pick === 'Charlar un rato') {
@@ -107,6 +107,15 @@ export async function talkTo(id: string) {
         await giveGift(id, item);
       } else {
         await say(id, 'No te preocupes, en otro momento.', 'neutral');
+      }
+    } else if (pick === 'Regalar un mueble') {
+      const { giftFurniture, pickFurnitureGift } = await import('../world/furnGift');
+      const furn = await pickFurnitureGift();
+      if (!furn) await say(id, 'No te preocupes, en otro momento.', 'neutral');
+      else {
+        const res = giftFurniture(id, furn);
+        await say(id, res.line, res.reason === 'dislike' ? 'sad' : res.ok ? 'happy' : 'neutral');
+        if (res.levelUp) await friendshipUp(id, res.levelUp);
       }
     } else if (pick === 'Cambiar su atuendo') {
       const { openRaccoonOutfit } = await import('../ui/wardrobe');

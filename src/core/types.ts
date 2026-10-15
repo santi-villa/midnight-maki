@@ -164,6 +164,8 @@ export interface SaveData {
   decor: Record<string, PlacedFurniture[]>;
   roomStyle: Record<string, { floor: string; wall: string }>;
   furnitureOwned: Record<string, number>; // stored (not placed) counts
+  /** Furniture an NPC accepted but could not place yet (npc id -> furniture ids). */
+  storedGifts: Record<string, string[]>;
   clothesOwned: string[];
   collections: Record<string, Record<string, number>>; // category -> id -> count
   achievements: string[];

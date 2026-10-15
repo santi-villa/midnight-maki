@@ -8,8 +8,11 @@ import { PROJECTS, PROJECT_PROPS } from '../data/projects';
 import { applyProjectBenefits } from '../restaurant/projects';
 import { seatsApproachable } from '../restaurant/seating';
 import { applyStageGrants, stageForLevel } from '../restaurant/stages';
+import { HOUSES } from '../data/houses';
+import { housePieces } from '../data/houseInterior';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
+import { settleStoredGifts } from './furnGift';
 
 export interface PropInstance { key: string; def: PropDef; x: number; y: number; }
 export interface FurnInstance { room: string; f: PlacedFurniture; def: FurnitureDef; }
@@ -124,8 +127,17 @@ export function ensureDefaultDecor() {
       for (const [id, x, y, rot] of list) arr.push({ uid: game.uid(), id, x, y, rot: rot ?? 0 });
     });
   }
+  for (let i = 0; i < HOUSES.length; i++) {
+    const h = HOUSES[i];
+    game.once('decor_' + h.id, () => {
+      const arr = game.room(h.id);
+      if (arr.length) return;
+      for (const [id, x, y, rot] of housePieces(h, i)) arr.push({ uid: game.uid(), id, x, y, rot: rot ?? 0 });
+    });
+  }
   applyStageGrants(); // after the defaults, so the new tables never land on them
   widenSavedTables();
+  settleStoredGifts();
 }
 
 /**
