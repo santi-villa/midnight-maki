@@ -16,6 +16,7 @@ import { DRINKS, DRINK_BY_ID, drinksUnlocked } from './drinkData';
 import { drawCustomer } from './customers';
 import type { Order } from '../core/types';
 import { RECIPES_BY_ID } from '../data/recipes';
+import { queueHasRoom } from './waiting';
 import { RESTAURANT_HOURS, restaurantPhase } from '../systems/schedule';
 import {
   createService,
@@ -253,7 +254,7 @@ function canSpawn(floor: DiningFloor): boolean {
   if (!game.has('intro_done') || hoursNow() !== 'open' || !availableRecipes().length) return false;
   const parties = floor.parties().filter((p) => p.phase !== 'leaving');
   const queued = parties.filter((p) => !p.tableId);
-  if (queued.length >= 1) return false;
+  if (!queueHasRoom(queued.length, queued.reduce((n, p) => n + p.size, 0))) return false;
   if (pendingOrders() >= maxOrders() * 8) return false;
   const tables = floor.tableList().filter((t) => t.capacity > 0);
   if (!tables.length) return false;
@@ -406,7 +407,9 @@ export function spawnGuest(pieces: FurnPiece[], customerId?: string, partyId?: s
     }
   }
   const customer = group[0];
+  const waiting = floor.parties().filter((p) => !p.tableId && p.phase !== 'leaving');
   if (!customer || !floor.tableList().some(t => t.capacity >= group.length)) return null;
+  if (!queueHasRoom(waiting.length, waiting.reduce((n, p) => n + p.size, 0), group.length)) return null;
   const id = partyId ?? 'g' + nextId++;
   const view = floor.arrive({ id, customerId: customer, customers: group, tipRate: tipBonus() });
   if (!view) return null;

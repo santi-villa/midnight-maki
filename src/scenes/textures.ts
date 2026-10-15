@@ -15,7 +15,7 @@ import { ctx2d, makeCanvas, outline, px, shade } from '../art/pixel';
 import { buildTileset } from '../art/tiles';
 import { buildRaccoonSheet, type RaccoonBuild } from '../art/raccoon';
 import { iconCanvas, type IconSpec } from '../art/icons';
-import { FURN_BY_ID } from '../data/furniture';
+import { FURN_BY_ID, furnSize } from '../data/furniture';
 import { PROPS } from '../data/props';
 import { appearanceKey, appearanceOf, dropOf, folkCustom } from '../systems/appearance';
 
@@ -93,8 +93,10 @@ export function propTexture(scene: Phaser.Scene, key: string): string {
 export function furnTexture(scene: Phaser.Scene, id: string, rot = 0): string {
   const d = FURN_BY_ID[id];
   const variant = d.rotatable ? rot : d.variant ?? 0;
-  const k = `fu_${id}_${variant}`;
-  if (!scene.textures.exists(k)) scene.textures.addCanvas(k, drawObject(d.kind, d.w * 16, d.sh, d.c1, d.c2 || d.c1, variant, hashStr(id)));
+  const size = furnSize(d, d.rotatable ? rot : 0);
+  const sh = d.kind === 'table' ? Math.max(d.sh, size.h * 16) : d.sh;
+  const k = `fu_${id}_${variant}_${size.w}x${sh}`;
+  if (!scene.textures.exists(k)) scene.textures.addCanvas(k, drawObject(d.kind, size.w * 16, sh, d.c1, d.c2 || d.c1, variant, hashStr(id)));
   return k;
 }
 

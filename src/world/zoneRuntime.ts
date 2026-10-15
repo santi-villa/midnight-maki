@@ -2,10 +2,11 @@
 import { game } from '../core/state';
 import type { PlacedFurniture } from '../core/types';
 import { TILE_INDEX, TILE_SOLID } from '../art/tiles';
-import { FURN_BY_ID, type FurnitureDef } from '../data/furniture';
+import { FURN_BY_ID, furnSize, type FurnitureDef } from '../data/furniture';
 import { PROPS, type PropDef } from '../data/props';
 import { PROJECTS, PROJECT_PROPS } from '../data/projects';
 import { applyProjectBenefits } from '../restaurant/projects';
+import { seatsApproachable } from '../restaurant/seating';
 import { applyStageGrants, stageForLevel } from '../restaurant/stages';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
@@ -103,8 +104,9 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
 /** Default furniture for each decor room the first time it's visited. */
 const DEFAULT_DECOR: Record<string, [string, number, number, number?][]> = {
   dining: [
-    ['table_dark', 8, 8], ['chair_dark', 8, 9, 2], ['chair_dark', 9, 9, 2], ['chair_dark', 8, 7, 0], ['chair_dark', 9, 7, 0],
-    ['table_dark', 12, 7], ['chair_dark', 12, 8, 2], ['chair_dark', 13, 8, 2], ['chair_dark', 12, 6, 0], ['chair_dark', 13, 6, 0],
+    // three tiles wide, with a gap between the chairs on each side
+    ['table_long', 7, 8], ['chair_dark', 7, 9, 2], ['chair_dark', 9, 9, 2], ['chair_dark', 7, 7, 0], ['chair_dark', 9, 7, 0],
+    ['table_long', 12, 7], ['chair_dark', 12, 8, 2], ['chair_dark', 14, 8, 2], ['chair_dark', 12, 6, 0], ['chair_dark', 14, 6, 0],
     ['table_low', 15, 10], ['cushion_indigo', 15, 9], ['cushion_rose', 16, 9], ['cushion_rose', 15, 11], ['cushion_indigo', 16, 11],
     ['bamboo_pot', 16, 6], ['andon', 11, 12], ['bamboo_pot', 7, 12],
   ],
@@ -123,12 +125,71 @@ export function ensureDefaultDecor() {
     });
   }
   applyStageGrants(); // after the defaults, so the new tables never land on them
+  widenSavedTables();
+}
+
+/**
+ * Older halls used a 2-tile table with two chairs touching on each side.
+ * When those chairs are still on the original tiles, and the wider footprint is empty,
+ * swap in the long table and leave a gap between the chairs. Custom layouts are left alone.
+ */
+function widenSavedTables() {
+  game.once('dining_wide_v1', () => {
+    const room = game.room('dining');
+    const plans: { from: [number, number]; chairs: [number, number][]; next: { x: number; y: number; chairs: [number, number][] } }[] = [
+      { from: [8, 8], chairs: [[8, 7], [9, 7], [8, 9], [9, 9]], next: { x: 7, y: 8, chairs: [[7, 7], [9, 7], [7, 9], [9, 9]] } },
+      { from: [12, 7], chairs: [[12, 6], [13, 6], [12, 8], [13, 8]], next: { x: 12, y: 7, chairs: [[12, 6], [14, 6], [12, 8], [14, 8]] } },
+    ];
+    const covers = (f: PlacedFurniture, x: number, y: number) => {
+      const d = FURN_BY_ID[f.id];
+      if (!d) return false;
+      const s = furnSize(d, f.rot);
+      return x >= f.x && x < f.x + s.w && y >= f.y && y < f.y + s.h;
+    };
+    for (const plan of plans) {
+      const table = room.find((f) => (f.id === 'table_dark' || f.id === 'table_wood') && f.x === plan.from[0] && f.y === plan.from[1] && (f.rot ?? 0) % 2 === 0);
+      if (!table) continue;
+      const chairs = plan.chairs.map(([x, y]) => room.find((f) => f.x === x && f.y === y && !!FURN_BY_ID[f.id]?.sit && !FURN_BY_ID[f.id]?.walkable));
+      if (chairs.some((c) => !c)) continue;
+      const moving = new Set([table, ...chairs]);
+      const need: [number, number][] = [[plan.next.x, plan.next.y], [plan.next.x + 1, plan.next.y], [plan.next.x + 2, plan.next.y], ...plan.next.chairs];
+      const blocked = need.some(([x, y]) => x < 3 || y < 6 || x > 16 || y > 12 || ((x === 8 || x === 9) && y >= 10) || room.some((f) => !moving.has(f) && covers(f, x, y)));
+      if (blocked) continue;
+      table.id = 'table_long';
+      table.x = plan.next.x;
+      table.y = plan.next.y;
+      table.rot = 0;
+      chairs.forEach((chair, i) => {
+        chair!.x = plan.next.chairs[i][0];
+        chair!.y = plan.next.chairs[i][1];
+      });
+      syncWideDining(table.uid, table.x, table.y, chairs.filter((c): c is PlacedFurniture => !!c));
+    }
+  });
+}
+
+/** A mid-service save still points guests at the chairs. Move those seats with the furniture. */
+function syncWideDining(tableUid: number, x: number, y: number, chairs: PlacedFurniture[]) {
+  const saved = game.save.dining?.floor.tables.find((t) => t.id === String(tableUid));
+  if (!saved) return;
+  const ids = new Set(saved.seats.map((s) => s.id));
+  if (!chairs.every((c) => ids.has(String(c.uid)))) return;
+  saved.x = x;
+  saved.y = y;
+  for (const chair of chairs) {
+    const seat = saved.seats.find((s) => s.id === String(chair.uid));
+    if (seat) {
+      seat.x = chair.x;
+      seat.y = chair.y;
+    }
+  }
 }
 
 export function furnitureSolidTiles(f: PlacedFurniture, def: FurnitureDef): [number, number][] {
   if (def.walkable || def.wall) return [];
+  const size = furnSize(def, f.rot);
   const out: [number, number][] = [];
-  for (let j = 0; j < def.h; j++) for (let i = 0; i < def.w; i++) out.push([f.x + i, f.y + j]);
+  for (let j = 0; j < size.h; j++) for (let i = 0; i < size.w; i++) out.push([f.x + i, f.y + j]);
   return out;
 }
 
@@ -201,24 +262,23 @@ export function buildOverlay(def: ZoneDef): number[][] {
   return out;
 }
 
-/** Checks whether placing furniture keeps every essential tile reachable (doors, interactables, spawn). */
-export function placementKeepsPaths(zoneId: string, room: string, candidate: PlacedFurniture, ignoreUid?: number): boolean {
+/** Why a piece cannot be placed, or null when the doors, stations and seats stay usable. */
+export function placementBlock(zoneId: string, room: string, candidate: PlacedFurniture, ignoreUid?: number): string | null {
   const def = ZONES[zoneId];
   const fd = FURN_BY_ID[candidate.id];
-  if (!fd) return false;
+  if (!def || !fd) return 'Ese mueble no existe.';
   const built = buildZoneWithout(zoneId, ignoreUid);
   const g = built.grid;
-  for (const [x, y] of furnitureSolidTiles(candidate, fd)) {
-    if (g.isSolid(x, y)) return false;
-    g.setSolid(x, y, true);
+  if (!fd.walkable && !fd.wall) {
+    for (const [x, y] of furnitureSolidTiles(candidate, fd)) {
+      if (g.isSolid(x, y)) return 'Ahí no entra.';
+      g.setSolid(x, y, true);
+    }
   }
-  // essential points: doors (walk tiles), interactables' neighbourhood
   const essentials: [number, number][] = def.doors.filter((d) => d.walk).map((d) => [d.x, d.y]);
   const start = essentials[0] ?? [Math.floor(def.w / 2), def.h - 2];
-  const total = g.reachableCount(start[0], start[1]);
-  if (total === 0) return false;
+  if (g.reachableCount(start[0], start[1]) === 0) return 'Ahí no entra.';
   const reach = (x: number, y: number) => {
-    // any walkable tile next to (x,y) reachable from start
     for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = x + dx;
       const ny = y + dy;
@@ -226,11 +286,32 @@ export function placementKeepsPaths(zoneId: string, room: string, candidate: Pla
     }
     return false;
   };
-  for (const [x, y] of essentials) if (!reach(x, y)) return false;
-  for (const i of def.interact) if (condOk(i.cond) && !reach(i.x, i.y)) return false;
-  for (const d of def.doors) if (!d.walk && !reach(d.x, d.y)) return false;
+  for (const [x, y] of essentials) if (!reach(x, y)) return 'Bloquea una puerta.';
+  for (const i of def.interact) if (condOk(i.cond) && !reach(i.x, i.y)) return 'Bloquea una estación.';
+  for (const d of def.doors) if (!d.walk && !reach(d.x, d.y)) return 'Bloquea una puerta.';
+  if (zoneId === 'restaurant' && !fd.wall && !fd.walkable && !diningSeatsApproachable(g, candidate, ignoreUid, start[0], start[1])) {
+    return 'Los clientes no llegan a esa silla.';
+  }
   void room;
-  return true;
+  return null;
+}
+
+/** Checks whether placing furniture keeps every essential tile reachable (doors, interactables, spawn). */
+export function placementKeepsPaths(zoneId: string, room: string, candidate: PlacedFurniture, ignoreUid?: number): boolean {
+  return placementBlock(zoneId, room, candidate, ignoreUid) === null;
+}
+
+function diningSeatsApproachable(grid: Grid, candidate: PlacedFurniture, ignoreUid: number | undefined, fromX: number, fromY: number): boolean {
+  const placed = (game.save.decor.dining ?? []).filter((f) => f.uid !== ignoreUid && f.uid !== candidate.uid);
+  const pieces = [...placed, candidate].flatMap((f) => {
+    const d = FURN_BY_ID[f.id];
+    if (!d) return [];
+    const size = furnSize(d, f.rot);
+    return [{ x: f.x, y: f.y, w: size.w, h: size.h, sit: !!d.sit, walkable: !!d.walkable, kind: d.kind }];
+  });
+  const tables = pieces.filter((p) => p.kind === 'table' || p.kind === 'roundtable' || p.kind === 'kotatsu');
+  const seats = pieces.filter((p) => p.sit && p.kind !== 'bench' && p.kind !== 'table' && p.kind !== 'kotatsu');
+  return seatsApproachable(grid, seats, tables, fromX, fromY);
 }
 
 function buildZoneWithout(zoneId: string, ignoreUid?: number): BuiltZone {
