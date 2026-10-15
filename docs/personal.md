@@ -12,6 +12,9 @@
 ## Personal contratado
 - **Mesero** (nivel 3 del restaurante, uno más en 5 y 7): toma pedidos y sirve platos, con orden de prioridad configurable. 150 ● de contratación, sueldo 16–40 ● por día.
 - **Cocinero** (nivel 4): un plato cada 45 s al empezar (15 s con experiencia). 220 ● y 22–54 ● por día.
+- **Cajero** (nivel 5): recoge las propinas que quedan en las mesas. 180 ● y 18–42 ● por día. (El cobro de cada plato ya es automático al terminar de comer; por eso el cajero se ocupa de las propinas.)
+- **Ayudante** (nivel 6): mantiene la despensa. En la app se elige, por ingrediente, cuántas unidades quiere tener siempre (0, 6, 12 o 20); cuando baja, recibe un paquete (60 s al empezar, 22 s con experiencia), lo paga el restaurante y lo guarda, sin pasarse de la capacidad. 200 ● y 14–34 ● por día. Es la base de futuros proveedores.
+- **Limpiar mesas:** hoy las mesas quedan libres solas cuando se va el grupo, así que no hay un trabajo de limpieza que repartir; queda anotado por si se agrega esa mecánica.
 - Sin monedas para el sueldo, no trabajan hasta que se les pague. Solo practican solos hasta nivel 2; el resto es con capacitación.
 
 ## Para ti

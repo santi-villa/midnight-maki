@@ -10,11 +10,13 @@ import { game } from '../core/state';
 import type { Appearance } from '../core/types';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { playerBusy } from './claims';
+import { ITEMS_BY_ID, PACKS, type PackDef } from '../data/items';
 import { canCook } from './orders';
+import { pantryFree } from './supplies';
 import { claimPlate, collectTipAt, guestViews, plateState, stagePlate, staffDeliver, takeOrderAt, tableJobs } from './service';
 
-export type StaffRole = 'waiter' | 'cook';
-export type Task = 'order' | 'serve' | 'cook' | 'tip';
+export type StaffRole = 'waiter' | 'cook' | 'cashier' | 'helper';
+export type Task = 'order' | 'serve' | 'cook' | 'tip' | 'restock';
 export type TraitId = 'alegre' | 'veloz' | 'tranquilo' | 'prolijo';
 
 export interface Employee {
@@ -45,6 +47,8 @@ export interface StaffSave {
   lastPayDay: number;
   /** the raccoons' own progress (optional so older saves load) */
   crew?: Partial<Record<CrewId, CrewMember>>;
+  /** the helper keeps the pantry at least this full: ingredient id -> units (0 or missing = leave it) */
+  restock?: Record<string, number>;
 }
 
 export const TRAITS: Record<TraitId, { name: string; line: string; walk: number; work: number }> = {
@@ -59,6 +63,8 @@ export const LEVEL_NAMES = ['Recién llegado', 'Aprendiz', 'Práctico', 'Capacit
 /** seconds of real work for one job, by level */
 const ORDER_SECONDS = [9, 7, 5.5, 4.2, 3.2];
 const TIP_SECONDS = [4, 3.2, 2.6, 2, 1.6];
+/** a delivery of supplies: unpack, count and shelve one pack */
+const RESTOCK_SECONDS = [60, 48, 38, 30, 22];
 const PICK_SECONDS = [3, 2.5, 2, 1.6, 1.2];
 const SERVE_SECONDS = [2.6, 2.1, 1.7, 1.4, 1.1];
 /** one dish: Spicy starts at over half a minute; a hired cook starts slower still */
@@ -71,11 +77,14 @@ const VERY_GOOD = [0.35, 0.5, 0.5, 0.4, 0.3];
 const XP_STEPS = [25, 70, 140, 240];
 const HIRED_PRACTICE_CAP = 2;
 
-export const hireCost = (role: StaffRole = 'waiter') => (role === 'cook' ? 220 : 150);
-export const wageOf = (e: Employee) => (e.role === 'cook' ? 22 + 8 * e.level : 16 + 6 * e.level);
+export const hireCost = (role: StaffRole = 'waiter') => ({ waiter: 150, cook: 220, cashier: 180, helper: 200 })[role];
+export const wageOf = (e: Employee) => ({ waiter: 16 + 6 * e.level, cook: 22 + 8 * e.level, cashier: 18 + 6 * e.level, helper: 14 + 5 * e.level })[e.role];
 export const trainCost = (level: number, crew = false) => (crew ? 120 + 90 * level : 90 + 70 * level);
 export const staffLimit = (level: number) => (level >= 7 ? 3 : level >= 5 ? 2 : level >= 3 ? 1 : 0);
 export const cookLimit = (level: number) => (level >= 4 ? 1 : 0);
+export const cashierLimit = (level: number) => (level >= 5 ? 1 : 0);
+export const helperLimit = (level: number) => (level >= 6 ? 1 : 0);
+export const roleLimit = (role: StaffRole, level: number) => ({ waiter: staffLimit, cook: cookLimit, cashier: cashierLimit, helper: helperLimit })[role](level);
 
 const NAMES = ['Mochi', 'Dango', 'Anko', 'Kinako', 'Matcha', 'Yuzu', 'Sesa', 'Kabu', 'Hoshi', 'Tofu', 'Nashi', 'Mame'];
 const SPECIES: Appearance['species'][] = ['cat', 'fox', 'bunny', 'dog', 'owl', 'otter', 'squirrel', 'bear'];
@@ -101,7 +110,7 @@ export const crewUnlocked = (id: CrewId) => id === 'pip' || game.friendLevel(id)
 
 /** Three people looking for work, the same ones all day. */
 export function candidates(role: StaffRole = 'waiter', day = game.save.time.day): Employee[] {
-  const r = rng(day * 2713 + (role === 'cook' ? 97 : 11));
+  const r = rng(day * 2713 + ({ waiter: 11, cook: 97, cashier: 53, helper: 71 })[role]);
   const taken = new Set(employees().map((e) => e.name));
   const names = NAMES.filter((n) => !taken.has(n));
   const traits = Object.keys(TRAITS) as TraitId[];
@@ -110,7 +119,7 @@ export function candidates(role: StaffRole = 'waiter', day = game.save.time.day)
     const look: Appearance = {
       species: SPECIES[Math.floor(r() * SPECIES.length)], skin: FURS[Math.floor(r() * FURS.length)], hairStyle: Math.floor(r() * 3),
       hairColor: HAIRS[Math.floor(r() * HAIRS.length)], eyes: Math.floor(r() * 3), eyeColor: '#3b2a22',
-      top: role === 'cook' ? 'top_chef' : 'top_kimono_indigo', bottom: '', shoes: '', head: '', face: '', extra: '', bag: '',
+      top: role === 'cook' ? 'top_chef' : role === 'cashier' ? 'top_cardigan_moss' : role === 'helper' ? 'top_tee_sage' : 'top_kimono_indigo', bottom: '', shoes: '', head: '', face: '', extra: '', bag: '',
     };
     return {
       id: `cand_${role}_${day}_${i}`, name, role, trait: traits[Math.floor(r() * traits.length)], look, level: 0, xp: 0, hiredDay: day,
@@ -121,8 +130,7 @@ export function candidates(role: StaffRole = 'waiter', day = game.save.time.day)
 
 export function hire(c: Employee): string | null {
   const s = staffSave();
-  const same = s.employees.filter((e) => e.role === c.role).length;
-  if (c.role === 'cook' ? same >= cookLimit(game.save.restaurant.level) : s.employees.filter((e) => e.role === 'waiter').length >= staffLimit(game.save.restaurant.level)) return 'El restaurante todavía no necesita más personal de ese puesto.';
+  if (s.employees.filter((e) => e.role === c.role).length >= roleLimit(c.role, game.save.restaurant.level)) return 'El restaurante todavía no necesita más personal de ese puesto.';
   if (!game.spend(hireCost(c.role), 'hire')) return 'No te alcanzan las monedas.';
   const e: Employee = { ...c, id: `emp${s.nextId++}`, hiredDay: game.save.time.day };
   s.employees.push(e);
@@ -169,6 +177,12 @@ export function upgradeRiggTray(): string | null {
   m.carry = (m.carry ?? 0) + 1;
   game.touch('staff');
   return null;
+}
+export function setRestock(item: string, min: number) {
+  const s = staffSave();
+  (s.restock ??= {})[item] = min;
+  if (min <= 0) delete s.restock[item];
+  game.touch('staff');
 }
 export function setStaff(patch: Partial<Pick<StaffSave, 'paused'>>) { Object.assign(staffSave(), patch); game.touch('staff'); }
 export function setCrew(id: CrewId, on: boolean) { crew(id).on = on; game.touch('staff'); }
@@ -221,7 +235,7 @@ function workers(env: StaffEnv): Worker[] {
   const out: Worker[] = [];
   for (const e of s.employees) {
     const t = TRAITS[e.trait];
-    const tasks: Task[] = e.role === 'cook' ? ['cook'] : (e.priority === 'orders' ? ['order', 'serve'] : ['serve', 'order']).filter((k) => (k === 'order' ? e.takeOrders : e.serve)) as Task[];
+    const tasks: Task[] = e.role === 'cook' ? ['cook'] : e.role === 'cashier' ? ['tip'] : e.role === 'helper' ? ['restock'] : (e.priority === 'orders' ? ['order', 'serve'] : ['serve', 'order']).filter((k) => (k === 'order' ? e.takeOrders : e.serve)) as Task[];
     out.push({ id: e.id, kind: 'hired', level: e.level, tasks, walk: WALK_TILES[e.level] * t.walk, mul: t.work, off: s.paused || !!e.unpaid, member: e, cap: HIRED_PRACTICE_CAP, carry: 1 });
   }
   for (const id of ['rigg', 'spicy'] as CrewId[]) {
@@ -236,6 +250,7 @@ function workers(env: StaffEnv): Worker[] {
 
 // ------------------------------------------------------------------ runtime (not saved)
 export type Claim =
+  | { kind: 'restock'; item: string }
   | { kind: 'order'; tableId: string }
   | { kind: 'tip'; tableId: string }
   | { kind: 'serve'; uid: number; tableId: string }
@@ -251,7 +266,7 @@ export interface Runtime {
   carrying: number | null;
   path: [number, number][];
   work: number;
-  step: 'toTable' | 'ordering' | 'tipping' | 'toTray' | 'picking' | 'toServe' | 'serving' | 'toStove' | 'cooking' | 'home' | null;
+  step: 'toPantry' | 'restocking' | 'toTable' | 'ordering' | 'tipping' | 'toTray' | 'picking' | 'toServe' | 'serving' | 'toStove' | 'cooking' | 'home' | null;
   wait: number;
   /** ingredients already taken from the pantry for the dish being cooked */
   taken: boolean;
@@ -267,6 +282,7 @@ export interface StaffEnv {
   home(): { x: number; y: number };
   tray(): { x: number; y: number };
   stove(): { x: number; y: number };
+  pantry(): { x: number; y: number };
   /** tiles next to the table where a person can stand */
   tableSpots(tableId: string): { x: number; y: number }[];
   path(from: { x: number; y: number }, to: { x: number; y: number }): [number, number][] | null;
@@ -308,7 +324,7 @@ function claimedByOthers(selfId: string): Set<string> {
   for (const [id, r] of runtime) {
     if (id === selfId || !r.claim) continue;
     const c = r.claim;
-    out.add(c.kind === 'order' || c.kind === 'tip' ? `${c.kind}:${c.tableId}` : `${c.kind}:${c.uid}`);
+    out.add(c.kind === 'order' || c.kind === 'tip' ? `${c.kind}:${c.tableId}` : c.kind === 'restock' ? `restock:${c.item}` : `${c.kind}:${c.uid}`);
   }
   return out;
 }
@@ -346,6 +362,9 @@ function pickJob(w: Worker, r: Runtime, env: StaffEnv): boolean {
       const jobs = tableJobs().filter((j) => j.status === 'tip' && j.tip > 0 && !others.has('tip:' + j.tableId));
       const best = nearest(r, jobs.map((j) => ({ j, ...(nearest(r, env.tableSpots(j.tableId)) ?? { x: NaN, y: NaN }) })).filter((x) => !Number.isNaN(x.x)));
       if (best && goTo(w, r, env, best, 'toTable', `Va a buscar la propina de la ${tableNames(best.j.tableId)}`)) { r.claim = { kind: 'tip', tableId: best.j.tableId }; return true; }
+    } else if (kind === 'restock') {
+      const want = nextRestock(others);
+      if (want && goTo(w, r, env, env.pantry(), 'toPantry', `Va a recibir ${ITEMS_BY_ID[want.item]?.name.toLowerCase() ?? 'suministros'}`)) { r.claim = { kind: 'restock', item: want.item }; return true; }
     } else if (kind === 'serve') {
       const waiting = new Set(guestViews().filter((g) => g.phase === 'waiting_food').map((g) => g.id));
       const order = game.save.orders.find((o) => o.plate && o.service && plateState(o.uid) === 'plated' && !o.plate.claim && waiting.has(o.service.partyId) && !others.has('serve:' + o.uid));
@@ -366,9 +385,24 @@ function pickJob(w: Worker, r: Runtime, env: StaffEnv): boolean {
   return false;
 }
 
+/** what the helper should bring next: the emptiest ingredient below its minimum that a pack fits and can be paid for */
+function nextRestock(others: Set<string>): { item: string; pack: PackDef } | null {
+  const wanted = staffSave().restock ?? {};
+  let best: { item: string; pack: PackDef; gap: number } | null = null;
+  for (const [item, min] of Object.entries(wanted)) {
+    const have = game.pantryCount(item);
+    if (min <= 0 || have >= min || others.has('restock:' + item)) continue;
+    const pack = PACKS.find((p) => p.item === item && p.tier === 'pack');
+    if (!pack || pantryFree() < pack.qty || game.coins < ITEMS_BY_ID[pack.id].buy) continue;
+    if (!best || min - have > best.gap) best = { item, pack, gap: min - have };
+  }
+  return best;
+}
+
 function stillValid(r: Runtime): boolean {
   const c = r.claim;
   if (!c) return false;
+  if (c.kind === 'restock') return (staffSave().restock?.[c.item] ?? 0) > 0;
   if (c.kind === 'order') return tableJobs().some((j) => j.tableId === c.tableId && j.phase === 'waiting_order');
   if (c.kind === 'tip') return tableJobs().some((j) => j.tableId === c.tableId && j.status === 'tip' && j.tip > 0);
   const o = game.save.orders.find((x) => x.uid === c.uid);
@@ -381,7 +415,8 @@ function arrive(w: Worker, r: Runtime) {
   r.act = 'work';
   const L = w.level;
   const k = w.mul;
-  if (r.step === 'toTable') {
+  if (r.step === 'toPantry') { r.step = 'restocking'; r.work = RESTOCK_SECONDS[L] * k; r.doing = 'Recibe y guarda suministros'; }
+  else if (r.step === 'toTable') {
     if (r.claim?.kind === 'tip') { r.step = 'tipping'; r.work = TIP_SECONDS[L] * k; r.doing = 'Recoge la propina'; }
     else { r.step = 'ordering'; r.work = ORDER_SECONDS[L] * k; r.doing = 'Toma el pedido'; }
   } else if (r.step === 'toTray') { r.step = 'picking'; r.work = PICK_SECONDS[L] * k; r.doing = 'Recoge el plato'; }
@@ -430,6 +465,13 @@ function finishWork(w: Worker, r: Runtime, env: StaffEnv) {
   if (r.step === 'ordering' && c?.kind === 'order') {
     takeOrderAt(c.tableId);
     gainXp(w.member, 6, w.cap);
+    release(r); goHome(w, r, env);
+  } else if (r.step === 'restocking' && c?.kind === 'restock') {
+    const pack = PACKS.find((p) => p.item === c.item && p.tier === 'pack');
+    if (pack && pantryFree() >= pack.qty && game.spend(ITEMS_BY_ID[pack.id].buy, 'restock')) {
+      game.setPantry(c.item, game.pantryCount(c.item) + pack.qty);
+      gainXp(w.member, 8, w.cap);
+    }
     release(r); goHome(w, r, env);
   } else if (r.step === 'tipping' && c?.kind === 'tip') {
     collectTipAt(c.tableId);

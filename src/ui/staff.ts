@@ -2,11 +2,12 @@
 import { game } from '../core/state';
 import { audio } from '../audio/audio';
 import {
-  COOK_SECONDS, CREW_INFO, LEVEL_NAMES, MAX_LEVEL, TRAITS, candidates, cookLimit, crew, crewUnlocked, employees, fire, hire, hireCost, runtime, setCrew, setStaff,
-  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffLimit, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, type CrewId, type Employee, type StaffRole,
+  COOK_SECONDS, CREW_INFO, LEVEL_NAMES, MAX_LEVEL, TRAITS, candidates, crew, crewUnlocked, employees, fire, hire, hireCost, roleLimit, runtime, setCrew, setRestock, setStaff,
+  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, type CrewId, type Employee, type StaffRole,
 } from '../restaurant/staff';
 import { h, panel, toast } from './dom';
 import { previewCanvas } from './creator';
+import { ITEMS_BY_ID } from '../data/items';
 
 const stars = (n: number) => `${'★'.repeat(n)}${'☆'.repeat(MAX_LEVEL - n)}`;
 
@@ -16,7 +17,15 @@ function face(e: Employee) {
   return cv;
 }
 
-const ROLE = { waiter: 'Mesero', cook: 'Cocinero' } as const;
+const ROLE = { waiter: 'Mesero', cook: 'Cocinero', cashier: 'Cajero', helper: 'Ayudante' } as const;
+const ROLE_JOB = {
+  waiter: 'Toma pedidos y lleva los platos de la bandeja a las mesas.',
+  cook: 'Cocina los pedidos del salón con la despensa.',
+  cashier: 'Recoge las propinas de las mesas.',
+  helper: 'Mantiene la despensa: recibe paquetes de los proveedores (los paga el restaurante).',
+} as const;
+const RESTOCK_ITEMS = ['rice', 'nori', 'salmon', 'cucumber', 'egg', 'sesame'];
+const RESTOCK_STEPS = [0, 6, 12, 20];
 
 export function openStaff() {
   const body = h('div', { class: 'col' });
@@ -52,7 +61,7 @@ export function openStaff() {
       );
     }
     body.append(h('b', null, `Personal contratado`));
-    if (!staffLimit(lvl) && !cookLimit(lvl)) body.append(h('p', { class: 'hint' }, 'Podés contratar un mesero desde el nivel 3 del restaurante y un cocinero desde el nivel 4.'));
+    if (!roleLimit('waiter', lvl)) body.append(h('p', { class: 'hint' }, 'Podés contratar un mesero desde el nivel 3 del restaurante, un cocinero desde el 4, un cajero desde el 5 y un ayudante desde el 6.'));
     for (const e of list) {
       const r = runtime.get(e.id);
       body.append(
@@ -70,10 +79,15 @@ export function openStaff() {
             h('button', { class: 'btn small', onclick: () => { if (confirmFire !== e.id) { confirmFire = e.id; render(); return; } fire(e.id); confirmFire = ''; toast(`${e.name} dejó el restaurante.`); render(); } }, confirmFire === e.id ? 'Tocá otra vez para despedir' : 'Despedir'))),
       );
     }
-    for (const role of ['waiter', 'cook'] as StaffRole[]) {
-      const limit = role === 'cook' ? cookLimit(lvl) : staffLimit(lvl);
+    if (list.some((e) => e.role === 'helper')) {
+      const wanted = staffSave().restock ?? {};
+      body.append(h('b', null, 'Reposición del ayudante'), h('p', { class: 'hint' }, 'Tocá un ingrediente para elegir cuántas unidades quiere tener siempre en la despensa. Cuando baja, el ayudante recibe un paquete y lo paga el restaurante.'),
+        h('div', { class: 'row', style: { flexWrap: 'wrap', gap: '6px' } }, ...RESTOCK_ITEMS.map((id) => { const min = wanted[id] ?? 0; return h('button', { class: 'btn small' + (min ? ' primary' : ''), onclick: () => { setRestock(id, RESTOCK_STEPS[(RESTOCK_STEPS.indexOf(min) + 1) % RESTOCK_STEPS.length]); render(); } }, `${ITEMS_BY_ID[id].name}: ${min ? 'mín. ' + min : 'no'}`); })));
+    }
+    for (const role of ['waiter', 'cook', 'cashier', 'helper'] as StaffRole[]) {
+      const limit = roleLimit(role, lvl);
       if (!limit || list.filter((e) => e.role === role).length >= limit) continue;
-      body.append(h('b', null, `Buscan trabajo: ${ROLE[role].toLowerCase()}`), h('p', { class: 'hint' }, `Contratar cuesta ${hireCost(role)} ●. Al principio trabajan despacio. Sin monedas para el sueldo, no trabajan.`));
+      body.append(h('b', null, `Buscan trabajo: ${ROLE[role].toLowerCase()}`), h('p', { class: 'hint' }, `${ROLE_JOB[role]} Contratar cuesta ${hireCost(role)} ●. Al principio trabajan despacio. Sin monedas para el sueldo, no trabajan.`));
       for (const c of candidates(role)) {
         body.append(h('div', { class: 'card row', style: { gap: '10px' } }, face(c),
           h('div', { style: { flex: '1' } }, h('b', null, c.name), h('div', { class: 'hint' }, `${TRAITS[c.trait].name}: ${TRAITS[c.trait].line}`), h('div', { class: 'hint' }, `${ROLE[role]} · ${wageOf(c)} ● por día`)),
