@@ -689,22 +689,24 @@ export class WorldScene extends Phaser.Scene {
       const riding = st.ride && trip.moving;
       a.x = trip.position.x * TILE + TILE / 2;
       a.y = trip.position.y * TILE + TILE - 2;
-      a.dir = trip.dir;
+      a.dir = !trip.moving && st.place.dir ? st.place.dir : trip.dir;
       a.moving = trip.moving && !riding;
       a.seatLift = trip.settled ? st.place.seatLift ?? 0 : 0;
+      a.bed = trip.settled && st.place.act === 'sleep' ? st.place.bed ?? null : null;
       const act = riding ? 'sit' : trip.moving ? 'idle' : trip.settled ? st.place.act ?? 'idle' : 'idle';
       if (a.act !== act) a.setAct(act);
-      a.sync();
       // a bicycle under whoever is riding
       if (riding) {
         if (!body.bike?.active) body.bike = this.add.image(0, 0, propTexture(this, 'bicycle')).setOrigin(0.5, 1);
         body.bike.setVisible(true).setPosition(a.x, a.y + 1).setDepth(a.y - 0.5).setFlipX(a.dir === 'left').setScale(a.dir === 'up' || a.dir === 'down' ? 0.6 : 1, 1);
-        a.setAct('sit'); a.seatLift = 6;
+        if (a.act !== 'sit') a.setAct('sit');
+        a.seatLift = 6;
       } else if (st.ride && trip.settled && st.place.kind !== 'home') {
         // parked beside them while they stop
         if (!body.bike?.active) body.bike = this.add.image(0, 0, propTexture(this, 'bicycle')).setOrigin(0.5, 1);
         body.bike.setVisible(true).setPosition(a.x + 14, a.y + 1).setDepth(a.y - 0.5).setFlipX(false).setScale(1, 1);
       } else body.bike?.setVisible(false);
+      a.update(dt);
       // a word for whoever walks by
       if (now > body.barkAt && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 60 && !a.bubble) {
         a.emote(n.lines[Math.floor((now / 1000 + n.id.length) % n.lines.length)], 3);

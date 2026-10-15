@@ -6,7 +6,7 @@
  */
 import { rng } from '../art/pixel';
 import { NEIGHBORS, type Like, type Neighbor } from '../data/neighbors';
-import { FOREST, FOUNTAIN, GARDEN, MARKET, SHORE, STROLL, allBenches, homeSpot, shopSpot, type Place } from './neighborSpots';
+import { FOREST, FOUNTAIN, GARDEN, MARKET, SHORE, STROLL, allBenches, homeActivity, shopSpot, tileOpen, type Place } from './neighborSpots';
 
 export interface PlanContext {
   day: number;
@@ -77,13 +77,38 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
   const out = new Map<string, Place & { ride?: boolean; withFriend?: string }>();
   const used = new Set<string>();
   const slot = ctx.period * 2 + ctx.half;
+  const seats = new Set(allBenches().map((b) => `${b.zone}:${b.x}:${b.y}`));
   const claim = (p: Place, id: string): Place => {
-    // nobody shares a tile; the next one over takes the spot
-    let q = p;
-    for (let i = 0; i < 6 && used.has(`${q.zone}:${q.x}:${q.y}`) && q.kind !== 'home'; i++) q = { ...p, x: p.x + ((i % 2) ? -1 - (i >> 1) : 1 + (i >> 1)) };
-    used.add(`${q.zone}:${q.x}:${q.y}`);
     void id;
-    return q;
+    if (p.kind === 'home') {
+      used.add(`${p.zone}:${p.x}:${p.y}`);
+      return p;
+    }
+    const shifts: [number, number][] = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [1, 1], [-1, 1]];
+    for (const [dx, dy] of shifts) {
+      const x = p.x + dx;
+      const y = p.y + dy;
+      const key = `${p.zone}:${x}:${y}`;
+      if (used.has(key) || !tileOpen(p.zone, x, y)) continue;
+      const bench = p.kind === 'bench' || p.kind === 'read';
+      if (bench && !seats.has(key)) continue;
+      used.add(key);
+      const spot = x === p.x && y === p.y ? p : { ...p, x, y };
+      if (spot.seatLift && !seats.has(key) && spot.kind !== 'home') return { ...spot, seatLift: 0 };
+      return spot;
+    }
+    if (p.kind === 'bench' || p.kind === 'read') {
+      for (const [dx, dy] of shifts) {
+        const x = p.x + dx;
+        const y = p.y + dy;
+        const key = `${p.zone}:${x}:${y}`;
+        if (used.has(key) || !tileOpen(p.zone, x, y)) continue;
+        used.add(key);
+        return { ...p, x, y, seatLift: 0, act: 'look', kind: 'stroll' };
+      }
+    }
+    used.add(`${p.zone}:${p.x}:${p.y}`);
+    return p;
   };
   const chatters: Neighbor[] = [];
   const mood = new Map<string, Activity>();
@@ -91,8 +116,8 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
     const r = rng(hash(n.id) * 7 + ctx.day * 131 + slot * 17);
     const act = pickActivity(weights(n, ctx), r());
     mood.set(n.id, act);
-    if (act === 'home') { out.set(n.id, claim(homeSpot(n), n.id)); continue; }
-    if (act === 'work') { const s = n.shop ? shopSpot(n.shop) : null; out.set(n.id, claim(s ?? homeSpot(n), n.id)); continue; }
+    if (act === 'home') { out.set(n.id, claim(homeActivity(n, ctx.period), n.id)); continue; }
+    if (act === 'work') { const s = n.shop ? shopSpot(n.shop) : null; out.set(n.id, claim(s ?? homeActivity(n, ctx.period), n.id)); continue; }
     if (act === 'chat') { chatters.push(n); continue; }
     let pool: Place[] = [];
     if (act === 'free') {
@@ -101,7 +126,7 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
       for (const l of likes) pool.push(...spotsFor(l, ctx, n));
       if (!pool.length) pool = STROLL;
     } else pool = STROLL.filter((p) => p.zone === 'plaza' || ctx.open.has(p.zone));
-    if (!pool.length) { out.set(n.id, claim(homeSpot(n), n.id)); continue; }
+    if (!pool.length) { out.set(n.id, claim(homeActivity(n, ctx.period), n.id)); continue; }
     const p = pool[Math.floor(r() * pool.length)];
     out.set(n.id, { ...claim(p, n.id), ride: !!n.bike && (act === 'stroll' || p.kind === 'sea') });
   }
@@ -109,8 +134,12 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
   if (chatters.length) {
     const meet = rng(ctx.day * 977 + slot * 31);
     const anchors = [...FOUNTAIN, ...STROLL.filter((p) => p.zone === 'plaza')];
-    const at = anchors[Math.floor(meet() * anchors.length)];
-    chatters.forEach((n, i) => { const g = Math.floor(i / 3); out.set(n.id, { ...claim({ ...at, x: at.x + (i % 3) - 1 + g * 4, kind: 'chat' }, n.id), act: 'talk' }); });
+    if (!anchors.length) {
+      for (const n of chatters) out.set(n.id, claim(homeActivity(n, ctx.period), n.id));
+    } else {
+      const at = anchors[Math.floor(meet() * anchors.length)];
+      chatters.forEach((n, i) => { const g = Math.floor(i / 3); out.set(n.id, { ...claim({ ...at, x: at.x + (i % 3) - 1 + g * 4, kind: 'chat' }, n.id), act: 'talk' }); });
+    }
   }
   // friends who are both out sometimes spend the moment together
   for (const n of roster) for (const fid of n.friends) {

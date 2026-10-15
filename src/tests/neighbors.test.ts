@@ -3,8 +3,13 @@ import { game, newSave } from '../core/state';
 import { NEIGHBORS } from '../data/neighbors';
 import { ZONES } from '../data/zones';
 import { planVillage, type PlanContext } from '../systems/neighborPlan';
-import { FOREST, FOUNTAIN, GARDEN, SHORE, STROLL, allBenches } from '../systems/neighborSpots';
-import { buildZone } from '../world/zoneRuntime';
+import { FOREST, FOUNTAIN, GARDEN, SHORE, STROLL, allBenches, homeActivity, lingerTile, tileOpen } from '../systems/neighborSpots';
+import { NeighborLife } from '../systems/neighbors';
+import { buildZone, ensureDefaultDecor } from '../world/zoneRuntime';
+import { HOUSES } from '../data/houses';
+import { houseDoorPlan } from '../data/houseInterior';
+import { restPose } from '../entities/restPose';
+import { FRAMES } from '../art/characters';
 
 const OPEN = new Set(['plaza', 'library', 'beach', 'garden', 'forest']);
 const ctx = (day: number, period: number, half: 0 | 1, rain = false): PlanContext => ({ day, period, half, rain, open: OPEN });
@@ -75,5 +80,85 @@ describe('ambient neighbours', () => {
     let together = 0;
     for (let day = 1; day <= 30; day++) for (const c of slots(1)(ctx(day, 1, 0))) for (const p of planVillage(c).values()) if (p.withFriend) together++;
     expect(together).toBeGreaterThan(0);
+  });
+
+  it('reads benches, water and paths from the map instead of a fixed list', () => {
+    expect(STROLL.length).toBeGreaterThan(0);
+    expect(allBenches().length).toBeGreaterThan(0);
+    const step = (dir: string, x: number, y: number): [number, number] => dir === 'down' ? [x, y + 1] : dir === 'up' ? [x, y - 1] : dir === 'right' ? [x + 1, y] : [x - 1, y];
+    for (const p of FOUNTAIN) {
+      expect(tileOpen(p.zone, p.x, p.y), `fountain ${p.x},${p.y}`).toBe(true);
+      const [fx, fy] = step(p.dir ?? 'down', p.x, p.y);
+      expect(tileOpen(p.zone, fx, fy), `faces fountain ${p.x},${p.y}`).toBe(false);
+    }
+    for (const p of SHORE) {
+      const [fx, fy] = step(p.dir ?? 'down', p.x, p.y);
+      expect('wd'.includes(ZONES[p.zone].ground[fy]?.[fx] ?? ''), `${p.x},${p.y} faces water`).toBe(true);
+    }
+    for (const p of [...GARDEN, ...FOREST, ...STROLL]) expect(tileOpen(p.zone, p.x, p.y), `${p.kind} ${p.zone} ${p.x},${p.y}`).toBe(true);
+  });
+
+  it('sleeps beside the bed at night and sits or reads by a chair during the day', () => {
+    ensureDefaultDecor();
+    for (const n of NEIGHBORS) {
+      const house = HOUSES.find((h) => h.id === n.home)!;
+      const door = houseDoorPlan(house);
+      const grid = buildZone(n.home).grid;
+      const night = homeActivity(n, 3);
+      expect(night.act, n.id).toBe('sleep');
+      expect(grid.isSolid(night.x, night.y), n.id).toBe(false);
+      expect(grid.path(door.spawnX, door.spawnY, night.x, night.y), n.id).not.toBeNull();
+      expect(grid.path(night.x, night.y, 5, 5), n.id).not.toBeNull();
+      const day = homeActivity(n, 1);
+      expect(grid.isSolid(day.x, day.y), n.id).toBe(false);
+      expect(day.act === 'sit' || day.act === 'read' || day.act === 'look', n.id).toBe(true);
+      if (day.seatLift) expect(day.dir, n.id).toBe('up');
+    }
+  });
+
+  it('lets a strolling neighbour step aside and keeps that step on open ground', () => {
+    const life = new NeighborLife();
+    let stroller: ReturnType<typeof life.state.get> | undefined;
+    for (let day = 1; day <= 12 && !stroller; day++) {
+      game.save.time.day = day;
+      game.save.time.period = 1;
+      game.save.time.minutes = 20;
+      life.sync();
+      const found = [...life.state.values()].find((s) => s.anchor.kind === 'stroll');
+      if (!found) continue;
+      found.beat = 0;
+      found.stepped = false;
+      found.trip.place({ zone: found.anchor.zone, x: found.anchor.x, y: found.anchor.y });
+      stroller = found;
+    }
+    expect(stroller, 'someone strolls').toBeTruthy();
+    const anchor = { ...stroller!.anchor };
+    for (let i = 0; i < 20; i++) life.tick(0.5);
+    const dest = stroller!.trip.destination;
+    expect(dest.x !== anchor.x || dest.y !== anchor.y).toBe(true);
+    expect(Math.abs(dest.x - anchor.x) + Math.abs(dest.y - anchor.y)).toBeLessThanOrEqual(2);
+    const grid = buildZone(anchor.zone).grid;
+    expect(grid.isSolid(dest.x, dest.y)).toBe(false);
+    const back = lingerTile('oto', 4, 4, (x, y) => Math.abs(x - 4) + Math.abs(y - 4) === 1 && x === 5);
+    expect(back).toEqual([5, 4]);
+  });
+});
+
+describe('raccoon rest', () => {
+  it('gives each raccoon a different way to fall asleep, then a quiet breath', () => {
+    expect(restPose('spicy', 0.2).frame).toBe(FRAMES.happy);
+    expect(restPose('spicy', 0.2).lie).toBe(false);
+    expect(restPose('rigg', 0.4).frame).toBe(FRAMES.read);
+    expect(restPose('rigg', 0.4).lie).toBe(false);
+    expect(restPose('pip', 0.2).frame).toBe(FRAMES.sit);
+    expect(restPose('pip', 0.2).lie).toBe(false);
+    for (const id of ['pip', 'spicy', 'rigg']) {
+      const rest = restPose(id, 3);
+      expect(rest.frame).toBe(FRAMES.sleep);
+      expect(rest.lie).toBe(true);
+      expect(rest.z).toBe(false);
+    }
+    expect(restPose('ren', 0).lie).toBe(true);
+    expect(restPose('pip', 8.01).z).toBe(true);
   });
 });
