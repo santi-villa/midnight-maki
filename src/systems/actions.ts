@@ -41,6 +41,11 @@ async function route(t: Target) {
       await talkTo(t.id);
       return;
     }
+    case 'neighbor': {
+      const { talkToNeighbor } = await import('../restaurant/townTalk');
+      await talkToNeighbor(t.id);
+      return;
+    }
     case 'gather': {
       const id = t.spot.item;
       const first = obtain(id, 1, 'gather');

@@ -21,6 +21,7 @@ export type ActionIcon = 'talk' | 'gift' | 'act' | 'door' | 'bed' | 'decor' | 'm
 
 export type Target =
   | { kind: 'npc'; id: string; label: string }
+  | { kind: 'neighbor'; id: string; label: string }
   | { kind: 'interact'; def: InteractDef; label: string }
   | { kind: 'door'; def: DoorDef; label: string }
   | { kind: 'gather'; spot: GatherSpot; label: string }
@@ -78,6 +79,8 @@ export interface ContextSense {
   dir: Dir;
   room: RoomDef | null;
   npcs: { id: string; name: string; x: number; y: number; company?: boolean }[];
+  /** ambient neighbours walking by */
+  neighbors?: { id: string; name: string; x: number; y: number }[];
   interacts: InteractDef[];
   doors: DoorDef[];
   gathers: { x: number; y: number; label: string; spot: GatherSpot }[];
@@ -223,6 +226,10 @@ export function resolveContext(sense: ContextSense): ContextOffer {
       }, n.x, n.y, 22, sense, 5);
     }
   }
+  for (const n of sense.neighbors ?? []) consider(bag, {
+    id: `nb:${n.id}`, label: 'Hablar', detail: `Charlar con ${n.name}`, icon: 'talk',
+    intent: { type: 'target', target: { kind: 'neighbor', id: n.id, label: 'Hablar' } },
+  }, n.x, n.y, 22, sense, 1);
   if (sense.zoneId === 'restaurant' && (trayOrders().length || carriedOrder())) consider(bag, {
     id: 'station:tray', label: carriedOrder() ? 'Dejar pedido' : 'Recoger pedido', detail: 'Bandeja de salida', icon: 'serve', intent: { type: 'tray' },
   }, 6 * TILE + 8, 5 * TILE + 10, 24, sense, 0, -TILE / 2);

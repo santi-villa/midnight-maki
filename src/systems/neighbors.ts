@@ -26,6 +26,13 @@ export class NeighborLife {
   private grids = new Map<string, Grid>();
   private save = game.save;
   private syncIn = 0;
+  /** neighbours who are inside the restaurant right now (their body there is a guest, not a stroller) */
+  private away = new Set<string>();
+
+  hold(id: string, away: boolean) {
+    if (away) this.away.add(id);
+    else if (this.away.delete(id)) this.state.delete(id); // back among the others at their planned place
+  }
 
   grid = (zone: string): Grid => {
     let g = this.grids.get(zone);
@@ -71,6 +78,6 @@ export class NeighborLife {
   }
 
   inZone(zone: string): NeighborState[] {
-    return [...this.state.values()].filter((s) => s.trip.position.zone === zone);
+    return [...this.state.values()].filter((s) => !this.away.has(s.n.id) && s.trip.position.zone === zone);
   }
 }

@@ -41,6 +41,9 @@ import { TownLife } from '../systems/townLife';
 import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
 import { layoutSpeech } from '../ui/speechLayout';
 import { customerLook } from '../restaurant/customers';
+import { clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
+import { neighborOf } from '../restaurant/townClients';
+import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { gatherSpots, type GatherSpot } from '../systems/gather';
@@ -649,6 +652,8 @@ export class WorldScene extends Phaser.Scene {
   private serviceArt: Phaser.GameObjects.Graphics | null = null;
   private carriedSprites: Phaser.GameObjects.Image[] = [];
   private visitorIn = 4;
+  private impatientParties = new Set<string>();
+  private ateParties = new Set<string>();
   private hostId: string | null = null;
   private hostWait = 0;
   private diningCache: FurnPiece[] | null = null;
@@ -814,9 +819,10 @@ export class WorldScene extends Phaser.Scene {
     const open = restaurantPhase(clock.period, game.save.time.minutes) === 'open';
     this.visitorIn -= dt;
     if (open && this.visitorIn <= 0 && ![...this.visitors.values()].some((v) => v.stage === 'arriving') && canAcceptGuest(pieces)) {
-      this.visitorIn = 26 + Math.random() * 8;
+      this.visitorIn = (26 + Math.random() * 8) / clientsDemand();
       const id = 'v' + game.uid();
-      const customers = chooseParty(pieces);
+      const town = nextTownGuest((c) => [...this.visitors.values()].some((v) => v.customers.includes(c)));
+      const customers = town ? [town] : chooseParty(pieces);
       if (customers.length) {
         const customer = customers[0];
         const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
@@ -833,8 +839,16 @@ export class WorldScene extends Phaser.Scene {
       const { events, paid, notice } = pumpService(Math.min(1.25, this.floorTick), pieces, { physical: true, arrivals: false, present: this.zoneId === 'restaurant', relaxed: settings.cookMode === 'relaxed' });
       this.floorTick = 0;
       if (notice) this.note(notice);
-      if (this.zoneId === 'restaurant') for (const ev of events) if (ev.type === 'impatient') this.sayVisitor(ev.partyId, 'Cuando puedas, tenemos un poquito de hambre.');
+      for (const ev of events) if (ev.type === 'impatient') {
+        this.impatientParties.add(ev.partyId);
+        if (this.zoneId === 'restaurant') this.sayVisitor(ev.partyId, 'Cuando puedas, tenemos un poquito de hambre.');
+      }
       for (const meal of paid) {
+        const owner = [...this.visitors.values()].find((v) => v.customers.includes(meal.customer));
+        if (owner && neighborOf(meal.customer)) {
+          this.ateParties.add(owner.id);
+          noteTownMeal(meal.customer, meal.recipe, meal.quality, this.impatientParties.has(owner.id));
+        }
         if (this.zoneId === 'restaurant') this.enqueueMeal(meal);
       }
     }
@@ -874,8 +888,16 @@ export class WorldScene extends Phaser.Scene {
         v.stage = 'departing';
       }
       if (v.stage === 'dining' && !g && v.phase) this.sendVisitorHome(v);
-      if (v.stage === 'departing' && v.trips.every((t) => t.settled)) this.visitors.delete(v.id);
+      if (v.stage === 'departing' && v.trips.every((t) => t.settled)) {
+        for (const c of v.customers) if (neighborOf(c)) noteTownLeft(c, this.ateParties.has(v.id) && !this.impatientParties.has(v.id));
+        this.ateParties.delete(v.id); this.impatientParties.delete(v.id);
+        this.visitors.delete(v.id);
+      }
     }
+    // neighbours who are inside are guests, not strollers
+    const inside = new Set([...this.visitors.values()].flatMap((v) => v.customers.map((c) => neighborOf(c)?.id).filter((x): x is string => !!x)));
+    for (const id of inside) this.neighborLife.hold(id, true);
+    for (const n of NEIGHBORS) if (!inside.has(n.id)) this.neighborLife.hold(n.id, false);
     this.updateHost(dt);
     this.syncGuests();
   }
@@ -1068,7 +1090,9 @@ export class WorldScene extends Phaser.Scene {
         live.add(key);
         let body = this.guests.get(key);
         if (!body) {
-          const actor = new Actor(this, v.customers[i] ?? v.customer, customerTexture(this, customerLook(v.customers[i] ?? v.customer)), p.x, p.y);
+          const who = v.customers[i] ?? v.customer;
+          const nb = neighborOf(who);
+          const actor = new Actor(this, who, nb ? lookTexture(this, nb.look) : customerTexture(this, customerLook(who)), p.x, p.y);
           actor.manual = true;
           body = { actor, phase };
           this.guests.set(key, body);
@@ -1555,6 +1579,14 @@ export class WorldScene extends Phaser.Scene {
     if (item) await giveGift(id, item);
   }
 
+  private greetNeighbor(id: string) {
+    const b = this.neighborBodies.get(id);
+    if (!b) return;
+    b.actor.faceTowards(this.player.x, this.player.y); this.player.faceTowards(b.actor.x, b.actor.y);
+    b.actor.clearEmote();
+    b.barkAt = performance.now() + 30000;
+  }
+
   private greet(id: string) {
     const a = this.npc(id);
     if (!a) return;
@@ -1624,6 +1656,7 @@ export class WorldScene extends Phaser.Scene {
     if (!this.canAct()) return;
     this.player.stop();
     if (t.kind === 'npc') this.greet(t.id);
+    if (t.kind === 'neighbor') this.greetNeighbor(t.id);
     this.onInteract(t);
   }
 
@@ -1642,6 +1675,7 @@ export class WorldScene extends Phaser.Scene {
         y: n.actor.y - 4,
         company: this.canKeepCompany(id),
       })),
+      neighbors: [...this.neighborBodies.entries()].filter(([, b]) => b.actor.sprite.visible).map(([id, b]) => ({ id, name: NEIGHBOR_BY_ID[id]?.name ?? id, x: b.actor.x, y: b.actor.y - 4 })),
       interacts: this.zone.def.interact.filter((i) => condOk(i.cond)).map((i) => {
         if (!i.action.startsWith('shop:')) return i;
         const label = shopButtonLabel(shopGate(i.action.slice(5)), i.label);
