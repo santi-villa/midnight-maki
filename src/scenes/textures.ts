@@ -148,7 +148,7 @@ export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot
   if (scene.textures.exists(key)) return key;
   const c = makeCanvas(W, H);
   const g = ctx2d(c);
-  const L = rot === 20 || rot === 21 ? villageShopLayout(W, H, rot) : buildingLayout(W, H);
+  const L = rot >= 20 && rot <= 23 ? villageShopLayout(W, H, rot) : buildingLayout(W, H);
   if (door) {
     // the noren doorway: an orange wash with a brighter slit
     px(g, L.dx + 1, L.doorY + 2, '#ff9a48', L.doorW - 2, L.doorH - 3);
