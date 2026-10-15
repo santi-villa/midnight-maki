@@ -59,10 +59,11 @@ function ramp(stops: [number, number][], k: number): number {
 
 // ---- outdoor ambient colours (the layer multiplies the scene, so these are "filters", not paint)
 const MORNING = [[0, 0xffe2c0], [1, 0xfffaf0]] as [number, number][];
-const AFTERNOON = [[0, 0xfffaf0], [1, 0xffeccc]] as [number, number][];
+// every period starts exactly where the previous one ends, so the clock never makes the light jump
+const AFTERNOON = [[0, 0xfffaf0], [1, 0xffdca8]] as [number, number][];
 // warm gold -> rose -> dusky lavender
 const DUSK = [[0, 0xffdca8], [0.4, 0xf4b0a8], [0.75, 0xb69ad0], [1, 0x6a6cb2]] as [number, number][];
-const NIGHT = [[0, 0x4a5296], [1, 0x383f82]] as [number, number][];
+const NIGHT = [[0, 0x6a6cb2], [0.3, 0x4a5296], [1, 0x383f82]] as [number, number][];
 // ---- indoor: stays warm so interiors read as lit rooms against the cold street
 const IN_DAY = 0xffffff;
 const IN_DUSK = [[0, 0xffeed8], [1, 0xe6c8c0]] as [number, number][];
@@ -90,8 +91,8 @@ export function lightState(i: LightInput): LightState {
       windows = 0.35 * (1 - smooth(0, 0.6, k));
     } else if (per === 1) {
       tint = ramp(AFTERNOON, k);
-      vig = 0.05;
-      lamp = 0;
+      vig = 0.05 + 0.09 * smooth(0.6, 1, k);
+      lamp = 0.3 * smooth(0.6, 1, k);
       windows = 0;
     } else if (per === 2) {
       tint = ramp(DUSK, k);
@@ -101,24 +102,26 @@ export function lightState(i: LightInput): LightState {
       moon = 0.6 * smooth(0.5, 1, k);
     } else {
       tint = ramp(NIGHT, k);
-      vig = 0.42;
+      vig = 0.34 + 0.08 * smooth(0, 0.3, k);
       lamp = 1;
       windows = 1;
-      moon = 1;
+      moon = 0.6 + 0.4 * smooth(0, 0.4, k);
     }
   } else {
     if (per === 0) tint = IN_DAY;
-    else if (per === 1) tint = IN_DAY;
+    else if (per === 1) tint = mixHex(IN_DAY, IN_DUSK[0][1], smooth(0.5, 1, k));
     else if (per === 2) tint = ramp(IN_DUSK, k);
-    else tint = IN_NIGHT;
-    vig = per === 3 ? 0.36 : per === 2 ? 0.26 : 0.1;
-    lamp = per === 3 ? 1 : per === 2 ? 0.4 + 0.6 * k : 0.35;
+    else tint = mixHex(IN_DUSK[1][1], IN_NIGHT, smooth(0, 0.4, k));
+    vig = per === 3 ? 0.26 + 0.1 * smooth(0, 0.4, k) : per === 2 ? 0.26 : 0.1 + (per === 1 ? 0.16 * smooth(0.5, 1, k) : 0);
+    lamp = per === 3 ? 1 : per === 2 ? 0.4 + 0.6 * k : per === 1 ? 0.35 + 0.05 * k : 0.35;
     windows = 1;
   }
   let halo = 1;
   if (i.rain && !i.dark) {
     // rain: a grey-blue veil in daylight, a deeper blue at night, lamps stay on but their light is wetter and a touch dimmer
-    if (per < 3) tint = mixHex(tint, i.outdoor ? 0x8592b4 : 0xd8d4e0, i.outdoor ? 0.55 : 0.25);
+    // the veil changes colour gradually through dusk, so there is no jump when the night starts
+    if (per < 2) tint = mixHex(tint, i.outdoor ? 0x8592b4 : 0xd8d4e0, i.outdoor ? 0.55 : 0.25);
+    else if (per === 2) tint = i.outdoor ? mixHex(tint, mixHex(0x8592b4, 0x2c3466, k), 0.55 - 0.25 * k) : mixHex(tint, mixHex(0xd8d4e0, 0x2c3466, k), 0.25 - 0.2 * k);
     else tint = mixHex(tint, 0x2c3466, i.outdoor ? 0.3 : 0.05);
     if (i.outdoor) {
       lamp = Math.max(lamp, 0.55);

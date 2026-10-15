@@ -21,3 +21,8 @@ Primero la plaza y el exterior del restaurante; el mismo sistema ya vale para el
 ## Pruebas
 - `src/tests/light.test.ts`: oscurece de tarde a noche, noche azul, atardecer cálido, interiores más cálidos que la calle, lluvia atenúa pero deja lámparas, luna solo de noche, restaurante por horarios, sombras según el sol.
 - `e2e/light.spec.ts`: día / atardecer / noche / lluvia en la plaza (capturas en `docs/art/luces/`), brillo medido alrededor de Sofi, ventanas apagadas de día y encendidas de noche, puerta del restaurante, fachada y salón por horario, y modo batería y movimiento reducido.
+
+## Revisión del plan maestro (etapa 5)
+- **Saltos entre momentos del día corregidos:** al pasar de tarde a atardecer y de atardecer a noche había saltos de color (hasta 36 niveles de azul afuera, 56 con lluvia, 39 adentro), de luz de faroles (de 0 a 0,3), de viñeta y de reflejo de luna. Ahora cada tramo del día empieza exactamente donde terminó el anterior (`src/scenes/lightmath.ts`), también con lluvia y en interiores.
+- **Prueba:** `light.test.ts` comprueba que nunca hay saltos al cambiar de período.
+- Lo demás del punto 5 (charcos de luz con tramado, luz de ventanas y faroles de negocios, lluvia más fría con farolas cálidas, sin redibujar por cuadro y modo batería) ya estaba hecho y se conserva.
