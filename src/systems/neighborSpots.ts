@@ -2,7 +2,7 @@
 import type { Dir } from '../core/types';
 import type { NpcAct } from '../data/characters';
 import { ZONES } from '../data/zones';
-import type { Neighbor } from '../data/neighbors';
+import { REN_STALL, type Neighbor } from '../data/neighbors';
 
 export interface Place { zone: string; x: number; y: number; act?: NpcAct; dir?: Dir; seatLift?: number; kind: string }
 
@@ -24,6 +24,7 @@ export const STROLL = [
 ];
 /** where they go to a shop: just inside its door */
 export function shopSpot(zone: string): Place | null {
+  if (zone === 'plaza_ren') return { zone: 'plaza', x: REN_STALL.x + 1, y: REN_STALL.y + 1, act: 'work', dir: 'up', kind: 'shop' };
   const door = ZONES.plaza.doors.find((d) => d.to === zone);
   return door ? { zone, x: door.tx + 1, y: door.ty - 1, act: 'look', dir: 'down', kind: 'shop' } : null;
 }

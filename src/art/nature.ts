@@ -705,6 +705,27 @@ export const NATURE_KINDS: Record<string, DrawFn> = {
     px(c, cx - 1, H - 22, NAT.woodL, 1, 21);
     ellipse(c, cx, H - 1, 4, 1.5, shade(NAT.grass, -0.25));
   },
+  /** Ren's carpentry stall: planks, log ends and a stone on the counter under a brown awning. */
+  carpstall(c, W, H, c1, c2) {
+    px(c, 3, H - 30, NAT.woodD, W - 6, 13);
+    px(c, 4, H - 29, '#b98a5a', W - 8, 11);
+    for (let x = 6; x < W - 8; x += 9) { px(c, x, H - 27, '#e2b585', 7, 2); px(c, x, H - 24, '#c48d5e', 7, 2); px(c, x, H - 21, '#e2b585', 7, 2); }
+    px(c, 1, H - 17, NAT.woodD, W - 2, 16);
+    px(c, 2, H - 16, NAT.woodL, W - 4, 14);
+    px(c, 2, H - 16, '#e2b585', W - 4, 1);
+    for (let i = 0; i < 3; i++) ellipse(c, 8 + i * 5, H - 19, 2.4, 2.4, '#d9b27c');
+    px(c, W - 14, H - 20, '#9a9690', 6, 4); px(c, W - 12, H - 22, '#b7b2ac', 4, 2);
+    px(c, 4, H - 20, '#7a7f86', 9, 1);
+    logPost(c, 1, H - 42, 26);
+    logPost(c, W - 5, H - 42, 26);
+    for (let x = 0; x < W; x += 6) {
+      const col = (x / 6) % 2 ? c1 : c2;
+      px(c, x, H - 46, shade(col, 0.15), 6, 2);
+      px(c, x, H - 44, col, 6, 7);
+      ellipse(c, x + 3, H - 37, 3, 2, col);
+    }
+    px(c, 0, H - 47, shade(c1, -0.5), W, 1);
+  },
   stall(c, W, H, c1, c2, _rot, r) {
     const goods = ['#d9485a', '#f2a03c', '#7fbf4f', '#f2c66d', '#9b6ad0', '#e86a9a'];
     // back shelf

@@ -7,6 +7,7 @@ import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import type { DoorDef, InteractDef, ZoneDef } from './zones';
 import { houseDoorDef, houseEntrancePaths, housePropId, housesIn } from './houses';
 import { PROPS } from './props';
+import { REN_STALL } from './neighbors';
 
 export const PLAZA_SIZE = { w: 58, h: 44 } as const;
 /** River centre column for each row (the water is 4 tiles wide: cx-2 .. cx+1). */
@@ -116,6 +117,7 @@ export function plaza(): ZoneDef {
     .prop('torii_w4', 28, 3)
     .prop('flowers', 6, 10)
     .prop('flowers_lav', 18, 21)
+    .prop('stall_wood', REN_STALL.x, REN_STALL.y).prop('sack', REN_STALL.x + 3, REN_STALL.y).prop('lantern_cream', REN_STALL.x - 1, REN_STALL.y - 1)
     .prop('crate', 30, 15)
     .prop('barrel', 22, 20)
     .prop('pot_rose', 3, 7)
@@ -211,6 +213,7 @@ export function plaza(): ZoneDef {
     { id: 'mailbox', x: 9, y: 6, label: 'Buzón', action: 'mail' },
     { id: 'fountain', x: 15, y: 13, label: 'Fuente', action: 'fountain' },
     { id: 'sign', x: 4, y: 7, label: 'Cartel del restaurante', action: 'story:sign', cond: '!sign_restored' },
+    { id: 'ren_stall', x: REN_STALL.x + 1, y: REN_STALL.y + 1, label: 'Carpintería de Ren', action: 'shop:ren' },
     { id: 'sumi_stall', x: 20, y: 20, label: 'Puesto de Sumi', action: 'shop:sumi' },
     // obstacles
     { id: 'blk_forest', x: 15, y: 1, label: 'Troncos caídos', action: 'blocked:forest', cond: '!unlock_forest' },

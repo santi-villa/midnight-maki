@@ -70,6 +70,10 @@ export const SHOPS: Record<string, ShopDef> = {
     tabs: [{ name: 'Puesto', list: () => clothes('yuki').filter((c) => c.id === 'ex_necklace') }],
     sell: ['shell', 'material'],
   },
+  ren: {
+    title: 'Carpintería de Ren', greet: 'Madera de la buena y piedra para lo que haga falta. Lo que juntes por ahí también sirve.',
+    tabs: [{ name: 'Materiales', list: () => [{ kind: 'item' as const, id: 'wood', price: 20 }, { kind: 'item' as const, id: 'stone', price: 28 }] }],
+  },
   sumi: {
     title: 'Puesto de Sumi', keeper: 'sumi', greet: 'Cuadros, atriles y cosas lindas para tus paredes.',
     tabs: [{ name: 'Arte y deco', list: () => furn('sumi') }],
@@ -218,7 +222,7 @@ export async function openShop(id: string) {
     body.append(grid);
   };
   const renderSell = () => {
-    const sellable = Object.keys(game.save.inventory).filter((id) => s.sell!.includes(ITEMS_BY_ID[id]?.cat) && (ITEMS_BY_ID[id]?.sell ?? 0) > 0);
+    const sellable = Object.keys(game.save.inventory).filter((id) => s.sell!.includes(ITEMS_BY_ID[id]?.cat) && (ITEMS_BY_ID[id]?.sell ?? 0) > 0 && !['wood', 'stone'].includes(id));
     const grid = h('div', { class: 'grid' });
     if (!sellable.length) grid.append(h('p', { class: 'muted' }, 'No tenés nada que te compren acá.'));
     for (const id of sellable) {
