@@ -525,7 +525,7 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .creator .preview { border: 12px solid transparent; border-radius: 0; border-image: var(--tx-logframe) 8 / 12px round; background: linear-gradient(#8fd0f0, #bfe8a0 70%, #6cc456 70%); }
 
 /* ---------- illustrated world map ---------- */
-.wmap { position: relative; width: 100%; aspect-ratio: 240 / 200; border: 4px solid #2b1d17; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 3px #d9a970; }
+.wmap { position: relative; width: 100%; aspect-ratio: 1024 / 572; border: 4px solid #2b1d17; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 3px #d9a970; }
 .wmap-art { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .wmap-plate {
   position: absolute; transform: translate(-50%, -100%);
