@@ -23,6 +23,7 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
+import { facingTable } from '../restaurant/seating';
 import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
 import { customerAsk } from '../restaurant/orders';
@@ -938,7 +939,8 @@ export class WorldScene extends Phaser.Scene {
         a.x = (sitting && seat ? seat.x : p.x) * TILE + TILE / 2;
         a.y = (sitting && seat ? seat.y : p.y) * TILE + TILE - 2 - (sitting ? 3 : 0);
         a.moving = trip.moving && !sitting;
-        a.dir = sitting && seat ? (seat.rot === 2 ? 'up' : seat.rot === 1 ? 'right' : seat.rot === 3 ? 'left' : 'down') : trip.dir;
+        const table = g?.tableId ? this.diningPieces().find((pc) => String(pc.uid) === g.tableId) : undefined;
+        a.dir = sitting && seat ? (table ? facingTable(seat, table) : seat.rot === 2 ? 'up' : seat.rot === 1 ? 'right' : seat.rot === 3 ? 'left' : 'down') : trip.dir;
         const fed = g?.members[i]?.items.some(item => item.kind === 'food' && item.quality !== null);
         const act = sitting ? (fed || phase === 'eating' || phase === 'paying' ? 'eat' : 'sit') : 'idle';
         if (a.act !== act) a.setAct(act);
