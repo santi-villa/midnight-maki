@@ -66,6 +66,8 @@ export interface Order {
   service?: { partyId: string; memberId: string; tableId: string; seatId: string; day: number };
   uid: number;
   recipe: string;
+  /** id of the crew member who is cooking it (never saved across a reload) */
+  cook?: string;
   customer: string;   // npc id or generic customer id
   reward: number;
   special?: string;   // marks story/quest orders

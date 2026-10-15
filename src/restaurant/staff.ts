@@ -1,35 +1,51 @@
 /**
- * Restaurant staff. A hired waiter really walks: to a table to take the order, to the tray for a finished dish,
- * to the table to serve it, and back to their spot. New hires are slow and get faster with practice and training.
- * Everything runs on a timer and a path, so it works the same with the player in another map.
+ * Restaurant crew. Two kinds of workers do real jobs, one at a time, and everyone starts slow:
+ *  - hired employees (waiters and cooks) that walk on their own paths, and
+ *  - the raccoons: Rigg takes orders and picks up tips, Spicy cooks, Pip hosts (see WorldScene.updateHost).
+ * Jobs run on timers and paths, so they go on while the player is in another map.
+ * Speed grows with practice (time) and with training (coins).
  */
 import { rng } from '../art/pixel';
 import { game } from '../core/state';
 import type { Appearance } from '../core/types';
-import { claimPlate, guestViews, plateState, staffDeliver, takeOrderAt, tableJobs } from './service';
+import { RECIPES_BY_ID } from '../data/recipes';
+import { playerBusy } from './claims';
+import { canCook } from './orders';
+import { claimPlate, collectTipAt, guestViews, plateState, stagePlate, staffDeliver, takeOrderAt, tableJobs } from './service';
 
-export type StaffRole = 'waiter';
+export type StaffRole = 'waiter' | 'cook';
+export type Task = 'order' | 'serve' | 'cook' | 'tip';
+export type TraitId = 'alegre' | 'veloz' | 'tranquilo' | 'prolijo';
+
 export interface Employee {
   id: string;
   name: string;
   role: StaffRole;
-  /** flavour and a small modifier */
   trait: TraitId;
   look: Appearance;
-  /** 0..4: speed of work and walking */
+  /** 0..4 */
   level: number;
   xp: number;
   hiredDay: number;
-  /** which jobs they do, and which first */
+  /** waiters: which jobs, and which first */
   takeOrders: boolean;
   serve: boolean;
   priority: 'orders' | 'serve';
   /** could not be paid on the last pay day: stays off until paid */
   unpaid?: boolean;
 }
-export interface StaffSave { employees: Employee[]; nextId: number; paused: boolean; lastPayDay: number }
 
-export type TraitId = 'alegre' | 'veloz' | 'tranquilo' | 'prolijo';
+export type CrewId = 'pip' | 'rigg' | 'spicy';
+export interface CrewMember { level: number; xp: number; on: boolean }
+export interface StaffSave {
+  employees: Employee[];
+  nextId: number;
+  paused: boolean;
+  lastPayDay: number;
+  /** the raccoons' own progress (optional so older saves load) */
+  crew?: Partial<Record<CrewId, CrewMember>>;
+}
+
 export const TRAITS: Record<TraitId, { name: string; line: string; walk: number; work: number }> = {
   alegre: { name: 'Alegre', line: 'Saluda a todos con una sonrisa.', walk: 1, work: 1 },
   veloz: { name: 'Veloz', line: 'Siempre anda apurado.', walk: 1.15, work: 1.05 },
@@ -38,15 +54,27 @@ export const TRAITS: Record<TraitId, { name: string; line: string; walk: number;
 };
 
 export const MAX_LEVEL = 4;
-const WORK_SLOWDOWN = [2.6, 2.1, 1.7, 1.35, 1.1];
+export const LEVEL_NAMES = ['Recién llegado', 'Aprendiz', 'Práctico', 'Capacitado', 'Experto'];
+/** seconds of real work for one job, by level */
+const ORDER_SECONDS = [9, 7, 5.5, 4.2, 3.2];
+const TIP_SECONDS = [4, 3.2, 2.6, 2, 1.6];
+const PICK_SECONDS = [3, 2.5, 2, 1.6, 1.2];
+const SERVE_SECONDS = [2.6, 2.1, 1.7, 1.4, 1.1];
+/** one dish: Spicy starts at over half a minute; a hired cook starts slower still */
+export const COOK_SECONDS: Record<'crew' | 'hired', number[]> = { crew: [34, 27, 21, 16, 12], hired: [45, 36, 28, 21, 15] };
 const WALK_TILES = [1.1, 1.3, 1.5, 1.7, 1.9];
-const XP_FOR_LEVEL = [20, 60]; // practice alone gets to level 2; training does the rest
-const BASE_WORK = { order: 3.5, pick: 1.2, serve: 1 };
+/** chance of a perfect / very good dish by level (the rest come out fine) */
+const PERFECT = [0.05, 0.15, 0.3, 0.5, 0.7];
+const VERY_GOOD = [0.35, 0.5, 0.5, 0.4, 0.3];
+/** practice only takes hired staff so far; raccoons keep learning, slowly */
+const XP_STEPS = [25, 70, 140, 240];
+const HIRED_PRACTICE_CAP = 2;
 
-export const hireCost = () => 150;
-export const wageOf = (e: Employee) => 16 + 6 * e.level;
-export const trainCost = (e: Employee) => 90 + 70 * e.level;
+export const hireCost = (role: StaffRole = 'waiter') => (role === 'cook' ? 220 : 150);
+export const wageOf = (e: Employee) => (e.role === 'cook' ? 22 + 8 * e.level : 16 + 6 * e.level);
+export const trainCost = (level: number, crew = false) => (crew ? 120 + 90 * level : 90 + 70 * level);
 export const staffLimit = (level: number) => (level >= 7 ? 3 : level >= 5 ? 2 : level >= 3 ? 1 : 0);
+export const cookLimit = (level: number) => (level >= 4 ? 1 : 0);
 
 const NAMES = ['Mochi', 'Dango', 'Anko', 'Kinako', 'Matcha', 'Yuzu', 'Sesa', 'Kabu', 'Hoshi', 'Tofu', 'Nashi', 'Mame'];
 const SPECIES: Appearance['species'][] = ['cat', 'fox', 'bunny', 'dog', 'owl', 'otter', 'squirrel', 'bear'];
@@ -58,9 +86,21 @@ export function staffSave(): StaffSave {
 }
 export const employees = () => staffSave().employees;
 
+export const CREW_INFO: Record<CrewId, { name: string; job: string; tasks: Task[]; unlock: number }> = {
+  pip: { name: 'Pip', job: 'Recibe a los clientes y los lleva a su mesa.', tasks: [], unlock: 0 },
+  rigg: { name: 'Rigg', job: 'Toma los pedidos y recoge las propinas.', tasks: ['order', 'tip'], unlock: 2 },
+  spicy: { name: 'Spicy', job: 'Cocina los pedidos del salón.', tasks: ['cook'], unlock: 2 },
+};
+export function crew(id: CrewId): CrewMember {
+  const s = staffSave();
+  return ((s.crew ??= {})[id] ??= { level: 0, xp: 0, on: false });
+}
+/** they help once the friendship is there (Pip always hosts) */
+export const crewUnlocked = (id: CrewId) => id === 'pip' || game.friendLevel(id) >= CREW_INFO[id].unlock;
+
 /** Three people looking for work, the same ones all day. */
-export function candidates(day = game.save.time.day): Employee[] {
-  const r = rng(day * 2713 + 11);
+export function candidates(role: StaffRole = 'waiter', day = game.save.time.day): Employee[] {
+  const r = rng(day * 2713 + (role === 'cook' ? 97 : 11));
   const taken = new Set(employees().map((e) => e.name));
   const names = NAMES.filter((n) => !taken.has(n));
   const traits = Object.keys(TRAITS) as TraitId[];
@@ -69,10 +109,10 @@ export function candidates(day = game.save.time.day): Employee[] {
     const look: Appearance = {
       species: SPECIES[Math.floor(r() * SPECIES.length)], skin: FURS[Math.floor(r() * FURS.length)], hairStyle: Math.floor(r() * 3),
       hairColor: HAIRS[Math.floor(r() * HAIRS.length)], eyes: Math.floor(r() * 3), eyeColor: '#3b2a22',
-      top: 'top_kimono_indigo', bottom: '', shoes: '', head: '', face: '', extra: '', bag: '',
+      top: role === 'cook' ? 'top_chef' : 'top_kimono_indigo', bottom: '', shoes: '', head: '', face: '', extra: '', bag: '',
     };
     return {
-      id: `cand_${day}_${i}`, name, role: 'waiter' as const, trait: traits[Math.floor(r() * traits.length)], look, level: 0, xp: 0, hiredDay: day,
+      id: `cand_${role}_${day}_${i}`, name, role, trait: traits[Math.floor(r() * traits.length)], look, level: 0, xp: 0, hiredDay: day,
       takeOrders: true, serve: true, priority: 'serve' as const,
     };
   });
@@ -80,8 +120,9 @@ export function candidates(day = game.save.time.day): Employee[] {
 
 export function hire(c: Employee): string | null {
   const s = staffSave();
-  if (s.employees.length >= staffLimit(game.save.restaurant.level)) return 'El restaurante todavía no necesita más personal.';
-  if (!game.spend(hireCost(), 'hire')) return 'No te alcanzan las monedas.';
+  const same = s.employees.filter((e) => e.role === c.role).length;
+  if (c.role === 'cook' ? same >= cookLimit(game.save.restaurant.level) : s.employees.filter((e) => e.role === 'waiter').length >= staffLimit(game.save.restaurant.level)) return 'El restaurante todavía no necesita más personal de ese puesto.';
+  if (!game.spend(hireCost(c.role), 'hire')) return 'No te alcanzan las monedas.';
   const e: Employee = { ...c, id: `emp${s.nextId++}`, hiredDay: game.save.time.day };
   s.employees.push(e);
   runtime.delete(e.id);
@@ -90,25 +131,36 @@ export function hire(c: Employee): string | null {
 }
 export function fire(id: string): void {
   const s = staffSave();
-  const rt = runtime.get(id);
-  if (rt?.claim?.kind === 'serve') claimPlate(rt.claim.uid, null);
+  const r = runtime.get(id);
+  if (r) release(r, id);
   runtime.delete(id);
   s.employees = s.employees.filter((e) => e.id !== id);
   game.touch('staff');
 }
+/** Training with coins: one level up at once. */
 export function train(id: string): string | null {
   const e = employees().find((x) => x.id === id);
   if (!e) return null;
   if (e.level >= MAX_LEVEL) return 'Ya es experto.';
-  if (!game.spend(trainCost(e), 'train')) return 'No te alcanzan las monedas.';
+  if (!game.spend(trainCost(e.level), 'train')) return 'No te alcanzan las monedas.';
   e.level++;
-  e.xp = Math.max(e.xp, XP_FOR_LEVEL[Math.min(e.level, XP_FOR_LEVEL.length) - 1] ?? 0);
+  e.xp = Math.max(e.xp, XP_STEPS[e.level - 1] ?? 0);
+  game.touch('staff');
+  return null;
+}
+export function trainCrew(id: CrewId): string | null {
+  const m = crew(id);
+  if (m.level >= MAX_LEVEL) return 'Ya es experto.';
+  if (!game.spend(trainCost(m.level, true), 'train')) return 'No te alcanzan las monedas.';
+  m.level++;
+  m.xp = Math.max(m.xp, XP_STEPS[m.level - 1] ?? 0);
   game.touch('staff');
   return null;
 }
 export function setStaff(patch: Partial<Pick<StaffSave, 'paused'>>) { Object.assign(staffSave(), patch); game.touch('staff'); }
+export function setCrew(id: CrewId, on: boolean) { crew(id).on = on; game.touch('staff'); }
 
-/** Daily pay. Whoever cannot be paid stays at home until the next pay day. Returns what was paid. */
+/** Daily pay for hired staff (the raccoons are friends, not payroll). Whoever cannot be paid stays home until the next pay day. */
 export function payWages(day = game.save.time.day): { paid: number; unpaid: string[] } {
   const s = staffSave();
   let paid = 0;
@@ -124,15 +176,55 @@ export function payWages(day = game.save.time.day): { paid: number; unpaid: stri
   return { paid, unpaid };
 }
 
-export const workSeconds = (e: Employee, base: number) => base * WORK_SLOWDOWN[e.level] * TRAITS[e.trait].work;
-export const walkSpeed = (e: Employee) => WALK_TILES[e.level] * TRAITS[e.trait].walk;
-function gain(e: Employee, xp: number) {
-  e.xp += xp;
-  while (e.level < XP_FOR_LEVEL.length && e.xp >= XP_FOR_LEVEL[e.level]) e.level++;
+/** How much slower than the player a dish or a host greeting takes (Pip). 1 = as quick as it gets. */
+export const hostSlowdown = () => [2.2, 1.8, 1.45, 1.2, 1][crew('pip').level];
+
+function gainXp(m: { level: number; xp: number }, xp: number, cap: number) {
+  m.xp += xp;
+  while (m.level < cap && m.xp >= XP_STEPS[m.level]) m.level++;
+}
+/** Pip's greetings count as practice too. */
+export function practicePip() { gainXp(crew('pip'), 4, MAX_LEVEL); }
+
+// ------------------------------------------------------------------ workers
+interface Worker {
+  id: string;
+  kind: 'hired' | 'crew';
+  level: number;
+  tasks: Task[];
+  walk: number;
+  mul: number;
+  off: boolean;
+  member: { level: number; xp: number };
+  cap: number;
+  /** raccoons: why they are not working right now */
+  note?: string;
+}
+
+function workers(env: StaffEnv): Worker[] {
+  const s = staffSave();
+  const out: Worker[] = [];
+  for (const e of s.employees) {
+    const t = TRAITS[e.trait];
+    const tasks: Task[] = e.role === 'cook' ? ['cook'] : (e.priority === 'orders' ? ['order', 'serve'] : ['serve', 'order']).filter((k) => (k === 'order' ? e.takeOrders : e.serve)) as Task[];
+    out.push({ id: e.id, kind: 'hired', level: e.level, tasks, walk: WALK_TILES[e.level] * t.walk, mul: t.work, off: s.paused || !!e.unpaid, member: e, cap: HIRED_PRACTICE_CAP });
+  }
+  for (const id of ['rigg', 'spicy'] as CrewId[]) {
+    const m = crew(id);
+    if (!m.on) continue;
+    const w = env.crew.where(id);
+    const away = !crewUnlocked(id) || !w || w.zone !== 'restaurant';
+    out.push({ id, kind: 'crew', level: m.level, tasks: CREW_INFO[id].tasks, walk: WALK_TILES[m.level], mul: 1, off: s.paused || away || !env.crew.working(), member: m, cap: MAX_LEVEL, note: away ? 'Fuera del restaurante' : undefined });
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------ runtime (not saved)
-export type Claim = { kind: 'order'; tableId: string } | { kind: 'serve'; uid: number; tableId: string };
+export type Claim =
+  | { kind: 'order'; tableId: string }
+  | { kind: 'tip'; tableId: string }
+  | { kind: 'serve'; uid: number; tableId: string }
+  | { kind: 'cook'; uid: number; tableId: string };
 export interface Runtime {
   /** tile position, fractional while walking */
   x: number; y: number;
@@ -144,167 +236,240 @@ export interface Runtime {
   carrying: number | null;
   path: [number, number][];
   work: number;
-  step: 'toTable' | 'ordering' | 'toTray' | 'picking' | 'toServe' | 'serving' | 'home' | null;
+  step: 'toTable' | 'ordering' | 'tipping' | 'toTray' | 'picking' | 'toServe' | 'serving' | 'toStove' | 'cooking' | 'home' | null;
   wait: number;
+  /** ingredients already taken from the pantry for the dish being cooked */
+  taken: boolean;
+  target: { x: number; y: number } | null;
+  lost: number;
 }
 export const runtime = new Map<string, Runtime>();
 let sessionSave: unknown = null;
 
 export interface StaffEnv {
-  /** where they wait */
   home(): { x: number; y: number };
   tray(): { x: number; y: number };
+  stove(): { x: number; y: number };
   /** tiles next to the table where a person can stand */
   tableSpots(tableId: string): { x: number; y: number }[];
   path(from: { x: number; y: number }, to: { x: number; y: number }): [number, number][] | null;
+  /** the raccoons are town residents: they walk with the town's own movement */
+  crew: {
+    where(id: CrewId): { zone: string; x: number; y: number; settled: boolean } | null;
+    move(id: CrewId, tile: { x: number; y: number } | null): void;
+    /** the restaurant is open and nothing scripted is going on */
+    working(): boolean;
+  };
 }
 
-function rt(e: Employee, env: StaffEnv): Runtime {
-  let r = runtime.get(e.id);
+function rt(id: string, env: StaffEnv, crewId: boolean): Runtime {
+  let r = runtime.get(id);
   if (!r) {
-    const h = env.home();
-    r = { x: h.x, y: h.y, dir: 'down', act: 'idle', claim: null, doing: 'Esperando', carrying: null, path: [], work: 0, step: null, wait: 0 };
-    runtime.set(e.id, r);
+    const h = crewId ? env.crew.where(id as CrewId) ?? env.home() : env.home();
+    r = { x: h.x, y: h.y, dir: 'down', act: 'idle', claim: null, doing: 'Esperando', carrying: null, path: [], work: 0, step: null, wait: 0, taken: false, target: null, lost: 0 };
+    runtime.set(id, r);
   }
   return r;
 }
 
-function release(r: Runtime) {
-  if (r.claim?.kind === 'serve') claimPlate(r.claim.uid, null);
-  r.claim = null; r.carrying = null; r.work = 0;
+function release(r: Runtime, workerId?: string) {
+  const c = r.claim;
+  if (c?.kind === 'serve') claimPlate(c.uid, null);
+  if (c?.kind === 'cook') {
+    const o = game.save.orders.find((x) => x.uid === c.uid);
+    if (o) delete o.cook;
+    if (r.taken && o) for (const [id, q] of Object.entries(RECIPES_BY_ID[o.recipe]?.ingredients ?? {})) game.addItem(id, q, 'refund');
+  }
+  r.claim = null; r.carrying = null; r.work = 0; r.taken = false;
+  void workerId;
 }
 
 function claimedByOthers(selfId: string): Set<string> {
   const out = new Set<string>();
-  for (const [id, r] of runtime) if (id !== selfId && r.claim) out.add(r.claim.kind === 'order' ? 'o:' + r.claim.tableId : 's:' + r.claim.uid);
+  for (const [id, r] of runtime) {
+    if (id === selfId || !r.claim) continue;
+    const c = r.claim;
+    out.add(c.kind === 'order' || c.kind === 'tip' ? `${c.kind}:${c.tableId}` : `${c.kind}:${c.uid}`);
+  }
   return out;
 }
 
-function goTo(r: Runtime, env: StaffEnv, to: { x: number; y: number }, step: Runtime['step'], doing: string): boolean {
-  const p = env.path({ x: Math.round(r.x), y: Math.round(r.y) }, to);
-  if (!p) return false;
-  r.path = p;
+let tableNames: (id: string) => string = (id) => id;
+export function setTableNamer(fn: (id: string) => string) { tableNames = fn; }
+
+function goTo(w: Worker, r: Runtime, env: StaffEnv, to: { x: number; y: number }, step: Runtime['step'], doing: string): boolean {
+  if (w.kind === 'crew') {
+    env.crew.move(w.id as CrewId, to);
+    r.target = to; r.path = []; r.lost = 0;
+  } else {
+    const p = env.path({ x: Math.round(r.x), y: Math.round(r.y) }, to);
+    if (!p) return false;
+    r.path = p; r.target = to;
+  }
   r.step = step;
   r.doing = doing;
   r.act = 'walk'; // arriving is handled by the walking step, even when already there
   return true;
 }
 
-function nearestSpot(r: Runtime, spots: { x: number; y: number }[]) {
-  return [...spots].sort((a, b) => Math.hypot(a.x - r.x, a.y - r.y) - Math.hypot(b.x - r.x, b.y - r.y))[0] ?? null;
-}
+const nearest = <T extends { x: number; y: number }>(r: Runtime, spots: T[]) =>
+  [...spots].sort((a, b) => Math.hypot(a.x - r.x, a.y - r.y) - Math.hypot(b.x - r.x, b.y - r.y))[0] ?? null;
 
 /** Looks for the next job. Returns false when there is nothing to do. */
-function pickJob(e: Employee, r: Runtime, env: StaffEnv): boolean {
-  const others = claimedByOthers(e.id);
-  const tasks: ('order' | 'serve')[] = e.priority === 'orders' ? ['order', 'serve'] : ['serve', 'order'];
-  for (const kind of tasks) {
-    if (kind === 'order' && e.takeOrders) {
-      const jobs = tableJobs().filter((j) => j.phase === 'waiting_order' && !others.has('o:' + j.tableId));
-      const best = jobs.map((j) => ({ j, spot: nearestSpot(r, env.tableSpots(j.tableId)) })).filter((x) => x.spot)
-        .sort((a, b) => Math.hypot(a.spot!.x - r.x, a.spot!.y - r.y) - Math.hypot(b.spot!.x - r.x, b.spot!.y - r.y))[0];
-      if (best && goTo(r, env, best.spot!, 'toTable', `Va a la ${tableName(best.j.tableId)}`)) {
-        r.claim = { kind: 'order', tableId: best.j.tableId };
-        return true;
-      }
-    }
-    if (kind === 'serve' && e.serve) {
+function pickJob(w: Worker, r: Runtime, env: StaffEnv): boolean {
+  const others = claimedByOthers(w.id);
+  for (const kind of w.tasks) {
+    if (kind === 'order') {
+      const jobs = tableJobs().filter((j) => j.phase === 'waiting_order' && !others.has('order:' + j.tableId));
+      const best = nearest(r, jobs.map((j) => ({ j, ...(nearest(r, env.tableSpots(j.tableId)) ?? { x: NaN, y: NaN }) })).filter((x) => !Number.isNaN(x.x)));
+      if (best && goTo(w, r, env, best, 'toTable', `Va a la ${tableNames(best.j.tableId)}`)) { r.claim = { kind: 'order', tableId: best.j.tableId }; return true; }
+    } else if (kind === 'tip') {
+      const jobs = tableJobs().filter((j) => j.status === 'tip' && j.tip > 0 && !others.has('tip:' + j.tableId));
+      const best = nearest(r, jobs.map((j) => ({ j, ...(nearest(r, env.tableSpots(j.tableId)) ?? { x: NaN, y: NaN }) })).filter((x) => !Number.isNaN(x.x)));
+      if (best && goTo(w, r, env, best, 'toTable', `Va a buscar la propina de la ${tableNames(best.j.tableId)}`)) { r.claim = { kind: 'tip', tableId: best.j.tableId }; return true; }
+    } else if (kind === 'serve') {
       const waiting = new Set(guestViews().filter((g) => g.phase === 'waiting_food').map((g) => g.id));
-      const order = game.save.orders.find((o) => o.plate && o.service && plateState(o.uid) === 'plated' && !o.plate.claim && waiting.has(o.service.partyId) && !others.has('s:' + o.uid));
-      if (order && claimPlate(order.uid, e.id)) {
-        if (goTo(r, env, env.tray(), 'toTray', 'Va a buscar un plato')) {
-          r.claim = { kind: 'serve', uid: order.uid, tableId: order.service!.tableId };
-          return true;
-        }
+      const order = game.save.orders.find((o) => o.plate && o.service && plateState(o.uid) === 'plated' && !o.plate.claim && waiting.has(o.service.partyId) && !others.has('serve:' + o.uid));
+      if (order && claimPlate(order.uid, w.id)) {
+        if (goTo(w, r, env, env.tray(), 'toTray', 'Va a buscar un plato')) { r.claim = { kind: 'serve', uid: order.uid, tableId: order.service!.tableId }; return true; }
         claimPlate(order.uid, null);
+      }
+    } else if (kind === 'cook') {
+      const waiting = new Set(guestViews().filter((g) => g.phase === 'waiting_food').map((g) => g.id));
+      const order = game.save.orders.find((o) => o.kind !== 'drink' && o.service && !o.plate && !o.cook && !playerBusy.has(o.uid) && waiting.has(o.service.partyId) && RECIPES_BY_ID[o.recipe] && canCook(o.recipe) && !others.has('cook:' + o.uid));
+      if (order) {
+        order.cook = w.id;
+        if (goTo(w, r, env, env.stove(), 'toStove', `Va a preparar ${RECIPES_BY_ID[order.recipe].name}`)) { r.claim = { kind: 'cook', uid: order.uid, tableId: order.service!.tableId }; return true; }
+        delete order.cook;
       }
     }
   }
   return false;
 }
-let tableNames: (id: string) => string = (id) => id;
-const tableName = (id: string) => tableNames(id);
-export function setTableNamer(fn: (id: string) => string) { tableNames = fn; }
 
 function stillValid(r: Runtime): boolean {
   const c = r.claim;
   if (!c) return false;
   if (c.kind === 'order') return tableJobs().some((j) => j.tableId === c.tableId && j.phase === 'waiting_order');
+  if (c.kind === 'tip') return tableJobs().some((j) => j.tableId === c.tableId && j.status === 'tip' && j.tip > 0);
   const o = game.save.orders.find((x) => x.uid === c.uid);
   const party = o?.service ? guestViews().find((g) => g.id === o.service!.partyId) : null;
+  if (c.kind === 'cook') return !!o && !o.plate && !playerBusy.has(c.uid) && party?.phase === 'waiting_food';
   return !!o?.plate && o.plate.claim !== undefined && party?.phase === 'waiting_food';
 }
 
-function stepOf(e: Employee, r: Runtime, env: StaffEnv, dt: number) {
-  // walking
-  if (r.act === 'walk') {
-    let move = walkSpeed(e) * dt;
-    while (move > 0 && r.path.length) {
-      const [tx, ty] = r.path[0];
-      const dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy);
-      if (d <= move) { r.x = tx; r.y = ty; r.path.shift(); move -= d; }
-      else { r.x += (dx / d) * move; r.y += (dy / d) * move; move = 0; }
-      if (Math.abs(dx) > Math.abs(dy)) r.dir = dx > 0 ? 'right' : 'left'; else if (dy !== 0) r.dir = dy > 0 ? 'down' : 'up';
-    }
-    if (r.path.length) return;
-    r.act = 'work';
-    if (r.step === 'toTable') { r.step = 'ordering'; r.work = workSeconds(e, BASE_WORK.order); r.doing = 'Toma el pedido'; }
-    else if (r.step === 'toTray') { r.step = 'picking'; r.work = workSeconds(e, BASE_WORK.pick); r.doing = 'Recoge el plato'; }
-    else if (r.step === 'toServe') { r.step = 'serving'; r.work = workSeconds(e, BASE_WORK.serve); r.doing = 'Sirve el plato'; }
-    else if (r.step === 'home') { r.step = null; r.act = 'idle'; r.doing = 'Esperando'; }
+function arrive(w: Worker, r: Runtime) {
+  r.act = 'work';
+  const L = w.level;
+  const k = w.mul;
+  if (r.step === 'toTable') {
+    if (r.claim?.kind === 'tip') { r.step = 'tipping'; r.work = TIP_SECONDS[L] * k; r.doing = 'Recoge la propina'; }
+    else { r.step = 'ordering'; r.work = ORDER_SECONDS[L] * k; r.doing = 'Toma el pedido'; }
+  } else if (r.step === 'toTray') { r.step = 'picking'; r.work = PICK_SECONDS[L] * k; r.doing = 'Recoge el plato'; }
+  else if (r.step === 'toServe') { r.step = 'serving'; r.work = SERVE_SECONDS[L] * k; r.doing = 'Sirve el plato'; }
+  else if (r.step === 'toStove') {
+    const c = r.claim;
+    const o = c?.kind === 'cook' ? game.save.orders.find((x) => x.uid === c.uid) : null;
+    const recipe = o ? RECIPES_BY_ID[o.recipe] : null;
+    if (!o || !recipe || !game.consumeIngredients(recipe.ingredients)) { r.step = 'home'; r.work = 0; r.doing = 'Faltan ingredientes'; release(r); return; }
+    r.taken = true;
+    r.step = 'cooking'; r.work = COOK_SECONDS[w.kind][L] * k; r.doing = `Cocina ${recipe.name}`;
+  } else if (r.step === 'home') { r.step = null; r.act = 'idle'; r.doing = 'Esperando'; }
+}
+
+function walk(w: Worker, r: Runtime, env: StaffEnv, dt: number) {
+  if (w.kind === 'crew') {
+    const pos = env.crew.where(w.id as CrewId);
+    if (!pos || pos.zone !== 'restaurant') { release(r); r.act = 'idle'; r.step = null; r.target = null; return; }
+    r.x = pos.x; r.y = pos.y;
+    const t = r.target!;
+    if (Math.hypot(pos.x - t.x, pos.y - t.y) <= 0.7 && pos.settled) { r.target = null; arrive(w, r); return; }
+    r.lost += dt;
+    if (r.lost > 45) { env.crew.move(w.id as CrewId, null); release(r); r.act = 'idle'; r.step = null; r.target = null; }
     return;
   }
+  let move = w.walk * dt;
+  while (move > 0 && r.path.length) {
+    const [tx, ty] = r.path[0];
+    const dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy);
+    if (d <= move) { r.x = tx; r.y = ty; r.path.shift(); move -= d; }
+    else { r.x += (dx / d) * move; r.y += (dy / d) * move; move = 0; }
+    if (Math.abs(dx) > Math.abs(dy)) r.dir = dx > 0 ? 'right' : 'left'; else if (dy !== 0) r.dir = dy > 0 ? 'down' : 'up';
+  }
+  if (!r.path.length) arrive(w, r);
+}
+
+function goHome(w: Worker, r: Runtime, env: StaffEnv) {
+  r.carrying = null;
+  if (w.kind === 'crew') { env.crew.move(w.id as CrewId, null); r.act = 'idle'; r.step = null; r.doing = 'Esperando'; return; }
+  if (!goTo(w, r, env, env.home(), 'home', 'Vuelve a su lugar')) { r.step = null; r.act = 'idle'; r.doing = 'Esperando'; }
+}
+
+function finishWork(w: Worker, r: Runtime, env: StaffEnv) {
+  const c = r.claim;
+  const rand = rng(Math.floor(performance.now()) + (c && 'uid' in c ? c.uid : 7));
+  if (r.step === 'ordering' && c?.kind === 'order') {
+    takeOrderAt(c.tableId);
+    gainXp(w.member, 6, w.cap);
+    release(r); goHome(w, r, env);
+  } else if (r.step === 'tipping' && c?.kind === 'tip') {
+    collectTipAt(c.tableId);
+    gainXp(w.member, 5, w.cap);
+    release(r); goHome(w, r, env);
+  } else if (r.step === 'picking' && c?.kind === 'serve') {
+    r.carrying = c.uid;
+    const spot = nearest(r, env.tableSpots(c.tableId));
+    if (!spot || !goTo(w, r, env, spot, 'toServe', `Lleva el plato a la ${tableNames(c.tableId)}`)) { release(r); goHome(w, r, env); }
+  } else if (r.step === 'serving' && c?.kind === 'serve') {
+    if (!staffDeliver(c.uid, w.id)) gainXp(w.member, 8, w.cap);
+    release(r); goHome(w, r, env);
+  } else if (r.step === 'cooking' && c?.kind === 'cook') {
+    const roll = rand();
+    const q: 0 | 1 | 2 = roll < PERFECT[w.level] ? 2 : roll < PERFECT[w.level] + VERY_GOOD[w.level] ? 1 : 0;
+    const o = game.save.orders.find((x) => x.uid === c.uid);
+    const ok = !!o && stagePlate(c.uid, q);
+    if (ok) { delete o!.cook; r.taken = false; gainXp(w.member, 10, w.cap); }
+    release(r); goHome(w, r, env);
+  } else { release(r); goHome(w, r, env); }
+}
+
+function step(w: Worker, r: Runtime, env: StaffEnv, dt: number) {
+  if (r.act === 'walk') return walk(w, r, env, dt);
   if (r.act === 'work' && r.step) {
     if (r.step === 'home') { r.step = null; r.act = 'idle'; r.doing = 'Esperando'; return; }
-    if (!stillValid(r)) { release(r); goHome(r, env); return; }
+    if (!stillValid(r)) { release(r); goHome(w, r, env); return; }
     r.work -= dt;
-    if (r.work > 0) return;
-    const c = r.claim;
-    if (r.step === 'ordering' && c?.kind === 'order') {
-      takeOrderAt(c.tableId);
-      gain(e, 6);
-      release(r); goHome(r, env);
-    } else if (r.step === 'picking' && c?.kind === 'serve') {
-      r.carrying = c.uid;
-      const spot = nearestSpot(r, env.tableSpots(c.tableId));
-      if (!spot || !goTo(r, env, spot, 'toServe', `Lleva el plato a la ${tableName(c.tableId)}`)) { release(r); goHome(r, env); }
-    } else if (r.step === 'serving' && c?.kind === 'serve') {
-      const fail = staffDeliver(c.uid, e.id);
-      if (!fail) gain(e, 8);
-      release(r); goHome(r, env);
-    }
-    return;
+    if (r.work <= 0) finishWork(w, r, env);
   }
 }
 
-function goHome(r: Runtime, env: StaffEnv) {
-  r.carrying = null;
-  if (!goTo(r, env, env.home(), 'home', 'Vuelve a su lugar')) { r.step = null; r.act = 'idle'; r.doing = 'Esperando'; }
-}
-
-/** Runs every employee for `dt` seconds. */
+/** Runs the whole crew for `dt` seconds. */
 export function tickStaff(dt: number, env: StaffEnv) {
   if (!game.has('intro_done') || !Number.isFinite(dt) || dt <= 0) return;
-  const s = staffSave();
   if (sessionSave !== game.save) {
     // a loaded game: nobody is mid-task, so nothing stays reserved
     sessionSave = game.save;
     runtime.clear();
-    for (const o of game.save.orders) if (o.plate?.claim) delete o.plate.claim;
+    for (const o of game.save.orders) { if (o.plate?.claim) delete o.plate.claim; if (o.cook) delete o.cook; }
   }
-  for (const e of s.employees) {
-    const r = rt(e, env);
-    const off = s.paused || !!e.unpaid;
-    if (off && r.claim) { release(r); goHome(r, env); }
-    if (off && r.act === 'idle') { r.doing = e.unpaid ? 'Sin cobrar' : 'En pausa'; continue; }
+  const active = new Set<string>();
+  for (const w of workers(env)) {
+    active.add(w.id);
+    const r = rt(w.id, env, w.kind === 'crew');
+    if (w.off && r.claim) { release(r); goHome(w, r, env); }
+    if (w.off && r.act === 'idle') { r.doing = w.note ?? (staffSave().paused ? 'En pausa' : 'Sin cobrar'); continue; }
     if (r.wait > 0) { r.wait -= dt; continue; }
     if (r.act === 'idle' && !r.claim) {
-      if (!off && !pickJob(e, r, env)) r.wait = 0.8;
+      if (!w.off && !pickJob(w, r, env)) r.wait = 0.8;
       continue;
     }
-    stepOf(e, r, env, dt);
+    step(w, r, env, dt);
   }
+  // someone who stopped working (switched off) lets go of their jobs
+  for (const [id, r] of runtime) if (!active.has(id) && r.claim) { release(r); r.act = 'idle'; r.step = null; }
 }
 
 /** Test helper */
 export function resetStaffRuntime() { runtime.clear(); sessionSave = null; }
+export const workSecondsFor = (level: number, kind: 'crew' | 'hired' = 'crew') => COOK_SECONDS[kind][level];
+export const orderSecondsFor = (level: number) => ORDER_SECONDS[level];
