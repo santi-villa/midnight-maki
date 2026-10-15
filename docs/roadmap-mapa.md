@@ -63,3 +63,7 @@ Los costados de cada salida están cerrados con árboles, rocas o piedras, para 
 ## Primera muestra de zonificación y kit visual
 
 El [plan de distribución de Villa Nori](villa-nori-distribucion.md) ubica el contenido actual por necesidades y documenta la muestra jugable: Midnight Maki en sus cuatro etapas, Bento, Taro, plaza más contenida, paseo comercial, puente, ribera y muelle. Se conservan las entradas y las huellas sólidas para mantener guardados y misiones. No se han trasladado todos los edificios ni rediseñado todas las regiones; la siguiente entrega requiere revisar primero el estilo de esta muestra.
+
+## Continuación: distribución exterior completa
+
+Después de la aprobación de la muestra, la [entrega de exteriores](villa-nori-exteriores.md) extiende el kit a Yuki, biblioteca y las dieciséis casas y ordena el mobiliario de las seis regiones. Se reubican viviendas y senderos conservando los IDs históricos, regiones e interiores, y se revisan las reformas compradas. La calle residencial, los patios, la carga del puerto y los paseos tienen espacios propios; faroles y señalización se colocan junto a los recorridos. Las coordenadas actuales de las casas se leen de `houses.ts`: los números de sus IDs ya no son su posición vigente.
