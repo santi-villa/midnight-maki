@@ -23,9 +23,10 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
+import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
 import { customerAsk } from '../restaurant/orders';
-import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
+import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, tableLabel, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
 import { type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
@@ -55,6 +56,9 @@ interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: 
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
 export let world: WorldScene;
+
+/** guests in these phases are sitting at their table */
+const SEATED_PHASES: PartyPhase[] = ['seated', 'waiting_order', 'waiting_food', 'eating', 'paying'];
 
 export class WorldScene extends Phaser.Scene {
   zone!: BuiltZone;
@@ -777,8 +781,8 @@ export class WorldScene extends Phaser.Scene {
         const x = f.f.x * TILE + f.def.w * TILE / 2, y = f.f.y * TILE - 5;
         const destination = carrying.some(o => o.service?.tableId === job.tableId);
         const color = destination ? 0xf2c66d : job.impatient ? 0xd77a76 : 0xf6ecd6;
-        // One exclamation over each table. No question marks, full schedule text or giant labels.
-        if (job.phase === 'waiting_order' || destination) {
+        // The table only shows a gold mark while it is the delivery destination; orders to take are marked on the customers.
+        if (destination) {
           art.fillStyle(0x4a3029).fillRect(x - 3, y - 8, 6, 10);
           art.fillStyle(color).fillRect(x - 1, y - 7, 2, 5).fillRect(x - 1, y, 2, 1);
         }
@@ -787,6 +791,16 @@ export class WorldScene extends Phaser.Scene {
           art.fillStyle(0x4a3029).fillRect(x - 9, y + 3, 18, 3);
           art.fillStyle(settings.cookMode === 'relaxed' || ratio > .5 ? 0x91ab69 : ratio > .2 ? 0xf2c66d : 0xd77a76).fillRect(x - 8, y + 4, Math.ceil(16 * (settings.cookMode === 'relaxed' ? 1 : ratio)), 1);
         }
+      }
+    }
+    if (this.zoneId === 'restaurant') {
+      // a yellow "!" follows every seated customer whose order has not been taken yet
+      const now = performance.now() / 1000;
+      for (const g of this.guests.values()) {
+        if (g.phase !== 'waiting_order' || !g.actor.sprite.visible) continue;
+        const x = Math.round(g.actor.x), y = Math.round(g.actor.y - 38 + Math.sin(now * 4 + x) * 1.5);
+        art.fillStyle(0x4a3029).fillRect(x - 3, y - 1, 6, 11);
+        art.fillStyle(0xf2c66d).fillRect(x - 1, y, 2, 5).fillRect(x - 1, y + 7, 2, 2);
       }
     }
     const carrying = carriedOrders();
@@ -919,7 +933,7 @@ export class WorldScene extends Phaser.Scene {
           this.guests.set(key, body);
         }
         const a = body.actor;
-        const sitting = ['seated', 'waiting_order', 'waiting_food', 'eating', 'paying'].includes(phase);
+        const sitting = SEATED_PHASES.includes(phase);
         const seat = g?.seats[i];
         a.x = (sitting && seat ? seat.x : p.x) * TILE + TILE / 2;
         a.y = (sitting && seat ? seat.y : p.y) * TILE + TILE - 2 - (sitting ? 3 : 0);
@@ -1636,7 +1650,8 @@ export class WorldScene extends Phaser.Scene {
     const actors: Actor[] = [this.player];
     for (const [, n] of this.npcs) if (n.actor.sprite.visible) actors.push(n.actor);
     for (const e of this.extras.values()) if (e.sprite.visible) actors.push(e);
-    for (const g of this.guests.values()) if (g.actor.sprite.visible) actors.push(g.actor);
+    // a guest sitting at a table is meant to be partly behind it: only walking guests make furniture see-through
+    for (const g of this.guests.values()) if (g.actor.sprite.visible && !SEATED_PHASES.includes(g.phase)) actors.push(g.actor);
 
     const lerp = Math.min(1, dt * 10);
     for (const occ of this.occluders) {
@@ -2306,6 +2321,9 @@ export class WorldScene extends Phaser.Scene {
   private guideMark: Phaser.GameObjects.Image | null = null;
   private guideT = 0;
   private guideGoal: { x: number; y: number; npc?: string } | null = null;
+  /** while carrying food the delivery targets win over the quest arrow (the quest itself is untouched) */
+  private deliveryGoals: { x: number; y: number; label: string }[] = [];
+  private deliveryMarks: { mark: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text }[] = [];
 
   private updateGuide(dt: number) {
     if (!this.guideArrow) {
@@ -2316,7 +2334,8 @@ export class WorldScene extends Phaser.Scene {
     if (this.guideT <= 0) {
       this.guideT = 0.5;
       this.guideGoal = null;
-      const t = settings.guide !== false && !this.inputLocked ? questTarget((id) => this.characterZone(id)) : null;
+      this.deliveryGoals = settings.guide !== false && !this.inputLocked ? this.findDeliveryGoals() : [];
+      const t = settings.guide !== false && !this.inputLocked && !this.deliveryGoals.length ? questTarget((id) => this.characterZone(id)) : null;
       if (t) {
         if (t.zone === this.zoneId || (t.zone === 'home' && this.zoneId === 'home')) {
           if (t.npc) this.guideGoal = { x: 0, y: 0, npc: t.npc };
@@ -2330,6 +2349,21 @@ export class WorldScene extends Phaser.Scene {
     const arrow = this.guideArrow!;
     const mark = this.guideMark!;
     let goal = this.guideGoal;
+    this.deliveryMarks.forEach((m, i) => { if (i >= this.deliveryGoals.length) { m.mark.setVisible(false); m.label.setVisible(false); } });
+    if (this.deliveryGoals.length) {
+      const nowT = performance.now() / 1000;
+      this.deliveryGoals.forEach((d, i) => {
+        let m = this.deliveryMarks[i];
+        if (!m) m = this.deliveryMarks[i] = {
+          mark: this.add.image(0, 0, guideTexture(this, 'mark')).setDepth(250000),
+          label: this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '8px', color: '#fff1d0', backgroundColor: '#4a3029', padding: { x: 3, y: 1 } }).setOrigin(0.5, 1).setDepth(250000),
+        };
+        m.mark.setVisible(true).setPosition(d.x, d.y - 10 + Math.sin(nowT * 4 + i) * 2);
+        m.label.setVisible(true).setText(d.label).setPosition(d.x, d.y - 22);
+      });
+      goal = nearestGoal(this.deliveryGoals, this.player.x, this.player.y);
+      mark.setVisible(false);
+    }
     if (goal?.npc) {
       const n = this.npcs.get(goal.npc);
       goal = n ? { x: n.actor.x, y: n.actor.y - 30 } : null;
@@ -2355,6 +2389,24 @@ export class WorldScene extends Phaser.Scene {
       const r = 24 + Math.sin(now * 5) * 2;
       arrow.setPosition(px0 + Math.cos(a) * r, py0 + Math.sin(a) * r).setRotation(a).setAlpha(0.95);
     }
+  }
+
+  /** Tables waiting for the dishes Sofi carries (or the restaurant door when she is somewhere else). */
+  private findDeliveryGoals(): { x: number; y: number; label: string }[] {
+    const carrying = carriedOrders();
+    if (!carrying.length) return [];
+    if (this.zoneId !== 'restaurant') {
+      const d = nextDoor(this.zoneId, 'restaurant');
+      return d ? [{ x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2, label: 'Llevar pedido al restaurante' }] : [];
+    }
+    const dishes: DeliveryDish[] = [];
+    for (const o of carrying) {
+      const f = this.zone.furniture.find((fi) => String(fi.f.uid) === o.service?.tableId);
+      if (!f) continue;
+      const def = o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe];
+      dishes.push({ tableId: o.service!.tableId, x: f.f.x * TILE + (f.def.w * TILE) / 2, y: f.f.y * TILE, table: tableLabel(o.service!.tableId), dish: def?.name ?? 'pedido' });
+    }
+    return deliveryGoals(dishes);
   }
 
   private quirks(dt: number) {
