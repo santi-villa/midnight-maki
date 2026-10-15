@@ -244,7 +244,11 @@ export class Actor {
           frame = FRAMES.sit;
           if (this.sideSit) {
             // customers: breathing while seated, chewing while eating (frames 30..33 / 34 of their sheet)
-            frame = this.act === 'eat' ? 30 + (Math.floor(this.actT * 3) % 4) : Math.floor(this.actT * 1.5) % 2 ? 34 : 29;
+            const eating = this.act === 'eat', bite = Math.floor(this.actT * 3) % 4, breath = Math.floor(this.actT * 1.5) % 2;
+            // facing the camera (sitting across the table) or with their back to it; sideways keeps the profile frames
+            if (this.dir === 'down') frame = eating ? 37 + bite : breath ? 36 : 35;
+            else if (this.dir === 'up') frame = eating ? 43 + bite : breath ? 42 : 41;
+            else frame = eating ? 30 + bite : breath ? 34 : 29;
           }
           // Only guests with a chewing frame say it. Villagers share the sit pose, so the word looked random.
           if (this.sideSit && !this.bubble && this.act !== 'sit' && this.actT > 0.35 && this.actT < 0.5) this.emote(this.act === 'eat' ? 'ñam' : 'té', 1.3);

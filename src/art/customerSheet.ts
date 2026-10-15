@@ -1,7 +1,7 @@
 /**
  * Turns the standalone 28x40 customers (src/art/customers.ts) into texture sheets the world can use.
  * The sheet follows the shared 30-frame layout (FRAMES in characters.ts) so an Actor drives it unchanged, plus extras:
- *   30..33  eating animation, 34  second sitting frame.
+ *   30..33  eating animation, 34  second sitting frame (side view), 35..40 sitting facing the camera, 41..46 sitting with their back to it.
  * Customers only have a front view and a right-facing side view, so:
  *   - down = the front view, hopping a little (alternating mirrored) to read as steps,
  *   - up   = the side view walking (no back view was drawn),
@@ -12,7 +12,10 @@ import type { PixBuf } from './pixbuf';
 import { ctx2d, makeCanvas } from './pixel';
 
 export const CUSTOMER_IDS: readonly CustomerId[] = CUSTOMERS.map((c) => c.id);
-export const CUSTOMER_FRAME_COUNT = 35;
+export const CUSTOMER_FRAME_COUNT = 47;
+/** sitting facing the camera: 35 rest, 36 breathe, 37..40 eat; with their back to the camera: 41, 42, 43..46 */
+export const CUSTOMER_FRONT_SIT = 35;
+export const CUSTOMER_BACK_SIT = 41;
 export const CUSTOMER_EAT_FRAMES = [30, 31, 32, 33] as const;
 export const CUSTOMER_SIT_FRAMES = [29, 34] as const;
 
@@ -74,6 +77,7 @@ export function buildCustomerSheet(id: CustomerId): { canvas: HTMLCanvasElement;
   sheet[29] = f[8]; // sit
   CUSTOMER_EAT_FRAMES.forEach((idx, i) => (sheet[idx] = f[10 + i]));
   sheet[34] = f[9];
+  for (let i = 0; i < 6; i++) { sheet[CUSTOMER_FRONT_SIT + i] = f[14 + i]; sheet[CUSTOMER_BACK_SIT + i] = f[20 + i]; }
   const canvas = makeCanvas(CUSTOMER_W * CUSTOMER_FRAME_COUNT, CUSTOMER_H);
   const g = ctx2d(canvas);
   sheet.forEach((fr, i) => g.drawImage(fr, i * CUSTOMER_W, 0));
