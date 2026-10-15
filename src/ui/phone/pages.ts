@@ -12,6 +12,7 @@ export const HOME_ORDER = [
   'bag',
   'recipes',
   'restaurant',
+  'supplies',
   'staff',
   'friends',
   'camera',

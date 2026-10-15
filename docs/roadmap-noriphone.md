@@ -30,3 +30,8 @@ Plus: restaurante nivel 3 · MoonBerry: capítulo 5 · colores Pip/Spicy/Rigg: a
 - **Foto como fondo**: omitida (almacenamiento y rendimiento; las fotos del álbum no se tocan).
 - Tests: un unit test de reglas de catálogo (`src/tests/noriphone.test.ts`) y revisión visual por capturas (390×844, 844×390, 1280×720). No se probó en un dispositivo físico.
 - En horizontal en pantallas bajas el teléfono es angosto: las etiquetas se achican y la grilla scrollea.
+
+## Plan maestro, etapa 6
+- **12 aplicaciones por página** (3 columnas × 4 filas) con íconos que se ajustan a la altura; se revisó en vertical y horizontal.
+- **Nuevas apps sin duplicar funciones:** *Personal* (equipo, sueldos, tareas) y *Suministros* (despensa del restaurante, capacidad y faltantes); *Restaurante* sigue siendo pedidos, nivel y mejoras.
+- **HUD:** revisado en 390×844 y 844×390: el reloj se puede plegar, los botones de acción quedan sobre el borde derecho sin tapar a Sofi y el joystick sube cuando el teléfono cerrado asoma. Sin cambios necesarios.

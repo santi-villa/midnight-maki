@@ -223,6 +223,21 @@ function restaurant(g: Grid) {
   dot(g, 21, 21, PAPER);
 }
 
+/** a crate with a rice sack: the supplies app */
+function supplies(g: Grid) {
+  dot(g, 4, 14, INK, 24, 15);
+  dot(g, 5, 15, WOOD, 22, 13);
+  dot(g, 5, 15, WOOD_LT, 22, 2);
+  dot(g, 5, 21, '#7a4a2f', 22, 1);
+  dot(g, 15, 15, '#7a4a2f', 2, 13);
+  dot(g, 9, 6, INK, 9, 9);   // rice sack
+  dot(g, 10, 7, CREAM, 7, 7);
+  dot(g, 12, 5, INK, 3, 2);
+  dot(g, 11, 9, '#c4505a', 5, 1);
+  dot(g, 19, 9, INK, 8, 6);  // small box
+  dot(g, 20, 10, '#d9a05b', 6, 4);
+}
+
 /** a waiter with a tray: the staff app */
 function staff(g: Grid) {
   dot(g, 11, 3, CREAM, 10, 4);          // hat
@@ -390,7 +405,7 @@ function signals(g: Grid) {
 }
 
 const DRAW: Record<string, (g: Grid) => void> = {
-  camera, photos, map, quests, friends, collections, recipes, restaurant, staff, calendar, memories, investigation, bag, customize, settings, more,
+  camera, photos, map, quests, friends, collections, recipes, restaurant, supplies, staff, calendar, memories, investigation, bag, customize, settings, more,
 };
 
 let cache: Record<string, Grid> | null = null;
