@@ -181,6 +181,7 @@ function phoneApps(): PhoneApp[] {
     { id: 'recipes', name: 'Recetario', icon: 'maki', hint: 'Recetas, variantes y dominio', run: () => openJournal(4) },
     { id: 'restaurant', name: 'Restaurante', icon: 'shop', hint: 'Pedidos, nivel y mejoras', run: () => import('../restaurant/kitchen').then(m => m.openOrders()) },
     { id: 'supplies', name: 'Suministros', icon: 'bag', hint: 'Despensa del restaurante y faltantes', run: () => import('./pantry').then(m => m.openPantry()) },
+    { id: 'clients', name: 'Clientes', icon: 'heart', hint: 'Vecinos que vienen, favoritos y visitas', run: () => import('./clients').then(m => m.openClients()) },
     { id: 'staff', name: 'Personal', icon: 'heart', hint: 'Empleados, sueldos y tareas', run: () => import('./staff').then(m => m.openStaff()) },
     { id: 'calendar', name: 'Calendario', icon: 'calendar', hint: 'Fechas y eventos', run: () => openJournal(5) },
     { id: 'memories', name: 'Recuerdos', icon: 'scroll', hint: 'Álbum del pueblo restaurado', run: openTownMemories },
