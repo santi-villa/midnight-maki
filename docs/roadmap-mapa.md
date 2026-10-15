@@ -51,3 +51,10 @@ Los costados de cada salida están cerrados con árboles, rocas o piedras, para 
 - Vecinos adentro de las casas (hoy están vacías) y algún mini-juego de té.
 - Música/ambiente propios para el puerto y el santuario.
 - No se probó en un dispositivo físico.
+
+## Etapa 4 del plan maestro (primera pasada)
+- **Torii centrados:** `torii_w4` y `torii_w6` (pilares en el pasto a los lados del camino) en la plaza (mercado y santuario), el bosque y el mercado.
+- **Orilla de la playa:** la ola y la espuma estaban dibujadas con el agua arriba; ahora el mar queda al sur (`shoreTileFrame`).
+- **Bancos y faroles:** fuera de los caminos en la orilla de los cerezos; dos bancos al norte de la fuente, mirándola.
+- **Frentes de negocio:** panadería (cajón, bolsa y maceta), almacén (bolsas y cajones), ropa (macetas), biblioteca (libros).
+- **Plaza:** flores sueltas y arbustos florecidos repartidos solo en pasto abierto (nunca junto a caminos, puertas ni otros objetos), siempre en los mismos lugares.
