@@ -104,7 +104,7 @@ export function plaza(): ZoneDef {
     .prop('bush_berry', 20, 22)
     .prop('lantern_red', 3, 8)
     .prop('lantern_red', 8, 8)
-    .prop('torii', 28, 3)
+    .prop('torii_w4', 28, 3)
     .prop('flowers', 6, 10)
     .prop('flowers_lav', 18, 21)
     .prop('crate', 30, 15)
@@ -127,7 +127,7 @@ export function plaza(): ZoneDef {
   wall('tree', [33, 3], [35, 5], [32, 9], [34, 16], [33, 20], [35, 22]);
   wall('bush_flower', [32, 15], [34, 18], [33, 23]);
   wall('bush', [35, 9], [32, 19]);
-  wall('lamppost', [33, 11], [33, 14], [39, 11], [44, 14]);
+  wall('lamppost', [33, 11], [33, 14], [39, 11], [45, 18]);
   b.prop('bench', 31, 16).prop('flowers_lav', 34, 20).prop('flowers', 32, 21).prop('pot_cream', 33, 17);
   b.prop('sign_riverside', 33, 10);
   // reeds along both banks
@@ -135,14 +135,14 @@ export function plaza(): ZoneDef {
 
   // ---------------------------------------------------------------- cherry bank (east of the river)
   wall('sakura', [45, 9], [52, 14], [55, 17], [45, 27], [52, 25], [56, 25], [46, 22], [54, 27], [49, 25]);
-  b.prop('bench', 44, 16).prop('bench', 44, 23).prop('bench', 53, 12 + 3 + 0);
+  b.prop('bench', 45, 23).prop('bench', 45, 29).prop('bench', 53, 12 + 3 + 0);
   b.prop('stonelantern', 45, 14).prop('stonelantern', 45, 20).prop('stonelantern', 45, 26);
-  b.prop('lantern_cream', 43, 17).prop('lantern_cream', 43, 24).prop('lantern_red', 49, 14);
+  b.prop('lantern_cream', 42, 17).prop('lantern_cream', 42, 24).prop('lantern_red', 49, 14);
   b.prop('flowers', 52, 16).prop('flowers_lav', 53, 19).prop('flowers', 47, 23).prop('flowers_lav', 55, 26).prop('pot_rose', 49, 19).prop('pot_cream', 46, 19);
   b.prop('bush_flower', 54, 24).prop('bush_flower', 56, 20).prop('bush', 56, 24).prop('bush', 48, 27);
 
   // ---------------------------------------------------------------- shrine hill
-  b.prop('torii', 46, 3).prop('shrine', 47, 1);
+  b.prop('torii_w4', 46, 3).prop('shrine', 47, 1);
   wall('stonelantern', [45, 5], [50, 5], [45, 8], [50, 8]);
   wall('sakura', [44, 2], [52, 2], [54, 5], [44, 6], [53, 9], [55, 3]);
   wall('pine', [56, 1], [44, 10], [56, 7]);

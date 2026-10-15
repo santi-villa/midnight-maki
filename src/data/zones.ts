@@ -295,7 +295,7 @@ function forest(): ZoneDef {
     ['pine', 44, 15], ['tree_dark', 46, 18], ['pine', 43, 20], ['tree_dark', 30, 18], ['pine', 45, 11], ['tree_autumn', 42, 16], ['tree_dark', 31, 14],
   ];
   for (const [id, x, y] of east) b.prop(id, x, y);
-  b.prop('bld_cabin', 42, 2).prop('shrine', 44, 8).prop('torii', 41, 10).prop('stonelantern', 41, 9).prop('stonelantern', 43, 9).prop('stonelantern', 41, 14).prop('stonelantern', 45, 14)
+  b.prop('bld_cabin', 42, 2).prop('shrine', 44, 8).prop('torii_w4', 40, 10).prop('stonelantern', 39, 10).prop('stonelantern', 44, 10).prop('stonelantern', 41, 14).prop('stonelantern', 45, 14)
     .prop('reeds', 35, 12).prop('reeds', 38, 12).prop('reeds', 33, 13).prop('reeds', 40, 14).prop('reeds', 35, 2).prop('reeds', 38, 6)
     .prop('mushroom', 32, 16).prop('mushroom', 33, 17).prop('mushroom', 31, 17).prop('flowers_lav', 44, 5).prop('flowers', 46, 6).prop('flowers_lav', 43, 12)
     .prop('stump', 38, 20).prop('bigrock', 44, 17).prop('rock', 32, 12).prop('bush_berry', 46, 6).prop('bush_berry', 31, 20).prop('sign', 40, 11);
@@ -434,7 +434,7 @@ function market(): ZoneDef {
   treeBorder(b, [[12, 17], [13, 17]], ['sakura', 'tree_dark']);
   b.prop('stall_night', 3, 4).prop('stall_gold', 9, 4).prop('stall_rose', 15, 4).prop('stall_sage', 20, 4)
     .prop('stall_night', 4, 11).prop('stall_gold', 18, 11)
-    .prop('torii', 11, 16)
+    .prop('torii_w6', 10, 16)
     .prop('lantern_red', 2, 7).prop('lantern_red', 7, 7).prop('lantern_cream', 13, 7).prop('lantern_red', 19, 7).prop('lantern_cream', 24, 7)
     .prop('lantern_cream', 9, 13).prop('lantern_red', 16, 13).prop('bench', 11, 10)
     .prop('lamppost', 1, 5).prop('lamppost', 24, 5).prop('lamppost', 1, 12).prop('lamppost', 24, 12)

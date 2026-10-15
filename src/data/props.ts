@@ -63,6 +63,9 @@ export const PROPS: Record<string, PropDef> = {
   stall_gold: P('stall', 3, 1, 48, 48, '#f2c66d', '#b2585e', { light: '#ffc070' }),
   boat: P('boat', 2, 1, 32, 32, '#a8734d'),
   torii: P('torii', 3, 1, 48, 42, '', '', { solid: false }),
+  /** wide gates: the pillars stand on the ground beside the path, not on it */
+  torii_w4: P('torii', 4, 1, 64, 42, '', '', { solid: false }),
+  torii_w6: P('torii', 6, 1, 96, 42, '', '', { solid: false }),
   pier: P('pier', 1, 1, 16, 8, '', '', { solid: false }),
   stars: P('stars', 2, 1, 32, 16, '#f2c66d', '', { solid: false, light: '#f8e3a0' }),
   // street details
