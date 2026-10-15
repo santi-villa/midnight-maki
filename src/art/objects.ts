@@ -13,6 +13,7 @@ import { TOWN_KINDS } from './townart';
 import { drawFountain } from './fountain';
 import { drawVillageBuilding, VILLAGE_KINDS } from './village';
 import { drawHome } from './homes';
+import { SHOPDECO_KINDS } from './shopdeco';
 
 const OUT = '#3a2a2a';
 
@@ -838,7 +839,7 @@ const K: Record<string, DrawFn> = {
   },
 };
 
-Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS, VILLAGE_KINDS);
+Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS, VILLAGE_KINDS, SHOPDECO_KINDS);
 
 export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string, stage?: number, closed = false): HTMLCanvasElement {
   const c = makeCanvas(w, h);

@@ -39,11 +39,12 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['tree', 5, 11], ['bush_flower', 3, 11],
       // Shop displays against their own frontages, never across a threshold.
       ['pot_rose', 21, 6], ['pot_cream', 28, 6], ['street_lamp_r', 28, 11],
-      ['crate', 7, 19], ['sack', 8, 19], ['street_lamp_l', 9, 19],
-      ['sack', 23, 19], ['crate', 25, 19], ['street_lamp_r', 31, 19],
+      ['deco_mannequin', 20, 4], ['deco_clothesrack', 18, 4], // Yuki: a dress form and a rack of garments
+      ['deco_breadcart', 7, 19], ['street_lamp_l', 9, 19], // Bento: a bread cart by the door
+      ['deco_vegcrates', 22, 19], ['deco_sacks', 20, 18], ['street_lamp_r', 31, 19], // Taro: sacks and crates of vegetables
       ['vending_blue', 31, 17], ['vending_red', 31, 18],
       ['pot_cream', 5, 24], ['street_lamp_l', 5, 25], ['street_lamp_r', 14, 24],
-      ['bench', 4, 26], ['flowers_lav', 4, 24],
+      ['bench', 4, 26], ['flowers_lav', 4, 24], ['deco_bookcart', 6, 22], // library: books to return
       ['bicycle_rose', 18, 23], ['pot_rose', 21, 23],
       // West river landing: a tea garden and shaded seat beside the crossing.
       ['tree', 35, 9], ['tree', 35, 18],
@@ -73,6 +74,7 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['street_lamp_l', 8, 38], ['street_lamp_l', 21, 38], ['street_lamp_l', 32, 38],
       // Harbour: cargo at the fishing houses, clear deck and fishing stations.
       ['crate', 30, 38], ['barrel', 31, 38], ['sack', 32, 36], ['village_net', 31, 37],
+      ['deco_flowerstand', 25, 29],
       ['lantern_cream', 35, 34], ['lantern_cream', 38, 34],
       ['boat', 43, 40], ['boat', 34, 42], ['boat', 39, 38],
       ['crate', 48, 33], ['barrel', 53, 34], ['sack', 47, 34],
@@ -91,6 +93,7 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       // Fish/conch market and Nami's work space. The sand remains a broad public walk.
       ['street_lamp_l', 12, 4], ['street_lamp_r', 17, 4], ['street_lamp_l', 4, 9], ['street_lamp_r', 12, 9],
       ['crate', 4, 7], ['barrel', 12, 7], ['village_net', 6, 6],
+      ['deco_fishrack', 34, 6], // drying fish by the fishmonger's cabin
       ['vending_red', 23, 6], ['bicycle', 20, 6], ['pot_cream', 29, 5],
       ['bench', 24, 8], ['bench', 27, 8], ['pot_rose', 29, 9],
       ['crate', 22, 12], ['barrel', 18, 12], ['lantern_cream', 17, 12], ['lantern_cream', 21, 12],
