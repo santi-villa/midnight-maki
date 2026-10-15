@@ -19,6 +19,15 @@ describe('water tiles', () => {
     expect(new Set(SHORE_FRAMES).size).toBe(4);
   });
 
+  it('draws the beach waterline for a sea to the south: land above every shore tile and water below it', () => {
+    const g = ZONES.beach.ground;
+    for (let y = 0; y < g.length; y++) for (let x = 0; x < g[y].length; x++) {
+      if (g[y][x] !== 'h') continue;
+      expect('wd'.includes(g[y - 1][x]), `above ${x},${y}`).toBe(false);
+      expect('wd'.includes(g[y + 1][x]), `below ${x},${y}`).toBe(true);
+    }
+  });
+
   it('keeps the legacy water0 / deep0 keys for the title scene', () => {
     expect(TILE_INDEX.water0).toBeGreaterThan(0);
     expect(TILE_INDEX.deep0).toBeGreaterThan(0);

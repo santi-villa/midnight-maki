@@ -200,21 +200,25 @@ export function waterTile(variant: number, frame: number, depth: WaterDepth, rai
   };
 }
 
-/** Beach waterline: the wave creeps up (frames 0-2) and slides back, leaving a wet-sand row and broken foam. */
+/**
+ * Beach waterline. The sea is to the south of the sand, so the water fills the BOTTOM of the tile:
+ * the wave creeps up the sand (frames 0-2) and slides back, leaving broken foam and a row of wet sand above the water.
+ */
 export function shoreTileFrame(frame: number): TileDraw {
   const RISE = [0, 1, 2, 1];
   return (c, x, y) => {
     sandTile(c, x, y, rng(777));
-    const wl = 5 + RISE[frame];
+    const wl = 5 + RISE[frame]; // rows of water, counted from the bottom
+    const top = 16 - wl;
     const pal = WATER_PAL.calm.shallow;
-    px(c, x, y, pal.base, 16, wl);
-    for (let i = 0; i < 16; i += 5) px(c, x + ((i + frame * 3) % 16), y + 1 + (i % 3), pal.lt, 3, 1);
-    px(c, x, y + wl - 1, pal.lt, 16, 1);
-    px(c, x, y + wl, NAT.waterLL, 16, 1);
-    // broken foam trailing behind the wave
-    for (let i = 0; i < 16; i += 4) px(c, x + ((i + frame * 5) % 14), y + wl + 1, '#ffffff', 2 + (i % 3 === 0 ? 1 : 0), 1);
-    // wet sand where the water just was
-    for (let i = 0; i < 16; i++) if ((i + frame) % 3) px(c, x + i, y + wl + 2, mix(NAT.sand, '#b89d6a', 0.35));
+    px(c, x, y + top, pal.base, 16, wl);
+    for (let i = 0; i < 16; i += 5) px(c, x + ((i + frame * 3) % 16), y + top + 1 + (i % 3), pal.lt, 3, 1);
+    px(c, x, y + top, pal.lt, 16, 1);
+    px(c, x, y + top - 1, NAT.waterLL, 16, 1);
+    // broken foam where the wave stopped
+    for (let i = 0; i < 16; i += 4) px(c, x + ((i + frame * 5) % 14), y + top - 2, '#ffffff', 2 + (i % 3 === 0 ? 1 : 0), 1);
+    // wet sand where the water just was, above the foam
+    for (let i = 0; i < 16; i++) if ((i + frame) % 3) px(c, x + i, y + top - 3, mix(NAT.sand, '#b89d6a', 0.35));
   };
 }
 export const shoreTile: TileDraw = shoreTileFrame(0);
