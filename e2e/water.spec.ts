@@ -8,7 +8,7 @@ async function boot(page: Page, perf: 'high' | 'low' = 'high', extra: Record<str
   await page.waitForSelector('.tt.ready');
   await page.locator('.tt').click();
   await page.waitForTimeout(700);
-  await page.getByRole('button', { name: 'Nueva partida' }).click();
+  await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByText('Partida 1').click({ timeout: 4000 }).catch(() => {});
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
   await finishArrival(page);
