@@ -33,6 +33,8 @@ export class Actor {
   moving = false;
   act: Act = 'idle';
   seatLift = 0;
+  /** drawn in front of furniture whose base is a few pixels lower (a guest sitting in a chair whose back is behind them) */
+  depthBoost = 0;
   /** Bed (in tiles) to lie in while asleep: only the head and shoulders show above the quilt. */
   bed: { x: number; y: number; w: number; h: number } | null = null;
   private lying = false;
@@ -308,7 +310,7 @@ export class Actor {
     const seated = !this.moving && ['sit', 'read', 'eat', 'drink'].includes(this.act) ? this.seatLift : 0;
     if (!lying) {
       this.sprite.setPosition(rx, ry - this.bob - seated);
-      this.sprite.setDepth(ry);
+      this.sprite.setDepth(ry + this.depthBoost);
       this.shadow.setPosition(rx, ry - 1);
       this.shadow.setDepth(ry - 0.5);
       const sun = Actor.sun;
