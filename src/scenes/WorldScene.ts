@@ -387,8 +387,8 @@ export class WorldScene extends Phaser.Scene {
       // wall-mounted props (on wall face rows) render behind actors
       const onWall = def.ground[p.y]?.[p.x] === 'W' || def.ground[p.y]?.[p.x] === 'V';
       // awnings and posters sit on building fronts; puddles lie on the ground
-      img.setDepth(onWall ? -5 : p.def.kind === 'puddle' ? -8 : p.def.kind === 'awning' || p.def.kind === 'poster' ? py - 0.1 : py);
-      if (!onWall && p.def.kind !== 'puddle' && (p.def.sh > p.def.h * TILE || !p.def.solid)) {
+      img.setDepth(p.def.ground ? -8 : onWall ? -5 : p.def.kind === 'puddle' ? -8 : p.def.kind === 'awning' || p.def.kind === 'poster' ? py - 0.1 : py);
+      if (!onWall && !p.def.ground && p.def.kind !== 'puddle' && (p.def.sh > p.def.h * TILE || !p.def.solid)) {
         this.occluders.push({
           sprite: img,
           baseY: py,
@@ -405,7 +405,7 @@ export class WorldScene extends Phaser.Scene {
       }
       if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 84 : p.def.kind === 'stall' ? 70 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: 0.55 });
       this.objs.push(img);
-      if (!onWall) {
+      if (!onWall && !p.def.ground) {
         this.addShadow(p.def.kind, px, py, p.def.sw, p.def.w);
         this.castShadow(img, p.def.kind);
       }

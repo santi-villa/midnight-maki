@@ -1,0 +1,171 @@
+/** First village kit: three readable shopfronts, stone banks and modular timber decks.
+ * Drawn at native pixel resolution; all pieces share the existing 16px ground grid.
+ */
+import { ellipse, px, shade, type Ctx } from './pixel';
+import { buildingLayout } from './nature';
+
+const INK = '#30282b', WOOD = '#856047', DARK = '#4d3833', LIGHT = '#c79c6c';
+type Draw = (c: Ctx, w: number, h: number, c1: string, c2: string, rot: number, r: () => number) => void;
+function rect(c: Ctx, x: number, y: number, w: number, h: number, col: string) {
+  px(c, x, y, INK, w, h); px(c, x + 1, y + 1, col, w - 2, h - 2);
+}
+function roof(c: Ctx, w: number, top: number, bottom: number, color: string, worn = false) {
+  // A hipped tiled roof: visible right return and curved eaves, with staggered tile joints.
+  for (let y = top; y < bottom; y++) {
+    const edge = Math.max(2, Math.floor((bottom - y) * .29));
+    px(c, edge, y, INK, w - edge * 2, 1);
+    px(c, edge + 2, y, shade(color, (y % 5 === 0 ? .22 : y % 5 === 4 ? -.28 : -.02)), w - edge * 2 - 4, 1);
+    if (y % 5 === 1) for (let x = edge + 3 + (Math.floor(y / 5) % 2) * 4; x < w - edge - 3; x += 8) {
+      px(c, x, y, shade(color, -.3), 1, 3);
+      px(c, x + 1, y, shade(color, .12), 1, 2);
+    }
+    px(c, w - edge - 9, y, shade(color, -.2), 5, 1);
+  }
+  px(c, 3, bottom, DARK, w - 6, 3); px(c, 4, bottom, LIGHT, w - 8, 1);
+  px(c, 1, bottom - 1, INK, 4, 2); px(c, w - 5, bottom - 1, INK, 4, 2);
+  px(c, 15, top, INK, w - 30, 3); px(c, 16, top, shade(color, .3), w - 32, 1);
+  if (worn) for (const [x, y] of [[22, bottom - 8], [30, bottom - 5], [w - 26, top + 11]]) {
+    px(c, x, y, '#647457', 5, 2); px(c, x + 1, y - 1, '#8a9567', 3, 1);
+  }
+}
+function window(c: Ctx, x: number, y: number, w: number, h: number, paper = false) {
+  rect(c, x - 2, y - 2, w + 4, h + 4, WOOD);
+  px(c, x, y, paper ? '#e9d8ac' : '#a3bdc0', w, h);
+  px(c, x + 1, y + 1, paper ? '#fff0c5' : '#d0e1d9', Math.max(2, w / 2 - 2), 2);
+  px(c, x + Math.floor(w / 2), y, DARK, 1, h);
+  px(c, x, y + Math.floor(h / 2), DARK, w, 1);
+  px(c, x - 2, y + h + 2, LIGHT, w + 4, 2);
+}
+function lantern(c: Ctx, x: number, y: number, color = '#bf5d51') {
+  px(c, x, y - 3, DARK, 1, 3); rect(c, x - 3, y, 7, 10, color);
+  px(c, x - 1, y + 1, '#efaa79', 1, 7); px(c, x - 2, y - 1, DARK, 5, 1); px(c, x - 2, y + 10, DARK, 5, 1);
+}
+function planter(c: Ctx, x: number, y: number, flowers: boolean) {
+  rect(c, x, y, 12, 6, '#927257');
+  for (let i = 1; i < 11; i += 3) {
+    px(c, x + i, y - 4 - i % 2, '#68875c', 3, 5);
+    if (flowers) px(c, x + i, y - 5, i % 2 ? '#e0a6ae' : '#f1d59c', 2, 2);
+  }
+}
+
+/** Same coordinates drive the shop art and the existing warm-window mask. */
+export function villageShopLayout(W: number, H: number, variant: number) {
+  const base = buildingLayout(W, H);
+  const centre = variant === 20 ? W - 24 : 24;
+  const wy = base.wallY + 13;
+  return { ...base, dx: centre - 7, windows: variant === 20
+    ? [{ x: 10, y: wy, w: 18, h: 13 }, { x: 38, y: wy, w: 16, h: 13 }]
+    : [{ x: 43, y: wy, w: 34, h: 13 }] };
+}
+
+/** Specialised frontages retain the saved street doorway: restaurant centre, Taro right, Bento left. */
+export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: number, stage: number, plaster: string, tiles: string) {
+  const maki = variant === 0, baker = variant === 21;
+  const L = maki ? buildingLayout(W, H) : villageShopLayout(W, H, variant);
+  const wall = L.wallY, floor = H - 5, side = W - 10;
+  // Foundation, timber frame and the shaded side wall give the footprint visual depth.
+  rect(c, 7, wall - 1, W - 14, floor - wall + 2, plaster);
+  px(c, side, wall + 2, shade(plaster, -.23), 3, floor - wall - 2);
+  for (let y = floor - 4; y <= floor; y += 3) for (let x = 8 + y % 2 * 3; x < W - 9; x += 8) {
+    px(c, x, y, '#877d70', 7, 2); px(c, x, y, '#b5aa91', 7, 1);
+  }
+  for (const x of [8, W - 13]) { px(c, x, wall, DARK, 3, floor - wall - 4); px(c, x, wall, LIGHT, 1, floor - wall - 4); }
+  for (let y = maki ? wall + 28 : wall + 27; y < floor - 6; y += 4) {
+    px(c, 11, y, shade(WOOD, (y % 8 ? -.12 : .06)), W - 25, 3);
+    for (let x = 14; x < W - 15; x += 17) px(c, x, y + 1, DARK, 4, 1);
+  }
+  roof(c, W, 5, wall - 2, tiles, maki && stage === 0);
+  // Raised ridge details keep the three roof silhouettes distinct at gameplay zoom.
+  if (maki) {
+    const ax = Math.floor(W / 2);
+    for (let y = 18; y < 33; y++) {
+      const half = Math.min(12, y - 17);
+      px(c, ax - half, y, DARK, half * 2 + 1, 1);
+      if (half > 2) px(c, ax - half + 2, y, '#bfae8b', half * 2 - 3, 1);
+    }
+    window(c, ax - 4, 27, 8, 7, true);
+    px(c, ax - 13, 32, DARK, 27, 2); px(c, ax - 12, 32, LIGHT, 25, 1);
+  } else if (baker) {
+    rect(c, W - 26, 2, 9, 15, '#ad8571');
+    for (let y = 4; y < 16; y += 3) px(c, W - 24, y, '#dfb99a', 6, 1);
+    rect(c, W - 28, 1, 13, 4, '#9d8275');
+  } else {
+    px(c, 14, 10, '#95a177', 12, 2); px(c, 18, 9, '#b6bc8c', 7, 1);
+  }
+  // Recessed entry, visible threshold and a short stone step aligned with the walk-through tile.
+  rect(c, L.dx - 2, L.doorY - 2, L.doorW + 4, L.doorH + 4, DARK);
+  px(c, L.dx + 1, L.doorY + 1, '#362a30', L.doorW - 2, L.doorH - 1);
+  for (let x = L.dx + 2; x < L.dx + L.doorW - 1; x += 4) px(c, x, L.doorY + 2, WOOD, 1, L.doorH - 3);
+  px(c, L.dx - 4, floor, '#928678', L.doorW + 8, 4);
+  px(c, L.dx - 4, floor, '#c6b59a', L.doorW + 8, 1);
+  for (const win of L.windows) window(c, win.x, win.y, win.w, win.h, maki);
+  if (maki) {
+    // Upper shoji, lower noren and the two familiar red lanterns remain in all four stages.
+    px(c, 10, L.doorY - 8, DARK, W - 23, 4);
+    px(c, 10, L.doorY - 8, LIGHT, W - 23, 1);
+    for (let i = 0; i < 3; i++) rect(c, L.dx - 2 + i * 6, L.doorY, 6, 7 + i % 2, stage === 0 ? '#626c84' : '#384969');
+    lantern(c, 44, H - 24); lantern(c, 68, H - 24);
+    // Clear restoration changes: patched boards, plants, balcony details and star trim.
+    if (stage === 0) { px(c, 16, H - 22, '#726157', 13, 3); px(c, 20, H - 29, '#726157', 3, 15); }
+    else { planter(c, 13, H - 10, true); planter(c, W - 28, H - 10, true); }
+    if (stage >= 2) {
+      px(c, 13, wall + 29, DARK, W - 30, 2);
+      for (let x = 15; x < W - 17; x += 6) px(c, x, wall + 25, LIGHT, 1, 5);
+    }
+    if (stage >= 3) for (const x of [W / 2 - 6, W / 2, W / 2 + 6]) { px(c, x, 9, '#e5c175', 1, 5); px(c, x - 1, 11, '#e5c175', 3, 1); }
+  } else {
+    const color = baker ? '#b77962' : '#64826a';
+    const sx = baker ? 40 : 8, width = baker ? 42 : 48, sy = L.windows[0].y - 5;
+    // Small canvas awning, with wood supports instead of a flat rectangular facade.
+    for (let x = sx; x < sx + width; x += 6) {
+      px(c, x, sy, Math.floor((x - sx) / 6) % 2 ? '#eddbc0' : color, 6, 5);
+      px(c, x, sy + 5, DARK, 6, 1);
+    }
+    lantern(c, baker ? 35 : 84, L.doorY - 5, baker ? '#c78159' : '#aa6553');
+    if (baker) {
+      for (let i = 0; i < 4; i++) { const x = 46 + i * 7; ellipse(c, x, L.windows[0].y + 9, 3, 2, '#b97b47'); px(c, x - 1, L.windows[0].y + 7, '#edc47e', 3, 1); }
+      planter(c, 8, H - 10, true);
+      rect(c, W - 23, H - 17, 13, 10, '#a4754d'); px(c, W - 22, H - 14, '#e8c27e', 10, 3);
+    } else {
+      for (const [x, col] of [[12, '#e8b35b'], [25, '#a1b56b'], [40, '#c97f65']] as const) {
+        rect(c, x, H - 15, 11, 8, WOOD); px(c, x + 2, H - 17, col, 7, 4);
+      }
+      px(c, 12, H - 10, LIGHT, 40, 1);
+    }
+  }
+}
+
+export const VILLAGE_KINDS: Record<string, Draw> = {
+  village_deck(c, W, H, _c1, _c2, rot) {
+    // Rot 0 east-west, 1 north-south. Ground layer keeps characters above the deck.
+    rect(c, 0, 1, W, H - 1, DARK);
+    if (rot === 0) for (let x = 1; x < W - 1; x += 7) {
+      px(c, x, 2, x % 3 ? '#b58d64' : '#a37b56', 6, H - 4);
+      px(c, x + 1, 3, '#d4b080', 1, H - 6);
+      for (const y of [4, H - 6]) px(c, x + 3, y, DARK);
+    }
+    else for (let y = 2; y < H - 1; y += 7) {
+      px(c, 1, y, y % 3 ? '#b58d64' : '#a37b56', W - 2, 6); px(c, 2, y, '#d4b080', W - 4, 1);
+      px(c, 4, y + 3, DARK); px(c, W - 6, y + 3, DARK);
+    }
+    // Edge timbers/posts, leaving both ends of the walking route open.
+    const length = rot ? H : W;
+    for (let n = 0; n < length; n += 16) for (const edge of [0, (rot ? W : H) - 4]) {
+      const x = rot ? edge : n, y = rot ? n : edge;
+      rect(c, x, y, 4, 4, '#a28262'); px(c, x + 1, y + 1, '#e0be8b', 2, 1);
+    }
+  },
+  village_bank(c, W, H, _c1, _c2, rot) {
+    const x = rot ? 0 : W - 5;
+    for (let y = 0; y < H; y += 5) {
+      px(c, x, y, '#6c7563', 5, 5); px(c, x + (y % 2), y, '#b2aa8b', 4, 3);
+      px(c, x + 1, y + 3, '#858b70', 3, 1);
+    }
+    px(c, rot ? 4 : W - 6, 2, '#78935e', 2, 3); px(c, rot ? 4 : W - 6, 12, '#92a877', 2, 2);
+  },
+  village_net(c, W, H) {
+    px(c, 1, H - 8, '#806d4a', W - 2, 7);
+    for (let y = H - 8; y < H - 1; y += 3) for (let x = 2; x < W - 2; x += 4) { px(c, x, y, '#c8b78a', 3, 1); px(c, x + 2, y - 1, '#c8b78a', 1, 3); }
+    ellipse(c, W - 7, H - 8, 5, 3, '#c8af77'); ellipse(c, W - 7, H - 8, 3, 1, '#806d4a');
+  },
+};

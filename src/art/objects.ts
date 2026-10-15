@@ -11,6 +11,7 @@ import { drawPlaque } from './pixfont';
 import { SHOP_KINDS } from './shopart';
 import { TOWN_KINDS } from './townart';
 import { drawFountain } from './fountain';
+import { drawVillageBuilding, VILLAGE_KINDS } from './village';
 
 const OUT = '#3a2a2a';
 
@@ -817,7 +818,7 @@ const K: Record<string, DrawFn> = {
   },
 };
 
-Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS);
+Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS, VILLAGE_KINDS);
 
 export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string, stage?: number): HTMLCanvasElement {
   const c = makeCanvas(w, h);
@@ -825,7 +826,8 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   const fn = K[kind];
   // the restaurant facade has four looks: its stage rides in `rot` as 100 + stage
   const drawRot = kind === 'building' && stage !== undefined ? 100 + stage : rot;
-  if (fn) fn(ctx, w, h, c1, c2, drawRot, rng(seed));
+  if (kind === 'building' && (stage !== undefined || rot === 20 || rot === 21)) drawVillageBuilding(ctx, w, h, stage !== undefined ? 0 : rot, stage ?? 0, c1, c2);
+  else if (fn) fn(ctx, w, h, c1, c2, drawRot, rng(seed));
   else {
     // never leave a broken sprite: visible placeholder crate
     K.crate(ctx, w, h, c1, c2, 0, rng(seed));
@@ -842,6 +844,6 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   return c;
 }
 
-const FLAT = new Set(['project_plot', 'shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds']);
+const FLAT = new Set(['project_plot', 'shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds', 'village_deck', 'village_bank', 'village_net']);
 
 export const OBJECT_KINDS = Object.keys(K);
