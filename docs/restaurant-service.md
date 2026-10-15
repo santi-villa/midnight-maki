@@ -83,6 +83,6 @@ Punto 5: costes/progresión, renovaciones y rincones personales, incluyendo ampl
 
 ## Ajustes de la etapa 1 (plan maestro)
 - **Mesas opacas:** los comensales sentados ya no atraviesan el "ver a través" de los muebles; solo los que caminan (o Sofi y los vecinos) hacen transparente lo que tienen delante. Un cliente sentado queda parcialmente detrás de su mesa, como corresponde.
-- **Mirada hacia la mesa:** el cliente sentado mira hacia el centro de su mesa (`src/restaurant/seating.ts`), sin depender de cómo se rotó la silla.
+- **Clientes sentados de frente:** todos miran a la cámara (sin espaldas ni perfiles en la mesa por ahora).
 - **"!" amarillo sobre cada cliente** que espera que le tomen el pedido (sube y baja un poco). La mesa solo se marca en dorado cuando es el destino de un plato.
 - **Flecha de entrega:** mientras Sofi lleva comida, la flecha dorada apunta a la mesa más cercana de destino y cada destino lleva su cartel ("Mesa 2 · Ebi nigiri"; con dos platos para la misma mesa se unen). Con la bandeja doble se ven ambas mesas. Fuera del restaurante apunta a su puerta. La misión sigue activa y la flecha vuelve a ella al entregar (`src/world/delivery.ts`).
