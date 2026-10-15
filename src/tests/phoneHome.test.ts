@@ -5,12 +5,11 @@ import { APPS_PER_PAGE, clampPage, HOME_ORDER, orderPhoneApps, phonePages } from
 const ids = ['camera', 'photos', 'map', 'quests', 'friends', 'collections', 'recipes', 'restaurant', 'calendar', 'memories', 'investigation', 'bag', 'settings', 'more', 'customize'];
 
 describe('NoriPhone home pages', () => {
-  it('puts six apps on a page, with the daily ones first', () => {
+  it('puts twelve apps on a page (3 columns by 4 rows), with the daily ones first', () => {
     const pages = phonePages(orderPhoneApps(ids.map((id) => ({ id }))));
-    expect(APPS_PER_PAGE).toBe(6);
+    expect(APPS_PER_PAGE).toBe(12);
     expect(pages.map((page) => page.map((app) => app.id))).toEqual([
-      ['quests', 'map', 'bag', 'recipes', 'restaurant', 'friends'],
-      ['camera', 'photos', 'collections', 'calendar', 'memories', 'investigation'],
+      ['quests', 'map', 'bag', 'recipes', 'restaurant', 'friends', 'camera', 'photos', 'collections', 'calendar', 'memories', 'investigation'],
       ['customize', 'settings', 'more'],
     ]);
   });
