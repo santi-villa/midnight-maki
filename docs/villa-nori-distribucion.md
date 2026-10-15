@@ -1,5 +1,7 @@
 # Villa Nori: distribución y primera muestra jugable
 
+> Registro de la primera muestra. La continuación autorizada por el usuario se documenta en [Distribución completa de exteriores](villa-nori-exteriores.md), con las ubicaciones y verificaciones actuales. Los pendientes y capturas de este documento corresponden a la entrega inicial.
+
 ## Dirección
 
 Tomar de la referencia la separación por necesidades, la identidad de los barrios y las conexiones por naturaleza. El objetivo es que un paseo tenga destinos reconocibles y que ir a comprar ingredientes siga siendo cómodo.
