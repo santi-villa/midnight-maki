@@ -11,7 +11,8 @@ import { PROJECT_AMENITIES } from '../data/projects';
 import { recordLibraryRead } from '../restaurant/projects';
 import { projectsSection, openProjectAmenity } from '../ui/projects';
 import { world } from '../scenes/WorldScene';
-import { h, panel, toast } from '../ui/dom';
+import { confirmBox, h, panel, toast } from '../ui/dom';
+import { bestRod, commitRodPlan, planRodPurchase, ROD_BY_ID, type RodWallet } from './rods';
 import { errandsSection } from '../ui/errands';
 import { registerAction } from './actions';
 import { harvest, plant, SEED_INFO, water } from './garden';
@@ -251,8 +252,23 @@ registerAction('plot', async (arg) => {
     grid.append(h('button', { class: 'slot', onclick: () => { if (plant(i, s.id)) { world.placeCrops(); audio.sfxPlay('place'); toast(`Plantaste ${SEED_INFO[s.id].name}. ¡Regala!`); } pnl.close(); } }, iconElement(s.icon), h('span', null, s.name), h('span', { class: 'qty' }, game.count(s.id))));
 });
 
+function rodWallet(): RodWallet {
+  return { coins: game.coins, inventory: game.save.inventory, fishCaught: game.save.stats.fishCaught ?? 0 };
+}
+
 registerAction('fish', async (kind) => {
   if (clock.paused) return;
+  if (!bestRod(game.save.inventory)) {
+    const basic = ROD_BY_ID.rod_basic;
+    const plan = planRodPurchase(rodWallet(), basic.id);
+    if (typeof plan === 'string') {
+      toast(`${plan} La caña básica sale ${basic.price} monedas, en el almacén de Taro o en el puesto de Nami.`);
+      return;
+    }
+    const yes = await confirmBox(`Para pescar hace falta una caña. ¿Comprar la ${basic.name} por ${basic.price} monedas?`, 'Comprar', 'Ahora no');
+    if (!yes || !commitRodPlan(plan)) return;
+    toast(`Listo: ${basic.name}.`);
+  }
   const { fish } = await import('../minigames/fishing');
   await fish(kind === 'sea' ? 'sea' : 'lake');
 });

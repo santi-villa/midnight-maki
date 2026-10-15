@@ -149,6 +149,11 @@ const T: Record<string, F> = {
     px(c, 11, 8, c1, 1, 2);
     px(c, 13, 8, c1, 1, 3);
   },
+  rod(c, c1, c2) {
+    for (let i = 0; i < 11; i++) px(c, 3 + i, 12 - i, c1, 2, 2);
+    ellipse(c, 4, 12, 2, 2, c2 || '#f6ecd6');
+    px(c, 13, 2, c1, 2, 2);
+  },
   book(c, c1) {
     px(c, 3, 3, c1, 10, 11);
     px(c, 4, 3, shade(c1, 0.2), 1, 11);
