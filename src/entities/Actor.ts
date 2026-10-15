@@ -4,6 +4,8 @@ import type { Dir } from '../core/types';
 import type { NpcAct } from '../data/characters';
 import { lowFx } from '../core/perf';
 import type { Grid } from '../world/grid';
+import { castAnchor } from '../scenes/lightmath';
+import { restPose } from './restPose';
 
 export const TILE = 16;
 
@@ -215,11 +217,13 @@ export class Actor {
       frame = seq[Math.floor(this.animT * 8) % 4];
     } else {
       switch (this.act) {
-        case 'sleep':
-          frame = FRAMES.sleep;
-          this.bob = Math.sin(this.actT * 2) > 0.6 ? 1 : 0;
-          if (Math.floor(this.actT) % 4 === 0 && !this.bubble && this.actT % 1 < 0.05) this.emote('z', 1.2);
+        case 'sleep': {
+          const pose = restPose(this.id, this.actT);
+          frame = pose.frame;
+          this.bob = pose.bob;
+          if (pose.z && !this.bubble) this.emote('z', 1.2);
           break;
+        }
         case 'happy':
           frame = FRAMES.happy;
           this.bob = Math.abs(Math.sin(this.actT * 10)) * 2;
@@ -242,6 +246,7 @@ export class Actor {
         case 'eat':
         case 'drink':
           frame = FRAMES.sit;
+          if (!this.sideSit && this.act === 'sit') this.bob = Math.sin(this.actT * 1.3 + this.phase) > 0.2 ? 1 : 0;
           if (this.sideSit) {
             // customers: breathing while seated, chewing while eating (frames 30..33 / 34 of their sheet)
             const eating = this.act === 'eat', bite = Math.floor(this.actT * 3) % 4, breath = Math.floor(this.actT * 1.5) % 2;
@@ -288,7 +293,7 @@ export class Actor {
 
   private syncLying(): boolean {
     const b = this.bed;
-    const lie = !!b && !this.moving && this.act === 'sleep';
+    const lie = !!b && !this.moving && this.act === 'sleep' && restPose(this.id, this.actT).lie;
     if (lie !== this.lying) {
       this.lying = lie;
       if (!lie) this.sprite.setCrop();
@@ -300,7 +305,7 @@ export class Actor {
     this.sprite.setCrop(0, 0, f.width, keep);
     const cx = Math.round(b.x * TILE + (b.w * TILE) / 2);
     const top = b.y * TILE;
-    const breath = Math.sin(this.actT * 1.6 + this.phase) > 0.2 ? 1 : 0;
+    const breath = restPose(this.id, this.actT).bob > 0 ? 1 : 0;
     this.sprite.setPosition(cx, top + 20 + (f.height - keep) - breath);
     this.sprite.setDepth((b.y + b.h) * TILE + 1);
     this.cast.setVisible(false);
@@ -315,10 +320,13 @@ export class Actor {
     if (!lying) {
       this.sprite.setPosition(rx, ry - this.bob - seated);
       this.sprite.setDepth(ry + this.depthBoost);
-      this.shadow.setPosition(rx, ry - 1);
+      const feet = ry - seated;
+      this.shadow.setPosition(rx, feet - 1);
       this.shadow.setDepth(ry - 0.5);
       const sun = Actor.sun;
-      this.cast.setPosition(rx + sun.dx * 0.6, ry - 1).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, 0.34 * (sun.sy / 0.3)).setAlpha(0.3 * sun.alpha);
+      const squash = 0.34 * (sun.sy / 0.3);
+      const pose = castAnchor(rx, feet - 1, sun.dx * 0.55, this.sprite.frame.height || 32, squash);
+      this.cast.setOrigin(0.5, 0).setPosition(pose.x, pose.y).setRotation(pose.angle).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, pose.scaleY).setAlpha(0.3 * sun.alpha);
       if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
     }
     if (this.bubble) {

@@ -7,7 +7,7 @@ import { audio } from '../../audio/audio';
 import { bus } from '../../core/events';
 import { haptic } from '../../core/haptics';
 import { settings } from '../../core/settings';
-import { actionForCode, bindingMap } from '../../input/bindings';
+import { actionForCode, bindingMap, isTypingTarget } from '../../input/bindings';
 import { game } from '../../core/state';
 import { inDialogue } from '../../dialogue/dialogue';
 import { clock } from '../../systems/time';
@@ -18,6 +18,7 @@ import { skinIconEl } from '../skin';
 import { phoneAppIcon, phoneCharm, phoneDeco, phoneSignals } from './appIcons';
 import { caseGeometry, drawCase, SIDE_MARGIN } from './caseArt';
 import { COLORS, COLOR_BY_ID, MODELS, MODEL_BY_ID, WALLPAPERS, WALLPAPER_BY_ID, type PhoneKind } from './catalog';
+import { phoneExplore, phoneKeyIntent } from './phoneKey';
 import { APPS_PER_PAGE, clampPage, orderPhoneApps, phonePages } from './pages';
 import { choose, isUnlocked, markDesignsSeen, noveltyCounts, phonePrefs, refreshUnlocks, unseenDesigns } from './prefs';
 import { wallpaperCanvas, wallpaperTile } from './wallpapers';
@@ -554,24 +555,46 @@ function modalOpen_top(): boolean {
   return !!guard && document.querySelector('#ui > .panel-backdrop, #ui > .cook, #ui > .mg') != null;
 }
 
+function tabKeepsFocus(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el === document.body || el === document.documentElement || el.tagName === 'CANVAS') return false;
+  return !!el.closest('a, button, input, select, textarea, [role="button"], [tabindex]');
+}
+
 function onKey(e: KeyboardEvent) {
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     if (phase === 'open' && screenName === 'home' && !modalOpen_top() && !e.altKey && !e.ctrlKey && !e.metaKey) {
-      const typing = e.target as HTMLElement | null;
-      if (typing && (typing.tagName === 'INPUT' || typing.tagName === 'TEXTAREA' || typing.isContentEditable)) return;
+      if (isTypingTarget(e.target) || isTypingTarget(document.activeElement)) return;
       e.preventDefault();
       if (!e.repeat) pageApi?.show(homePage + (e.key === 'ArrowRight' ? 1 : -1));
     }
     return;
   }
-  const key = (settings.phoneKey ?? 'p').toLowerCase();
-  const bound = actionForCode(e.code, bindingMap(settings.bindings)) === 'phone';
-  if ((!bound && e.key.toLowerCase() !== key) || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
-  const t = e.target as HTMLElement | null;
-  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-  if (!game.loaded || layer.style.display === 'none') return;
-  if (phase === 'open' && !modalOpen_top()) { e.preventDefault(); closePhone(); }
-  else if (phase === 'closed') { e.preventDefault(); openPhone(); }
+  const intent = phoneKeyIntent({
+    code: e.code,
+    key: e.key,
+    repeat: e.repeat,
+    shift: e.shiftKey,
+    ctrl: e.ctrlKey,
+    meta: e.metaKey,
+    alt: e.altKey,
+    composing: e.isComposing,
+    typing: isTypingTarget(e.target) || isTypingTarget(document.activeElement),
+    loaded: game.loaded,
+    layerHidden: layer.style.display === 'none',
+    dialogue: inDialogue(),
+    modalOnTop: modalOpen_top(),
+    menuOpen: modalOpen(),
+    phase,
+    exploring: phoneExplore(),
+    focusInControl: tabKeepsFocus(document.activeElement) || tabKeepsFocus(e.target),
+    boundPhone: actionForCode(e.code, bindingMap(settings.bindings)) === 'phone',
+    phoneKey: settings.phoneKey ?? 'p',
+  });
+  if (intent === 'ignore') return;
+  e.preventDefault();
+  if (intent === 'open') openPhone();
+  else if (intent === 'close') closePhone();
 }
 
 export function phoneState() { return { phase, screen: screenName, look }; }

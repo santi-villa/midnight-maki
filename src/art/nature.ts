@@ -83,21 +83,35 @@ export const darkGrassBright: TileDraw = (c, x, y, r) => {
   for (let i = 0; i < 5; i++) tuft(c, x + 1 + Math.floor(r() * 12), y + 2 + Math.floor(r() * 12), NAT.grassL, NAT.grassD);
 };
 
-export const pathTile: TileDraw = (c, x, y, r) => {
-  px(c, x, y, NAT.path, 16, 16);
-  for (let i = 0; i < 16; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.pathD : NAT.pathL);
-  for (let i = 0; i < 2; i++) {
-    const sx = x + 2 + Math.floor(r() * 11);
-    const sy = y + 2 + Math.floor(r() * 11);
-    px(c, sx, sy, NAT.pebble, 2, 1);
-    px(c, sx, sy - 1, NAT.pathL, 2, 1);
-  }
-};
+/** Worn path. Each variant keeps the same beige, with a different pebble and a small scuff. */
+export function pathTile(variant = 0): TileDraw {
+  const base = variant === 2 ? shade(NAT.path, -0.05) : variant === 1 ? shade(NAT.path, 0.03) : NAT.path;
+  return (c, x, y, r) => {
+    px(c, x, y, base, 16, 16);
+    for (let i = 0; i < 12 + variant; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.pathD : NAT.pathL);
+    for (let i = 0; i < 1 + (variant % 2); i++) {
+      const sx = x + 2 + Math.floor(r() * 11);
+      const sy = y + 2 + Math.floor(r() * 11);
+      px(c, sx, sy, NAT.pebble, 2, 1);
+      px(c, sx, sy - 1, NAT.pathL, 2, 1);
+    }
+    if (variant === 1) px(c, x + 3, y + 11, NAT.pathD, 4, 1);
+    if (variant === 2) px(c, x + 9, y + 4, NAT.pathL, 3, 2);
+  };
+}
 
-export const sandTile: TileDraw = (c, x, y, r) => {
-  px(c, x, y, NAT.sand, 16, 16);
-  for (let i = 0; i < 18; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.6 ? NAT.sandD : '#fbedc6');
-};
+/** Beach sand. Variant 2 keeps one shell; the others only shift the grain. */
+export function sandTile(variant = 0): TileDraw {
+  const base = variant === 1 ? shade(NAT.sand, -0.04) : NAT.sand;
+  return (c, x, y, r) => {
+    px(c, x, y, base, 16, 16);
+    for (let i = 0; i < 14; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.6 ? NAT.sandD : '#fbedc6');
+    if (variant === 2) {
+      px(c, x + 11, y + 10, '#fff6e4', 3, 1);
+      px(c, x + 12, y + 9, '#e7d3a4');
+    }
+  };
+}
 
 /** Warm rounded cobbles for the plaza: irregular stones, low contrast, several layouts. */
 const COBBLE_LAYOUTS: [number, number, number, number][][] = [
@@ -207,7 +221,7 @@ export function waterTile(variant: number, frame: number, depth: WaterDepth, rai
 export function shoreTileFrame(frame: number): TileDraw {
   const RISE = [0, 1, 2, 1];
   return (c, x, y) => {
-    sandTile(c, x, y, rng(777));
+    sandTile(0)(c, x, y, rng(777));
     const wl = 5 + RISE[frame]; // rows of water, counted from the bottom
     const top = 16 - wl;
     const pal = WATER_PAL.calm.shallow;
@@ -249,13 +263,14 @@ export const bridgeTile: TileDraw = (c, x, y) => {
   px(c, x + 14, y, NAT.trunkD, 2, 16);
 };
 
-export const soilTile = (wet: boolean): TileDraw => (c, x, y, r) => {
+export const soilTile = (wet: boolean, shift = 0): TileDraw => (c, x, y, r) => {
   px(c, x, y, wet ? '#6e4a33' : '#a07049', 16, 16);
-  for (let j = 2; j < 16; j += 4) {
+  const start = 2 + (shift % 3);
+  for (let j = start; j < 16; j += 4) {
     px(c, x + 1, y + j, wet ? '#5a3b28' : '#87593a', 14, 1);
     px(c, x + 1, y + j - 1, wet ? '#7d5640' : '#b5825a', 14, 1);
   }
-  for (let i = 0; i < 6; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), wet ? '#83604a' : '#c09068');
+  for (let i = 0; i < 5; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), wet ? '#83604a' : '#c09068');
 };
 
 export function flowerBedBright(color: string): TileDraw {

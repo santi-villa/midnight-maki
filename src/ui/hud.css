@@ -48,18 +48,30 @@
 .game-hud .hud-quest b { color: inherit; font-weight: 400; }
 .game-hud.hud-status-collapsed .hud-quest { top: calc(98px + var(--safe-t)); }
 .game-hud .room-tag { top: calc(66px + var(--safe-t)); max-width: calc(100vw - 164px); overflow: hidden; text-overflow: ellipsis; }
-.game-hud .hud-suggest {
-  left: auto; right: calc(16px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); transform: none;
-  flex-direction: column; align-items: flex-end; gap: 8px; max-width: min(260px, 64vw);
+.game-hud .hud-corner {
+  position: fixed; left: auto; right: calc(16px + var(--safe-r)); bottom: calc(18px + var(--safe-b));
+  transform: none; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  max-width: min(260px, 64vw); z-index: 6;
 }
-.game-hud .hud-suggest button, .game-hud .ctx-dock .hud-interact, .game-hud .ctx-chip, .game-hud .ctx-row {
+.game-hud .hud-suggest {
+  position: static; left: auto; right: auto; bottom: auto; transform: none;
+  flex-direction: column; align-items: flex-end; gap: 8px; max-width: 100%;
+}
+.game-hud .hud-phone {
+  display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+}
+.game-hud .hud-phone.is-parked { display: none; }
+.game-hud .hud-phone .skin-icon { width: 22px; height: 22px; image-rendering: pixelated; flex: 0 0 auto; }
+body.input-touch .game-hud .hud-phone { display: none; }
+.game-hud .hud-suggest button, .game-hud .hud-phone, .game-hud .ctx-dock .hud-interact, .game-hud .ctx-chip, .game-hud .ctx-row {
   width: auto; height: auto; min-height: 40px; min-width: 142px; max-width: 100%; padding: 2px 10px;
   border: 7px solid transparent; border-radius: 0; border-image: var(--tx-plank-btn) 4 fill / 7px stretch;
   background: none; box-shadow: 0 3px 0 rgba(49, 31, 19, .65); color: #43291c;
   font-size: 18px; font-weight: 400; text-shadow: none; line-height: 1.05;
   animation: none; white-space: normal;
 }
-.game-hud .hud-suggest button:active, .game-hud .ctx-dock .hud-interact:active, .game-hud .ctx-chip:active {
+.game-hud .hud-phone { white-space: nowrap; }
+.game-hud .hud-suggest button:active, .game-hud .hud-phone:active, .game-hud .ctx-dock .hud-interact:active, .game-hud .ctx-chip:active {
   border-image-source: var(--tx-plank-btn); transform: translateY(2px); box-shadow: 0 1px 0 #493020;
 }
 .game-hud .ctx-dock { right: calc(16px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); gap: 8px; max-width: min(260px, 64vw); }
@@ -93,8 +105,8 @@
   .game-hud .hud-menu-mobile { display: block; }
   .game-hud .hud-menu-desktop { display: none; }
   .game-hud .hud-quest, .game-hud .hud-quest.mini { left: calc(8px + var(--safe-l)); top: calc(142px + var(--safe-t)); font-size: 14px; }
-  .game-hud .hud-suggest button, .game-hud .ctx-dock .hud-interact, .game-hud .ctx-chip { font-size: 16px; min-height: 42px; }
-  .game-hud .hud-suggest, .game-hud .ctx-dock { right: calc(12px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); }
+  .game-hud .hud-suggest button, .game-hud .hud-phone, .game-hud .ctx-dock .hud-interact, .game-hud .ctx-chip { font-size: 16px; min-height: 42px; }
+  .game-hud .hud-corner, .game-hud .ctx-dock { right: calc(12px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); }
   .game-hud .room-tag { top: calc(66px + var(--safe-t)); font-size: 12px; }
 }
 @media (max-width: 380px) {
@@ -118,8 +130,7 @@
 .game-hud .ctx-dock .hud-interact, .game-hud .ctx-chip { min-height: 44px; }
 @media (max-width: 340px) { .game-hud .hud-buttons { display: grid; grid-template-columns: repeat(2, 44px); gap: 4px; } .game-hud .hud-buttons .icon-btn { width: 44px; } }
 
-/* The closed NoriPhone still has a touch target along the bottom edge. */
-@media (max-width: 600px) {
-  .game-hud .hud-suggest, .game-hud .ctx-dock { bottom: calc(max(16px, var(--phone-peek-h, 0px) + 8px) + var(--safe-b)); }
-  .joystick.game-joystick { bottom: calc(max(24px, var(--phone-peek-h, 0px) + 8px) + var(--safe-b)); }
-}
+/* Touch keeps the closed phone along the bottom, so the corner and the stick sit above it. */
+body.input-touch .game-hud .hud-corner,
+body.input-touch .game-hud .ctx-dock { bottom: calc(max(16px, var(--phone-peek-h, 0px) + 8px) + var(--safe-b)); }
+body.input-touch .joystick.game-joystick { bottom: calc(max(24px, var(--phone-peek-h, 0px) + 8px) + var(--safe-b)); }

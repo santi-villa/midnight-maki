@@ -11,6 +11,7 @@ import { drawPlaque } from './pixfont';
 import { SHOP_KINDS } from './shopart';
 import { TOWN_KINDS } from './townart';
 import { drawFountain } from './fountain';
+import { drawVillageBuilding, drawVillageHome, VILLAGE_KINDS } from './village';
 
 const OUT = '#3a2a2a';
 
@@ -129,7 +130,18 @@ const K: Record<string, DrawFn> = {
     }
   },
   // ------------------------------------------------------------ street props
-  lamppost(c, W, H) {
+  lamppost(c, W, H, _c1, _c2, rot) {
+    if (rot === 1 || rot === 2) {
+      // Vereda izquierda/derecha: el pie queda al borde y el brazo mira al camino.
+      const x = rot === 1 ? 4 : 12, head = rot === 1 ? 10 : 5;
+      px(c, x - 1, 4, '#3d3a4a', 3, H - 5);
+      px(c, x, 5, '#8a8170', 1, H - 8);
+      px(c, Math.min(x, head), 4, '#3d3a4a', Math.abs(x - head) + 2, 2);
+      box(c, head - 3, 7, 7, 9, '#f4d68c', '#3d3a4a');
+      px(c, head - 4, 6, '#3d3a4a', 9, 2);
+      px(c, x - 3, H - 3, '#3d3a4a', 7, 3);
+      return;
+    }
     const cx = Math.floor(W / 2);
     px(c, cx - 1, H - 22, '#3d3a4a', 2, 21);
     px(c, cx - 3, H - 2, '#3d3a4a', 6, 2);
@@ -146,13 +158,15 @@ const K: Record<string, DrawFn> = {
   },
   paperlantern(c, W, H, c1) {
     const cx = Math.floor(W / 2);
-    px(c, cx, H - 24, OUT, 1, 4);
-    ellipse(c, cx, H - 14, 5, 6, shade(c1, -0.3));
-    ellipse(c, cx, H - 14, 4, 5, c1);
-    px(c, cx - 4, H - 14, shade(c1, -0.2), 9, 1);
-    px(c, cx - 2, H - 20, OUT, 5, 1);
-    px(c, cx - 2, H - 8, OUT, 5, 1);
-    px(c, cx - 2, H - 16, '#fff3c9', 2, 2);
+    // a stake to the ground: the oval is a lantern, not a balloon floating beside it
+    px(c, cx - 2, H - 2, '#3d3a4a', 5, 2);
+    px(c, cx, H - 20, '#3d3a4a', 1, 18);
+    ellipse(c, cx, H - 18, 5, 5, shade(c1, -0.3));
+    ellipse(c, cx, H - 18, 4, 4, c1);
+    px(c, cx - 3, H - 18, shade(c1, -0.2), 7, 1);
+    px(c, cx - 2, H - 23, OUT, 5, 1);
+    px(c, cx - 2, H - 13, OUT, 5, 1);
+    px(c, cx - 1, H - 20, '#fff3c9', 2, 2);
   },
   fence(c, W, H) {
     for (let x = 1; x < W; x += 5) box(c, x, H - 12, 4, 11, PAL.woodL);
@@ -316,38 +330,44 @@ const K: Record<string, DrawFn> = {
     for (const [sx, sy] of [[cx - 12, 4], [cx + 11, 7], [cx + 2, -1]]) px(c, sx, sy + 1, PAL.gold, 1, 1);
   },
   // ------------------------------------------------------------ furniture
-  table(c, W, H, c1, _c2, _rot) {
+  table(c, W, H, c1, _c2, rot) {
     const o = '#2b1d17';
     const top = shade(c1, 0.14);
-    const legH = H > 18 ? 7 : 4;
-    // legs
-    for (const lx of [2, W - 4]) {
-      px(c, lx, H - legH, o, 3, legH);
-      px(c, lx + 1, H - legH, shade(c1, -0.35), 1, legH - 1);
+    const vertical = (rot & 1) === 1 && H > W + 6;
+    const legH = H > 28 ? 6 : H > 18 ? 7 : 4;
+    const topH = vertical ? Math.max(12, H - legH - 4) : H > 28 ? Math.round(H * 0.5) : 10;
+    const topY = Math.max(0, H - legH - topH);
+    const legW = Math.min(3, Math.max(2, W - 4));
+    for (const lx of [1, W - 1 - legW]) {
+      if (lx < 0) continue;
+      px(c, lx, H - legH, o, legW, legH);
+      px(c, lx, H - legH, shade(c1, -0.35), 1, Math.max(1, legH - 1));
     }
-    // apron + top
-    px(c, 0, H - legH - 9, o, W, 10);
-    px(c, 1, H - legH - 8, top, W - 2, 6);
-    px(c, 1, H - legH - 8, shade(top, 0.18), W - 2, 1);
-    px(c, 1, H - legH - 2, shade(c1, -0.25), W - 2, 2);
-    for (let x = 6; x < W - 4; x += 9) px(c, x, H - legH - 6, shade(top, -0.06), 5, 1);
-    // table setting: a placemat with chopsticks for each side, soy sauce and a tea cup in the middle
-    if (W >= 28) {
-      const ty = H - legH - 7;
-      for (const mx of [3, W - 11]) {
-        px(c, mx, ty, '#f2e9d4', 8, 4);
-        px(c, mx, ty, '#ffffff', 8, 1);
-        px(c, mx, ty + 3, '#cdbf9f', 8, 1);
-        px(c, mx + 2, ty + 1, '#8a3a2e', 4, 1);
-        px(c, mx + 2, ty + 2, '#5a4a3a', 4, 1);
+    px(c, 0, topY, o, W, topH + 1);
+    px(c, 1, topY + 1, top, Math.max(1, W - 2), Math.max(1, topH - 2));
+    px(c, 1, topY + 1, shade(top, 0.18), Math.max(1, W - 2), 1);
+    px(c, 1, topY + topH - 2, shade(c1, -0.25), Math.max(1, W - 2), 2);
+    for (let x = 4; x < W - 3; x += 8) px(c, x, topY + 3, shade(top, -0.06), Math.min(4, W - x - 2), 1);
+    // placemats sit at the ends, with a gap in the middle wide enough for two plates
+    const mats = W >= 28 ? 2 : W >= 14 ? 1 : 0;
+    if (mats && topH >= 6) {
+      const mw = Math.min(8, W - 4);
+      const inner = W - 4;
+      const gap = mats === 1 ? 0 : Math.max(4, Math.floor((inner - mats * mw) / (mats + 1)));
+      const my = topY + Math.max(1, Math.floor((topH - 5) / 2));
+      for (let i = 0; i < mats; i++) {
+        const mx = mats === 1 ? Math.floor((W - mw) / 2) : 2 + gap + i * (mw + gap);
+        px(c, mx, my, '#f2e9d4', mw, 4);
+        px(c, mx, my, '#ffffff', mw, 1);
+        px(c, mx, my + 3, '#cdbf9f', mw, 1);
+        px(c, mx + 2, my + 1, '#8a3a2e', Math.max(2, mw - 4), 1);
       }
-      const sx = Math.floor(W / 2) - 4;
-      px(c, sx, H - legH - 12, o, 3, 5);
-      px(c, sx + 1, H - legH - 11, '#7a3a2a', 1, 3);
-      px(c, sx + 1, H - legH - 13, '#c94a3f', 1, 1);
-      const cx = Math.floor(W / 2) + 2;
-      px(c, cx, H - legH - 10, o, 4, 3);
-      px(c, cx + 1, H - legH - 10, '#9bb59a', 2, 2);
+      if (mats === 2 && gap >= 4) {
+        const sx = Math.floor(W / 2) - 1;
+        px(c, sx, topY + 1, o, 3, 4);
+        px(c, sx + 1, topY + 2, '#7a3a2a', 1, 2);
+        px(c, sx + 1, topY, '#c94a3f', 1, 1);
+      }
     }
   },
   roundtable(c, W, H, c1) {
@@ -817,7 +837,7 @@ const K: Record<string, DrawFn> = {
   },
 };
 
-Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS);
+Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS, VILLAGE_KINDS);
 
 export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string, stage?: number): HTMLCanvasElement {
   const c = makeCanvas(w, h);
@@ -825,7 +845,9 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   const fn = K[kind];
   // the restaurant facade has four looks: its stage rides in `rot` as 100 + stage
   const drawRot = kind === 'building' && stage !== undefined ? 100 + stage : rot;
-  if (fn) fn(ctx, w, h, c1, c2, drawRot, rng(seed));
+  if (kind === 'building' && (stage !== undefined || rot >= 20 && rot <= 23)) drawVillageBuilding(ctx, w, h, stage !== undefined ? 0 : rot, stage ?? 0, c1, c2);
+  else if ((kind === 'townhouse' || kind === 'sidehouse') && rot < 8) drawVillageHome(ctx, w, h, c1, c2, rot, kind === 'sidehouse');
+  else if (fn) fn(ctx, w, h, c1, c2, drawRot, rng(seed));
   else {
     // never leave a broken sprite: visible placeholder crate
     K.crate(ctx, w, h, c1, c2, 0, rng(seed));
@@ -842,6 +864,6 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   return c;
 }
 
-const FLAT = new Set(['project_plot', 'shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds']);
+const FLAT = new Set(['project_plot', 'shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds', 'village_deck', 'village_bank', 'village_net']);
 
 export const OBJECT_KINDS = Object.keys(K);

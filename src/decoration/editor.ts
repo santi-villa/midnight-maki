@@ -10,7 +10,7 @@ import { bus } from '../core/events';
 import { game } from '../core/state';
 import type { PlacedFurniture } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
-import { FURN_BY_ID, type FurnitureDef } from '../data/furniture';
+import { FURN_BY_ID, furnSize, type FurnitureDef } from '../data/furniture';
 import type { RoomDef } from '../data/zones';
 import { TILE } from '../entities/Actor';
 import { world } from '../scenes/WorldScene';
@@ -20,7 +20,7 @@ import { isTypingTarget, stepIndex } from '../input/bindings';
 import { add, h, modalOpen, toast, uiRoot } from '../ui/dom';
 import { showHud } from '../ui/hud';
 import { decorateBlockReason } from '../world/contextActions';
-import { furnitureSolidTiles, placementKeepsPaths, roomAt } from '../world/zoneRuntime';
+import { furnitureSolidTiles, placementBlock, roomAt } from '../world/zoneRuntime';
 
 interface Ghost { id: string; x: number; y: number; rot: number; uid?: number; }
 
@@ -238,7 +238,6 @@ class DecorEditor {
       g.uid != null ? h('button', { class: 'btn small rose', onclick: () => this.store() }, 'Guardar') : null,
       h('button', { class: 'btn small', onclick: () => { this.clearGhost(true); this.renderList(); } }, 'Cancelar'),
     );
-    this.setStatus(f.wall ? 'Tocá la pared donde quieras colgarlo.' : 'Tocá el piso donde quieras ponerlo (verde = se puede).');
   }
 
   private nudge(a: '↑' | '↓' | '←' | '→') {
@@ -254,9 +253,11 @@ class DecorEditor {
     const g = this.ghost;
     if (!g || !this.ghostImg) return;
     const f = FURN_BY_ID[g.id];
-    this.ghostImg.setPosition(g.x * TILE + (f.w * TILE) / 2, (g.y + f.h) * TILE);
-    const ok = this.valid(g);
-    this.ghostImg.setTint(ok ? 0xc8f0c0 : 0xf0a0a0);
+    const size = furnSize(f, g.rot);
+    this.ghostImg.setPosition(g.x * TILE + (size.w * TILE) / 2, (g.y + size.h) * TILE);
+    const why = this.blockReason(g);
+    this.ghostImg.setTint(why ? 0xf0a0a0 : 0xc8f0c0);
+    this.setStatus(why ?? (f.wall ? 'Verde: se puede colgar.' : 'Verde: se puede colocar.'));
     this.drawGrid();
   }
 
@@ -275,38 +276,66 @@ class DecorEditor {
     if (x < r.x || y < r.y || x >= r.x + r.w || y >= r.y + r.h) return false;
     if (roomAt(world.zone.def, x, y)?.id !== r.id) return false;
     if (wall) return ch === 'W' || ch === 'V';
-    return ch === 'f' || ch === 'k';
+    return ch === 'f' || ch === 'k' || ch === 't';
   }
 
-  private valid(g: Ghost): boolean {
+  private blockReason(g: Ghost): string | null {
     const f = FURN_BY_ID[g.id];
-    for (let j = 0; j < f.h; j++) for (let i = 0; i < f.w; i++) if (!this.inRoomInterior(g.x + i, g.y + j, !!f.wall)) return false;
-    if (f.wall) {
-      // no overlapping wall items
-      return !game.room(this.room.id).some((p) => p.uid !== g.uid && FURN_BY_ID[p.id]?.wall && overlap(p, FURN_BY_ID[p.id], g, f));
+    const size = furnSize(f, g.rot);
+    for (let j = 0; j < size.h; j++) for (let i = 0; i < size.w; i++) {
+      const x = g.x + i;
+      const y = g.y + j;
+      if (!this.inRoomInterior(x, y, !!f.wall)) return 'No entra en esta habitación.';
+      if (!f.wall && this.propAt(x, y)) return 'Ahí hay un objeto fijo.';
+      if (!f.wall && !f.walkable && this.entranceTile(x, y)) return 'Ese paso tiene que quedar libre.';
     }
-    // overlapping walkable rugs is allowed only for non-walkable items on top of rugs
+    if (f.wall) {
+      const hit = game.room(this.room.id).some((p) => p.uid !== g.uid && FURN_BY_ID[p.id]?.wall && overlap(p, FURN_BY_ID[p.id], g, f));
+      return hit ? 'Ahí ya hay algo colgado.' : null;
+    }
     for (const p of game.room(this.room.id)) {
       if (p.uid === g.uid) continue;
       const pf = FURN_BY_ID[p.id];
       if (!pf || pf.wall) continue;
-      if (overlap(p, pf, g, f) && (!pf.walkable || f.walkable)) return false;
+      if (overlap(p, pf, g, f) && (!pf.walkable || f.walkable)) return 'Ahí ya hay un mueble.';
     }
-    if (f.walkable) return true;
-    // never trap the player or block doors/interactables
-    const pt = [world.player.tx, world.player.ty];
+    if (f.walkable) return null;
     const cand: PlacedFurniture = { uid: g.uid ?? -1, id: g.id, x: g.x, y: g.y, rot: g.rot };
-    if (furnitureSolidTiles(cand, f).some(([x, y]) => x === pt[0] && y === pt[1])) return false;
-    for (const [, n] of world.npcs) if (furnitureSolidTiles(cand, f).some(([x, y]) => x === n.actor.tx && y === n.actor.ty)) return false;
-    return placementKeepsPaths(world.zoneId, this.room.id, cand, g.uid);
+    const tiles = furnitureSolidTiles(cand, f);
+    if (tiles.some(([x, y]) => x === world.player.tx && y === world.player.ty)) return 'Estás parado ahí.';
+    for (const [, n] of world.npcs) if (tiles.some(([x, y]) => x === n.actor.tx && y === n.actor.ty)) return 'Hay alguien parado ahí.';
+    return placementBlock(world.zoneId, this.room.id, cand, g.uid);
+  }
+
+  private valid(g: Ghost): boolean {
+    return this.blockReason(g) === null;
+  }
+
+  private propAt(x: number, y: number): boolean {
+    return world.zone.props.some((p) => x >= p.x && x < p.x + p.def.w && y >= p.y && y < p.y + p.def.h);
+  }
+
+  /** The tile just inside each door, so a table cannot seal the entrance. */
+  private entranceTile(x: number, y: number): boolean {
+    const r = this.room;
+    for (const d of world.zone.def.doors) {
+      if (!d.walk) continue;
+      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+        const nx = d.x + dx;
+        const ny = d.y + dy;
+        if (nx === x && ny === y && nx >= r.x && ny >= r.y && nx < r.x + r.w && ny < r.y + r.h) return true;
+      }
+    }
+    return false;
   }
 
   private place() {
     const g = this.ghost;
     if (!g) return;
-    if (!this.valid(g)) {
+    const why = this.blockReason(g);
+    if (why) {
       audio.sfxPlay('error');
-      this.setStatus('No entra ahí, o bloquearía un paso. Probá en otro lugar.');
+      this.setStatus(why);
       return;
     }
     this.snapshot();
@@ -346,15 +375,18 @@ class DecorEditor {
     const ty = Math.floor(p.worldY / TILE);
     if (this.ghost) {
       const f = FURN_BY_ID[this.ghost.id];
-      this.ghost.x = tx - Math.floor((f.w - 1) / 2);
-      this.ghost.y = ty - (f.h - 1);
+      const size = furnSize(f, this.ghost.rot);
+      this.ghost.x = tx - Math.floor((size.w - 1) / 2);
+      this.ghost.y = ty - (size.h - 1);
       this.updateGhost();
       return;
     }
     // select existing furniture (prefer non-rug)
     const hits = game.room(this.room.id).filter((q) => {
       const f = FURN_BY_ID[q.id];
-      return f && tx >= q.x && tx < q.x + f.w && ty >= q.y && ty < q.y + f.h;
+      if (!f) return false;
+      const size = furnSize(f, q.rot);
+      return tx >= q.x && tx < q.x + size.w && ty >= q.y && ty < q.y + size.h;
     });
     const hit = hits.find((q) => !FURN_BY_ID[q.id].walkable) ?? hits[0];
     if (hit) this.pickExisting(hit);
@@ -382,9 +414,10 @@ class DecorEditor {
     const g = this.ghost;
     if (g) {
       const f = FURN_BY_ID[g.id];
+      const size = furnSize(f, g.rot);
       const ok = this.valid(g);
       gfx.fillStyle(ok ? 0x6f9e6a : 0xc0676b, 0.35);
-      gfx.fillRect(g.x * TILE, g.y * TILE, f.w * TILE, f.h * TILE);
+      gfx.fillRect(g.x * TILE, g.y * TILE, size.w * TILE, size.h * TILE);
     }
   }
 
@@ -407,6 +440,8 @@ class DecorEditor {
   }
 }
 
-function overlap(a: { x: number; y: number }, af: FurnitureDef, b: { x: number; y: number }, bf: FurnitureDef) {
-  return a.x < b.x + bf.w && a.x + af.w > b.x && a.y < b.y + bf.h && a.y + af.h > b.y;
+function overlap(a: { x: number; y: number; rot?: number }, af: FurnitureDef, b: { x: number; y: number; rot?: number }, bf: FurnitureDef) {
+  const as = furnSize(af, a.rot ?? 0);
+  const bs = furnSize(bf, b.rot ?? 0);
+  return a.x < b.x + bs.w && a.x + as.w > b.x && a.y < b.y + bs.h && a.y + as.h > b.y;
 }

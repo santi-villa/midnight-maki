@@ -3,6 +3,7 @@ import { seasonOf } from '../core/balance';
 import { game } from '../core/state';
 import { ITEMS_BY_ID } from '../data/items';
 import { rng } from '../art/pixel';
+import { applyRare, fishTable } from './fishMarket';
 
 const CAT_FOR: Record<string, string> = { fish: 'fish', bug: 'bugs', flower: 'flowers', shell: 'shells', rare: 'rare', material: 'rare' };
 
@@ -38,27 +39,16 @@ export function bugsFor(zone: string): string[] {
 
 export interface FishRoll { id: string; difficulty: number; }
 
-export function rollFish(kind: 'sea' | 'lake'): FishRoll {
-  const p = game.save.time.period;
+export function rollFish(kind: 'sea' | 'lake', rare = 1): FishRoll {
+  const table = applyRare(fishTable(kind, game.save.time.period, game.has('ch3_done')), rare);
   const r = Math.random();
-  const table: [string, number, number][] =
-    kind === 'sea'
-      ? [
-          ['f_sardine', 30, 1], ['f_mackerel', 24, 1], ['f_starfish', 12, 1],
-          ['f_tuna', p === 1 ? 14 : 5, 3], ['f_octopus', 6, 3],
-          ['f_puffer', p === 3 ? 8 : 1, 2], ['f_moonfish', p === 3 && game.has('ch3_done') ? 3 : 0, 5],
-        ]
-      : [
-          ['f_carp', 30, 1], ['f_trout', 26, 2], ['f_salmon', 22, 2],
-          ['f_eel', p === 2 ? 12 : 3, 3], ['f_koi', p === 3 ? 3 : 0.5, 5],
-        ];
-  const total = table.reduce((s, t) => s + t[1], 0);
+  const total = table.reduce((s, t) => s + t.weight, 0);
   let acc = 0;
-  for (const [id, w, d] of table) {
-    acc += w;
-    if (r * total <= acc) return { id, difficulty: d };
+  for (const row of table) {
+    acc += row.weight;
+    if (r * total <= acc) return { id: row.id, difficulty: row.difficulty };
   }
-  return { id: table[0][0], difficulty: 1 };
+  return { id: table[0].id, difficulty: table[0].difficulty };
 }
 
 export function collectionProgress(): { cat: string; got: number; total: number }[] {
