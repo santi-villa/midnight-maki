@@ -14,6 +14,7 @@ import { drawFountain } from './fountain';
 import { drawVillageBuilding, VILLAGE_KINDS } from './village';
 import { drawHome } from './homes';
 import { SHOPDECO_KINDS } from './shopdeco';
+import { HILLSIDE_KINDS } from './hillside';
 
 const OUT = '#3a2a2a';
 
@@ -839,7 +840,7 @@ const K: Record<string, DrawFn> = {
   },
 };
 
-Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS, VILLAGE_KINDS, SHOPDECO_KINDS);
+Object.assign(K, NATURE_KINDS, IZAKAYA_KINDS, SHOP_KINDS, TOWN_KINDS, VILLAGE_KINDS, SHOPDECO_KINDS, HILLSIDE_KINDS);
 
 export function drawObject(kind: string, w: number, h: number, c1: string, c2: string, rot = 0, seed = 7, label?: string, stage?: number, closed = false): HTMLCanvasElement {
   const c = makeCanvas(w, h);
@@ -866,6 +867,6 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   return c;
 }
 
-const FLAT = new Set(['project_plot', 'shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds', 'village_deck', 'village_bank', 'village_net']);
+const FLAT = new Set(['project_plot', 'shoprug', 'wallshelf', 'mmsign', 'rug', 'puddle', 'pier', 'stars', 'garland', 'windchime', 'painting', 'poster', 'clock', 'stairs', 'walldoor', 'flowers', 'reeds', 'village_deck', 'village_bank', 'village_net', 'waterfall', 'stonestairs']);
 
 export const OBJECT_KINDS = Object.keys(K);

@@ -374,8 +374,8 @@ function garden(): ZoneDef {
   return zone(b, {
     id: 'garden', name: 'Jardín de los Faroles', music: 'garden', outdoor: true,
     doors: [
-      { x: 0, y: 10, to: 'plaza', tx: 55, ty: 12, dir: 'left', walk: true },
-      { x: 0, y: 11, to: 'plaza', tx: 55, ty: 13, dir: 'left', walk: true },
+      { x: 0, y: 10, to: 'plaza', tx: 70, ty: 12, dir: 'left', walk: true },
+      { x: 0, y: 11, to: 'plaza', tx: 70, ty: 13, dir: 'left', walk: true },
       ...housesIn('garden').map(houseDoorDef),
     ],
     interact: [
@@ -454,8 +454,8 @@ function market(): ZoneDef {
   return zone(b, {
     id: 'market', name: 'Mercado Nocturno', music: 'market', outdoor: true,
     doors: [
-      { x: 12, y: 17, to: 'plaza', tx: 29, ty: 1, dir: 'down', walk: true },
-      { x: 13, y: 17, to: 'plaza', tx: 30, ty: 1, dir: 'down', walk: true },
+      { x: 12, y: 17, to: 'plaza', tx: 63, ty: 1, dir: 'down', walk: true },
+      { x: 13, y: 17, to: 'plaza', tx: 64, ty: 1, dir: 'down', walk: true },
     ],
     interact: [
       { id: 'mk_food', x: 4, y: 5, label: 'Puesto de dulces', action: 'shop:market_food' },

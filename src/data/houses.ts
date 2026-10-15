@@ -32,14 +32,15 @@ const used: Record<Trade, number> = { home: 0, tea: 0, fish: 0, flower: 0 };
 // when its building moves: the coordinates in the ID are historical, not a location parser.
 const PLACES: Partial<Record<string, Partial<Pick<HouseDef, 'zone' | 'x' | 'y'>>>> = {
   house_plaza_1_27: { x: 2, y: 28 },
+  house_plaza_46_15: { x: 40, y: 21 },
   house_plaza_24_27: { x: 9, y: 28 },
   house_plaza_8_36: { x: 18, y: 28 },
   house_plaza_18_27: { x: 25, y: 26 },
-  house_plaza_30_27: { x: 30, y: 33 },
+  house_plaza_30_27: { x: 40, y: 26 },
   house_plaza_18_36: { x: 22, y: 36 },
   house_plaza_1_36: { x: 2, y: 36 },
   house_plaza_24_36: { x: 31, y: 5 },
-  house_plaza_50_20: { x: 50, y: 23 },
+  house_plaza_50_20: { x: 48, y: 21 },
   house_garden_31_4: { x: 14, y: 17 },
   house_beach_40_9: { x: 39, y: 9 },
 };
