@@ -46,6 +46,7 @@ import { customerLook } from '../restaurant/customers';
 import { clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
 import { neighborOf } from '../restaurant/townClients';
 import { whatPlace, topicLine, type TalkCtx } from '../dialogue/topics';
+import { homeLayout } from '../art/homes';
 import { microFor } from '../systems/npcMicro';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
@@ -61,7 +62,9 @@ interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act
 /** kind: lamp (default, follows lamp level), spill = light from windows / doors, window = interior window light, ambient = soft room fill */
 interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window' | 'ambient'; facade?: boolean }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
-interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; facade: boolean; door: boolean; phase: number }
+interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; seed: number }
+const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
+interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
@@ -83,6 +86,7 @@ export class WorldScene extends Phaser.Scene {
   player!: Actor;
   npcs = new Map<string, NpcState>();
   private shopSigns: Phaser.GameObjects.Image[] = [];
+  private shopFacades: ShopFacade[] = [];
   private npcKey = '';
   private shopKey = '';
   private lifeTick = 0;
@@ -321,6 +325,7 @@ export class WorldScene extends Phaser.Scene {
     for (const o of this.objs) o.destroy();
     this.objs = [];
     this.windowGlows = [];
+    this.shopFacades = [];
     this.castList = [];
     this.lightKey = '';
     this.shadowKey = '';
@@ -424,8 +429,19 @@ export class WorldScene extends Phaser.Scene {
           const left = px - p.def.sw / 2;
           for (const lx of [44, 68]) this.lamps.push({ x: left + lx, y: top + p.def.sh - 24, r: 26, flicker: true, color: 0xff7a3a, glow: 0.6, facade: true });
         }
-        this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac);
-        if (fac) this.addWindowGlow(img, p.def.sw, p.def.sh, 0, true, true);
+        const shop = fac ? 'restaurant' : SHOP_OF_VARIANT[p.def.variant ?? -1];
+        this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac, shop);
+        if (fac) this.addWindowGlow(img, p.def.sw, p.def.sh, 0, true, true, shop);
+        if (shop) this.shopFacades.push({ img, propId: p.key, shop, closed: false });
+      }
+      if ((p.def.kind === 'townhouse' || p.def.kind === 'sidehouse') && (p.def.variant ?? 0) < 8) {
+        // houses: lit windows, the glass of the door and the porch lantern, and a pool of light on the path
+        const side = p.def.kind === 'sidehouse';
+        const hl = homeLayout(p.def.sw, p.def.sh, p.def.variant ?? 0, side);
+        const left = px - p.def.sw / 2, top = py - p.def.sh;
+        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, r: 24, flicker: false, color: 0xffb867, glow: 0.3, kind: 'spill', facade: false });
+        this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 26, flicker: true, color: 0xffaa55, glow: 0.45, kind: 'spill', facade: false });
+        this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front');
       }
       if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - p.def.sh + 6);
     }
@@ -2261,7 +2277,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private shopStamp() {
-    return ['taro', 'yuki', 'bento', 'sumi', 'nami', 'shells'].map((id) => shopGate(id).phase).join('');
+    const t = game.save.time;
+    return ['taro', 'yuki', 'bento', 'sumi', 'nami', 'shells', 'library'].map((id) => shopGate(id).phase).join('') + restaurantPhase(t.period, t.minutes);
   }
 
   /** Phase changes a few times per period. Off screen, nothing here runs. */
@@ -2283,7 +2300,20 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /** Each shop's front has an open and a closed drawing: shutters and a rolled awning when it is closed. */
+  private refreshShopFacades() {
+    const t = game.save.time;
+    for (const f of this.shopFacades) {
+      if (!f.img.active) continue;
+      const closed = f.shop === 'restaurant' ? restaurantPhase(t.period, t.minutes) !== 'open' : !shopGate(f.shop).open;
+      if (closed === f.closed && f.img.texture.key === propTexture(this, f.propId, closed)) continue;
+      f.closed = closed;
+      f.img.setTexture(propTexture(this, f.propId, closed));
+    }
+  }
+
   private refreshShopSigns() {
+    this.refreshShopFacades();
     for (const s of this.shopSigns) s.destroy();
     this.shopSigns = [];
     if (!this.zone) return;
@@ -2470,16 +2500,27 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** A warm overlay of lit windows (and the restaurant doorway) on top of a building sprite. Shown by updateWindowGlow. */
-  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean) {
-    const img = this.add.image(src.x, src.y, windowGlowTexture(this, W, H, rot, door)).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
+  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean, shop?: string, home?: 'front' | 'side') {
+    const img = this.add.image(src.x, src.y, windowGlowTexture(this, W, H, rot, door, home)).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
     this.objs.push(img);
-    this.windowGlows.push({ img, src, facade, door, phase: Math.random() * 6 });
+    this.windowGlows.push({ img, src, facade, door, phase: Math.random() * 6, shop, home: !!home, seed: (Math.round(src.x) * 7 + Math.round(src.y) * 13) % 10 });
   }
 
   /** Window light level of a facade (0..1): the restaurant follows its hours, everything else follows the evening. */
-  private facadeLevel(facade: boolean, door: boolean): number {
+  private facadeLevel(facade: boolean, door: boolean, g?: WindowGlow): number {
     const ls = this.ls;
     if (!ls) return 0;
+    if (g?.home) {
+      // houses: lit from dusk, and some go dark once it is late
+      const t = game.save.time;
+      const late = t.period === 3 && t.minutes > 45;
+      return late && g.seed % 3 === 0 ? 0 : late && g.seed % 3 === 1 ? ls.windows * 0.45 : ls.windows;
+    }
+    if (!facade && g?.shop) {
+      // shops: lit while they are open (in the evening), a faint light left on when closed
+      const ph = shopGate(g.shop).phase;
+      return ph === 'open' ? ls.windows : ph === 'closing' ? ls.windows * 0.6 : ls.windows * 0.12;
+    }
     if (!facade) return ls.windows;
     const t = game.save.time;
     const ph = restaurantPhase(t.period, t.minutes);
@@ -2493,7 +2534,7 @@ export class WorldScene extends Phaser.Scene {
     const lo = lowFx();
     for (const w of this.windowGlows) {
       if (!w.img.active) continue;
-      const lvl = this.facadeLevel(w.facade, w.door);
+      const lvl = this.facadeLevel(w.facade, w.door, w);
       // very slow breathing so lit windows feel alive (none in battery / reduced-motion mode)
       const breath = lo ? 1 : 1 + 0.04 * Math.sin(time * 0.9 + w.phase);
       const a = Math.min(0.85, lvl * 0.7 * breath) * w.src.alpha;
