@@ -28,7 +28,26 @@ const RAW: [HouseDef['zone'], Trade, 'l' | 'r', number, number, ('front' | 'side
   ['garden', 'tea', 'l', 25, 4, 'side'], ['garden', 'flower', 'r', 31, 4, 'side'],
 ];
 const used: Record<Trade, number> = { home: 0, tea: 0, fish: 0, flower: 0 };
-export const HOUSES: HouseDef[] = RAW.map(([zone, trade, side, x, y, view]) => ({ id: `house_${zone}_${x}_${y}`, zone, trade, side, view: view ?? 'front', x, y, name: NAMES[trade][used[trade]++ % NAMES[trade].length] }));
+// These IDs are addresses used by saved visits and neighbours. Keep the original ID even
+// when its building moves: the coordinates in the ID are historical, not a location parser.
+const PLACES: Partial<Record<string, Partial<Pick<HouseDef, 'zone' | 'x' | 'y'>>>> = {
+  house_plaza_1_27: { x: 2, y: 28 },
+  house_plaza_24_27: { x: 9, y: 28 },
+  house_plaza_8_36: { x: 18, y: 28 },
+  house_plaza_18_27: { x: 25, y: 26 },
+  house_plaza_30_27: { x: 30, y: 33 },
+  house_plaza_18_36: { x: 22, y: 36 },
+  house_plaza_1_36: { x: 2, y: 36 },
+  house_plaza_24_36: { x: 31, y: 5 },
+  house_plaza_50_20: { x: 50, y: 23 },
+  house_garden_31_4: { x: 14, y: 17 },
+  house_beach_40_9: { x: 39, y: 9 },
+};
+export const HOUSES: HouseDef[] = RAW.map(([zone, trade, side, x, y, view]) => {
+  const id = `house_${zone}_${x}_${y}`;
+  return { id, zone, trade, side, view: view ?? 'front', x, y,
+    name: NAMES[trade][used[trade]++ % NAMES[trade].length], ...PLACES[id] };
+});
 
 export const housesIn = (zone: HouseDef['zone']) => HOUSES.filter((h) => h.zone === zone);
 /** the porch door of a front house; the outer end of the gable for a house seen from the side */
@@ -38,7 +57,6 @@ export const housePropId = (h: HouseDef) => `bld_${h.view === 'side' ? 'sh' : 't
 /** a short cobbled path from the entrance of every side house, so it is clear where to go in */
 export function houseEntrancePaths(b: { g: string[][]; set(x: number, y: number, ch: string): unknown }, zone: HouseDef['zone']) {
   for (const h of housesIn(zone)) {
-    if (h.view !== 'side') continue;
     const [dx, dy] = houseDoorTile(h);
     for (const y of [dy + 1, dy + 2]) if ('gGsp'.includes(b.g[y]?.[dx] ?? 'x')) b.set(dx, y, 'c');
   }
