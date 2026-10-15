@@ -6,6 +6,7 @@ import type { Dir } from '../core/types';
 import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import { plaza } from './plazaMap';
 import { houseDoorDef, houseEntrancePaths, housePropId, housesIn, houseZones } from './houses';
+import { arrangeOutdoors } from './outdoorLayout';
 export { Builder, treeBorder, zone, RESTAURANT_ENTRY };
 
 export interface PropPlace { id: string; x: number; y: number; cond?: string; }
@@ -218,7 +219,7 @@ function beach(): ZoneDef {
   treeBorder(b, [[14, 0], [15, 0]], ['tree', 'pine']);
   b.prop('stall_sage', 5, 7).prop('stall_rose', 9, 7).prop('boat', 23, 14)
     .prop('crate', 21, 11).prop('barrel', 18, 11).prop('lantern_cream', 18, 12).prop('lantern_cream', 21, 12)
-    .prop('rock', 2, 12).prop('bigrock', 27, 10).prop('reeds', 1, 14).prop('reeds', 12, 14)
+    .prop('rock', 2, 12).prop('bigrock', 27, 13).prop('reeds', 1, 14).prop('reeds', 12, 14)
     .prop('bld_house', 24, 3).prop('lamppost', 13, 4).prop('lamppost', 17, 4)
     .prop('lighthouse', 2, 2, 'unlock_lighthouse_view')
     .prop('vending_red', 23, 5)
@@ -229,11 +230,11 @@ function beach(): ZoneDef {
   // east cove: shacks with their door on the side, boats pulled up on the sand, nets and rocks
   for (const h of housesIn('beach')) b.prop(housePropId(h), h.x, h.y);
   houseEntrancePaths(b, 'beach');
-  b.prop('boat', 31, 14).prop('boat', 44, 13).prop('bigrock', 36, 14).prop('bigrock', 42, 15).prop('rock', 46, 12).prop('rock', 33, 13).prop('stump', 30, 13)
+  b.prop('boat', 31, 14).prop('boat', 44, 13).prop('bigrock', 36, 14).prop('bigrock', 42, 15).prop('rock', 46, 14).prop('rock', 33, 13).prop('stump', 30, 13)
     .prop('crate', 37, 13).prop('barrel', 38, 13).prop('sack', 39, 11).prop('lanternstring', 34, 12).prop('lanternstring', 41, 12)
     .prop('lamppost', 31, 8).prop('lamppost', 44, 8).prop('lamppost', 37, 8).prop('lantern_cream', 37, 12).prop('lantern_cream', 40, 12)
     .prop('bench', 33, 7).prop('bench', 44, 7).prop('reeds', 30, 14).prop('reeds', 47, 14).prop('flowers', 36, 6).prop('pot_rose', 39, 7)
-    .prop('bush_flower', 30, 4).prop('bush', 46, 7).prop('sakura', 47, 3).prop('tree', 46, 9).prop('pine', 46, 10).prop('pot_cream', 35, 8)
+    .prop('bush_flower', 30, 4).prop('bush', 46, 7).prop('sakura', 47, 3).prop('pot_cream', 35, 8)
     .prop('lantern_cream', 37, 14).prop('lantern_cream', 40, 14);
   return zone(b, {
     id: 'beach', name: 'Playa de las Conchas', music: 'beach', outdoor: true,
@@ -300,7 +301,7 @@ function forest(): ZoneDef {
   b.prop('bld_cabin', 42, 2).prop('shrine', 44, 8).prop('torii_w4', 40, 10).prop('stonelantern', 39, 10).prop('stonelantern', 44, 10).prop('stonelantern', 41, 14).prop('stonelantern', 45, 14)
     .prop('reeds', 35, 12).prop('reeds', 38, 12).prop('reeds', 33, 13).prop('reeds', 40, 14).prop('reeds', 35, 2).prop('reeds', 38, 6)
     .prop('mushroom', 32, 16).prop('mushroom', 33, 17).prop('mushroom', 31, 17).prop('flowers_lav', 44, 5).prop('flowers', 46, 6).prop('flowers_lav', 43, 12)
-    .prop('stump', 38, 20).prop('bigrock', 44, 17).prop('rock', 32, 12).prop('bush_berry', 46, 6).prop('bush_berry', 31, 20).prop('sign', 40, 11);
+    .prop('stump', 38, 20).prop('bigrock', 44, 17).prop('rock', 32, 11).prop('bush_berry', 46, 6).prop('bush_berry', 31, 20).prop('sign', 40, 11);
   return zone(b, {
     id: 'forest', name: 'Bosque Susurrante', music: 'forest', outdoor: true,
     doors: [
@@ -500,5 +501,6 @@ const SIGNPOSTS: Record<string, [string, number, number][]> = {
   market: [['sign_plaza_down', 14, 15]],
 };
 for (const [zid, list] of Object.entries(SIGNPOSTS)) for (const [id, x, y] of list) ZONES[zid]?.props.push({ id, x, y });
+arrangeOutdoors(ZONES);
 
 export const ZONE_LIST = Object.keys(ZONES);

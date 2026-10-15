@@ -6,7 +6,6 @@
 import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import type { DoorDef, InteractDef, ZoneDef } from './zones';
 import { houseDoorDef, houseEntrancePaths, housePropId, housesIn } from './houses';
-import { PROPS } from './props';
 
 export const PLAZA_SIZE = { w: 58, h: 44 } as const;
 /** River centre column for each row (the water is 4 tiles wide: cx-2 .. cx+1). */
@@ -85,11 +84,11 @@ export function plaza(): ZoneDef {
     .prop('bld_restaurant_s3', 2, 4, 'stage=3')
     .prop('sake_barrel', 1, 6, 'stage>=2')
     .prop('sake_barrel', 1, 5, 'stage>=2')
-    .prop('bamboo', 8, 5, 'stage>=3')
+    .prop('bamboo', 1, 8, 'stage>=3')
     .prop('bamboo', 1, 7, 'stage>=3')
     .prop('flowers', 6, 6, 'stage>=1')
     // All shop doors retain their original tiles; Bento and Taro use the new frontage kit.
-    .prop('bld_th_clothes_r', 22, 4)
+    .prop('bld_clothes', 22, 4)
     .prop('bld_store', 23, 16)
     .prop('bld_bakery', 4, 16)
     .prop('bld_library', 8, 22)
@@ -199,7 +198,6 @@ export function plaza(): ZoneDef {
   b.prop('bench', 41, 33).prop('flowers', 50, 38).prop('flowers_lav', 53, 39);
   for (const y of [34, 38]) b.prop('puddle', 20 + y / 2, y, 'rain');
 
-  scatterFlowers(b, 20231, 34, ['flowers', 'flowers_lav', 'flowers', 'bush_flower']);
 
   const doors: DoorDef[] = [
     { x: 26, y: 6, to: 'shop_yuki', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Ropa de Yuki' },
@@ -265,32 +263,4 @@ export function plaza(): ZoneDef {
     fishing: 'lake',
     bugs: true,
   });
-}
-
-
-/**
- * Small flowers and the odd flowering bush on open grass only: never next to a path, a door or another prop,
- * so the ground is varied without being covered. The same tiles every time (seeded).
- */
-function scatterFlowers(b: Builder, seed: number, count: number, kinds: string[]) {
-  const taken = new Set<string>();
-  for (const p of b.props) {
-    const def = PROPS[p.id];
-    for (let j = -1; j <= (def?.h ?? 1); j++) for (let i = -1; i <= (def?.w ?? 1); i++) taken.add(`${p.x + i},${p.y + j}`);
-  }
-  const open = (x: number, y: number) => {
-    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (b.g[y + j]?.[x + i] !== 'g') return false;
-    return !taken.has(`${x},${y}`);
-  };
-  let n = seed;
-  const next = () => (n = (n * 1664525 + 1013904223) >>> 0) / 4294967296;
-  let placed = 0;
-  for (let tries = 0; tries < count * 40 && placed < count; tries++) {
-    const x = 2 + Math.floor(next() * 28), y = 2 + Math.floor(next() * 30);
-    if (!open(x, y)) continue;
-    const kind = kinds[placed % kinds.length];
-    b.prop(kind, x, y);
-    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) taken.add(`${x + i},${y + j}`);
-    placed++;
-  }
 }

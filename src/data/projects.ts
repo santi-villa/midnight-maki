@@ -92,12 +92,12 @@ export const PROJECTS_BY_ID: Record<string, ProjectDef> = Object.fromEntries(PRO
 export const PROJECT_PROPS: Record<string, [string, number, number, number?][][]> = {
   plaza_garden: [
     [['flowers', 4, 9], ['flowers', 6, 9], ['flowers', 28, 9], ['flowers', 30, 9]],
-    [['bench', 4, 17], ['bench', 24, 17]],
+    [['bench', 6, 10], ['bench', 32, 17]],
     [['project_teatable', 27, 9, 4]],
     [['project_teagames', 27, 9]],
   ],
   plaza_lights: [
-    [['lamppost', 8, 14], ['lamppost', 23, 14]],
+    [['street_lamp_l', 8, 14], ['street_lamp_r', 23, 14]],
     [['stonelantern', 6, 19], ['stonelantern', 24, 19]],
     [['crate', 24, 10, 4]],
     [['project_workbox', 24, 10]],
@@ -105,8 +105,8 @@ export const PROJECT_PROPS: Record<string, [string, number, number, number?][][]
   beach_corner: [
     [['boat', 10, 14]],
     [['lantern_red', 17, 13], ['lantern_red', 22, 13]],
-    [['sack', 16, 10]],
-    [['bench', 13, 10], ['flowers', 14, 8]],
+    [['sack', 17, 9]],
+    [['bench', 12, 13], ['flowers', 14, 8]],
   ],
   forest_clearing: [
     [['bench', 10, 10], ['lantern_cream', 8, 10]],
@@ -130,13 +130,13 @@ export interface ProjectAmenity {
 export const PROJECT_AMENITIES: ProjectAmenity[] = [
   { id: 'tea_table', project: 'plaza_garden', phase: 3, zone: 'plaza', x: 28, y: 10, title: 'Mesa compartida', items: { ginger: 2, g_candy: 1 }, game: 'memory', gamePhase: 4, opponent: 'pip' },
   { id: 'workshop', project: 'plaza_lights', phase: 3, zone: 'plaza', x: 24, y: 11, title: 'Puesto de mantenimiento', items: { wood: 1, stone: 1 }, game: 'sort', gamePhase: 4 },
-  { id: 'fisher_box', project: 'beach_corner', phase: 3, zone: 'beach', x: 16, y: 11, title: 'Cajón de los pescadores', items: { nori: 2, ginger: 1 } },
+  { id: 'fisher_box', project: 'beach_corner', phase: 3, zone: 'beach', x: 17, y: 10, title: 'Cajón de los pescadores', items: { nori: 2, ginger: 1 } },
   { id: 'forest_games', project: 'forest_clearing', phase: 3, zone: 'forest', x: 12, y: 10, title: 'Mesa del claro', game: 'memory', opponent: 'rigg' },
   { id: 'seed_bank', project: 'garden_lanterns', phase: 3, zone: 'garden', x: 7, y: 9, title: 'Banco de semillas', items: { sd_flower: 1, sd_cucumber: 1 } },
 ];
 export const PROJECT_GATHER = [
   { project: 'beach_corner', phase: 4, zone: 'beach', x: 14, y: 8, pool: ['sh_scallop', 'sh_spiral'] },
-  { project: 'beach_corner', phase: 4, zone: 'beach', x: 17, y: 10, pool: ['sh_scallop', 'sh_blue'] },
+  { project: 'beach_corner', phase: 4, zone: 'beach', x: 18, y: 10, pool: ['sh_scallop', 'sh_blue'] },
   { project: 'forest_clearing', phase: 4, zone: 'forest', x: 11, y: 7, pool: ['wood', 'berry'] },
   { project: 'forest_clearing', phase: 4, zone: 'forest', x: 15, y: 8, pool: ['fl_bell', 'berry'] },
 ];
