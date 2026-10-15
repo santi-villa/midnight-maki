@@ -5,6 +5,7 @@ import { carryCapacity } from '../restaurant/carry';
 import { STARTER_CLOTHES } from '../data/clothes';
 import { FURN_BY_ID } from '../data/furniture';
 import { newSave, SAVE_VERSION } from '../core/state';
+import { grantStarterRod } from '../systems/rods';
 import type { SaveData } from '../core/types';
 
 type Migration = (s: any) => any;
@@ -90,6 +91,7 @@ export function validateSave(raw: unknown): SaveData {
     if (!Number.isFinite(q) || q <= 0) delete out.inventory[id];
     else out.inventory[id] = Math.floor(q);
   }
+  grantStarterRod(out);
   for (const [id, q] of Object.entries(out.furnitureOwned as Record<string, number>)) {
     if (!Number.isFinite(q) || q <= 0) delete out.furnitureOwned[id];
   }

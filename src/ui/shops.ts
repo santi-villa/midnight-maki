@@ -11,8 +11,10 @@ import { ITEMS_BY_ID, PACKS, type ItemCat } from '../data/items';
 import { runScene, say } from '../dialogue/dialogue';
 import { shopGate } from '../systems/npcs';
 import { shopInteractionText } from '../systems/schedule';
+import { quoteFishSale, rarityLabel } from '../systems/fishMarket';
+import { commitRodPlan, planRodPurchase, ROD_BY_ID, type RodDef, type RodPlan, type RodWallet } from '../systems/rods';
 import { previewCanvas } from './creator';
-import { h, panel, toast } from './dom';
+import { confirmBox, h, panel, toast } from './dom';
 
 type Entry = { kind: 'item' | 'furn' | 'cloth' | 'floor' | 'wall'; id: string; price: number };
 
@@ -46,6 +48,7 @@ export const SHOPS: Record<string, ShopDef> = {
       { name: 'Muebles', list: () => furn('taro') },
       { name: 'Pisos y paredes', list: styles },
       { name: 'Regalos', list: () => items(['g_candy', 'g_tea', 'g_blanket', 'g_book', 'g_hotsauce']) },
+      { name: 'Caña', list: () => [] },
     ],
     sell: ['fish', 'flower', 'shell', 'material', 'bug', 'ingredient'],
   },
@@ -62,7 +65,11 @@ export const SHOPS: Record<string, ShopDef> = {
   },
   nami: {
     title: 'Puesto de pescado', keeper: 'nami', greet: '¡Fresquito del mar! Y si pescaste algo, te lo compro.',
-    tabs: [{ name: 'Pescado', list: () => items(['salmon', 'tuna', 'shrimp', 'eel', 'roe', 'crab'], 0.9) }, { name: 'Cajas de pescado', list: () => packEntries(['salmon', 'tuna', 'shrimp', 'eel', 'roe', 'crab']) }],
+    tabs: [
+      { name: 'Pescado', list: () => items(['salmon', 'tuna', 'shrimp', 'eel', 'roe', 'crab'], 0.9) },
+      { name: 'Cajas de pescado', list: () => packEntries(['salmon', 'tuna', 'shrimp', 'eel', 'roe', 'crab']) },
+      { name: 'Cañas', list: () => [] },
+    ],
     sell: ['fish'],
   },
   shells: {
@@ -198,7 +205,9 @@ export async function openShop(id: string) {
     coins.textContent = `${game.coins} monedas`;
     body.innerHTML = '';
     if (current >= s.tabs.length) return renderSell();
-    const list = s.tabs[current].list();
+    const tab = s.tabs[current];
+    if (tab.name === 'Caña' || tab.name === 'Cañas') return renderRods(tab.name === 'Caña' ? ['rod_basic'] : ['rod_basic', 'rod_better', 'rod_advanced']);
+    const list = tab.list();
     if (list.some((e) => e.kind === 'cloth')) body.append(fitting);
     const grid = h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' } });
     if (!list.length) grid.append(h('p', { class: 'muted' }, '¡Ya tenés todo de acá!'));
@@ -217,15 +226,84 @@ export async function openShop(id: string) {
     }
     body.append(grid);
   };
+  const rodWallet = (): RodWallet => ({ coins: game.coins, inventory: game.save.inventory, fishCaught: game.save.stats.fishCaught ?? 0 });
+  const costLine = (rod: RodDef) => {
+    const bits = [`${rod.price} ●`];
+    for (const [item, qty] of Object.entries(rod.items ?? {})) bits.push(`${qty} ${ITEMS_BY_ID[item]?.name ?? item}`);
+    if (rod.caught) bits.push(`${rod.caught} peces`);
+    return bits.join(' · ');
+  };
+  const buyRod = async (plan: RodPlan, label: string) => {
+    if (!canTrade()) { render(); return; }
+    if (Object.keys(plan.take).length) {
+      const ok = await confirmBox(`¿${label} ${plan.name} por ${plan.price} monedas? La mejora usa la caña anterior y los materiales.`, label, 'Cancelar');
+      if (!ok) return;
+    }
+    const fresh = planRodPurchase(rodWallet(), plan.id);
+    if (typeof fresh === 'string') { toast(fresh); render(); return; }
+    if (!commitRodPlan(fresh)) { toast('No se pudo completar la compra.'); render(); return; }
+    audio.sfxPlay('coin');
+    toast(`Conseguiste: ${fresh.name}.`);
+    render();
+  };
+  const renderRods = (ids: string[]) => {
+    const trading = canTrade(false);
+    const wallet = rodWallet();
+    const grid = h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' } });
+    for (const id of ids) {
+      const rod = ROD_BY_ID[id];
+      const plan = planRodPurchase(wallet, id);
+      const owned = typeof plan === 'string' && plan.startsWith('Ya tenés');
+      const slot = h('div', { class: 'slot' }, iconElement(ITEMS_BY_ID[id].icon), h('span', null, rod.name), h('span', { class: 'hint' }, rod.blurb), h('span', { class: 'price' }, costLine(rod)));
+      if (owned) slot.append(h('span', { class: 'hint' }, 'Ya la tenés.'));
+      else if (typeof plan === 'string') slot.append(h('span', { class: 'hint' }, plan));
+      else slot.append(h('button', { class: 'btn small', disabled: !trading, onclick: () => void buyRod(plan, rod.tier === 0 ? 'Comprar' : 'Mejorar') }, rod.tier === 0 ? 'Comprar' : 'Mejorar'));
+      grid.append(slot);
+    }
+    body.append(h('p', { class: 'hint' }, 'Una caña mejor ayuda, pero el pez todavía se puede escapar.'), grid);
+  };
+  const sellFish = async (id: string, qty: number) => {
+    if (!canTrade()) { render(); return; }
+    const it = ITEMS_BY_ID[id];
+    const sale = quoteFishSale(it.sell, game.count(id), qty);
+    if (!sale) { toast('Elegí una cantidad que tengas.'); return; }
+    const ok = await confirmBox(`¿Vender ${sale.qty} ${it.name} por ${sale.total} monedas? Lo que ya está en tu colección sigue en el álbum.`, 'Vender', 'Cancelar');
+    if (!ok || !canTrade()) { render(); return; }
+    const again = quoteFishSale(it.sell, game.count(id), sale.qty);
+    if (!again || !game.removeItem(id, again.qty)) { render(); return; }
+    game.addCoins(again.total, 'sell');
+    audio.sfxPlay('coin');
+    render();
+  };
   const renderSell = () => {
     const sellable = Object.keys(game.save.inventory).filter((id) => s.sell!.includes(ITEMS_BY_ID[id]?.cat) && (ITEMS_BY_ID[id]?.sell ?? 0) > 0);
     const grid = h('div', { class: 'grid' });
     if (!sellable.length) grid.append(h('p', { class: 'muted' }, 'No tenés nada que te compren acá.'));
+    const trading = canTrade(false);
     for (const id of sellable) {
       const it = ITEMS_BY_ID[id];
-      grid.append(h('div', { class: 'slot' }, h('span', { class: 'qty' }, game.count(id)), iconElement(it.icon), h('span', null, it.name), h('span', { class: 'price' }, `${it.sell} ●`), h('button', { class: 'btn small', disabled: !canTrade(false), onclick: () => { if (!canTrade()) { render(); return; } if (game.removeItem(id, 1)) { game.addCoins(it.sell, 'sell'); audio.sfxPlay('coin'); render(); } } }, 'Vender')));
+      if (it.cat !== 'fish') {
+        grid.append(h('div', { class: 'slot' }, h('span', { class: 'qty' }, game.count(id)), iconElement(it.icon), h('span', null, it.name), h('span', { class: 'price' }, `${it.sell} ●`), h('button', { class: 'btn small', disabled: !trading, onclick: () => { if (!canTrade()) { render(); return; } if (game.removeItem(id, 1)) { game.addCoins(it.sell, 'sell'); audio.sfxPlay('coin'); render(); } } }, 'Vender')));
+        continue;
+      }
+      let pick = 1;
+      const count = h('span', null, '1');
+      const paint = () => { count.textContent = String(pick); };
+      grid.append(h('div', { class: 'slot' },
+        h('span', { class: 'qty' }, game.count(id)),
+        iconElement(it.icon),
+        h('span', null, it.name),
+        h('span', { class: 'hint' }, `${rarityLabel(it.rarity)} · ${it.sell} ● c/u`),
+        h('div', { class: 'row', style: { gap: '4px', justifyContent: 'center' } },
+          h('button', { type: 'button', class: 'btn small', onclick: () => { pick = Math.max(1, pick - 1); paint(); } }, '−'),
+          count,
+          h('button', { type: 'button', class: 'btn small', onclick: () => { pick = Math.min(game.count(id), pick + 1); paint(); } }, '+'),
+          h('button', { type: 'button', class: 'btn small', disabled: !trading, onclick: () => void sellFish(id, pick) }, 'Vender'))));
     }
-    body.append(h('p', { class: 'hint' }, 'Lo que ya registraste en tu colección queda guardado aunque lo vendas.'), grid);
+    const note = sellable.some((id) => ITEMS_BY_ID[id]?.cat === 'fish')
+      ? 'Elegí cuántos peces vender. No se vende el resto solo. La colección guarda lo que ya registraste.'
+      : 'Lo que ya registraste en tu colección queda guardado aunque lo vendas.';
+    body.append(h('p', { class: 'hint' }, note), grid);
   };
   const bar = h('div', { class: 'tabs' });
   const btns = tabNames.map((n, i) => h('button', { class: 'tab' + (i === 0 ? ' active' : ''), onclick: () => { current = i; btns.forEach((b, j) => b.classList.toggle('active', j === i)); render(); } }, n));

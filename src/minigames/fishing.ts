@@ -8,19 +8,27 @@ import { settings } from '../core/settings';
 import { game } from '../core/state';
 import { ITEMS_BY_ID } from '../data/items';
 import { obtain, rollFish } from '../systems/collect';
+import { bestRod, greenZone, tuneOf } from '../systems/rods';
 import { h, toast } from '../ui/dom';
 import { shell } from './common';
 
 export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
   return new Promise((resolve) => {
+    const equipped = bestRod(game.save.inventory);
+    if (!equipped) {
+      toast('Para pescar hace falta una caña.');
+      resolve(null);
+      return;
+    }
+    const tune = tuneOf(equipped.id);
     const W = 80;
     const H = 160;
     let state: 'wait' | 'bite' | 'reel' | 'end' = 'wait';
-    const roll = rollFish(kind);
+    const roll = rollFish(kind, tune.rare);
     const it = ITEMS_BY_ID[roll.id];
     const icon = iconCanvas(it.icon);
     const relaxed = settings.cookMode === 'relaxed';
-    const zoneH = (relaxed ? 52 : 42) - roll.difficulty * 3;
+    const zoneH = greenZone(roll.difficulty, relaxed, tune);
     let zoneY = H - zoneH - 10;
     let zoneV = 0;
     let fishY = H / 2;
@@ -28,12 +36,12 @@ export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
     let fishTarget = H / 2;
     let progress = 0.3;
     let holding = false;
-    let waitT = 1.2 + Math.random() * 2.5;
+    let waitT = (1.2 + Math.random() * 2.5) * tune.bite;
     let biteT = 0;
     let raf = 0;
     let last = performance.now();
     const sh = shell(kind === 'sea' ? 'Pesca en el mar' : 'Pesca en el lago', W, H, 2, () => end(false));
-    sh.info.textContent = 'Esperá a que piquen...';
+    sh.info.textContent = `${tune.name}. Esperá a que piquen...`;
     const btn = h('button', { class: 'btn primary', style: { minWidth: '160px', minHeight: '56px' } }, 'Mantener');
     sh.buttons.append(btn);
     const down = (e: Event) => {
@@ -97,7 +105,7 @@ export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
         g.fillRect(W / 2 - 2, 36 + bob, 4, 3);
         if (waitT <= 0) {
           state = 'bite';
-          biteT = relaxed ? 3 : 1.6;
+          biteT = (relaxed ? 3 : 1.6) * tune.hook;
           audio.sfxPlay('bite');
           sh.info.textContent = '¡Picó! ¡Tocá ahora!';
         }
@@ -123,12 +131,12 @@ export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
         }
         fishY += (fishTarget - fishY) * dt * (1 + roll.difficulty * 0.6) * (relaxed ? 0.7 : 1);
         // player zone physics
-        zoneV += (holding ? -260 : 200) * dt;
+        zoneV += (holding ? -260 : 200) * dt * tune.control;
         zoneV *= 0.9;
         zoneY = Math.max(0, Math.min(H - zoneH, zoneY + zoneV * dt));
         if (zoneY === 0 || zoneY === H - zoneH) zoneV = 0;
         const inside = fishY > zoneY && fishY < zoneY + zoneH;
-        progress += (inside ? 0.32 : relaxed ? -0.1 : -0.18) * dt;
+        progress += (inside ? 0.32 * tune.gain : relaxed ? -0.1 : -0.18) * dt;
         g.fillStyle = 'rgba(155,220,140,.55)';
         g.fillRect(14, zoneY, W - 34, zoneH);
         g.strokeStyle = '#e8f5e0';
