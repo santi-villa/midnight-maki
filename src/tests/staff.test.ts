@@ -3,9 +3,9 @@ import { game, newSave } from '../core/state';
 import { playerBusy } from '../restaurant/claims';
 import { validateSave } from '../persistence/validate';
 import type { FurnPiece } from '../restaurant/floor';
-import { guestViews, pickupPlate, plateState, resetService, spawnGuest, stagePlate, stepService, takeOrderAt, tableJobs } from '../restaurant/service';
+import { deliverTo, guestViews, pickupPlate, plateState, resetService, spawnGuest, stagePlate, stepService, takeOrderAt, tableJobs } from '../restaurant/service';
 import {
-  COOK_SECONDS, candidates, riggCapacity, upgradeRiggTray, crew, employees, hire, orderSecondsFor, payWages, resetStaffRuntime, runtime, setCrew, staffLimit, tickStaff, trainCrew, type StaffEnv,
+  COOK_SECONDS, candidates, riggCapacity, setRestock, upgradeRiggTray, crew, employees, hire, orderSecondsFor, payWages, resetStaffRuntime, runtime, setCrew, staffLimit, tickStaff, trainCrew, type StaffEnv,
 } from '../restaurant/staff';
 
 const FAST = { approach: 1, walk: 1, settle: 1, eat: 1, pay: 1, leave: 1 };
@@ -22,7 +22,7 @@ const line = (a: { x: number; y: number }, b: { x: number; y: number }): [number
 /** the raccoons teleport to where they are told: movement is the town's job, not the crew's */
 const pos: Record<string, { x: number; y: number }> = { rigg: { x: 2, y: 2 }, spicy: { x: 3, y: 2 } };
 const env: StaffEnv = {
-  home: () => ({ x: 1, y: 1 }), tray: () => ({ x: 6, y: 5 }), stove: () => ({ x: 5, y: 3 }),
+  home: () => ({ x: 1, y: 1 }), tray: () => ({ x: 6, y: 5 }), stove: () => ({ x: 5, y: 3 }), pantry: () => ({ x: 2, y: 3 }),
   tableSpots: () => [{ x: 4, y: 3 }], path: (a, b) => line(a, b),
   crew: { where: (id) => ({ zone: 'restaurant', ...(pos[id] ?? { x: 0, y: 0 }), settled: true }), move: (id, t) => { if (t) pos[id] = { ...t }; }, working: () => true },
 };
@@ -180,6 +180,42 @@ describe('restaurant crew', () => {
     for (let t = 0; t < 60; t += 0.25) { tickStaff(0.25, env); const r = runtime.get('rigg'); if (r) best = Math.max(best, r.queue.length + (r.carrying != null ? 1 : 0)); }
     expect(best).toBe(2);
     expect(game.save.orders.filter((o) => o.plate?.state === 'delivered')).toHaveLength(2);
+  });
+
+  it('a hired cashier picks up the tip left on the table', () => {
+    game.save.restaurant.level = 5; game.save.coins = 1000;
+    expect(hire(candidates('cashier')[0])).toBeNull();
+    seatGuest();
+    takeOrderAt('1');
+    for (const o of [...game.save.orders]) { stagePlate(o.uid, 2); pickupPlate(o.uid); deliverTo('1'); }
+    stepService(1); stepService(1);
+    expect(tableJobs()[0]).toMatchObject({ status: 'tip' });
+    const before = game.coins;
+    run(40);
+    expect(game.coins).toBeGreaterThan(before);
+    expect(tableJobs()).toEqual([]);
+  });
+
+  it('a hired helper keeps the pantry stocked at the cost of the restaurant, within its capacity', () => {
+    game.save.restaurant.level = 6; game.save.coins = 1000;
+    expect(hire(candidates('helper')[0])).toBeNull();
+    game.save.inventory = {};
+    setRestock('rice', 6);
+    const before = game.coins;
+    run(40);
+    expect(game.pantryCount('rice')).toBe(0);
+    run(40);
+    expect(game.pantryCount('rice')).toBeGreaterThanOrEqual(6);
+    expect(game.coins).toBeLessThan(before);
+    // nothing more to bring once it has enough
+    const once = game.coins;
+    run(120);
+    expect(game.coins).toBe(once);
+    // a full pantry is never overfilled
+    game.setPantry('nori', 59); game.setPantry('rice', 0);
+    setRestock('rice', 20);
+    run(200);
+    expect(Object.values(game.save.pantry ?? {}).reduce((n, q) => n + q, 0)).toBeLessThanOrEqual(60);
   });
 
   it('pays wages daily, leaves unpaid staff idle, and keeps the crew when the game is saved and loaded', () => {

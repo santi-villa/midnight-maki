@@ -677,6 +677,7 @@ export class WorldScene extends Phaser.Scene {
         return out;
       },
       stove: () => { const [x, y] = near(5, 4); return { x, y }; },
+      pantry: () => { const [x, y] = near(1, 4); return { x, y }; },
       path: (a, b) => grid.path(a.x, a.y, b.x, b.y),
       crew: {
         where: (id) => {
