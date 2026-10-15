@@ -43,6 +43,7 @@ import { layoutSpeech } from '../ui/speechLayout';
 import { customerLook } from '../restaurant/customers';
 import { clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
 import { neighborOf } from '../restaurant/townClients';
+import { whatPlace } from '../dialogue/topics';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
@@ -1574,9 +1575,31 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private async offerGift(id: string) {
-    const { pickGift, giveGift } = await import('../dialogue/talk');
-    const item = await pickGift();
-    if (item) await giveGift(id, item);
+    const { giftMenu } = await import('../dialogue/talk');
+    await giftMenu(id);
+  }
+
+  /** The same for an ambient neighbour. */
+  neighborSituation(id: string): { act?: import('../data/characters').NpcAct | 'ride' | 'walk'; place?: string; zone: string; others: { name: string; what: string }[] } {
+    const st = this.neighborLife.state.get(id);
+    const others = [...this.neighborLife.state.values()].filter((s) => s.n.id !== id && s.place.kind !== 'home' && s.trip.settled).slice(0, 4)
+      .map((s) => ({ name: s.n.name, what: whatPlace(s.ride ? 'ride' : s.place.kind) }));
+    if (!st) return { zone: this.zoneId, others };
+    const kind = st.place.kind;
+    const act = st.ride && st.trip.moving ? 'ride' : st.trip.moving ? 'walk' : st.place.act === 'look' ? undefined : st.place.act;
+    return { act, place: kind === 'sea' || kind === 'fountain' || kind === 'bench' || kind === 'garden' || kind === 'forest' || kind === 'market' || kind === 'read' || kind === 'stroll' ? kind : undefined, zone: st.place.zone, others };
+  }
+
+  /** What a story character is doing and seeing right now, and what some neighbours are up to (for conversation topics). */
+  talkSituation(id: string): { act?: import('../data/characters').NpcAct | 'ride' | 'walk'; place?: string; zone: string; others: { name: string; what: string }[] } {
+    const n = this.npcs.get(id), a = n?.actor.act;
+    const act = a && a !== 'idle' ? (a as import('../data/characters').NpcAct) : n?.actor.moving ? 'walk' : undefined;
+    const zone = this.zoneId;
+    const place = zone === 'library' ? 'read' : zone === 'beach' ? 'sea' : ['garden', 'forest', 'market'].includes(zone) ? zone
+      : zone === 'plaza' && n && Math.hypot(n.actor.tx - 15, n.actor.ty - 12) < 8 ? 'fountain' : zone === 'plaza' ? 'stroll' : undefined;
+    const others = [...this.neighborLife.state.values()].filter((s) => s.place.kind !== 'home' && s.trip.settled).slice(0, 4)
+      .map((s) => ({ name: s.n.name, what: whatPlace(s.ride ? 'ride' : s.place.kind) }));
+    return { act, place, zone, others };
   }
 
   private greetNeighbor(id: string) {

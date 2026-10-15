@@ -10,6 +10,8 @@ import { h, panel, toast } from '../ui/dom';
 import { choose, runScene, say } from './dialogue';
 import { GIFT_REACT, LINES, type Line } from './lines';
 import { clock } from '../systems/time';
+import { FURN_BY_ID } from '../data/furniture';
+import { TOPIC_LABEL, topicLine, type TalkCtx, type Topic } from './topics';
 
 const lastLine: Record<string, string> = {};
 let currentZone = '';
@@ -61,6 +63,7 @@ export async function talkTo(id: string) {
   const def = CHAR_BY_ID[id];
   if (!def) return;
   const side = await import('../quests/side');
+  const next: { run: (() => Promise<void>) | null } = { run: null };
   await runScene('talk_' + id, async () => {
     const qt = side.questTalk(id);
     if (qt) await say(id, qt.text, 'happy');
@@ -91,28 +94,128 @@ export async function talkTo(id: string) {
       const up = game.addFriendship(id, BALANCE.talkPoints);
       if (up) await friendshipUp(id, up);
     }
-    const opts = ['Charlar un rato', 'Regalar algo', ...(RACCOONS.includes(id) && game.friendLevel(id) >= 1 ? ['Cambiar su atuendo'] : []), 'Nada, solo saludar'];
-    const c = await choose(opts);
-    const pick = opts[c];
-    if (pick === 'Charlar un rato') {
-      const l2 = pickLine(id);
-      if (l2) {
-        lastLine[id] = l2.t;
-        await say(id, l2.t, l2.e ?? 'neutral');
-        if (l2.set) game.setFlag(l2.set);
-      }
-    } else if (pick === 'Regalar algo') {
-      const item = await pickGift();
-      if (item) {
-        await giveGift(id, item);
-      } else {
-        await say(id, 'No te preocupes, en otro momento.', 'neutral');
-      }
-    } else if (pick === 'Cambiar su atuendo') {
-      const { openRaccoonOutfit } = await import('../ui/wardrobe');
-      openRaccoonOutfit(id);
+    // the hub: every conversation can go on to chat, give a gift or do something together
+    const ctx = await talkContext(id);
+    const raccoon = RACCOONS.includes(id);
+    for (;;) {
+      const opts = ['Charlar…', 'Regalar…', 'Más acciones…', 'Nada, solo saludar'];
+      const pick = opts[await choose(opts)];
+      if (pick === 'Charlar…') await chatMenu(id, ctx, async () => {
+        const l = pickLine(id);
+        if (l) { lastLine[id] = l.t; await say(id, l.t, l.e ?? 'neutral'); if (l.set) game.setFlag(l.set); }
+      });
+      else if (pick === 'Regalar…') { if (await giftMenu(id)) break; }
+      else if (pick === 'Más acciones…') {
+        const act = await moreMenu(id, ctx, raccoon);
+        if (act) { next.run = act; break; }
+      } else break;
     }
   });
+  if (next.run) await next.run();
+}
+
+/** The common part of a conversation's surroundings (time, weather, the restaurant, who is around). */
+export async function baseTalkContext(id: string): Promise<TalkCtx> {
+  const { guestViews } = await import('../restaurant/service');
+  const { restaurantPhase } = await import('../systems/schedule');
+  const t = game.save.time;
+  return {
+    id, zone: currentZone,
+    period: t.period, rain: game.flag('weather') === 'rain', festival: !!game.flag('festival_today'),
+    open: restaurantPhase(t.period, t.minutes) === 'open', guests: guestViews().length,
+    level: game.save.restaurant.level, reputation: game.save.restaurant.reputation, friend: CHAR_BY_ID[id] ? game.friendLevel(id) : 0, day: t.day,
+  };
+}
+
+/** What happens right now around the one we are talking to. */
+async function talkContext(id: string): Promise<TalkCtx> {
+  const { world } = await import('../scenes/WorldScene');
+  const sit = world.talkSituation(id);
+  return { ...(await baseTalkContext(id)), act: sit.act, place: sit.place, others: sit.others, zone: currentZone || sit.zone };
+}
+
+/** The topics menu. `who` is the speaker's name for the dialogue box; `free` says something random. */
+export async function chatMenu(who: string, ctx: TalkCtx, free: () => Promise<void>) {
+  const topics: Topic[] = ['how', 'doing', 'town', 'news', 'restaurant'];
+  for (;;) {
+    const labels = ['Charlar de lo que sea', ...topics.map((t) => TOPIC_LABEL[t]), 'Volver'];
+    const c = await choose(labels, 'player', 'Charlar…');
+    if (c === labels.length - 1) return;
+    if (c === 0) { await free(); continue; }
+    const topic = topics[c - 1];
+    await say('player', TOPIC_LABEL[topic]);
+    const l = topicLine(topic, ctx);
+    await say(who, l.t, l.e ?? 'neutral');
+  }
+}
+
+/** Gifts, from the bag or from the stored furniture. Returns true when something was given. */
+export async function giftMenu(id: string): Promise<boolean> {
+  const hasFurn = Object.values(game.save.furnitureOwned).some((n) => n > 0);
+  const opts = ['Un objeto de la mochila', ...(hasFurn ? ['Un mueble guardado'] : []), 'Volver'];
+  const c = opts[await choose(opts, 'player', 'Regalar…')];
+  if (c === 'Un objeto de la mochila') {
+    const item = await pickGift();
+    if (item) { await giveGift(id, item); return true; }
+    await say(id, 'No te preocupes, en otro momento.', 'neutral');
+  } else if (c === 'Un mueble guardado') {
+    const furn = await pickFurnitureGift();
+    if (furn) { await giveFurnitureGift(id, furn); return true; }
+  }
+  return false;
+}
+
+/** Something to do together: a photo, a joke, sitting beside them. Returns what to run after the conversation, if anything. */
+async function moreMenu(id: string, ctx: TalkCtx, raccoon: boolean): Promise<(() => Promise<void>) | null> {
+  const def = CHAR_BY_ID[id];
+  const { world } = await import('../scenes/WorldScene');
+  const company = raccoon && world.canKeepCompany(id);
+  const opts = ['Sacarnos una foto', 'Contarle un chiste', ...(company ? ['Sentarnos juntos', 'Compartir una merienda', 'Jugar', 'Acariciar'] : []),
+    ...(raccoon && game.friendLevel(id) >= 1 ? ['Cambiar su atuendo'] : []), 'Volver'];
+  const pick = opts[await choose(opts, 'player', 'Más acciones…')];
+  if (pick === 'Contarle un chiste') {
+    const l = topicLine('joke', ctx);
+    await say('player', l.joke!);
+    await say(id, l.t, l.e ?? 'happy');
+    return null;
+  }
+  if (pick === 'Sacarnos una foto') return async () => { await import('../ui/camera').then((m) => m.takePhoto()); };
+  if (pick === 'Cambiar su atuendo') return async () => { const { openRaccoonOutfit } = await import('../ui/wardrobe'); openRaccoonOutfit(id); };
+  const kind = ({ 'Sentarnos juntos': 'sit', 'Compartir una merienda': 'share', Jugar: 'play', Acariciar: 'pet' } as const)[pick as 'Jugar'];
+  if (kind) return async () => { await world.keepCompany(id, kind); };
+  void def;
+  return null;
+}
+
+function pickFurnitureGift(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const owned = Object.entries(game.save.furnitureOwned).filter(([id, n]) => n > 0 && FURN_BY_ID[id]);
+    let chosen: string | null = null;
+    const grid = h('div', { class: 'grid' });
+    for (const [fid, n] of owned) {
+      grid.append(h('button', { class: 'slot', onclick: () => { chosen = fid; p.close(); } }, h('span', null, FURN_BY_ID[fid].name), h('span', { class: 'qty' }, n)));
+    }
+    const p = panel({ title: 'Elegí un mueble para regalar', body: grid, onClose: () => resolve(chosen) });
+  });
+}
+
+async function giveFurnitureGift(id: string, furn: string) {
+  const def = CHAR_BY_ID[id], f = FURN_BY_ID[furn];
+  const r = game.rel(id);
+  if (!def || !f) return;
+  if (r.lastGiftDay === game.save.time.day) { await say(id, 'Ya me diste algo hoy. ¡Guardalo para otro día!', 'happy'); return; }
+  if (!(game.save.furnitureOwned[furn] > 0)) { await say(id, 'Parece que ya no tenés ese mueble.', 'neutral'); return; }
+  game.save.furnitureOwned[furn]--;
+  if (!game.save.furnitureOwned[furn]) delete game.save.furnitureOwned[furn];
+  r.lastGiftDay = game.save.time.day;
+  game.stat('gifts');
+  const loved = f.likes?.includes(id) ?? false;
+  const up = game.addFriendship(id, loved ? BALANCE.giftLoved : BALANCE.giftNeutral + 6);
+  game.touch('gift');
+  const pool = GIFT_REACT[loved ? 'love' : 'like'];
+  await say(id, pool[Math.floor(Math.random() * pool.length)], 'happy');
+  if (loved) toast(`A ${def.name} le encantó.`);
+  if (up) await friendshipUp(id, up);
 }
 
 /** Character-specific dynamic moments (Pip's treasures, Spicy's experiments). */
