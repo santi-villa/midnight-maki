@@ -11,7 +11,7 @@ import { drawPlaque } from './pixfont';
 import { SHOP_KINDS } from './shopart';
 import { TOWN_KINDS } from './townart';
 import { drawFountain } from './fountain';
-import { drawVillageBuilding, VILLAGE_KINDS } from './village';
+import { drawVillageBuilding, drawVillageHome, VILLAGE_KINDS } from './village';
 
 const OUT = '#3a2a2a';
 
@@ -130,7 +130,18 @@ const K: Record<string, DrawFn> = {
     }
   },
   // ------------------------------------------------------------ street props
-  lamppost(c, W, H) {
+  lamppost(c, W, H, _c1, _c2, rot) {
+    if (rot === 1 || rot === 2) {
+      // Vereda izquierda/derecha: el pie queda al borde y el brazo mira al camino.
+      const x = rot === 1 ? 4 : 12, head = rot === 1 ? 10 : 5;
+      px(c, x - 1, 4, '#3d3a4a', 3, H - 5);
+      px(c, x, 5, '#8a8170', 1, H - 8);
+      px(c, Math.min(x, head), 4, '#3d3a4a', Math.abs(x - head) + 2, 2);
+      box(c, head - 3, 7, 7, 9, '#f4d68c', '#3d3a4a');
+      px(c, head - 4, 6, '#3d3a4a', 9, 2);
+      px(c, x - 3, H - 3, '#3d3a4a', 7, 3);
+      return;
+    }
     const cx = Math.floor(W / 2);
     px(c, cx - 1, H - 22, '#3d3a4a', 2, 21);
     px(c, cx - 3, H - 2, '#3d3a4a', 6, 2);
@@ -832,7 +843,8 @@ export function drawObject(kind: string, w: number, h: number, c1: string, c2: s
   const fn = K[kind];
   // the restaurant facade has four looks: its stage rides in `rot` as 100 + stage
   const drawRot = kind === 'building' && stage !== undefined ? 100 + stage : rot;
-  if (kind === 'building' && (stage !== undefined || rot === 20 || rot === 21)) drawVillageBuilding(ctx, w, h, stage !== undefined ? 0 : rot, stage ?? 0, c1, c2);
+  if (kind === 'building' && (stage !== undefined || rot >= 20 && rot <= 23)) drawVillageBuilding(ctx, w, h, stage !== undefined ? 0 : rot, stage ?? 0, c1, c2);
+  else if ((kind === 'townhouse' || kind === 'sidehouse') && rot < 8) drawVillageHome(ctx, w, h, c1, c2, rot, kind === 'sidehouse');
   else if (fn) fn(ctx, w, h, c1, c2, drawRot, rng(seed));
   else {
     // never leave a broken sprite: visible placeholder crate

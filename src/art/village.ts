@@ -1,4 +1,4 @@
-/** First village kit: three readable shopfronts, stone banks and modular timber decks.
+/** Village kit: readable shopfronts and homes, stone banks and modular timber decks.
  * Drawn at native pixel resolution; all pieces share the existing 16px ground grid.
  */
 import { ellipse, px, shade, type Ctx } from './pixel';
@@ -51,16 +51,18 @@ function planter(c: Ctx, x: number, y: number, flowers: boolean) {
 /** Same coordinates drive the shop art and the existing warm-window mask. */
 export function villageShopLayout(W: number, H: number, variant: number) {
   const base = buildingLayout(W, H);
-  const centre = variant === 20 ? W - 24 : 24;
+  const centre = variant === 23 ? W / 2 + 8 : variant === 20 || variant === 22 ? W - 24 : 24;
   const wy = base.wallY + 13;
-  return { ...base, dx: centre - 7, windows: variant === 20
+  return { ...base, dx: centre - 7, windows: variant === 23
+    ? [{ x: 12, y: wy, w: 22, h: 14 }, { x: 72, y: wy, w: 12, h: 14 }]
+    : variant === 20 || variant === 22
     ? [{ x: 10, y: wy, w: 18, h: 13 }, { x: 38, y: wy, w: 16, h: 13 }]
     : [{ x: 43, y: wy, w: 34, h: 13 }] };
 }
 
 /** Specialised frontages retain the saved street doorway: restaurant centre, Taro right, Bento left. */
 export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: number, stage: number, plaster: string, tiles: string) {
-  const maki = variant === 0, baker = variant === 21;
+  const maki = variant === 0, baker = variant === 21, tailor = variant === 22, library = variant === 23;
   const L = maki ? buildingLayout(W, H) : villageShopLayout(W, H, variant);
   const wall = L.wallY, floor = H - 5, side = W - 10;
   // Foundation, timber frame and the shaded side wall give the footprint visual depth.
@@ -113,8 +115,20 @@ export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: numbe
       for (let x = 15; x < W - 17; x += 6) px(c, x, wall + 25, LIGHT, 1, 5);
     }
     if (stage >= 3) for (const x of [W / 2 - 6, W / 2, W / 2 + 6]) { px(c, x, 9, '#e5c175', 1, 5); px(c, x - 1, 11, '#e5c175', 3, 1); }
+  } else if (library) {
+    // A small civic library: gabled reading window, book return and carved shelf below it.
+    const cx = 24;
+    for (let y = 16; y < 31; y++) {
+      const h = Math.min(12, y - 15); px(c, cx - h, y, DARK, h * 2 + 1, 1);
+      if (h > 2) px(c, cx - h + 2, y, '#bfae8b', h * 2 - 3, 1);
+    }
+    window(c, cx - 4, 25, 8, 7, true);
+    rect(c, 12, H - 20, 23, 12, WOOD);
+    for (let i = 0; i < 6; i++) px(c, 14 + i * 3, H - 18 + i % 2, ['#678177', '#b77b6c', '#d7b36c'][i % 3], 2, 7 - i % 2);
+    rect(c, W - 22, H - 18, 12, 11, '#708178'); px(c, W - 20, H - 15, INK, 8, 2);
+    lantern(c, 68, L.doorY - 5, '#dbb575');
   } else {
-    const color = baker ? '#b77962' : '#64826a';
+    const color = baker ? '#b77962' : tailor ? '#ba8498' : '#64826a';
     const sx = baker ? 40 : 8, width = baker ? 42 : 48, sy = L.windows[0].y - 5;
     // Small canvas awning, with wood supports instead of a flat rectangular facade.
     for (let x = sx; x < sx + width; x += 6) {
@@ -126,6 +140,15 @@ export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: numbe
       for (let i = 0; i < 4; i++) { const x = 46 + i * 7; ellipse(c, x, L.windows[0].y + 9, 3, 2, '#b97b47'); px(c, x - 1, L.windows[0].y + 7, '#edc47e', 3, 1); }
       planter(c, 8, H - 10, true);
       rect(c, W - 23, H - 17, 13, 10, '#a4754d'); px(c, W - 22, H - 14, '#e8c27e', 10, 3);
+    } else if (tailor) {
+      // Fabric rolls and a dress in the display make Yuki distinct from the grocer.
+      for (const win of L.windows) {
+        px(c, win.x + 7, win.y + 2, '#f2d7b0', 3, 2);
+        px(c, win.x + 5, win.y + 4, '#b77c99', 7, 4);
+        px(c, win.x + 3, win.y + 8, '#d4a3b1', 11, 4);
+      }
+      for (let i = 0; i < 3; i++) { rect(c, 12 + i * 10, H - 18, 8, 11, ['#d8b3bd', '#8caaa0', '#b2a4c3'][i]); px(c, 15 + i * 10, H - 17, '#f0dfc0', 2, 7); }
+      planter(c, W - 18, H - 10, true);
     } else {
       for (const [x, col] of [[12, '#e8b35b'], [25, '#a1b56b'], [40, '#c97f65']] as const) {
         rect(c, x, H - 15, 11, 8, WOOD); px(c, x + 2, H - 17, col, 7, 4);
@@ -133,6 +156,44 @@ export function drawVillageBuilding(c: Ctx, W: number, H: number, variant: numbe
       px(c, 12, H - 10, LIGHT, 40, 1);
     }
   }
+}
+
+/** Houses share shop materials but retain their own porch/gable and historic door tiles. */
+export function drawVillageHome(c: Ctx, W: number, H: number, walls: string, tiles: string, variant: number, sideView: boolean) {
+  const right = (variant & 1) === 1, trade = variant >> 1;
+  const doorX = sideView ? (right ? W - 8 : 8) : (right ? W - 24 : 24);
+  const eaves = 42, floor = H - 5;
+  rect(c, 3, eaves, W - 6, floor - eaves + 2, walls);
+  px(c, W - 10, eaves + 2, shade(walls, -.22), 5, floor - eaves - 2);
+  for (let y = H - 28; y < floor - 3; y += 4) { px(c, 5, y, WOOD, W - 15, 3); px(c, 6, y, LIGHT, W - 17, 1); }
+  roof(c, W, 4, eaves, tiles);
+  const wx = right ? 12 : 43;
+  window(c, wx, eaves + 8, 16, 13, trade !== 2);
+  if (!sideView) window(c, wx + 22, eaves + 8, 12, 13, trade !== 2);
+  // A visible gable face differentiates the lateral houses without mirroring their artwork.
+  if (sideView) {
+    const cx = right ? W - 17 : 17;
+    for (let y = 4; y < eaves; y++) {
+      const half = Math.min(16, Math.round((y - 3) * .43));
+      px(c, cx - half, y, DARK, half * 2 + 1, 1);
+      if (half > 2) px(c, cx - half + 2, y, shade(walls, -.06), half * 2 - 3, 1);
+    }
+    window(c, cx - 4, 28, 8, 8, true);
+  }
+  rect(c, doorX - 7, H - 31, 14, 27, DARK);
+  px(c, doorX - 5, H - 29, '#42332f', 10, 23);
+  for (let x = doorX - 4; x < doorX + 5; x += 4) px(c, x, H - 28, LIGHT, 1, 22);
+  px(c, doorX - 8, H - 5, '#b4a58b', 16, 4);
+  const noren = ['#52657b', '#a96f67', '#536e87', '#b88ba0'][trade];
+  for (let i = 0; i < 3; i++) rect(c, doorX - 8 + i * 5, H - 33, 5, 8, noren);
+  lantern(c, right ? doorX - 13 : doorX + 13, H - 30, trade === 1 ? '#c87962' : '#d9bc85');
+  const detailX = right ? 18 : 54;
+  if (trade === 1) {
+    rect(c, detailX, H - 17, 20, 10, WOOD); px(c, detailX + 3, H - 19, '#ede2be', 7, 3); px(c, detailX + 12, H - 18, '#a1b56b', 5, 4);
+  } else if (trade === 2) {
+    for (let i = 0; i < 2; i++) { rect(c, detailX + i * 12, H - 17, 11, 10, WOOD); ellipse(c, detailX + 5 + i * 12, H - 14, 4, 1, '#99bfc5'); px(c, detailX + 8 + i * 12, H - 15, '#d3e2d7', 2, 3); }
+  } else { planter(c, detailX, H - 10, trade === 3); }
+  for (let x = 4; x < W - 7; x += 8) if (Math.abs(x - doorX) > 9) px(c, x, floor, '#a59c87', 7, 2);
 }
 
 export const VILLAGE_KINDS: Record<string, Draw> = {
