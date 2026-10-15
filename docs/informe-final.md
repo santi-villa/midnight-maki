@@ -33,3 +33,9 @@
 - Balance: modelo, no partida orgánica; sueldos muy bajos frente al margen (ver doc).
 - Arte PNG de cocina: falta que se envíen las imágenes (`docs/cocina-assets.md`).
 - Ramas de GitHub a borrar por el usuario: `main`, `menu-principal`, `feat/rutinas-vivas`.
+
+## Segunda tanda (después del informe)
+- **Carpintería de Ren** (madera y piedra a la venta), **menú de charla** (temas, Regalar, Más acciones, historial con cuaderno), **vida de los personajes** (gestos, frases según lo que hacen y ven) — ver `docs/suministros.md`, `docs/charla.md`, `docs/pueblo-vivo.md`.
+- **Casas y locales** (`docs/fachadas.md`): casas rehechas, locales abiertos/cerrados, decoración por oficio, ventanas y puertas iluminadas de noche.
+- **Mapa** (`docs/mapa-referencia.md`): el mapa del menú es la ilustración; el costado este de Villa Nori se rehízo siguiendo la imagen. Las demás regiones siguen siendo mapas separados.
+- Verificación: typecheck, build y 410 tests unitarios verdes. Capturas del juego real de las casas de noche, los locales cerrados, las decoraciones y la nueva Villa Nori. e2e de Playwright: no se volvió a correr la suite completa tras estos cambios.
