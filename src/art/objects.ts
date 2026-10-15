@@ -317,38 +317,44 @@ const K: Record<string, DrawFn> = {
     for (const [sx, sy] of [[cx - 12, 4], [cx + 11, 7], [cx + 2, -1]]) px(c, sx, sy + 1, PAL.gold, 1, 1);
   },
   // ------------------------------------------------------------ furniture
-  table(c, W, H, c1, _c2, _rot) {
+  table(c, W, H, c1, _c2, rot) {
     const o = '#2b1d17';
     const top = shade(c1, 0.14);
-    const legH = H > 18 ? 7 : 4;
-    // legs
-    for (const lx of [2, W - 4]) {
-      px(c, lx, H - legH, o, 3, legH);
-      px(c, lx + 1, H - legH, shade(c1, -0.35), 1, legH - 1);
+    const vertical = (rot & 1) === 1 && H > W + 6;
+    const legH = H > 28 ? 6 : H > 18 ? 7 : 4;
+    const topH = vertical ? Math.max(12, H - legH - 4) : H > 28 ? Math.round(H * 0.5) : 10;
+    const topY = Math.max(0, H - legH - topH);
+    const legW = Math.min(3, Math.max(2, W - 4));
+    for (const lx of [1, W - 1 - legW]) {
+      if (lx < 0) continue;
+      px(c, lx, H - legH, o, legW, legH);
+      px(c, lx, H - legH, shade(c1, -0.35), 1, Math.max(1, legH - 1));
     }
-    // apron + top
-    px(c, 0, H - legH - 9, o, W, 10);
-    px(c, 1, H - legH - 8, top, W - 2, 6);
-    px(c, 1, H - legH - 8, shade(top, 0.18), W - 2, 1);
-    px(c, 1, H - legH - 2, shade(c1, -0.25), W - 2, 2);
-    for (let x = 6; x < W - 4; x += 9) px(c, x, H - legH - 6, shade(top, -0.06), 5, 1);
-    // table setting: a placemat with chopsticks for each side, soy sauce and a tea cup in the middle
-    if (W >= 28) {
-      const ty = H - legH - 7;
-      for (const mx of [3, W - 11]) {
-        px(c, mx, ty, '#f2e9d4', 8, 4);
-        px(c, mx, ty, '#ffffff', 8, 1);
-        px(c, mx, ty + 3, '#cdbf9f', 8, 1);
-        px(c, mx + 2, ty + 1, '#8a3a2e', 4, 1);
-        px(c, mx + 2, ty + 2, '#5a4a3a', 4, 1);
+    px(c, 0, topY, o, W, topH + 1);
+    px(c, 1, topY + 1, top, Math.max(1, W - 2), Math.max(1, topH - 2));
+    px(c, 1, topY + 1, shade(top, 0.18), Math.max(1, W - 2), 1);
+    px(c, 1, topY + topH - 2, shade(c1, -0.25), Math.max(1, W - 2), 2);
+    for (let x = 4; x < W - 3; x += 8) px(c, x, topY + 3, shade(top, -0.06), Math.min(4, W - x - 2), 1);
+    // placemats sit at the ends, with a gap in the middle wide enough for two plates
+    const mats = W >= 28 ? 2 : W >= 14 ? 1 : 0;
+    if (mats && topH >= 6) {
+      const mw = Math.min(8, W - 4);
+      const inner = W - 4;
+      const gap = mats === 1 ? 0 : Math.max(4, Math.floor((inner - mats * mw) / (mats + 1)));
+      const my = topY + Math.max(1, Math.floor((topH - 5) / 2));
+      for (let i = 0; i < mats; i++) {
+        const mx = mats === 1 ? Math.floor((W - mw) / 2) : 2 + gap + i * (mw + gap);
+        px(c, mx, my, '#f2e9d4', mw, 4);
+        px(c, mx, my, '#ffffff', mw, 1);
+        px(c, mx, my + 3, '#cdbf9f', mw, 1);
+        px(c, mx + 2, my + 1, '#8a3a2e', Math.max(2, mw - 4), 1);
       }
-      const sx = Math.floor(W / 2) - 4;
-      px(c, sx, H - legH - 12, o, 3, 5);
-      px(c, sx + 1, H - legH - 11, '#7a3a2a', 1, 3);
-      px(c, sx + 1, H - legH - 13, '#c94a3f', 1, 1);
-      const cx = Math.floor(W / 2) + 2;
-      px(c, cx, H - legH - 10, o, 4, 3);
-      px(c, cx + 1, H - legH - 10, '#9bb59a', 2, 2);
+      if (mats === 2 && gap >= 4) {
+        const sx = Math.floor(W / 2) - 1;
+        px(c, sx, topY + 1, o, 3, 4);
+        px(c, sx + 1, topY + 2, '#7a3a2a', 1, 2);
+        px(c, sx + 1, topY, '#c94a3f', 1, 1);
+      }
     }
   },
   roundtable(c, W, H, c1) {

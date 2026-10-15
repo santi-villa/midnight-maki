@@ -266,6 +266,11 @@ export function quoteBill(reward: number, quality: 0 | 1 | 2, tipRate: number, v
  * Tip roll, matching the odds in `serveOrder`: 55% perfect, 25% good, none otherwise.
  * `portion` is 0..1 and maps to 10%..30% of the reward. No coins are paid here.
  */
+/** One coin on the table. A saved tip stays a single amount, so reloading cannot duplicate it. */
+export function tipPending(status: TableStatus, tip: number): boolean {
+  return status === 'tip' && tip > 0;
+}
+
 export function rollTip(reward: number, quality: 0 | 1 | 2, chanceRoll: number, portionRoll: number): number {
   const chance = quality === 2 ? 0.55 : quality === 1 ? 0.25 : 0;
   if (chanceRoll >= chance) return 0;
@@ -406,12 +411,18 @@ export class DiningFloor {
     this.guests.splice(0, this.guests.length, ...structuredClone(snapshot.parties));
     this.nextTicket = snapshot.nextTicket;
   }
-  /** Keep occupied tables/tickets when a renovation adds furniture. */
+  /** Keep occupied tables/tickets when a renovation adds furniture. Seat coordinates follow a moved chair. */
   relayout(layout: ServiceTable[]) {
     for (const def of layout) {
       const old = this.tables.find(t => t.id === def.id);
       if (!old) this.tables.push({ ...def, status: 'free', partyId: null, tip: 0 });
       else if (!old.partyId && !old.tip) Object.assign(old, { x: def.x, y: def.y, seats: def.seats, capacity: def.capacity });
+      else if (def.seats.length === old.seats.length && def.seats.every((s) => old.seats.some((o) => o.id === s.id))) {
+        old.x = def.x;
+        old.y = def.y;
+        old.seats = def.seats.map((s) => ({ ...s }));
+        old.capacity = def.capacity;
+      }
     }
     for (let i = this.tables.length - 1; i >= 0; i--) if (!this.tables[i].partyId && !this.tables[i].tip && !layout.some(t => t.id === this.tables[i].id)) this.tables.splice(i, 1);
   }

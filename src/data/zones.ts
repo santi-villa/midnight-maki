@@ -99,7 +99,8 @@ function restaurant(): ZoneDef {
       { id: 'fridge', x: 1, y: 3, label: 'Despensa', action: 'pantry' },
       { id: 'storage_door', x: 13, y: 2, label: 'Depósito', action: 'door:storage' },
     ],
-    rooms: [{ id: 'dining', name: 'Salón', x: 7, y: 6, w: 10, h: 7, defWall: 'izakaya', defFloor: 'izakaya' }],
+    // the hall includes the open floor left of the old square and the tatami corner; the kitchen stays outside
+    rooms: [{ id: 'dining', name: 'Salón', x: 3, y: 6, w: 14, h: 7, defWall: 'izakaya', defFloor: 'izakaya' }],
     gather: [],
   });
 }

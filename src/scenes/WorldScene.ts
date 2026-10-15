@@ -25,12 +25,14 @@ import { lowFx, sampleFrame } from '../core/perf';
 import { nextDoor, questTarget } from '../world/guide';
 import { employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
 import { NeighborLife } from '../systems/neighbors';
-import { facingTable } from '../restaurant/seating';
+import { facingTable, seatDrawOffset, standApart } from '../restaurant/seating';
+import { planWaitSpots, scanWaitSpots, RECEPTION_SPOTS, WAITING_SPOTS, type WaitTile } from '../restaurant/waiting';
 import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
 import { customerAsk } from '../restaurant/orders';
 import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, tableLabel, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
-import { type FurnPiece, type PartyPhase } from '../restaurant/floor';
+import { tipPending, type FurnPiece, type PartyPhase } from '../restaurant/floor';
+import { furnSize } from '../data/furniture';
 import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
@@ -455,24 +457,25 @@ export class WorldScene extends Phaser.Scene {
   private addFurnSprite(inst: FurnInstance) {
     const { f, def } = inst;
     const key = furnTexture(this, f.id, f.rot);
-    const px = f.x * TILE + (def.w * TILE) / 2;
-    const py = (f.y + def.h) * TILE;
+    const size = furnSize(def, f.rot);
+    const px = f.x * TILE + (size.w * TILE) / 2;
+    const py = (f.y + size.h) * TILE;
     const img = this.add.image(px, py, key).setOrigin(0.5, 1);
     if (def.walkable) img.setDepth(-6);
     else if (def.wall) img.setDepth(-5);
     else {
       img.setDepth(py);
-      const sh = this.add.ellipse(px, py - 1, def.w * TILE * 0.85, 5, 0x1a1428, 0.3).setDepth(-7);
+      const sh = this.add.ellipse(px, py - 1, size.w * TILE * 0.85, 5, 0x1a1428, 0.3).setDepth(-7);
       this.furnSprites.push(sh as any);
       const cs = this.castShadow(img, def.kind, false);
       if (cs) this.furnSprites.push(cs);
-      if (def.sh > def.h * TILE) {
+      if (def.sh > size.h * TILE) {
         this.occluders.push({
           sprite: img,
           baseY: py,
           bounds: {
-            left: px - (def.w * TILE) / 2,
-            right: px + (def.w * TILE) / 2,
+            left: px - (size.w * TILE) / 2,
+            right: px + (size.w * TILE) / 2,
             top: py - def.sh,
             bottom: py,
           },
@@ -803,11 +806,14 @@ export class WorldScene extends Phaser.Scene {
   private diningPieces(): FurnPiece[] {
     if (this.diningCache) return this.diningCache;
     const zone = this.zoneId === 'restaurant' ? this.zone : buildZone('restaurant');
-    return this.diningCache = zone.furniture.filter((fi) => fi.room === 'dining').map((fi) => ({
-      uid: fi.f.uid, id: fi.f.id, kind: fi.def.kind,
-      x: fi.f.x, y: fi.f.y, w: fi.def.w, h: fi.def.h,
-      rot: fi.f.rot, sit: fi.def.sit,
-    }));
+    return this.diningCache = zone.furniture.filter((fi) => fi.room === 'dining').map((fi) => {
+      const size = furnSize(fi.def, fi.f.rot);
+      return {
+        uid: fi.f.uid, id: fi.f.id, kind: fi.def.kind,
+        x: fi.f.x, y: fi.f.y, w: size.w, h: size.h,
+        rot: fi.f.rot, sit: fi.def.sit,
+      };
+    });
   }
 
   /** Visitors keep walking and meals finish even while Sofi is in another map. */
@@ -826,9 +832,11 @@ export class WorldScene extends Phaser.Scene {
       if (customers.length) {
         const customer = customers[0];
         const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
+        const spots = this.partySpots(customers.length, 'reception');
         const trips = Array.from({ length: customers.length }, (_, i) => {
           const trip = new Journey({ ...origin, x: origin.x + i }, this.town.grid, 2.5);
-          trip.go({ zone: 'restaurant', x: 8 + i % 2, y: 10 + Math.floor(i / 2) });
+          const spot = spots[i] ?? { x: 5, y: 10 };
+          trip.go({ zone: 'restaurant', x: spot.x, y: spot.y });
           return trip;
         });
         this.visitors.set(id, { id, customer, customers, origin, trips, stage: 'arriving', greeted: false });
@@ -866,6 +874,12 @@ export class WorldScene extends Phaser.Scene {
         v.phase = g.phase;
         if (g.phase === 'walking') {
           v.trips.forEach((t, i) => t.go({ zone: 'restaurant', x: g.seats[i].x, y: g.seats[i].y }));
+        } else if (g.phase === 'queued') {
+          const spots = this.partySpots(v.customers.length, 'wait', v.id);
+          v.trips.forEach((t, i) => {
+            const spot = spots[i];
+            if (spot) t.go({ zone: 'restaurant', x: spot.x, y: spot.y });
+          });
         } else if (g.phase === 'leaving') {
           v.trips.forEach((t) => t.go(v.origin));
           this.sayVisitor(v.id, '¡Hasta pronto!');
@@ -904,13 +918,18 @@ export class WorldScene extends Phaser.Scene {
 
   /** Recover saved groups without regenerating their orders or paying their trays. */
   private restoreVisitors() {
+    const reserved = new Set<string>();
     for (const g of guestViews()) {
       if (this.visitors.has(g.id)) continue;
       const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
       const seated = ['seated', 'waiting_order', 'waiting_food', 'eating', 'paying'].includes(g.phase);
+      const waiting = g.phase === 'queued' || g.phase === 'reception' || g.phase === 'outside';
+      const spots = waiting ? this.partySpots(g.members.length, g.phase === 'queued' ? 'wait' : 'reception', g.id, reserved) : [];
+      for (const spot of spots) reserved.add(`${spot.x},${spot.y}`);
       const trips = g.members.map((_, i) => {
         const seat = g.seats[i];
-        const p = seated && seat ? { zone: 'restaurant', x: seat.x, y: seat.y } : { zone: 'restaurant', x: 8 + i % 2, y: 10 + Math.floor(i / 2) };
+        const spot = spots[i];
+        const p = seated && seat ? { zone: 'restaurant', x: seat.x, y: seat.y } : { zone: 'restaurant', x: spot?.x ?? 5, y: spot?.y ?? 10 };
         const trip = new Journey(p, this.town.grid, 2.5);
         if (g.phase === 'walking' && seat) trip.go({ zone: 'restaurant', x: seat.x, y: seat.y });
         if (g.phase === 'leaving') trip.go(origin);
@@ -940,13 +959,23 @@ export class WorldScene extends Phaser.Scene {
       for (const job of tableJobs()) {
         const f = this.zone.furniture.find(fi => String(fi.f.uid) === job.tableId);
         if (!f) continue;
-        const x = f.f.x * TILE + f.def.w * TILE / 2, y = f.f.y * TILE - 5;
+        const size = furnSize(f.def, f.f.rot);
+        const x = f.f.x * TILE + size.w * TILE / 2, y = f.f.y * TILE - 5;
         const destination = carrying.some(o => o.service?.tableId === job.tableId);
         const color = destination ? 0xf2c66d : job.impatient ? 0xd77a76 : 0xf6ecd6;
         // The table only shows a gold mark while it is the delivery destination; orders to take are marked on the customers.
         if (destination) {
           art.fillStyle(0x4a3029).fillRect(x - 3, y - 8, 6, 10);
           art.fillStyle(color).fillRect(x - 1, y - 7, 2, 5).fillRect(x - 1, y, 2, 1);
+        }
+        if (tipPending(job.status, job.tip)) {
+          const now = performance.now() / 1000;
+          const bob = Math.round(Math.sin(now * 2.2 + x) * 1);
+          const cx = Math.round(x);
+          const cy = Math.round(y + 8 + bob);
+          art.fillStyle(0x6a4318).fillRect(cx - 3, cy - 2, 6, 5);
+          art.fillStyle(0xf2c66d).fillRect(cx - 2, cy - 1, 4, 3);
+          if (Math.floor(now * 1.4 + x) % 4 === 0) art.fillStyle(0xfff6d0).fillRect(cx - 1, cy - 1, 1, 1);
         }
         if (job.phase === 'waiting_order' || job.phase === 'waiting_food') {
           const ratio = Math.max(0, Math.min(1, job.patience / job.maxPatience));
@@ -978,6 +1007,49 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  private hallFree(x: number, y: number): boolean {
+    const zone = this.zoneId === 'restaurant' && this.zone ? this.zone : buildZone('restaurant');
+    return x >= 0 && y >= 0 && x < zone.def.w && y < zone.def.h && !zone.grid.isSolid(x, y);
+  }
+
+  private takenSpots(exceptId?: string): Set<string> {
+    const taken = new Set<string>();
+    for (const v of this.visitors.values()) {
+      if (v.id === exceptId || v.stage === 'departing') continue;
+      for (const trip of v.trips) {
+        const here = trip.destination.zone === 'restaurant' ? trip.destination : trip.position;
+        if (here.zone === 'restaurant') taken.add(`${Math.round(here.x)},${Math.round(here.y)}`);
+      }
+    }
+    return taken;
+  }
+
+  /** Reception first, then the side cluster, then any free hall tile that is not the door lane. */
+  private partySpots(count: number, kind: 'reception' | 'wait', exceptId?: string, extra?: Set<string>): WaitTile[] {
+    const blocked = this.takenSpots(exceptId);
+    extra?.forEach((key) => blocked.add(key));
+    const free = (x: number, y: number) => this.hallFree(x, y);
+    if (kind === 'reception') {
+      const door = planWaitSpots(count, blocked, free, RECEPTION_SPOTS);
+      if (door.length >= count) return door;
+    }
+    const aside = planWaitSpots(count, blocked, free, WAITING_SPOTS);
+    if (aside.length >= count) return aside;
+    const scanned = scanWaitSpots(count, blocked, free);
+    if (scanned.length >= count) return scanned;
+    return planWaitSpots(count, blocked, free, [...WAITING_SPOTS, ...RECEPTION_SPOTS]);
+  }
+
+  private standBeside(x: number, y: number, avoid: Set<string>): { x: number; y: number } {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [0, -2]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (avoid.has(`${nx},${ny}`) || !this.hallFree(nx, ny)) continue;
+      return { x: nx, y: ny };
+    }
+    return { x: 7, y: 10 };
+  }
+
   private sendVisitorHome(v: { trips: Journey[]; origin: Position; stage: string }) {
     v.stage = 'departing';
     for (const trip of v.trips) trip.go(v.origin);
@@ -1005,7 +1077,9 @@ export class WorldScene extends Phaser.Scene {
       this.hostId = party.id;
       this.hostWait = 0;
       this.rememberResidents();
-      this.town.duty('pip', { zone: 'restaurant', x: 7, y: 10, wander: 0, act: 'work' });
+      const at = visitor.trips[0]?.destination;
+      const stand = this.standBeside(Math.round(at?.x ?? 6), Math.round(at?.y ?? 10), this.takenSpots(party.id));
+      this.town.duty('pip', { zone: 'restaurant', x: stand.x, y: stand.y, wander: 0, act: 'work' });
     }
     if (!pip.trip.settled) return;
     if (!visitor.greeted) {
@@ -1100,12 +1174,15 @@ export class WorldScene extends Phaser.Scene {
         const a = body.actor;
         const sitting = SEATED_PHASES.includes(phase);
         const seat = g?.seats[i];
-        a.x = (sitting && seat ? seat.x : p.x) * TILE + TILE / 2;
-        a.y = (sitting && seat ? seat.y : p.y) * TILE + TILE - 2 - (sitting ? 3 : 0);
+        const table = g?.tableId ? this.diningPieces().find((pc) => String(pc.uid) === g.tableId) : undefined;
+        const feet = sitting && seat && table
+          ? seatDrawOffset(seat, g?.seats ?? [], table)
+          : standApart(i, v.trips.map((t) => ({ x: Math.round(t.position.x), y: Math.round(t.position.y) })));
+        a.x = (sitting && seat ? seat.x : p.x) * TILE + TILE / 2 + feet.dx;
+        a.y = (sitting && seat ? seat.y : p.y) * TILE + TILE - 2 - (sitting ? 3 : 0) + feet.dy;
         a.moving = trip.moving && !sitting;
         a.depthBoost = 0;
         // across the table: front or back view; at its ends: profile (see restaurant/seating.ts)
-        const table = g?.tableId ? this.diningPieces().find((pc) => String(pc.uid) === g.tableId) : undefined;
         a.dir = sitting && seat ? (table ? facingTable(seat, table) : 'down') : trip.dir;
         // facing down = the chair back is behind them: sit in front of it, not behind it
         if (sitting && a.dir === 'down') a.depthBoost = 7;
@@ -1694,18 +1771,21 @@ export class WorldScene extends Phaser.Scene {
         y: b.sprite.y + 8,
         label: 'Atrapar ' + (ITEMS_BY_ID[b.item]?.name ?? ''),
       })),
-      furniture: this.zone.furniture.map((fi) => ({
-        uid: fi.f.uid,
-        id: fi.f.id,
-        kind: fi.def.kind,
-        name: fi.def.name,
-        room: fi.room,
-        x: fi.f.x,
-        y: fi.f.y,
-        w: fi.def.w,
-        h: fi.def.h,
-        sit: fi.def.sit,
-      })),
+      furniture: this.zone.furniture.map((fi) => {
+        const size = furnSize(fi.def, fi.f.rot);
+        return {
+          uid: fi.f.uid,
+          id: fi.f.id,
+          kind: fi.def.kind,
+          name: fi.def.name,
+          room: fi.room,
+          x: fi.f.x,
+          y: fi.f.y,
+          w: size.w,
+          h: size.h,
+          sit: fi.def.sit,
+        };
+      }),
     };
   }
 
@@ -2588,7 +2668,8 @@ export class WorldScene extends Phaser.Scene {
       const f = this.zone.furniture.find((fi) => String(fi.f.uid) === o.service?.tableId);
       if (!f) continue;
       const def = o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe];
-      dishes.push({ tableId: o.service!.tableId, x: f.f.x * TILE + (f.def.w * TILE) / 2, y: f.f.y * TILE, table: tableLabel(o.service!.tableId), dish: def?.name ?? 'pedido' });
+      const size = furnSize(f.def, f.f.rot);
+      dishes.push({ tableId: o.service!.tableId, x: f.f.x * TILE + (size.w * TILE) / 2, y: f.f.y * TILE, table: tableLabel(o.service!.tableId), dish: def?.name ?? 'pedido' });
     }
     return deliveryGoals(dishes);
   }
