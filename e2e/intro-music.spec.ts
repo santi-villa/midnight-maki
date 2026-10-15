@@ -10,7 +10,7 @@ async function begin(page: Page) {
   });
   await page.goto('/?debug&st');
   await page.locator('.tt').click();
-  await page.getByRole('button', { name: 'Nueva partida' }).click();
+  await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByText('Partida 1').click({ timeout: 4000 }).catch(() => {});
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await expect(page.locator('.book-page.in .book-text')).toHaveText(/La lluvia golpeaba/);
 }

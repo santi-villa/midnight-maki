@@ -5,7 +5,7 @@ async function begin(page: Page) {
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ textSpeed: 0, music: 0, sfx: 0, ambience: 0 })));
   await page.goto('/?debug&st');
   await page.locator('.tt').click();
-  await page.getByRole('button', { name: 'Nueva partida' }).click();
+  await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByText('Partida 1').click({ timeout: 4000 }).catch(() => {});
   await page.getByRole('button', { name: 'Comenzar' }).click();
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
   await finishArrival(page);
