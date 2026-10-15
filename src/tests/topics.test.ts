@@ -29,3 +29,17 @@ describe('conversation topics', () => {
     expect(l.t.length).toBeGreaterThan(3);
   });
 });
+
+import { microFor } from '../systems/npcMicro';
+describe('small gestures of villagers', () => {
+  it('never wake the sleeping, follow the weather and their own trade', () => {
+    expect(microFor('pip', { act: 'sleep', period: 1, rain: false, outdoor: true }, 0, 0)).toBeNull();
+    expect(microFor('pip', { act: 'look', period: 1, rain: false, outdoor: true }, 0.9, 0)).toBeNull();
+    const seen = new Set([0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9].map((r) => microFor('sumi', { act: 'paint', period: 1, rain: false, outdoor: true }, 0, r)!.act));
+    expect(seen.has('paint')).toBe(true);
+    const rain = [0, 0.1, 0.2, 0.3].map((r) => microFor('taro', { act: 'work', period: 1, rain: true, outdoor: true }, 0, r)!);
+    expect(rain.some((m) => /llu/i.test(m.say ?? ''))).toBe(true);
+    // indoors the rain does not matter
+    expect([0, 0.1, 0.2].every((r) => !/llu/i.test(microFor('taro', { act: 'work', period: 1, rain: true, outdoor: false }, 0, r)!.say ?? ''))).toBe(true);
+  });
+});

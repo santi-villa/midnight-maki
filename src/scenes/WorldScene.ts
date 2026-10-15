@@ -43,7 +43,8 @@ import { layoutSpeech } from '../ui/speechLayout';
 import { customerLook } from '../restaurant/customers';
 import { clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
 import { neighborOf } from '../restaurant/townClients';
-import { whatPlace } from '../dialogue/topics';
+import { whatPlace, topicLine, type TalkCtx } from '../dialogue/topics';
+import { microFor } from '../systems/npcMicro';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
@@ -54,7 +55,7 @@ import type { CompanyActivity } from '../systems/companionship';
 
 export type { Target };
 
-interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; }
+interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; micro?: boolean; barkAt?: number; }
 /** kind: lamp (default, follows lamp level), spill = light from windows / doors, window = interior window light, ambient = soft room fill */
 interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window' | 'ambient'; facade?: boolean }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
@@ -2026,8 +2027,22 @@ export class WorldScene extends Phaser.Scene {
       a.setAct('wave');
       this.time.delayedCall(1300, () => a.act === 'wave' && a.setAct(back));
     }
+    // something to say about what they are doing or seeing, for whoever walks by
+    if (a.act !== 'sleep' && !a.bubble && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 64 && now > (n.barkAt ?? 0)) {
+      n.barkAt = now + 28000 + Math.random() * 22000;
+      a.emote(topicLine(Math.random() < 0.7 ? 'doing' : 'how', this.npcTalkCtx(n)).t.replace('{name}', game.save.player.name), 4.5);
+    }
     n.t -= dt;
     if (n.t > 0) return;
+    // back from a small gesture
+    if (n.micro) { n.micro = false; a.setAct(n.act ?? 'idle'); n.t = 4 + Math.random() * 5; return; }
+    // a small gesture of their own: a sip of tea, a look at the sky, the rain...
+    const gesture = n.act === 'sleep' || n.leaving ? null : microFor(a.id, { act: n.act as never, period: clock.period, rain: game.flag('weather') === 'rain', outdoor: !!this.zone.def.outdoor }, Math.random(), Math.random());
+    if (gesture) {
+      n.micro = true; a.setAct(gesture.act as Act); n.t = gesture.seconds;
+      if (gesture.say) a.emote(gesture.say, Math.min(3.5, gesture.seconds));
+      return;
+    }
     if (held) {
       if (n.act && a.act !== n.act) a.setAct(n.act);
       n.t = 5 + Math.random() * 4;
@@ -2036,10 +2051,12 @@ export class WorldScene extends Phaser.Scene {
     if (n.act === 'talk') { a.setAct('look'); n.t = 4; return; }
     n.t = 7 + Math.random() * 8;
     const [ax, ay] = n.anchor;
-    if (n.wander > 0 && Math.random() < 0.55) {
+    // outdoors even those who "stay put" take a few steps around their spot
+    const reach = n.wander || (this.zone.def.outdoor && (!n.act || n.act === 'work' || n.act === 'look') ? 2 : 0);
+    if (reach > 0 && Math.random() < 0.55) {
       for (let k = 0; k < 6; k++) {
-        const tx = ax + Math.round((Math.random() * 2 - 1) * n.wander);
-        const ty = ay + Math.round((Math.random() * 2 - 1) * n.wander);
+        const tx = ax + Math.round((Math.random() * 2 - 1) * reach);
+        const ty = ay + Math.round((Math.random() * 2 - 1) * reach);
         if (n.last && tx === n.last[0] && ty === n.last[1]) continue;
         if (this.zone.grid.isSolid(tx, ty)) continue;
         if (tx === this.player.tx && ty === this.player.ty) continue;
@@ -2052,6 +2069,19 @@ export class WorldScene extends Phaser.Scene {
       this.walkNpc(n, ax, ay);
     } else if (n.act && a.act !== n.act) a.setAct(n.act);
     else if (Math.random() < 0.4) a.face((['up', 'down', 'left', 'right'] as const)[Math.floor(Math.random() * 4)]);
+  }
+
+  /** Surroundings of a story character for the lines they say to whoever passes by. */
+  private npcTalkCtx(n: NpcState): TalkCtx {
+    const t = game.save.time, zone = this.zoneId;
+    const place = zone === 'library' ? 'read' : zone === 'beach' ? 'sea' : ['garden', 'forest', 'market'].includes(zone) ? zone
+      : zone === 'plaza' && Math.hypot(n.actor.tx - 15, n.actor.ty - 12) < 8 ? 'fountain' : zone === 'plaza' ? 'stroll' : undefined;
+    return {
+      id: n.actor.id, act: n.act && n.act !== 'idle' && !['happy', 'surprised', 'wave'].includes(n.act) ? (n.act as never) : n.actor.moving ? 'walk' : undefined, place, zone,
+      period: t.period, rain: game.flag('weather') === 'rain', festival: !!game.flag('festival_today'),
+      open: restaurantPhase(t.period, t.minutes) === 'open', guests: guestViews().length,
+      level: game.save.restaurant.level, reputation: game.save.restaurant.reputation, friend: game.friendLevel(n.actor.id), day: t.day,
+    };
   }
 
   private conversation: { a: NpcState; b: NpcState; lines: AmbientLine[]; index: number; wait: number; approach: number } | null = null;
