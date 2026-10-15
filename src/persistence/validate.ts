@@ -3,6 +3,7 @@ import { validateDining } from './dining';
 import { normalizeRestaurant } from '../restaurant/progression';
 import { carryCapacity } from '../restaurant/carry';
 import { STARTER_CLOTHES } from '../data/clothes';
+import { FURN_BY_ID } from '../data/furniture';
 import { newSave, SAVE_VERSION } from '../core/state';
 import type { SaveData } from '../core/types';
 
@@ -91,6 +92,14 @@ export function validateSave(raw: unknown): SaveData {
   }
   for (const [id, q] of Object.entries(out.furnitureOwned as Record<string, number>)) {
     if (!Number.isFinite(q) || q <= 0) delete out.furnitureOwned[id];
+  }
+  out.storedGifts = {};
+  if (isObj(s.storedGifts)) {
+    for (const [npc, list] of Object.entries(s.storedGifts)) {
+      if (!npc || !Array.isArray(list)) continue;
+      const ids = list.filter((id): id is string => typeof id === 'string' && !!FURN_BY_ID[id]);
+      if (ids.length) out.storedGifts[npc] = ids;
+    }
   }
   if (!Array.isArray(out.recipesKnown)) out.recipesKnown = base.recipesKnown;
   if (!Array.isArray(out.orders)) out.orders = [];

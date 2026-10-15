@@ -45,6 +45,7 @@ export function newSave(name = 'Sofi', appearance: Appearance = defaultAppearanc
     decor: {},
     roomStyle: {},
     furnitureOwned: {},
+    storedGifts: {},
     clothesOwned: [...STARTER_CLOTHES],
     collections: {},
     achievements: [],

@@ -1,7 +1,8 @@
 /**
  * The side-entrance houses of the village (harbour lanes, cherry bank, east cove, eastern garden) and their small interiors.
- * Each house is a real zone: the door on the porch leads into a 10x8 room furnished for its trade.
+ * Each house is a real zone: the porch door leads into a 10x8 room, and the interior exit is on the same side as the porch.
  */
+import { houseDoorPlan, houseInteracts } from './houseInterior';
 import { Builder, zone } from './zoneKit';
 import type { DoorDef, InteractDef, ZoneDef } from './zones';
 
@@ -42,7 +43,11 @@ export function houseEntrancePaths(b: { g: string[][]; set(x: number, y: number,
     for (const y of [dy + 1, dy + 2]) if ('gGsp'.includes(b.g[y]?.[dx] ?? 'x')) b.set(dx, y, 'c');
   }
 }
-export const houseDoorDef = (h: HouseDef): DoorDef => { const [x, y] = houseDoorTile(h); return { x, y, to: h.id, tx: 5, ty: 6, dir: 'up', walk: true, label: h.name }; };
+export const houseDoorDef = (h: HouseDef): DoorDef => {
+  const [x, y] = houseDoorTile(h);
+  const plan = houseDoorPlan(h);
+  return { x, y, to: h.id, tx: plan.spawnX, ty: plan.spawnY, dir: plan.dir, walk: true, label: h.name };
+};
 
 const LOOK: Record<Trade, { walls: string; floor: string; music: string }> = {
   home: { walls: 'cream', floor: 'wood', music: 'home' },
@@ -51,42 +56,24 @@ const LOOK: Record<Trade, { walls: string; floor: string; music: string }> = {
   flower: { walls: 'rose', floor: 'checker', music: 'garden' },
 };
 
-function furnish(b: Builder, trade: Trade): { at: [number, number]; key: string }[] {
-  if (trade === 'home') {
-    b.prop('wallshelf', 1, 1).prop('wallshelf', 7, 1).prop('k_stove', 3, 2).prop('k_sink', 4, 2).prop('k_fridge', 8, 2)
-      .prop('library_table', 6, 4).prop('bar_stool', 6, 5).prop('bar_stool', 7, 5).prop('andon', 1, 4).prop('pot_rose', 1, 6).prop('shop_rug', 3, 5).prop('lantern_cream', 5, 2);
-    return [{ at: [6, 4], key: 'in_home' }, { at: [3, 2], key: 'in_home2' }];
-  }
-  if (trade === 'tea') {
-    b.prop('wallshelf', 1, 1).prop('wallshelf', 4, 1).prop('wallshelf', 7, 1).prop('library_table', 2, 4).prop('library_table', 6, 4)
-      .prop('bar_stool', 2, 5).prop('bar_stool', 3, 5).prop('bar_stool', 6, 5).prop('bar_stool', 7, 5).prop('bamboo', 1, 3).prop('bamboo', 8, 3)
-      .prop('andon', 8, 5).prop('sake_barrel', 1, 6).prop('lantern_cream', 3, 2).prop('lantern_cream', 6, 2);
-    return [{ at: [2, 4], key: 'in_tea' }, { at: [6, 4], key: 'in_tea2' }];
-  }
-  if (trade === 'fish') {
-    b.prop('k_sink', 2, 3).prop('k_counter', 3, 3).prop('k_counter', 4, 3).prop('k_board', 5, 3).prop('k_rice', 6, 3).prop('wallshelf', 1, 1).prop('wallshelf', 7, 1)
-      .prop('crate', 1, 5).prop('crate', 1, 6).prop('barrel', 8, 5).prop('barrel', 8, 6).prop('sack', 7, 6).prop('lantern_red', 3, 2).prop('lantern_red', 6, 2).prop('shop_rug', 4, 6);
-    return [{ at: [4, 3], key: 'in_fish' }, { at: [1, 5], key: 'in_fish2' }];
-  }
-  b.prop('wallshelf', 1, 1).prop('wallshelf', 7, 1).prop('shop_counter_rose', 4, 3).prop('shop_counter_rose', 5, 3).prop('shop_counter_rose', 6, 3)
-    .prop('pot_rose', 1, 3).prop('pot_cream', 1, 5).prop('pot_rose', 8, 5).prop('pot_cream', 8, 3).prop('bamboo', 8, 6).prop('flowers', 2, 6).prop('flowers_lav', 3, 6).prop('shop_rug', 4, 5).prop('lantern_cream', 3, 2).prop('lantern_cream', 6, 2);
-  return [{ at: [5, 3], key: 'in_flower' }, { at: [1, 3], key: 'in_flower2' }];
-}
-
-/** Interior zones for every house, door back to the porch it belongs to. */
+/** Interior zones for every house. The exit is on the same wall as the porch, and the room can hold saved furniture. */
 export function houseZones(): ZoneDef[] {
-  return HOUSES.map((h) => {
+  return HOUSES.map((h, index) => {
     const look = LOOK[h.trade];
+    const plan = houseDoorPlan(h);
     const b = new Builder(10, 8, '#');
     b.room(0, 0, 10, 8, [2, 7]);
-    b.set(5, 7, 'm');
-    const spots = furnish(b, h.trade);
+    b.set(plan.x, plan.y, 'm');
     const [dx, dy] = houseDoorTile(h);
-    const interact: InteractDef[] = spots.map((s, i) => ({ id: `${h.id}_n${i}`, x: s.at[0], y: s.at[1], label: i === 0 ? h.name : 'Mirar', action: 'note:' + s.key }));
+    const interact: InteractDef[] = houseInteracts(h, index).map((s, i) => ({
+      id: `${h.id}_n${i}`, x: s.x, y: s.y, label: i === 0 ? h.name : 'Mirar', action: 'note:' + s.key,
+    }));
     return zone(b, {
       id: h.id, name: h.name, music: look.music, outdoor: false, walls: look.walls, floor: look.floor,
-      doors: [{ x: 5, y: 7, to: h.zone, tx: dx, ty: dy + 1, dir: 'down', walk: true }],
-      interact, rooms: [], gather: [],
+      doors: [{ x: plan.x, y: plan.y, to: h.zone, tx: dx, ty: dy + 1, dir: 'down', walk: true }],
+      interact,
+      rooms: [{ id: h.id, name: h.name, x: 1, y: 2, w: 8, h: 5, defWall: look.walls, defFloor: look.floor }],
+      gather: [],
     });
   });
 }
