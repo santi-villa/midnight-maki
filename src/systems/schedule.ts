@@ -7,6 +7,7 @@ import { dayMinutes } from './daytime';
 import type { CharacterDef, RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
 import { doorLeadingTo } from '../world/zoneRuntime';
+import { lookAround } from './neighborSpots';
 
 export type Phase = 'settle' | 'main' | 'meal' | 'stroll' | 'social' | 'depart';
 export type ShopPhase = 'setup' | 'open' | 'closing' | 'closed';
@@ -39,22 +40,6 @@ export const SHOP_PLACES: ShopPlace[] = [
 ];
 
 const SHOP_BY_ID: Record<string, ShopPlace> = Object.fromEntries(SHOP_PLACES.map((s) => [s.id, s]));
-
-/** Where someone likes to linger when their period already puts them in that zone. */
-const FAVORITE: Record<string, { zone: string; x: number; y: number }> = {
-  pip: { zone: 'plaza', x: 15, y: 13 },
-  rigg: { zone: 'plaza', x: 11, y: 22 },
-  momo: { zone: 'garden', x: 15, y: 11 },
-  kumo: { zone: 'plaza', x: 11, y: 21 },
-  sumi: { zone: 'plaza', x: 21, y: 21 },
-  kiki: { zone: 'forest', x: 14, y: 15 },
-  nami: { zone: 'beach', x: 19, y: 12 },
-  sora: { zone: 'plaza', x: 11, y: 8 },
-  hoshi: { zone: 'plaza', x: 16, y: 9 },
-  ume: { zone: 'plaza', x: 18, y: 14 },
-  taro: { zone: 'plaza', x: 16, y: 15 },
-  yuki: { zone: 'plaza', x: 13, y: 15 },
-};
 
 /** On a festival afternoon or evening these neighbors come to the plaza. Shopkeepers stay at work. */
 export const FESTIVAL_SPOT: Record<string, RoutineStop> = {
@@ -125,13 +110,11 @@ export function applyBeat(c: CharacterDef, period: number, minutes: number, base
   }
   if (phase === 'stroll') {
     if ((base.wander ?? 0) <= 0) return { ...base, act: base.act === 'cook' ? 'cook' : 'clean' };
-    const fav = FAVORITE[c.id];
-    if (fav && fav.zone === base.zone && (fav.x !== base.x || fav.y !== base.y)) {
-      return { zone: base.zone, x: fav.x, y: fav.y, wander: 1 };
-    }
+    const spot = lookAround(base.zone, hash(c.id, period), { x: base.x, y: base.y });
+    if (spot) return { zone: base.zone, x: spot.x, y: spot.y, wander: 1, act: base.act === 'play' ? 'play' : 'look' };
     const dx = (hash(c.id, period) % 3) - 1;
     const dy = (hash(c.id, period + 9) % 3) - 1;
-    return { ...base, x: base.x + (dx || 1), y: base.y + dy, wander: 1 };
+    return { ...base, x: base.x + (dx || 1), y: base.y + dy, wander: 1, act: 'look' };
   }
   if (phase === 'social') return { ...base, act: 'talk', wander: Math.min(base.wander ?? 0, 2) };
   if (!base.act && SHOP_ZONES.has(base.zone)) return { ...base, act: 'work' };

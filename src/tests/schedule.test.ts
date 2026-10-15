@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
 import { plazaActivity, shopGate, stopFor, whereIs } from '../systems/npcs';
 import { buildZone } from '../world/zoneRuntime';
+import { benchSpots } from '../systems/neighborSpots';
 import { phaseOf, shopSignText, shopButtonLabel, shopInteractionText, signSpots } from '../systems/schedule';
 
 function at(period: number, minutes: number, day = 4) {
@@ -18,13 +19,15 @@ beforeEach(() => {
 
 describe('daily rhythm', () => {
   it('uses real bench stops and gives plaza residents visible activities in every beat', () => {
+    const seats = benchSpots('plaza');
     for (const minutes of [5, 20, 40, 60, 75, 85]) {
       at(2, minutes);
       for (const id of ['taro', 'yuki', 'ume']) {
         const stop = plazaActivity(id, { zone: 'plaza', x: 16, y: 15 }, minutes);
         expect(stop.act).not.toBe('look'); expect(stop.act).toBeDefined();
-        if (minutes < 82) {
+        if (minutes < 82 && seats.length) {
           expect(stop.seatLift).toBe(12); expect(stop.wander).toBe(0);
+          expect(seats.some((s) => s.x === stop.x && s.y === stop.y)).toBe(true);
           expect(buildZone('plaza', false).grid.isSolid(stop.x, stop.y)).toBe(false);
           expect(plazaActivity(id, { zone: 'plaza', x: 16, y: 15, act: 'eat' }, minutes).act).toBe('sit');
         }
@@ -64,12 +67,12 @@ describe('daily rhythm', () => {
     expect(leaving?.act).toBe('work');
   });
 
-  it('sends a strolling neighbor toward a place they like, still inside the same zone', () => {
+  it('sends a strolling neighbor toward a walkable place in the same zone', () => {
     at(0, 60);
     const pip = stopFor('pip', 0);
     expect(pip?.zone).toBe('plaza');
-    expect(pip?.x).toBe(15);
-    expect(pip?.y).toBe(13);
+    expect(buildZone('plaza', false).grid.isSolid(pip!.x, pip!.y)).toBe(false);
+    expect(`${pip?.x},${pip?.y}`).not.toBe('7,9');
   });
 
   it('keeps the raccoons working in the restaurant while the night door is still open', () => {

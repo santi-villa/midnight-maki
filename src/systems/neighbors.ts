@@ -2,13 +2,26 @@
 import { game } from '../core/state';
 import type { RoutineStop } from '../data/characters';
 import { NEIGHBORS, type Neighbor } from '../data/neighbors';
+import { ZONES } from '../data/zones';
 import { buildZone } from '../world/zoneRuntime';
 import type { Grid } from '../world/grid';
 import { Journey } from './journeys';
 import { planVillage, type PlanContext } from './neighborPlan';
-import type { Place } from './neighborSpots';
+import { LINGER_KIND, lingerTile, type Place } from './neighborSpots';
 
-export interface NeighborState { n: Neighbor; trip: Journey; place: Place & { ride?: boolean; withFriend?: string }; key: string; ride: boolean }
+export interface NeighborState {
+  n: Neighbor;
+  trip: Journey;
+  place: Place & { ride?: boolean; withFriend?: string };
+  /** The planned spot. A short stroll steps away from it and comes back. */
+  anchor: Place;
+  key: string;
+  ride: boolean;
+  beat: number;
+  stepped: boolean;
+}
+
+const onDoor = (zone: string, x: number, y: number) => !!ZONES[zone]?.doors.some((d) => d.x === x && d.y === y);
 
 export const WALK_TILES = 2.5;
 export const BIKE_TILES = 5.2;
@@ -57,24 +70,46 @@ export class NeighborLife {
       if (!wanted) continue;
       const key = `${ctx.day}:${ctx.period}:${ctx.half}:${ctx.rain ? 1 : 0}`;
       const place = { ...this.reachable(wanted), ride: wanted.ride, withFriend: wanted.withFriend };
-      const stop: RoutineStop = { zone: place.zone, x: place.x, y: place.y, wander: 0, act: place.act, dir: place.dir, seatLift: place.seatLift };
+      const stop: RoutineStop = { zone: place.zone, x: place.x, y: place.y, wander: 0, act: place.act, dir: place.dir, seatLift: place.seatLift, bed: place.bed };
       const cur = this.state.get(n.id);
       if (!cur) {
         const trip = new Journey({ zone: place.zone, x: place.x, y: place.y }, this.grid, WALK_TILES);
         trip.destination = { ...stop };
-        this.state.set(n.id, { n, trip, place, key, ride: !!place.ride });
+        this.state.set(n.id, { n, trip, place, anchor: place, key, ride: !!place.ride, beat: 0, stepped: false });
       } else if (cur.key !== key) {
-        cur.key = key; cur.place = place; cur.ride = !!place.ride;
+        cur.key = key; cur.place = place; cur.anchor = place; cur.ride = !!place.ride; cur.beat = 0; cur.stepped = false;
         cur.trip.speed = (cur.ride ? BIKE_TILES : WALK_TILES) * (0.92 + (n.id.length % 5) / 25);
         cur.trip.go(stop);
       }
     }
   }
 
+  private asStop(p: Place): RoutineStop {
+    return { zone: p.zone, x: p.x, y: p.y, wander: 0, act: p.act, dir: p.dir, seatLift: p.seatLift, bed: p.bed };
+  }
+
   tick(dt: number) {
     this.syncIn -= dt;
     if (this.syncIn <= 0) { this.syncIn = 1; this.sync(); }
-    for (const s of this.state.values()) s.trip.tick(dt);
+    for (const s of this.state.values()) {
+      s.trip.tick(dt);
+      if (!LINGER_KIND.has(s.anchor.kind)) continue;
+      if (!s.trip.settled) { s.beat = 0; continue; }
+      s.beat += dt;
+      const back = this.asStop(s.anchor);
+      if (!s.stepped && s.beat >= 7) {
+        const grid = this.grid(s.anchor.zone);
+        const tile = lingerTile(s.n.id, s.anchor.x, s.anchor.y, (x, y) => !grid.isSolid(x, y) && !onDoor(s.anchor.zone, x, y));
+        if (!tile) continue;
+        s.stepped = true;
+        s.beat = 0;
+        s.trip.go({ ...back, x: tile[0], y: tile[1], act: 'look', bed: undefined });
+      } else if (s.stepped && s.beat >= 14) {
+        s.stepped = false;
+        s.beat = 0;
+        s.trip.go(back);
+      }
+    }
   }
 
   inZone(zone: string): NeighborState[] {
