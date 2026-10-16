@@ -1,6 +1,6 @@
 /** A chat with an ambient neighbour: topics, an invitation, a furniture gift, a joke or a photo. */
 import { runScene, say, choose } from '../dialogue/dialogue';
-import { baseTalkContext, chatMenu } from '../dialogue/talk';
+import { awayFrom, baseTalkContext, chatMenu } from '../dialogue/talk';
 import { topicLine, type TalkCtx } from '../dialogue/topics';
 import { BALANCE } from '../core/balance';
 import { game } from '../core/state';
@@ -37,8 +37,8 @@ export async function talkToNeighbor(id: string) {
     if (known.points < BALANCE.talkPoints) game.addFriendship(id, BALANCE.talkPoints - known.points);
     known.lastTalkDay = game.save.time.day;
     for (;;) {
-      const opts = ['Charlar…', 'Invitar a Midnight Maki', 'Regalar…', 'Más acciones…', 'Nada, hasta luego'];
-      const pick = opts[await choose(opts)];
+      const opts = ['Charlar…', 'Regalar…', 'Invitar a Midnight Maki', 'Más acciones…', 'Nada, hasta luego'];
+      const pick = opts[await choose(opts, 'player', undefined, { icons: ['talk', 'gift', 'maki', 'act', 'door'], cancel: opts.length - 1, away: await awayFrom(id) })];
       if (pick === 'Charlar…') {
         await chatMenu(n.name, ctx, async () => { await say(n.name, n.lines[(game.save.time.day + id.length + Math.floor(Math.random() * 7)) % n.lines.length]); });
       } else if (pick === 'Invitar a Midnight Maki') {

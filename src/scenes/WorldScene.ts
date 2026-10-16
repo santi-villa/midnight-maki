@@ -1174,7 +1174,7 @@ export class WorldScene extends Phaser.Scene {
           art.fillStyle(0xf2c66d).fillRect(cx - 2, cy - 1, 4, 3);
           if (Math.floor(now * 1.4 + x) % 4 === 0) art.fillStyle(0xfff6d0).fillRect(cx - 1, cy - 1, 1, 1);
         }
-        if (job.phase === 'waiting_order' || job.phase === 'waiting_food') {
+        if (job.phase === 'waiting_order' || (job.phase === 'waiting_food' && job.unserved > 0)) {
           const ratio = Math.max(0, Math.min(1, job.patience / job.maxPatience));
           art.fillStyle(0x4a3029).fillRect(x - 9, y + 3, 18, 3);
           art.fillStyle(settings.cookMode === 'relaxed' || ratio > .5 ? 0x91ab69 : ratio > .2 ? 0xf2c66d : 0xd77a76).fillRect(x - 8, y + 4, Math.ceil(16 * (settings.cookMode === 'relaxed' ? 1 : ratio)), 1);
@@ -2204,6 +2204,13 @@ export class WorldScene extends Phaser.Scene {
     const primary = offer.primary;
     this.target = primary && primary.intent.type === 'target' ? primary.intent.target : null;
     bus.emit('interact:available', { label: primary?.label ?? null, kind: primary?.icon });
+  }
+
+  /** Pixels between Sofi and a raccoon, villager or neighbour; null when that person is not around. */
+  distanceTo(id: string): number | null {
+    const a = this.npcs.get(id)?.actor ?? this.neighborBodies.get(id)?.actor;
+    if (!a || !this.player) return null;
+    return Math.hypot(a.x - this.player.x, a.y - this.player.y);
   }
 
   /** Where the floating prompt goes: just above what the main action is about, in screen pixels. Null while the prompt should hide. */

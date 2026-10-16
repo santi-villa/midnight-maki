@@ -44,7 +44,7 @@ describe('fishing rods', () => {
 
     const fishing = readFileSync(new URL('../minigames/fishing.ts', import.meta.url), 'utf8');
     expect(fishing).toContain('if (!equipped)');
-    expect(fishing).toContain('progress += (inside ? 0.32 * tune.gain : relaxed ? -0.1 : -0.18) * dt;');
+    expect(fishing).toContain('progress += (inside ? 0.3 * tune.gain : relaxed ? -0.09 : -0.16) * dt;');
   });
 
   it('picks the best rod and gates each upgrade', () => {

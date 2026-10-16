@@ -1,5 +1,6 @@
 /** Minimal exploration HUD: time, coins, bag/journal/menu buttons, contextual action, suggestions. */
 import { iconElement } from '../art/icons';
+import { haptic } from '../core/haptics';
 import { audio } from '../audio/audio';
 import { getEnergy, TIRED_LIMIT, WARN_LIMIT } from '../systems/fatigue';
 import { bus } from '../core/events';
@@ -154,6 +155,22 @@ function paintEnergy() {
   energyEl.setAttribute('aria-label', text); energyEl.title = text;
 }
 bus.on('energy:changed', () => paintEnergy());
+
+/** A mission pays: the coins burst loose in the middle of the screen, no box, with sparkles and a coin shower sound. */
+bus.on('reward:coins', ({ coins }) => {
+  const host = uiRoot();
+  const el = h('div', { class: 'big-reward', 'aria-live': 'polite' }, h('span', { class: 'br-plus' }, `+${coins.toLocaleString('es-AR')}`), iconElement({ type: 'coin' }, 'br-coin'));
+  const sparks = settings.reduceMotion ? 0 : 14;
+  for (let i = 0; i < sparks; i++) {
+    const a = (i / sparks) * Math.PI * 2 + Math.random() * 0.4, d = 90 + Math.random() * 90;
+    el.append(h('i', { class: 'br-spark', style: { '--dx': `${Math.round(Math.cos(a) * d)}px`, '--dy': `${Math.round(Math.sin(a) * d - 20)}px`, animationDelay: `${Math.round(Math.random() * 180)}ms` } }));
+  }
+  host.append(el);
+  audio.sfxPlay('success');
+  [0, 110, 220, 330].forEach((ms) => window.setTimeout(() => audio.sfxPlay('coin'), ms));
+  haptic('reward');
+  window.setTimeout(() => el.remove(), 2600);
+});
 
 function coinPop(delta: number) {
   const host = coinEl?.parentElement;
