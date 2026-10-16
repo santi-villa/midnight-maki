@@ -20,7 +20,7 @@ async function advance(page: Page, rounds = 120) {
 
 test('new game → restaurant → cook first sushi → progress persists', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ textSpeed: 0, music: 0, sfx: 0, ambience: 0 })));
+  await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ textSpeed: 0, music: 0, sfx: 0, ambience: 0, cookStyle: 'board' })));
   await page.goto('/?debug');
   await page.locator('.tt').click(); // first tap reveals the menu
   await page.getByRole('button', { name: 'Nueva partida' }).click(); await page.getByText('Partida 1').click({ timeout: 4000 }).catch(() => {});
@@ -58,7 +58,7 @@ test('new game → restaurant → cook first sushi → progress persists', async
   const rollY = 46 + 108 / 2 - 4;
   // nori onto the mat, then the rice has to be cooked in the pot (Plancha tab) before it can be used
   await drag(shelf(0, 1), [BW / 2, 96]);
-  await expect(page.locator('#cook-instruction')).toContainText('Falta poner el arroz');
+  await expect(page.locator('#cook-instruction')).toContainText('Falta hacer arroz');
   await page.getByRole('button', { name: 'Ir a la olla' }).click();
   await page.locator('.gr-pot').click();
   await expect(page.locator('.gr-pot .gr-label')).toContainText(/En su punto/, { timeout: 30_000 });
