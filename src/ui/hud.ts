@@ -1,6 +1,7 @@
 /** Minimal exploration HUD: time, coins, bag/journal/menu buttons, contextual action, suggestions. */
 import { iconElement } from '../art/icons';
 import { audio } from '../audio/audio';
+import { getEnergy, TIRED_LIMIT, WARN_LIMIT } from '../systems/fatigue';
 import { bus } from '../core/events';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
@@ -21,6 +22,7 @@ let timeEl: HTMLElement;
 let digitalEl: HTMLTimeElement;
 let dateEl: HTMLElement;
 let coinEl: HTMLElement;
+let energyEl: HTMLElement;
 let clockEl: HTMLCanvasElement;
 let questEl: HTMLElement;
 let suggestEl: HTMLElement;
@@ -51,7 +53,8 @@ export function mountHud(hd: HudHandlers) {
   coinEl = h('span', { class: 'coin' });
   clockEl = h('canvas', { class: 'hud-clock', width: 32, height: 32, role: 'img', 'aria-label': 'Hora del juego' });
   digitalEl = h('time', { class: 'hud-digital' });
-  const status = h('div', { class: 'hud-status' }, h('div', { class: 'hud-time-row' }, clockEl, digitalEl), h('div', { class: 'time' }, timeEl), dateEl, h('div', { class: 'hud-coins' }, iconElement({ type: 'coin' }), coinEl));
+  energyEl = h('div', { class: 'hud-energy', role: 'img' }, h('i'));
+  const status = h('div', { class: 'hud-status' }, h('div', { class: 'hud-time-row' }, clockEl, digitalEl), h('div', { class: 'time' }, timeEl), dateEl, h('div', { class: 'hud-coins' }, iconElement({ type: 'coin' }), coinEl), energyEl);
   const toggle = h('button', {
     type: 'button', class: 'hud-status-toggle', 'aria-label': 'Contraer fecha y monedas', 'aria-expanded': 'true',
     onclick: () => {
@@ -121,6 +124,7 @@ export function refresh() {
   dateEl.textContent = `${WEEKDAYS[weekday(t.day)]} ${dayOfSeason(t.day)}`;
   dateEl.title = clock.dateLabel() + (game.flag('weather') === 'rain' ? ' · lluvia' : '');
   coinEl.textContent = game.coins.toLocaleString('es-AR');
+  paintEnergy();
   const minute = hudTime(t.period, t.minutes);
   const label = formatHudTime(minute);
   digitalEl.textContent = label;
@@ -141,6 +145,16 @@ function refreshSuggestions() {
 
 /** "+12 🪙" next to the counter; gains that arrive close together add up into one pop */
 let popEl: HTMLElement | null = null, popTotal = 0, popTimer = 0;
+function paintEnergy() {
+  if (!energyEl) return;
+  const e = Math.round(getEnergy());
+  (energyEl.firstElementChild as HTMLElement).style.width = `${e}%`;
+  energyEl.dataset.level = e <= TIRED_LIMIT ? 'empty' : e <= WARN_LIMIT ? 'low' : 'ok';
+  const text = `Energía ${e}/100${e <= TIRED_LIMIT ? ': muy cansada, no podés cocinar' : ''}`;
+  energyEl.setAttribute('aria-label', text); energyEl.title = text;
+}
+bus.on('energy:changed', () => paintEnergy());
+
 function coinPop(delta: number) {
   const host = coinEl?.parentElement;
   if (!host || !root?.isConnected) return;

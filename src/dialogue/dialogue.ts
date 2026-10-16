@@ -46,9 +46,10 @@ function teardown() {
 }
 
 /** Wrap a scene so the world pauses and the box is cleaned up. `id` marks it as seen (skippable later). */
-export async function runScene(id: string, fn: () => Promise<void>): Promise<void> {
+export async function runScene(id: string, fn: () => Promise<void>, opts?: { keepTime?: boolean }): Promise<void> {
   active++;
-  clock.pause();
+  const stopsTime = !opts?.keepTime;
+  if (stopsTime) clock.pause();
   bus.emit('dialogue:start', { id });
   const seen = game.save.story.seenScenes.includes(id);
   const prevSeen = sceneSeen;
@@ -71,7 +72,7 @@ export async function runScene(id: string, fn: () => Promise<void>): Promise<voi
       skipping = false;
       teardown();
     }
-    clock.resume();
+    if (stopsTime) clock.resume();
     bus.emit('dialogue:end', { id });
   }
 }

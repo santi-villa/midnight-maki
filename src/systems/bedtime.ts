@@ -58,7 +58,7 @@ export async function settleBedtime(reason: 'closing' | 'exhausted') {
       bus.emit('toast', { text: 'El restaurante está cerrando. Esa misión sigue mañana: a dormir.' });
     }
     const { sleepNow } = await import('./sleep');
-    await sleepNow();
+    await sleepNow(reason === 'exhausted' ? { hours: 6 } : undefined);
   } finally {
     settling = false;
   }

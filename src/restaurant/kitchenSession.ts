@@ -69,7 +69,7 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
 
     const musicBefore: Track = audio.currentTrack();
     audio.crossfade(settings.cookMode === 'challenge' ? 'kitchen_hard' : 'kitchen');
-    const closeModal = openModal(root);
+    const closeModal = openModal(root, undefined, { keepTime: true });
     (root as any).__close = () => tryLeave();
 
     const finish = () => {

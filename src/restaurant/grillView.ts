@@ -3,6 +3,7 @@
  * started; they keep cooking while she works on other dishes and tell her when they are ready.
  * Tap a raw piece, tap a free spot to put it on; tap a cooking piece to take it off.
  */
+import { game as gs } from '../core/state';
 import { cookingIngredient } from '../art/cooking';
 import { cookSprite, preloadCookSprites } from '../art/cookingSprites';
 import { audio } from '../audio/audio';
@@ -16,14 +17,16 @@ import { kitchenOval } from '../art/cooking';
 import { ZONES, doneness, grillAdvance, grillZone, type GrillZone } from './grill';
 
 export const GRILL_SLOTS = 4;
-/** the rice pot cooks the rice of several dishes in one batch */
-export const POT_CAPACITY = 4;
+/** one pot of rice is enough for this many dishes */
+export const POT_PORTIONS = 5;
 const CW = 64;
 const CH = 56;
 
 interface Piece { game: CookingGame; item: string; how: 'plancha' | 'sarten'; p: number; zone: GrillZone; seen: GrillZone }
 interface DishRef { game: CookingGame; who: string }
-interface Pot { games: CookingGame[]; p: number; zone: GrillZone; seen: GrillZone }
+interface Pot { cooking: boolean; p: number; zone: GrillZone; seen: GrillZone; stock: number; stockP: number }
+/** the cooked rice outlives the kitchen window: it stays in the pot for the rest of the day */
+let potMemory: { day: number; stock: number; stockP: number } | null = null;
 
 const ZONE_TEXT: Record<GrillZone, string> = { raw: 'Cocinándose…', ready: '¡En su punto!', over: '¡Se está pasando!', burnt: '¡Quemado!' };
 
@@ -37,11 +40,12 @@ export class Grill {
   private slotEls: HTMLElement[] = [];
   private t = 0;
   private lastBadge = '';
-  private pot: Pot = { games: [], p: 0, zone: 'raw', seen: 'raw' };
+  private pot: Pot = { cooking: false, p: 0, zone: 'raw', seen: 'raw', stock: 0, stockP: 0 };
   private potEl!: HTMLElement;
   private potCv!: HTMLCanvasElement;
 
   constructor(private dishes: () => DishRef[], private changed: () => void) {
+    if (potMemory && potMemory.day === gs.save.time.day) { this.pot.stock = potMemory.stock; this.pot.stockP = potMemory.stockP; }
     const board = h('div', { class: 'gr-board' });
     for (let i = 0; i < GRILL_SLOTS; i++) {
       const cv = h('canvas', { width: CW, height: CH, 'aria-hidden': 'true' }) as HTMLCanvasElement;
@@ -50,12 +54,15 @@ export class Grill {
       this.slotEls.push(el);
       board.append(el);
     }
-    this.potCv = h('canvas', { width: 128, height: 56, 'aria-hidden': 'true' }) as HTMLCanvasElement;
+    this.potCv = h('canvas', { width: 160, height: 80, 'aria-hidden': 'true' }) as HTMLCanvasElement;
     this.potEl = h('button', { class: 'gr-slot gr-pot', 'aria-label': 'Olla de arroz', onclick: () => this.tapPot() }, this.potCv, h('span', { class: 'gr-label' }));
     this.el = h('div', { class: 'gr' },
-      h('p', { class: 'hint' }, 'Tocá un ingrediente de abajo y después un lugar libre para ponerlo. Cuando esté en su punto, tocalo para sacarlo: si te olvidás, se quema (pero tarda). El arroz de varios platos se cocina junto en la olla: una tanda.'),
-      this.note, this.potEl, board,
-      h('b', { class: 'gr-h' }, 'Para cocinar'), this.tray);
+      this.note,
+      h('section', { class: 'gr-sec' }, h('b', { class: 'gr-h' }, 'Olla de arroz'),
+        h('p', { class: 'hint' }, `Una olla rinde ${POT_PORTIONS} platos. Tocala para empezar; cuando esté en su punto, tocala de nuevo para sacar el arroz: queda listo para todos los platos que lo pidan.`), this.potEl),
+      h('section', { class: 'gr-sec' }, h('b', { class: 'gr-h' }, 'Plancha y sartenes'),
+        h('p', { class: 'hint' }, 'Tocá un ingrediente de abajo y después un lugar libre para ponerlo. Cuando esté en su punto, tocalo para sacarlo: si te olvidás, se quema (pero tarda).'), board,
+        h('b', { class: 'gr-h' }, 'Para cocinar'), this.tray));
     preloadCookSprites(['plancha', 'sarten-tamago']);
     this.render();
   }
@@ -66,8 +73,8 @@ export class Grill {
   /** how this dish's piece is doing, for its waiting board */
   status(game: CookingGame, item: string): { text: string; p: number } | null {
     if (item === 'rice') {
-      if (this.pot.games.includes(game)) return { text: this.pot.zone === 'raw' ? 'El arroz se está cocinando…' : this.pot.zone === 'ready' ? '¡El arroz está listo! Sacalo de la olla' : '¡El arroz se pasa!', p: this.pot.p };
-      return game.rawPieces.some((r) => r.item === 'rice') ? { text: 'Falta poner el arroz en la olla', p: 0 } : null;
+      if (this.pot.cooking) return { text: this.pot.zone === 'raw' ? 'El arroz se está cocinando…' : this.pot.zone === 'ready' ? '¡El arroz está listo! Sacalo de la olla' : '¡El arroz se pasa!', p: this.pot.p };
+      return game.rawPieces.some((r) => r.item === 'rice') ? { text: 'Falta hacer arroz: tocá la olla', p: 0 } : null;
     }
     const on = this.pieces().find((p) => p.game === game && p.item === item);
     if (on) return { text: ZONE_TEXT[on.zone], p: on.p };
@@ -78,15 +85,13 @@ export class Grill {
   /** pieces of a dish that was dropped leave the stove */
   dropDish(game: CookingGame) {
     this.slots = this.slots.map((p) => (p && p.game === game ? null : p));
-    this.pot.games = this.pot.games.filter((g) => g !== game);
-    if (!this.pot.games.length) { this.pot.p = 0; this.pot.zone = 'raw'; this.pot.seen = 'raw'; }
     if (this.selected?.game === game) this.selected = null;
     this.render();
   }
 
   /** text for the station tab: what needs her attention */
   badge(): string {
-    const ps: { zone: GrillZone }[] = [...this.pieces(), ...(this.pot.games.length ? [{ zone: this.pot.zone }] : [])];
+    const ps: { zone: GrillZone }[] = [...this.pieces(), ...(this.pot.cooking ? [{ zone: this.pot.zone }] : [])];
     const burnt = ps.filter((p) => p.zone === 'burnt').length;
     if (burnt) return '¡Se quema!';
     const over = ps.filter((p) => p.zone === 'over').length;
@@ -114,7 +119,7 @@ export class Grill {
         else if (p.zone === 'burnt') { audio.sfxPlay('tap'); haptic('tap'); alert = 'Se quemó'; }
       }
     }
-    if (this.pot.games.length) {
+    if (this.pot.cooking) {
       this.pot.p = grillAdvance(this.pot.p, dt, 'rice', settings.cookMode);
       this.pot.zone = grillZone(this.pot.p);
       if (this.pot.zone !== this.pot.seen) {
@@ -123,6 +128,7 @@ export class Grill {
         else if (this.pot.zone === 'burnt') { audio.sfxPlay('tap'); alert = 'Se quemó el arroz'; }
       }
     }
+    if (this.deal()) alert = alert ?? 'Arroz servido';
     if (alert && !visible) this.changed();
     const b = this.badge();
     if (b !== this.lastBadge) { this.lastBadge = b; this.changed(); }
@@ -162,23 +168,39 @@ export class Grill {
 
   private tapPot() {
     const pot = this.pot;
-    // a piece of rice picked from the tray (or the first one waiting) goes in while the water has not started to boil over
-    const sel = this.selected && this.selected.game.rawPieces[this.selected.i]?.how === 'olla' ? this.selected : null;
-    const wait = sel ?? (() => { for (const d of this.dishes()) { const i = d.game.rawPieces.findIndex((r) => r.item === 'rice'); if (i >= 0) return { game: d.game, i }; } return null; })();
-    if (wait && pot.games.length < POT_CAPACITY && pot.p < ZONES.ready * 0.6) {
-      wait.game.takeRaw(wait.i); pot.games.push(wait.game); this.selected = null;
-      audio.sfxPlay('tap'); this.say(`Arroz en la olla (${pot.games.length}/${POT_CAPACITY}).`); this.render(); this.changed(); return;
-    }
-    if (pot.games.length) {
+    if (pot.cooking) {
       if (pot.zone === 'raw') { this.say('Todavía se está cocinando: esperá a que esté listo.'); return; }
-      const out = pot.games.splice(0), p = pot.p;
-      pot.p = 0; pot.zone = 'raw'; pot.seen = 'raw';
+      pot.stock = POT_PORTIONS; pot.stockP = pot.p;
+      pot.cooking = false; pot.p = 0; pot.zone = 'raw'; pot.seen = 'raw';
       audio.sfxPlay('pickup');
-      this.say(`Sacaste la tanda: ${out.length} porción${out.length > 1 ? 'es' : ''} de arroz.`);
-      for (const g of out) g.putCooked('rice', p);
-      this.render(); this.changed(); return;
+      this.say(`Sacaste el arroz: alcanza para ${POT_PORTIONS} platos.`);
+      this.deal(); this.remember(); this.render(); this.changed(); return;
     }
-    this.say(wait ? 'La olla ya arrancó: esperá a que termine esta tanda.' : 'No hay arroz esperando. Empezá un plato que lleve arroz.');
+    if (pot.stock > 0) { this.say(`Todavía quedan ${pot.stock} porciones de arroz listas.`); return; }
+    pot.cooking = true; pot.p = 0; pot.zone = 'raw'; pot.seen = 'raw';
+    audio.sfxPlay('tap');
+    this.say(`Arroz en la olla: rinde ${POT_PORTIONS} platos.`);
+    this.render(); this.changed();
+  }
+
+  private remember() { potMemory = { day: gs.save.time.day, stock: this.pot.stock, stockP: this.pot.stockP }; }
+
+  /** the dishes that wait for rice take a portion from the pot, one each */
+  private deal(): boolean {
+    const pot = this.pot;
+    let gave = false;
+    for (const d of this.dishes()) {
+      while (pot.stock > 0) {
+        const i = d.game.rawPieces.findIndex((r) => r.item === 'rice');
+        if (i < 0) break;
+        d.game.takeRaw(i); d.game.putCooked('rice', pot.stockP);
+        pot.stock--; gave = true;
+        this.say(pot.stock > 0 ? `Arroz para ${d.game.recipe.name}. Quedan ${pot.stock} porciones.` : `Arroz para ${d.game.recipe.name}. Se acabó el arroz de la olla.`);
+        break;
+      }
+    }
+    if (gave) { this.remember(); this.render(); }
+    return gave;
   }
 
   // ---------------------------------------------------------------- draw
@@ -262,23 +284,26 @@ export class Grill {
   }
 
   private drawPot() {
-    const g = this.potCv.getContext('2d')!, W = 128, H = 56, pot = this.pot;
+    const g = this.potCv.getContext('2d')!, W = 160, H = 80, pot = this.pot;
     g.imageSmoothingEnabled = false; g.clearRect(0, 0, W, H);
-    kitchenOval(g, 64, 44, 34, 8, 'rgba(0,0,0,.35)');
-    g.fillStyle = '#8e9aa3'; g.fillRect(30, 18, 68, 24); g.fillStyle = '#c7d2d8'; g.fillRect(30, 18, 68, 3); g.fillStyle = '#5f6b73'; g.fillRect(30, 38, 68, 4);
-    g.fillStyle = '#5b4636'; g.fillRect(18, 24, 12, 4); g.fillRect(98, 24, 12, 4);
-    kitchenOval(g, 64, 18, 34, 8, '#b4bec5'); kitchenOval(g, 64, 17, 31, 6, pot.games.length ? '#ede7d4' : '#6b747a');
-    if (pot.games.length && !settings.reduceMotion) { g.fillStyle = 'rgba(255,255,255,.55)'; for (let k = 0; k < 4; k++) { const ph = (this.t * 0.8 + k / 4) % 1; g.fillRect(44 + k * 14 + Math.round(Math.sin(ph * 6 + k) * 2), Math.round(14 - ph * 12), 2, 2); } }
-    for (let k = 0; k < POT_CAPACITY; k++) { g.fillStyle = k < pot.games.length ? '#fbf7ee' : '#3d3945'; g.fillRect(36 + k * 15, 26, 11, 7); }
-    const bx = 8, bw = W - 16, by = H - 6;
-    g.fillStyle = '#17131a'; g.fillRect(bx - 1, by - 1, bw + 2, 6);
-    const seg = (a: number, b: number, c: string) => { g.fillStyle = c; g.fillRect(bx + Math.round(a * bw), by, Math.round((b - a) * bw), 4); };
+    kitchenOval(g, 80, 56, 46, 10, 'rgba(0,0,0,.35)');
+    // the pot: a wide steel body with a lid rim and two handles
+    g.fillStyle = '#8e9aa3'; g.fillRect(32, 22, 96, 34); g.fillStyle = '#c7d2d8'; g.fillRect(32, 22, 96, 4); g.fillStyle = '#5f6b73'; g.fillRect(32, 50, 96, 6);
+    g.fillStyle = '#5b4636'; g.fillRect(16, 30, 16, 5); g.fillRect(128, 30, 16, 5);
+    const full = pot.cooking || pot.stock > 0;
+    kitchenOval(g, 80, 22, 48, 10, '#b4bec5'); kitchenOval(g, 80, 21, 44, 8, full ? '#ede7d4' : '#6b747a');
+    if (full && !settings.reduceMotion) { g.fillStyle = 'rgba(255,255,255,.55)'; for (let k = 0; k < 5; k++) { const ph = (this.t * 0.8 + k / 5) % 1; g.fillRect(48 + k * 15 + Math.round(Math.sin(ph * 6 + k) * 2), Math.round(18 - ph * 16), 2, 2); } }
+    // portions left, one grain pile each
+    for (let k = 0; k < POT_PORTIONS; k++) { g.fillStyle = k < pot.stock ? '#fbf7ee' : '#3d3945'; g.fillRect(46 + k * 15, 34, 11, 8); }
+    const bx = 10, bw = W - 20, by = H - 8;
+    g.fillStyle = '#17131a'; g.fillRect(bx - 1, by - 1, bw + 2, 7);
+    const seg = (a: number, b: number, c: string) => { g.fillStyle = c; g.fillRect(bx + Math.round(a * bw), by, Math.round((b - a) * bw), 5); };
     seg(0, ZONES.ready, '#9a7a3c'); seg(ZONES.ready, ZONES.over, '#5f9a47'); seg(ZONES.over, ZONES.burnt, '#c9782d'); seg(ZONES.burnt, 1, '#8c2f2a');
-    if (pot.games.length) { g.fillStyle = '#fff6d8'; g.fillRect(bx + Math.round(Math.min(1, pot.p) * bw) - 1, by - 2, 2, 8); }
+    if (pot.cooking) { g.fillStyle = '#fff6d8'; g.fillRect(bx + Math.round(Math.min(1, pot.p) * bw) - 1, by - 2, 2, 9); }
     const label = this.potEl.querySelector('.gr-label') as HTMLElement;
-    const t = pot.games.length ? `Olla de arroz: ${pot.games.length}/${POT_CAPACITY} · ${ZONE_TEXT[pot.zone]}` : 'Olla de arroz: vacía';
+    const t = pot.cooking ? `${ZONE_TEXT[pot.zone]} · toca para sacarla cuando esté lista` : pot.stock > 0 ? `Arroz listo: ${pot.stock} de ${POT_PORTIONS} porciones` : 'Olla vacía · tocá para hacer arroz';
     if (label.textContent !== t) label.textContent = t;
-    this.potEl.dataset.zone = pot.games.length ? pot.zone : 'free';
+    this.potEl.dataset.zone = pot.cooking ? pot.zone : pot.stock > 0 ? 'ready' : 'free';
   }
 }
 

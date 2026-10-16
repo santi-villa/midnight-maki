@@ -50,7 +50,6 @@ class DecorEditor {
   private placeName!: HTMLElement;
   private status!: HTMLElement;
   private actions!: HTMLElement;
-  private placeBtn: HTMLButtonElement | null = null;
   private gfx!: Phaser.GameObjects.Graphics;
   private ghostImg: Phaser.GameObjects.Image | null = null;
   private ghost: Ghost | null = null;
@@ -61,6 +60,8 @@ class DecorEditor {
   private down: { x: number; y: number } | null = null;
   private downHandler = (p: Phaser.Input.Pointer) => (this.down = { x: p.x, y: p.y });
   private startOwned = 0;
+  private initial = '';
+  private frameObserver: ResizeObserver | null = null;
 
   constructor(private room: RoomDef) {}
 
@@ -70,6 +71,7 @@ class DecorEditor {
     world.player.stop();
     clock.pause();
     showHud(false);
+    this.initial = this.serialize();
     this.gfx = world.add.graphics().setDepth(190000);
     world.input.on('pointerdown', this.downHandler);
     world.input.on('pointermove', this.moveHandler);
@@ -92,12 +94,17 @@ class DecorEditor {
         h('b', null, this.room.name),
         h('div', { class: 'decor-head-actions' },
           h('button', { type: 'button', class: 'btn small', onclick: () => this.doUndo() }, 'Deshacer'),
-          h('button', { type: 'button', class: 'btn small primary', onclick: () => this.close() }, 'Listo'))),
-      this.browse,
+          h('button', { type: 'button', class: 'btn small', onclick: () => this.cancel() }, 'Cancelar'),
+          h('button', { type: 'button', class: 'btn small primary', onclick: () => this.done() }, 'Listo'))),
       this.placeBox,
+      this.browse,
     );
     uiRoot().append(this.sheet);
-    (this.sheet as HTMLElement & { __close?: () => void }).__close = () => this.close();
+    const frame = (ms: number) => world.frameRoom(this.room, this.sheet.getBoundingClientRect().height, ms);
+    frame(400);
+    this.frameObserver = new ResizeObserver(() => frame(0));
+    this.frameObserver.observe(this.sheet);
+    (this.sheet as HTMLElement & { __close?: () => void }).__close = () => this.cancel();
     window.addEventListener('keydown', this.onKey, true);
     this.startOwned = Object.values(game.save.furnitureOwned).reduce((a, b) => a + b, 0);
     this.renderList();
@@ -127,6 +134,30 @@ class DecorEditor {
     }
   };
 
+  private serialize(): string {
+    return JSON.stringify({ rooms: game.save.decor, owned: game.save.furnitureOwned, styles: game.save.roomStyle });
+  }
+
+  /** Listo: whatever is selected is put down where it is, and everything stays. */
+  private done() {
+    if (this.ghost && !this.commitGhost()) return;
+    this.close();
+  }
+
+  /** Cancelar: back to how the room was when the editor opened. */
+  private cancel() {
+    this.clearGhost(true);
+    if (this.serialize() !== this.initial) {
+      const d = JSON.parse(this.initial);
+      game.save.decor = d.rooms; game.save.furnitureOwned = d.owned; game.save.roomStyle = d.styles;
+      world.refreshFurniture();
+      bus.emit('decor:changed', { room: this.room.id });
+      toast('Dejaste el cuarto como estaba.');
+    }
+    this.startOwned = Object.values(game.save.furnitureOwned).reduce((a, b) => a + b, 0);
+    this.close();
+  }
+
   private close() {
     if (!active) return;
     active = false;
@@ -136,7 +167,9 @@ class DecorEditor {
     world.input.off('pointerup', this.handler);
     world.input.off('pointermove', this.moveHandler);
     world.input.off('pointerdown', this.downHandler);
+    this.frameObserver?.disconnect();
     this.sheet.remove();
+    world.unframeRoom();
     world.decorMode = false;
     clock.resume();
     showHud(true);
@@ -278,7 +311,7 @@ class DecorEditor {
 
   // ------------------------------------------------------------------ ghost placement
   private pickNew(id: string) {
-    this.clearGhost(true);
+    if (this.ghost && !this.commitGhost()) return;
     const f = FURN_BY_ID[id];
     const spot = this.findFreeSpot(f) ?? { x: this.room.x + 1, y: this.room.y + (f.wall ? 1 : 2) };
     this.ghost = { id, x: spot.x, y: spot.y, rot: 0 };
@@ -286,7 +319,7 @@ class DecorEditor {
   }
 
   private pickExisting(p: PlacedFurniture) {
-    this.clearGhost(true);
+    if (this.ghost && !this.commitGhost()) return;
     this.ghost = { id: p.id, x: p.x, y: p.y, rot: p.rot, uid: p.uid };
     const spr = world.furnSpriteByUid(p.uid);
     spr?.setAlpha(0.35);
@@ -297,20 +330,17 @@ class DecorEditor {
     const g = this.ghost!;
     const f = FURN_BY_ID[g.id];
     this.ghostImg?.destroy();
-    this.ghostImg = world.add.image(0, 0, furnTexture(world as unknown as Phaser.Scene, g.id, g.rot)).setOrigin(0.5, 1).setDepth(195000).setAlpha(0.85);
-    this.browse.hidden = true;
+    this.ghostImg = world.add.image(0, 0, furnTexture(world as unknown as Phaser.Scene, g.id, g.rot)).setOrigin(0.5, 1).setDepth(195000).setAlpha(0.85).setFlipX(!f.rotatable && (g.rot & 2) !== 0);
     this.placeBox.hidden = false;
     this.placeName.textContent = f.name;
     this.actions.innerHTML = '';
-    this.placeBtn = h('button', { type: 'button', class: 'btn primary', onclick: () => this.place() }, 'Colocar');
+    // pieces that cannot turn into another shape are mirrored instead: rot 0 / 2
+    const turn = () => { g.rot = f.rotatable ? (g.rot + 1) % 4 : g.rot === 0 ? 2 : 0; this.showGhost(); audio.sfxPlay('tap'); };
     add(this.actions,
-      this.placeBtn,
-      f.rotatable ? h('button', { type: 'button', class: 'btn', onclick: () => { g.rot = (g.rot + 1) % 4; this.showGhost(); audio.sfxPlay('tap'); } }, 'Rotar') : null,
-      g.uid != null ? h('button', { type: 'button', class: 'btn', onclick: () => this.store() }, 'Guardar') : null,
-      h('button', { type: 'button', class: 'btn', onclick: () => { this.clearGhost(true); this.renderList(); } }, 'Cancelar'),
+      h('button', { type: 'button', class: 'btn', onclick: turn }, f.rotatable ? '↻ Rotar' : '⇆ Girar'),
+      g.uid != null ? h('button', { type: 'button', class: 'btn', onclick: () => this.store() }, 'Quitar') : null,
     );
     this.updateGhost();
-    this.placeBtn.focus({ preventScroll: true });
   }
 
   private nudge(a: '↑' | '↓' | '←' | '→') {
@@ -341,8 +371,7 @@ class DecorEditor {
     this.ghostImg.setPosition(g.x * TILE + (size.w * TILE) / 2, (g.y + size.h) * TILE);
     const why = this.blockReason(g);
     this.ghostImg.setTint(why ? 0xf0a0a0 : 0xc8f0c0);
-    if (this.placeBtn) this.placeBtn.disabled = !!why;
-    this.setStatus(why ?? 'Se puede colocar.', why ? 'bad' : 'ok');
+    this.setStatus(why ?? 'Tocá o arrastrá en el cuarto para moverlo. Cuando termines, tocá Listo.', why ? 'bad' : 'ok');
     this.drawGrid();
   }
 
@@ -351,10 +380,8 @@ class DecorEditor {
     this.ghostImg?.destroy();
     this.ghostImg = null;
     this.ghost = null;
-    this.placeBtn = null;
     this.actions.innerHTML = '';
     if (this.placeBox) this.placeBox.hidden = true;
-    if (this.browse) this.browse.hidden = false;
     this.drawGrid();
   }
 
@@ -417,22 +444,24 @@ class DecorEditor {
     return false;
   }
 
-  private place() {
+  /** Puts the selected piece down where it is. Returns false (and says why) when that spot is not allowed. */
+  private commitGhost(): boolean {
     const g = this.ghost;
-    if (!g) return;
+    if (!g) return true;
     const why = this.blockReason(g);
     if (why) {
       audio.sfxPlay('error');
-      this.setStatus(why, 'bad');
-      return;
+      this.setStatus(why + ' Movelo a otro lugar.', 'bad');
+      return false;
     }
-    this.snapshot();
     const list = game.room(this.room.id);
+    const before = g.uid != null ? list.find((x) => x.uid === g.uid) : null;
+    const moved = !before || before.x !== g.x || before.y !== g.y || before.rot !== g.rot;
+    if (moved) this.snapshot();
     if (g.uid != null) {
-      const p = list.find((x) => x.uid === g.uid);
-      if (p) Object.assign(p, { x: g.x, y: g.y, rot: g.rot });
+      if (before) Object.assign(before, { x: g.x, y: g.y, rot: g.rot });
     } else {
-      if ((game.save.furnitureOwned[g.id] ?? 0) <= 0) return;
+      if ((game.save.furnitureOwned[g.id] ?? 0) <= 0) { this.clearGhost(false); return true; }
       game.save.furnitureOwned[g.id]--;
       if (game.save.furnitureOwned[g.id] <= 0) delete game.save.furnitureOwned[g.id];
       list.push({ uid: game.uid(), id: g.id, x: g.x, y: g.y, rot: g.rot });
@@ -440,10 +469,10 @@ class DecorEditor {
       if (g.id === 'pt_sushi') game.setFlag('placed_pt_sushi');
       if (g.id === 'bamboo_pot') game.setFlag('placed_bamboo_pot');
     }
-    game.stat('decorMoves');
-    audio.sfxPlay('place');
+    if (moved) { game.stat('decorMoves'); audio.sfxPlay('place'); }
     this.clearGhost(false);
     this.commit();
+    return true;
   }
 
   private store() {

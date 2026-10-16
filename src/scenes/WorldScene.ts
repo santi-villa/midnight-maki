@@ -217,6 +217,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.zone) this.applyBounds();
     if (mid) cam.centerOn(mid.x, mid.y);
     else if (this.cookActive) this.cookFrame(0);
+    else if (this.roomFrame) this.frameRoom(this.roomFrame.room, this.roomFrame.inset, 0);
     this.sizeDark(zoom);
   }
 
@@ -260,6 +261,33 @@ export class WorldScene extends Phaser.Scene {
     const vh = Math.ceil(this.scale.height / zoom) + 4;
     this.dark.setSize(vw, vh);
     this.dark.resize?.(vw, vh);
+  }
+
+  // ------------------------------------------------------------------ decorating close-up
+  private roomFrame: { room: { x: number; y: number; w: number; h: number }; inset: number } | null = null;
+  private roomSaved: { zoom: number } | null = null;
+
+  /** Fits a room in the part of the screen the decoration sheet leaves free (`inset` px at the bottom). */
+  frameRoom(room: { x: number; y: number; w: number; h: number }, inset: number, ms = 350) {
+    const cam = this.cameras.main;
+    if (!this.roomFrame) { this.roomSaved = { zoom: cam.zoom }; cam.stopFollow(); cam.removeBounds(); }
+    this.roomFrame = { room, inset };
+    const w = this.scale.width, h = Math.max(120, this.scale.height - inset);
+    const fit = Math.min(w / ((room.w + 1) * TILE), h / ((room.h + 1) * TILE));
+    const zoom = fit >= 2 ? Math.floor(fit) : Math.max(1, Math.floor(fit * 4) / 4);
+    const cx = (room.x + room.w / 2) * TILE, cy = (room.y + room.h / 2) * TILE + inset / 2 / zoom;
+    if (ms) { cam.zoomTo(zoom, ms); cam.pan(cx, cy, ms, 'Sine.easeInOut'); } else { cam.setZoom(zoom); cam.centerOn(cx, cy); }
+    this.sizeDark(zoom);
+  }
+
+  unframeRoom() {
+    if (!this.roomFrame) return;
+    const cam = this.cameras.main, saved = this.roomSaved;
+    this.roomFrame = null; this.roomSaved = null;
+    cam.zoomTo(saved?.zoom ?? cam.zoom, 300);
+    this.applyBounds();
+    cam.startFollow(this.player.sprite, true, 0.12, 0.12, 0, 8);
+    this.time.delayedCall(400, () => { if (!this.roomFrame) cam.startFollow(this.player.sprite, true, 1, 1, 0, 8); });
   }
 
   // ------------------------------------------------------------------ cooking close-up
@@ -604,7 +632,7 @@ export class WorldScene extends Phaser.Scene {
     const size = furnSize(def, f.rot);
     const px = f.x * TILE + (size.w * TILE) / 2;
     const py = (f.y + size.h) * TILE;
-    const img = this.add.image(px, py, key).setOrigin(0.5, 1);
+    const img = this.add.image(px, py, key).setOrigin(0.5, 1).setFlipX(!def.rotatable && (f.rot & 2) !== 0);
     if (def.walkable) img.setDepth(-6);
     else if (def.wall) img.setDepth(-5);
     else {

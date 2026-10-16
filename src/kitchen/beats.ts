@@ -98,3 +98,55 @@ export function itemsScore(placed: number, wrong: number): number {
 
 /** The tap beat is one pulse with a generous window. */
 export const tapPeriod = (mode: CookModeName) => pulsePeriod(mode) * 1.3;
+
+
+/** Each prompt rolls a small twist so no two feel the same: tempo, uneven rhythm, a target that hops, a bar that speeds up or drags. */
+export type HoldCurve = 'linear' | 'in' | 'out' | 'surge';
+export interface Twist {
+  /** multiplies the tempo: above 1 is faster */
+  speed: number;
+  /** rhythm: spacing of each pulse relative to the period (1 = even) */
+  gaps: number[];
+  /** tap: the target hops to another spot after each pulse */
+  jump: boolean;
+  curve: HoldCurve;
+  /** items: the ingredients change places after each pick */
+  shuffle: boolean;
+  /** hold: how far the gold mark is nudged from its usual place */
+  nudge: number;
+  /** short word shown while it starts */
+  label: string;
+}
+
+const PATTERNS: number[][] = [[1, 1, 1, 1, 1], [1, 0.65, 1.35, 1, 1], [0.7, 0.7, 1.4, 0.7, 1.2], [1.3, 0.7, 1, 0.7, 1], [0.6, 1.4, 0.6, 1.4, 1]];
+
+/** `rand` returns 0..1; pass a seeded one in tests. */
+export function rollTwist(kind: PromptKind, mode: CookModeName, pulses: number, rand: () => number = Math.random): Twist {
+  const lo = mode === 'relaxed' ? 0.92 : mode === 'challenge' ? 0.75 : 0.82;
+  const hi = mode === 'relaxed' ? 1.08 : mode === 'challenge' ? 1.6 : 1.35;
+  const speed = lo + rand() * (hi - lo);
+  let gaps = new Array(Math.max(1, pulses)).fill(1);
+  if (kind === 'rhythm' && mode !== 'relaxed') {
+    const pick = PATTERNS[Math.floor(rand() * (mode === 'challenge' ? PATTERNS.length : 3))];
+    gaps = Array.from({ length: Math.max(1, pulses) }, (_, i) => pick[i % pick.length]);
+  }
+  const curves: HoldCurve[] = mode === 'relaxed' ? ['linear'] : mode === 'challenge' ? ['in', 'out', 'surge', 'linear'] : ['linear', 'in', 'out'];
+  const curve = kind === 'hold' ? curves[Math.floor(rand() * curves.length)] : 'linear';
+  const jump = mode !== 'relaxed' && rand() < (mode === 'challenge' ? 0.7 : 0.4);
+  const shuffle = mode !== 'relaxed' && rand() < (mode === 'challenge' ? 0.7 : 0.35);
+  const nudge = mode === 'relaxed' ? 0 : (rand() - 0.5) * (mode === 'challenge' ? 0.2 : 0.14);
+  const label = speed > 1.25 ? 'Rápido' : speed < 0.88 ? 'Despacio' : gaps.some((g) => g !== 1) ? 'Ritmo raro' : jump ? 'Ojo: se mueve' : curve === 'surge' ? 'Acelera' : '';
+  return { speed, gaps, jump, curve, shuffle, nudge, label };
+}
+
+/** Progress of a hold bar for `r` = time held / time to fill, shaped by the curve. Past the full bar it keeps rising evenly. */
+export function holdCurve(curve: HoldCurve, r: number): number {
+  if (r <= 0) return 0;
+  if (r >= 1) return r;
+  switch (curve) {
+    case 'in': return Math.pow(r, 1.7);
+    case 'out': return 1 - Math.pow(1 - r, 1.7);
+    case 'surge': return r < 0.5 ? r * 0.6 : 0.3 + (r - 0.5) * 1.4;
+    default: return r;
+  }
+}

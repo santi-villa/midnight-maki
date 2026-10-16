@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RECIPES } from '../data/recipes';
-import { holdScore, itemsScore, planBeats, pulseGrace, pulsePeriod, pulseScore } from '../kitchen/beats';
+import { holdCurve, holdScore, rollTwist, itemsScore, planBeats, pulseGrace, pulsePeriod, pulseScore } from '../kitchen/beats';
 
 describe('beats of a recipe', () => {
   it('turns every step into at least one beat, in order, and waits for the stove and the rice pot', () => {
@@ -56,5 +56,31 @@ describe('how well a beat went', () => {
     expect(itemsScore(3, 0)).toBe(1);
     expect(itemsScore(3, 2)).toBeCloseTo(0.6);
     expect(itemsScore(3, 9)).toBe(0.4);
+  });
+});
+
+describe('twists keep every prompt different but fair', () => {
+  const seeded = (n: number) => () => { n = (n * 9301 + 49297) % 233280; return n / 233280; };
+  it('relaxed stays even and gentle', () => {
+    for (let i = 1; i < 30; i++) {
+      const t = rollTwist('rhythm', 'relaxed', 3, seeded(i));
+      expect(t.gaps.every((g) => g === 1)).toBe(true);
+      expect(t.jump).toBe(false);
+      expect(t.speed).toBeGreaterThan(0.9);
+      expect(t.speed).toBeLessThan(1.1);
+    }
+  });
+  it('challenge varies tempo and rhythm across rolls', () => {
+    const rolls = Array.from({ length: 40 }, (_, i) => rollTwist('rhythm', 'challenge', 4, seeded(i + 3)));
+    expect(new Set(rolls.map((r) => Math.round(r.speed * 10))).size).toBeGreaterThan(4);
+    expect(rolls.some((r) => r.gaps.some((g) => g !== 1))).toBe(true);
+  });
+  it('hold curves start at 0, reach 1 and never go backwards', () => {
+    for (const c of ['linear', 'in', 'out', 'surge'] as const) {
+      expect(holdCurve(c, 0)).toBe(0);
+      expect(holdCurve(c, 1)).toBeCloseTo(1, 5);
+      let last = -1;
+      for (let r = 0; r <= 1.3; r += 0.05) { const v = holdCurve(c, r); expect(v).toBeGreaterThanOrEqual(last); last = v; }
+    }
   });
 });

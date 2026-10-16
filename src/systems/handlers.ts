@@ -38,10 +38,13 @@ registerAction('bed', async () => {
   });
   const opts = clock.period < 3 ? ['sleep', 'rest', 'no'] : ['sleep', 'no'];
   if (opts[c] === 'sleep') {
-    const { sleepNow } = await import('./sleep');
-    await sleepNow();
+    const { sleepNow, pickSleepHours } = await import('./sleep');
+    const hours = await pickSleepHours();
+    if (hours) await sleepNow({ hours });
   } else if (opts[c] === 'rest') {
     clock.advancePeriod();
+    const { addEnergy, REST_GAIN } = await import('./fatigue');
+    addEnergy(REST_GAIN);
     toast(`Descansaste un rato. Ahora es ${clock.label().toLowerCase()}.`);
   }
 });

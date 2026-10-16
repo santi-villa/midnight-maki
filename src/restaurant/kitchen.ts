@@ -26,6 +26,7 @@ const materialHint = (missing: string[]) => (missing.some((m) => /^(Madera|Piedr
 import { advanceMissing, advanceRestaurant, levelProgress, nextAdvance, xpFloor } from './progression';
 import { shortageText } from './supplies';
 import { playerBusy } from './claims';
+import { addEnergy, DISH_COST, tooTiredToCook } from '../systems/fatigue';
 import { freeCookCoins } from './economy';
 import { runScene, say } from '../dialogue/dialogue';
 import { STAGE_NAMES, applyStageGrants, stageForLevel } from './stages';
@@ -169,6 +170,7 @@ function hardModeExtras(r: RecipeDef, res: CookResult) {
 const FREE_UID = -1;
 export async function enterKitchen(firstUid?: number, freeId?: string) {
   if (kitchenOpen()) return;
+  if (tooTiredToCook()) { toast('Estás muy cansada para cocinar. Dormí o descansá un rato en tu cama.'); return; }
   refreshOrders(false);
   const taken = new Set<number>();
   const free = freeId ? RECIPES_BY_ID[freeId] : null;
@@ -201,6 +203,7 @@ export async function enterKitchen(firstUid?: number, freeId?: string) {
       playerBusy.delete(uid);
       if (!p) return null;
       const { o, r } = p;
+      addEnergy(-DISH_COST);
       hardModeExtras(r, res);
       if (!o) return finishFree(r, res);
       const refund = () => { for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund'); };
@@ -252,6 +255,7 @@ async function startOrder(uid: number, quick = false) {
   const o = game.save.orders.find((x) => x.uid === uid);
   if (!o) return;
   if (o.kind === 'drink') { await prepareDrink(uid); return; }
+  if (tooTiredToCook()) { toast('Estás muy cansada para cocinar. Dormí o descansá un rato en tu cama.'); return; }
   const r = RECIPES_BY_ID[o.recipe];
   const forTable = !!o.service || plateState(uid) === 'cooking';
   if (!game.consumeIngredients(r.ingredients)) {
@@ -262,6 +266,7 @@ async function startOrder(uid: number, quick = false) {
   try { res = quick ? quickResult(r) : await cook(r.id, customerName(o.customer)); }
   catch (error) { for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund'); throw error; }
   if (res.ok && !quick) celebrate(r, res);
+  if (res.ok && quick) addEnergy(-DISH_COST);
   if (!res.ok) {
     // cancelled: give the ingredients back (no punishment)
     for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund');
