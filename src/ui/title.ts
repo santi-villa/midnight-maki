@@ -261,6 +261,7 @@ function credits() {
       h('p', null, h('b', null, 'Maki & Mapaches: Los secretos de Villa Nori')),
       h('p', null, 'Un regalo para Sofi, de Santi.'),
       h('p', null, 'Ilustraciones pixel art, música y sonidos para Villa Nori.'),
+      h('p', null, 'Terreno y tejas: VectoRaith (demo Traditional Japanese, con adaptación de color). Muebles y decoración: Bitglow.'),
       h('p', null, 'Hecho con Phaser, TypeScript y Vite. Tipografía: Pixelify Sans (OFL).'),
       h('p', { class: 'muted' }, 'Pip, Spicy Beacon y Rigg te mandan saludos.'),
     ),

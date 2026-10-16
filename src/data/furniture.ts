@@ -53,7 +53,7 @@ export const FURNITURE: FurnitureDef[] = [
   F('chair_wood', 'Silla de madera', 'restaurant', 'natural', 50, 'chair', '#8a5a3c', '#a8734d', 1, 1, 18, { rotatable: true, sit: true }),
   F('chair_rose', 'Silla rosa', 'restaurant', 'pastel', 80, 'chair', '#c27f86', '#e8b8c0', 1, 1, 18, { rotatable: true, sit: true, shop: 'sumi' }),
   F('chair_sage', 'Silla salvia', 'restaurant', 'cottage', 80, 'chair', '#7c9a7b', '#a9c3a0', 1, 1, 18, { rotatable: true, sit: true }),
-  F('chair_dark', 'Silla de nogal', 'restaurant', 'dark', 110, 'chair', '#76553c', '#a6b58a', 1, 1, 18, { rotatable: true, sit: true }),
+  F('chair_dark', 'Silla de nogal', 'restaurant', 'dark', 110, 'chair', '#76553c', '#a6b58a', 1, 1, 24, { rotatable: true, sit: true }),
   F('stool', 'Banquito', 'kitchen', 'minimal', 50, 'stool', '#a8734d', '', 1, 1, 14, { sit: true }),
   F('cushion_rose', 'Zabuton rosa', 'bedroom', 'japanese', 55, 'cushion', '#d9a3a6', '#f2c66d', 1, 1, 14, { sit: true, walkable: true }),
   F('cushion_indigo', 'Zabuton índigo', 'bedroom', 'japanese', 55, 'cushion', '#3b4470', '#f6ecd6', 1, 1, 14, { sit: true, walkable: true }),

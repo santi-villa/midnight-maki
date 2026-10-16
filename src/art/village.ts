@@ -3,8 +3,9 @@
  */
 import { ellipse, px, shade, type Ctx } from './pixel';
 import { buildingLayout } from './nature';
+import { cozyRoofRow } from './cozyAssets';
 
-const INK = '#30282b', WOOD = '#856047', DARK = '#4d3833', LIGHT = '#c79c6c';
+const INK = '#4b3c32', WOOD = '#a07952', DARK = '#705239', LIGHT = '#d6b284';
 type Draw = (c: Ctx, w: number, h: number, c1: string, c2: string, rot: number, r: () => number) => void;
 function rect(c: Ctx, x: number, y: number, w: number, h: number, col: string) {
   px(c, x, y, INK, w, h); px(c, x + 1, y + 1, col, w - 2, h - 2);
@@ -15,6 +16,7 @@ function roof(c: Ctx, w: number, top: number, bottom: number, color: string, wor
     const edge = Math.max(2, Math.floor((bottom - y) * .29));
     px(c, edge, y, INK, w - edge * 2, 1);
     px(c, edge + 2, y, shade(color, (y % 5 === 0 ? .22 : y % 5 === 4 ? -.28 : -.02)), w - edge * 2 - 4, 1);
+    cozyRoofRow(c, edge + 2, y, w - edge * 2 - 4, y - top, color);
     if (y % 5 === 1) for (let x = edge + 3 + (Math.floor(y / 5) % 2) * 4; x < w - edge - 3; x += 8) {
       px(c, x, y, shade(color, -.3), 1, 3);
       px(c, x + 1, y, shade(color, .12), 1, 2);
@@ -209,22 +211,39 @@ export function drawVillageHome(c: Ctx, W: number, H: number, walls: string, til
 
 export const VILLAGE_KINDS: Record<string, Draw> = {
   village_deck(c, W, H, _c1, _c2, rot) {
-    // Rot 0 east-west, 1 north-south. Ground layer keeps characters above the deck.
-    rect(c, 0, 1, W, H - 1, DARK);
-    if (rot === 0) for (let x = 1; x < W - 1; x += 7) {
-      px(c, x, 2, x % 3 ? '#b58d64' : '#a37b56', 6, H - 4);
-      px(c, x + 1, 3, '#d4b080', 1, H - 6);
-      for (const y of [4, H - 6]) px(c, x + 3, y, DARK);
+    // Open ends, golden planks and Japanese timber rails. The traversable footprint is unchanged.
+    const vertical = rot === 1;
+    const length = vertical ? H : W, width = vertical ? W : H;
+    const plank = (along: number, across: number, len: number, thick: number, color: string) => {
+      if (vertical) px(c, across, along, color, thick, len);
+      else px(c, along, across, color, len, thick);
+    };
+    plank(0, 1, length, width - 2, '#896544');
+    for (let n = 0; n < length; n += 8) {
+      plank(n, 3, Math.min(7, length - n), width - 6, n % 16 ? '#bc9569' : '#c5a174');
+      plank(n, 3, 1, width - 6, '#e0bf8e');
     }
-    else for (let y = 2; y < H - 1; y += 7) {
-      px(c, 1, y, y % 3 ? '#b58d64' : '#a37b56', W - 2, 6); px(c, 2, y, '#d4b080', W - 4, 1);
-      px(c, 4, y + 3, DARK); px(c, W - 6, y + 3, DARK);
-    }
-    // Edge timbers/posts, leaving both ends of the walking route open.
-    const length = rot ? H : W;
-    for (let n = 0; n < length; n += 16) for (const edge of [0, (rot ? W : H) - 4]) {
-      const x = rot ? edge : n, y = rot ? n : edge;
-      rect(c, x, y, 4, 4, '#a28262'); px(c, x + 1, y + 1, '#e0be8b', 2, 1);
+    if (vertical) {
+      for (const edge of [0, W - 5]) {
+        px(c, edge + 1, 0, '#79573c', 3, H);
+        px(c, edge + 1, 0, '#ddb57e', 1, H);
+        for (let y = 0; y < H; y += 16) {
+          px(c, edge, y, '#6f5037', 5, Math.min(10, H - y));
+          px(c, edge + 1, y + 1, '#c79b66', 3, Math.min(8, H - y - 1));
+          px(c, edge, y, '#efd0a0', 5, 2);
+        }
+      }
+    } else {
+      for (const y of [0, H - 10]) {
+        px(c, 0, y + 2, '#79573c', W, 3);
+        px(c, 1, y + 2, '#ddb57e', W - 2, 1);
+        px(c, 0, y + 7, '#79573c', W, 1);
+        for (let x = 0; x < W; x += 16) {
+          px(c, x, y, '#6f5037', Math.min(5, W - x), 10);
+          px(c, x + 1, y + 1, '#c79b66', Math.min(3, W - x - 1), 8);
+          px(c, x, y, '#efd0a0', Math.min(5, W - x), 2);
+        }
+      }
     }
   },
   village_bank(c, W, H, _c1, _c2, rot) {

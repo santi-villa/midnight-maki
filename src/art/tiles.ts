@@ -43,8 +43,8 @@ function carpet(base: string, dot: string): TileDraw {
 
 function dirt(): TileDraw {
   return (c, x, y, r) => {
-    px(c, x, y, '#c9a87c', 16, 16);
-    speckle(c, x, y, r, ['#b8966b', '#d8bb91', '#a8865c'], 22);
+    px(c, x, y, '#d5b68a', 16, 16);
+    speckle(c, x, y, r, ['#c5a67e', '#e4cca5', '#b99c74'], 7);
   };
 }
 
@@ -144,9 +144,9 @@ function cliffTile(part: 0 | 1 | 2): TileDraw {
     }
     for (let k = 0; k < 10; k++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? dark : light, 1, 1);
     if (part === 0) {
-      px(c, x, y, '#6e9f4f', 16, 3);
-      for (let i = 0; i < 16; i += 3) px(c, x + i, y + 3, '#5a8a40', 2, 1 + (i % 2));
-      px(c, x, y, '#8fc066', 16, 1);
+      px(c, x, y, PAL.grass, 16, 3);
+      for (let i = 0; i < 16; i += 3) px(c, x + i, y + 3, PAL.grassD, 2, 1 + (i % 2));
+      px(c, x, y, PAL.grassL, 16, 1);
     }
     if (part === 2) {
       px(c, x, y + 11, shade(base, -0.25), 16, 5);

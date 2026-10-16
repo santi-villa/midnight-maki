@@ -4,8 +4,9 @@
  * `variant` = trade * 2 + (door on the right ? 1 : 0); trades: 0 home, 1 tea house, 2 fishmonger, 3 florist.
  */
 import { ellipse, px, shade, type Ctx } from './pixel';
+import { cozyRoofRow } from './cozyAssets';
 
-const INK = '#2f2427', TIM = '#5a3d2e', TIM2 = '#7d5a40', TIM3 = '#b08a62', STONE = '#8b8478', STONE2 = '#b7ae9a';
+const INK = '#4b3c32', TIM = '#795a3e', TIM2 = '#a07952', TIM3 = '#d2ad7c', STONE = '#a89a82', STONE2 = '#d5c5a6';
 export type Trade = 0 | 1 | 2 | 3;
 interface Rect { x: number; y: number; w: number; h: number }
 export interface HomeLayout { windows: Rect[]; door: Rect; eave: number; right: boolean; trade: Trade; side: boolean }
@@ -35,6 +36,7 @@ function tileRow(c: Ctx, xa: number, xb: number, y: number, k: number, t: number
   const row = shade(color, 0.14 - t * 0.22 + lit);
   px(c, xa, y, INK, xb - xa, 1);
   px(c, xa + 1, y, row, xb - xa - 2, 1);
+  cozyRoofRow(c, xa + 1, y, xb - xa - 2, k, color);
   const m = k % 4;
   if (m === 3) px(c, xa + 1, y, shade(color, -0.3), xb - xa - 2, 1);
   else if (m === 0) px(c, xa + 1, y, shade(color, 0.18), xb - xa - 2, 1);
