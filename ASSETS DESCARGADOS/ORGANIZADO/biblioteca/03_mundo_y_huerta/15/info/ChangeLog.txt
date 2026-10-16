@@ -1,0 +1,90 @@
+---------------------------
+Version 33 - October 15th 2026
+
+itchio page reworked !
+
+New premium content
+- more houses
+- rocks
+
+---------------------------
+Version 32 - July 16th 2026
+
+New premium content
+- more autotiles (assets\autotiles\06_field)
+- more postsigns props (assets\objects\objects_01_16x16.png)
+- Game-engine export : field (autotiles) & animals (characters) for RPG Maker, Godot and Unity
+- musics melodies : assets\musics\ambients\melodies (fanfare, gameover and inn)
+
+---------------------------
+Version 31 - July 4th 2026
+
+New premium content
+- Game-engine export : tiles and autotiles for RPG Maker, Godot and Unity
+
+---------------------------
+Version 30 - June 21th 2026
+
+New premium content
+- Cows : animals/cows/cow_01 with 36 colors combinaisons
+
+---------------------------
+Version 29 - June 14th 2026
+
+New premium content
+- Sun rays : weathers/rays/ray_01 + 02
+- Firefly : nimals/fireflies/firefly_01
+- Ambient musics : musics/ambients/night + rain
+
+---------------------------
+Version 28 - June 12th 2026
+
+More piggies !
+
+New premium content
+- Baby Pig animal (move, idle 4 directions) : assets\animals\pigs\pig_01\baby
+- Pig color swap (move, idle, 4 directions) : assets\animals\pigs\pig_02 to 06
+
+---------------------------
+Version 27 - June 12th 2026
+
+Mini update with piggy !
+
+New premium content
+- Pig animal (move, idle, 4 directions)
+
+---------------------------
+Version 26 - June 7th 2026
+
+New free content
+- Eggplant crop
+
+New premium content
+- Musics
+- Better crop animations : only the corn for now, I keep working on it
+
+Fixes
+- Fixing one corn offset frame
+- Grammer : Brocoli > Broccoli
+- Split crops in dedicated folder (for scale)
+- Package name update: Farmer -> Ranch
+
+---------------------------
+Version 25 - June 2nd 2026
+- Add a premium version with even more content (updated regularly)
+- New animals : bird, egg, cat, mouse, fox, bunny
+- New crop : bamboo
+- Adjusting the package naming (SuperRetroWorld to SuperRetroFarmer)
+
+---------------------------
+Version 24 - May 31th 2026
+- Re-organizing the package files. Files were badly named and not conveniently splitted.
+- I keep the previous organization in an archive : "legacy.zip"
+- New crop : berry
+
+---------------------------
+Version 23 - May 17th 2026
+- Add this CHANGELOG file in preparation for future updates
+- Add UPDATE_PACKAGE.html to easily get the latest package version (shortcut)
+- Remove VERSION.txt
+

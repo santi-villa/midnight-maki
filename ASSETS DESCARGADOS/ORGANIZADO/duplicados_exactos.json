@@ -1,0 +1,108 @@
+{
+  "55b460ee26b7a9ece0801c321235f98334eed0ace6cbfbc627a5ab796e11c057": [
+    "biblioteca/06_naturaleza/01/nature free/license.txt",
+    "biblioteca/07_pesca/08/fishing_free/license.txt"
+  ],
+  "2179740d1cc34b52766d9ee07ffb703d5274ce01971728a91ea6591fffa78368": [
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/1x/carrot/carrot-1-seeds.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/1x/tomato/tomato-1-seeds.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/1x/wheat/wheat-1-seeds.png"
+  ],
+  "b750141c5d3a411739f20d33474f989eb84c1e3fb97d8c970a08ae88849a02e3": [
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/1x/carrot/carrot-2-sprout.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/1x/tomato/tomato-2-sprout.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/1x/wheat/wheat-2-sprout.png"
+  ],
+  "29a48cdf2978f591090b12cf3f14d4a2ae1b6d4747bea68f18381ad06ca77e34": [
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/2x/carrot/carrot-1-seeds.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/2x/tomato/tomato-1-seeds.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/2x/wheat/wheat-1-seeds.png"
+  ],
+  "50f5de2d205d54d853888c99a193036df7c4aff15fd6b807366eddf2d98b15d5": [
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/2x/carrot/carrot-2-sprout.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/2x/tomato/tomato-2-sprout.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/2x/wheat/wheat-2-sprout.png"
+  ],
+  "377940f6ff002e0651e3aca8c38577ff9d0778f0bac7096b19e82dda40e8c9d4": [
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/4x/carrot/carrot-1-seeds.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/4x/tomato/tomato-1-seeds.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/4x/wheat/wheat-1-seeds.png"
+  ],
+  "df48f4e381dd082935e78ec01aa5974a50faa401c109e52e9757440e920e7704": [
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/4x/carrot/carrot-2-sprout.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/4x/tomato/tomato-2-sprout.png",
+    "biblioteca/03_mundo_y_huerta/07/cozy-farm-lite/crops/4x/wheat/wheat-2-sprout.png"
+  ],
+  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": [
+    "biblioteca/03_mundo_y_huerta/15/assets/crops/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/activities/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/animals/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/battles/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/buildings/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/characters/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/crops/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/crops_tree/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/facesets/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/icons/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/insects/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/ambients/melodies/fanfare/fanfare_01_wav",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/ambients/melodies/gameover/gameover_01_wav",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/ambients/melodies/inn/inn_01_wav",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/ambients/night/night_01_wav",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/ambients/rain/rain_01_wav",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/music_themes/field_wav",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/music_themes/town_wav",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/musics/music_themes/village_wav",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/tiles/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/user_interfaces/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/visual_effects/In development",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/weathers/In development"
+  ],
+  "3fada03901c8b415025199894fc9db952c71b132da43cf6172da1d5b02e5cb5e": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/chest_opening/PREMIUM_chest_opening_left_22x25_4frames.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/chest_opening/PREMIUM_chest_opening_right_22x25_4frames.png"
+  ],
+  "6e4ef4928cd50be6a74c624fceea5fd35d6bdb0fb6240f9da899c85f6b2b94b6": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_chest_closed_idle_down_22x25.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_chest_closed_idle_up_22x25.png"
+  ],
+  "1fb99cab77b8a63f79dda4fd14c6f0fd6c70aa89136704c2b53e0938a7d2c94d": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_chest_closed_idle_left_22x25.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_chest_closed_idle_right_22x25.png"
+  ],
+  "d534f49187ff529c33f02763e2673f6cafba812cce3f9b79fb765248996d995e": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_chest_opened_idle_left_22x25.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_chest_opened_idle_right_22x25.png"
+  ],
+  "070777b582069e55fe3483cd99bda384bc44b897314b0f05f0f0ea59f3f3ec7d": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_idle_down_22x25.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_idle_up_22x25.png"
+  ],
+  "001dd4a9b6cf62e77117087e0b3a99147967a8ed41ce6b9cc069a39f80fe1227": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_idle_left_22x25.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/idle/PREMIUM_idle_right_22x25.png"
+  ],
+  "4b9282176f355bea7d44f2cf82532f259c2b7750a51e0419057a2250fa71700f": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/move/PREMIUM_chest_move_down_22x25_3frames.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/move/PREMIUM_chest_move_up_22x25_3frames.png"
+  ],
+  "59f8761361f7d33fd4de08bf81b2270b5863339af33da100080c93da26681f75": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/move/PREMIUM_chest_move_left_22x25_3frames.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/move/PREMIUM_chest_move_right_22x25_3frames.png"
+  ],
+  "d60b445f34a3c5c1029c007ce73abac8eb896588d2e637ac1dad849e4ca87ee2": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/move/PREMIUM_move_down_22x25_3frames.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/move/PREMIUM_move_up_22x25_3frames.png"
+  ],
+  "bbf7a89a5a6ac483afaf3bbc0efdb245caeec556e72ee58ef07f7c8948ae2405": [
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/move/PREMIUM_move_left_22x25_3frames.png",
+    "biblioteca/03_mundo_y_huerta/15/assets_premium_preview/objects/kart/move/PREMIUM_move_right_22x25_3frames.png"
+  ],
+  "150d0b437c04bd742ac65594dc3fbc4b765e4176d0589529eda0645bed5fe1c1": [
+    "biblioteca/02_interiores/19/license.txt",
+    "biblioteca/02_interiores/20/license.txt",
+    "biblioteca/02_interiores/21/license.txt"
+  ]
+}

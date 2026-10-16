@@ -1,0 +1,8 @@
+MIDNIGHT MAKI - REVISION DE ASSETS
+
+1. Descomprimir todo el ZIP.
+2. Abrir ABRIR_CATALOGO.html en un navegador.
+3. Leer INFORME.md y GUIA_INTEGRACION.md.
+4. Comparar las carpetas de combinaciones; mi recomendacion es A.
+
+Son copias de trabajo del mismo proyecto. Los originales y el codigo no se modificaron. No es una integracion terminada. Las carpetas 90 contienen candidatos con licencia pendiente y las 91 recursos solo no comerciales segun sus textos. No publicar la biblioteca como un pack de recursos.
