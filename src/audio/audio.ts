@@ -540,12 +540,12 @@ class AudioEngine {
       g.gain.value = 0.5;
     } else if (kind === 'waves') {
       f.type = 'lowpass';
-      f.frequency.value = 600;
-      g.gain.value = 0.6;
+      f.frequency.value = 420;
+      g.gain.value = 0.14;
       const lfo = c.createOscillator();
       const lg = c.createGain();
       lfo.frequency.value = 0.12;
-      lg.gain.value = 0.35;
+      lg.gain.value = 0.08;
       lfo.connect(lg).connect(g.gain);
       lfo.start();
     } else {

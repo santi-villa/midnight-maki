@@ -151,7 +151,8 @@ function complete(q: QuestDef) {
   }
   game.touch('quest');
   haptic('unlock');
-  if (q.kind !== 'task') bus.emit('toast', { text: `Misión completada: ${q.title}${r?.coins ? ` (+${r.coins} monedas)` : ''}` });
+  if (q.kind !== 'task') bus.emit('toast', { text: `Misión completada: ${q.title}` });
+  if (r?.coins) bus.emit('reward:coins', { coins: r.coins, title: q.title });
   if (q.onComplete) pendingRewards.push(q.onComplete);
 }
 

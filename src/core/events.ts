@@ -6,6 +6,7 @@ export interface GameEvents {
   'inventory:changed': { id: string; qty: number; delta: number };
   'time:changed': { day: number; period: number };
   'energy:changed': { energy: number };
+  'reward:coins': { coins: number; title?: string };
   'zone:enter': { zone: string };
   'dialogue:start': { id: string };
   'dialogue:end': { id: string };
