@@ -6,7 +6,7 @@
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
 import { ZONES } from '../data/zones';
-import { currentStep } from '../quests/quests';
+import { currentStep, stepWaitsForOpening } from '../quests/quests';
 import { whereIs } from '../systems/npcs';
 import { serviceGuide } from '../restaurant/service';
 
@@ -45,6 +45,7 @@ export function questTarget(locate: (id: string) => string | null = whereIs): Gu
   if (!id) return null;
   const step = currentStep(id);
   if (!step) return null;
+  if (stepWaitsForOpening(step)) return null;
 
   // Explicit structured target takes precedence over regex guessing
   if (step.target) {

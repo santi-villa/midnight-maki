@@ -2206,6 +2206,28 @@ export class WorldScene extends Phaser.Scene {
     bus.emit('interact:available', { label: primary?.label ?? null, kind: primary?.icon });
   }
 
+  /** Where the floating prompt goes: just above what the main action is about, in screen pixels. Null while the prompt should hide. */
+  promptScreenPos(a: ContextAction): { x: number; y: number } | null {
+    if (!this.player || !this.zone || !this.canAct() || this.player.path.length) return null;
+    const top = (s: Phaser.GameObjects.Sprite) => ({ x: s.x, y: s.y - s.displayHeight + this.headRow(s) });
+    let at: { x: number; y: number } = top(this.player.sprite);
+    const i = a.intent;
+    if (i.type === 'target') {
+      const t = i.target;
+      if (t.kind === 'npc') { const n = this.npcs.get(t.id); if (n?.actor.sprite.visible) at = top(n.actor.sprite); }
+      else if (t.kind === 'neighbor') { const b = this.neighborBodies.get(t.id); if (b?.actor.sprite.visible) at = top(b.actor.sprite); }
+      else if (t.kind === 'interact') at = { x: t.def.x * TILE + TILE / 2, y: t.def.y * TILE };
+      else if (t.kind === 'door') at = { x: t.def.x * TILE + TILE / 2, y: t.def.y * TILE };
+      else if (t.kind === 'gather') at = { x: t.spot.x * TILE + TILE / 2, y: t.spot.y * TILE };
+    } else if (i.type === 'takeOrder' || i.type === 'deliver' || i.type === 'tip') {
+      const g = this.senseGuests().find((q) => q.tableId === i.tableId);
+      if (g) at = { x: g.x, y: g.y - 26 };
+    }
+    const cam = this.cameras.main, r = this.game.canvas.getBoundingClientRect();
+    const k = r.width / this.scale.width;
+    return { x: r.left + (at.x - cam.worldView.x) * cam.zoom * k, y: r.top + (at.y - cam.worldView.y) * cam.zoom * k - 8 };
+  }
+
   // ------------------------------------------------------------------ main loop
   update(_t: number, dms: number) {
     if (sampleFrame(dms)) this.enterLowFx(true);
