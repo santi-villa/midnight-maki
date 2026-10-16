@@ -32,7 +32,7 @@
 body:not(.input-touch) .noriphone-device:not(.is-open) { transform: translate(-50%, calc(-50% + var(--closed-y, 100vh) + var(--peek, 28px) + 12px)); }
 body:not(.input-touch) .noriphone-peek { display: none; }
 .noriphone-device.is-open .noriphone-peek { pointer-events: none; }
-.noriphone-peek:focus-visible { outline: 3px solid #ffe08a; outline-offset: -3px; }
+.noriphone-peek:focus-visible { outline: 1px solid #6b5344; outline-offset: -2px; }
 .noriphone-grip { position: absolute; left: 0; right: 0; pointer-events: none; touch-action: none; }
 .noriphone-device.is-open .noriphone-grip { pointer-events: auto; }
 .noriphone-grip.top { top: 0; height: calc(var(--scr-y) + 2px); }
@@ -41,7 +41,7 @@ body:not(.input-touch) .noriphone-peek { display: none; }
 .pn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; flex: 0 0 auto; }
 .pn-title { flex: 1; text-align: center; background: #fff6e4; color: #4a3424; border: 2px solid #8a6244; border-radius: 8px; padding: 2px 8px; }
 .pn-back, .pn-close { width: 34px; height: 34px; border: 3px solid #5a3822; border-radius: 8px; background: repeating-linear-gradient(90deg, #e7c07a 0 3px, #d7a45c 3px 4px, #e7c07a 4px 7px); color: #3b2416; font: inherit; font-weight: 700; cursor: pointer; flex: 0 0 auto; box-shadow: 0 2px 0 #6b4428, inset 0 1px 0 rgba(255, 248, 220, .7); }
-.pn-back:focus-visible, .pn-close:focus-visible, .pn-app:focus-visible, .pn-tab:focus-visible, .pn-opt:focus-visible, .pn-btn:focus-visible, .pn-dot:focus-visible { outline: 3px solid #ffe08a; outline-offset: 2px; }
+.pn-back:focus-visible, .pn-close:focus-visible, .pn-app:focus-visible, .pn-tab:focus-visible, .pn-opt:focus-visible, .pn-btn:focus-visible, .pn-dot:focus-visible { outline: 1px solid #6b5344; outline-offset: 2px; }
 .pn-back:active, .pn-close:active { transform: translateY(1px); box-shadow: 0 1px 0 #6b4428; }
 
 .pn-homehead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px; padding: 8px 6px 0; flex: 0 0 auto; position: relative; z-index: 1; }

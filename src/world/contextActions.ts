@@ -86,6 +86,10 @@ export interface ContextSense {
   gathers: { x: number; y: number; label: string; spot: GatherSpot }[];
   bugs: { x: number; y: number; idx: number; label: string }[];
   furniture: SenseFurniture[];
+  /** True when that tile cannot be stood on. Missing means every tile off the table is open. */
+  blocked?: (x: number, y: number) => boolean;
+  /** Seated customers, so an order can be taken from beside the person as well as the table. */
+  guests?: { tableId: string; x: number; y: number }[];
 }
 
 export function isPlayerRoom(room: { id: string; owner?: string } | null | undefined): boolean {
@@ -186,6 +190,27 @@ function jobAction(job: TableJob): ContextAction | null {
   };
 }
 
+const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+/** Stand points on every open tile touching the table. */
+function approachPoints(table: SenseFurniture, sense: ContextSense): { x: number; y: number }[] {
+  const seen = new Set<string>();
+  const points: { x: number; y: number }[] = [];
+  const inside = (x: number, y: number) => x >= table.x && y >= table.y && x < table.x + table.w && y < table.y + table.h;
+  for (let j = 0; j < table.h; j++) for (let i = 0; i < table.w; i++) {
+    for (const [dx, dy] of SIDES) {
+      const x = table.x + i + dx;
+      const y = table.y + j + dy;
+      const key = `${x},${y}`;
+      if (seen.has(key) || inside(x, y) || x < 0 || y < 0) continue;
+      seen.add(key);
+      if (sense.blocked?.(x, y)) continue;
+      points.push({ x: x * TILE + TILE / 2, y: y * TILE + TILE - 2 });
+    }
+  }
+  return points;
+}
+
 function addTables(bag: Map<string, Scored>, sense: ContextSense) {
   if (sense.zoneId !== 'restaurant' || !game.has('intro_done')) return;
   for (const job of tableJobs()) {
@@ -193,11 +218,14 @@ function addTables(bag: Map<string, Scored>, sense: ContextSense) {
     if (!table) continue;
     const action = jobAction(job);
     if (!action) continue;
-    const ax = table.x * TILE + (table.w * TILE) / 2;
-    const ay = table.y * TILE + 10;
     // Within reach, attention and delivery get half a tile of preference over casual actions.
     const service = action.intent.type === 'takeOrder' || action.intent.type === 'deliver';
-    consider(bag, action, ax, ay, 28, sense, 4, service ? -TILE / 2 : 0);
+    const bias = service ? -TILE / 2 : 0;
+    for (const spot of approachPoints(table, sense)) consider(bag, action, spot.x, spot.y, 20, sense, 4, bias);
+    for (const guest of sense.guests ?? []) {
+      if (guest.tableId !== job.tableId) continue;
+      consider(bag, action, guest.x, guest.y, 24, sense, 4, bias);
+    }
   }
 }
 
