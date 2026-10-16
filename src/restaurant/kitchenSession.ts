@@ -11,6 +11,9 @@ import { settings } from '../core/settings';
 import { h, openModal, toast } from '../ui/dom';
 import type { RecipeDef } from '../data/recipes';
 import { CookingGame, type CookResult } from './cooking';
+import { KitchenAct } from '../kitchen/act';
+import type { DishBoard } from '../kitchen/types';
+import { world } from '../scenes/WorldScene';
 import { Grill } from './grillView';
 
 export const MAX_DISHES = 4;
@@ -37,7 +40,7 @@ export interface KitchenHooks {
 }
 
 type View = 'orders' | 'table' | 'grill';
-interface Dish { uid: number; game: CookingGame; order: SessionOrder; }
+interface Dish { uid: number; game: DishBoard; order: SessionOrder; }
 
 let open = false;
 export const kitchenOpen = () => open;
@@ -60,7 +63,9 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
     const tableEl = h('div', { class: 'ks-table' });
     const grill = new Grill(() => dishes.map((d) => ({ game: d.game, who: d.order.who })), () => renderTabs());
     const body = h('div', { class: 'ks-body' }, ordersEl, tableEl, grill.el);
-    const root = h('div', { class: 'ks' }, h('div', { class: 'ks-top' }, tabs, exit), chips, body);
+    // inside the restaurant a dish is cooked as an act in the real kitchen: the camera frames it and this panel docks below
+    const inKitchen = settings.cookStyle !== 'board' && world?.zoneId === 'restaurant' && world.cookFocus(true);
+    const root = h('div', { class: 'ks' + (inKitchen ? ' dock' : '') }, h('div', { class: 'ks-top' }, tabs, exit), chips, body);
 
     const musicBefore: Track = audio.currentTrack();
     audio.crossfade(settings.cookMode === 'challenge' ? 'kitchen_hard' : 'kitchen');
@@ -78,6 +83,7 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
         hooks.cancel(d.uid);
       }
       audio.crossfade(musicBefore);
+      if (inKitchen) world.cookFocus(false);
       closeModal();
       open = false;
       void (async () => {
@@ -99,8 +105,9 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
       if (dishes.length >= MAX_DISHES) { toast(`Hasta ${MAX_DISHES} platos a la vez. Terminá uno primero.`); return; }
       if (dishes.some((d) => d.uid === o.uid)) return;
       if (!hooks.take(o.uid)) { toast('No se pudo empezar ese pedido.'); render(); return; }
-      const dish: Dish = { uid: o.uid, order: o, game: null as unknown as CookingGame };
-      dish.game = new CookingGame(o.recipe, o.who, (res) => onDone(dish, res), { el: tableEl, onBack: () => show('orders'), goGrill: () => show('grill'), status: (g, item) => grill.status(g, item) });
+      const dish: Dish = { uid: o.uid, order: o, game: null as unknown as DishBoard };
+      const host = { el: tableEl, onBack: () => show('orders'), goGrill: () => show('grill'), status: (g: DishBoard, item: string) => grill.status(g, item) };
+      dish.game = inKitchen ? new KitchenAct(o.recipe, o.who, (res) => onDone(dish, res), host) : new CookingGame(o.recipe, o.who, (res) => onDone(dish, res), host);
       dishes.push(dish);
       dish.game.start();
       dish.game.setActive(false);

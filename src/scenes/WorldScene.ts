@@ -146,6 +146,10 @@ export class WorldScene extends Phaser.Scene {
   private transitioning = false;
   private pointerDown: { x: number; y: number; t: number } | null = null;
   decorMode = false;
+  /** the kitchen close-up is open: Sofi works in the kitchen and the camera frames it */
+  cookActive = false;
+  private cookSaved = { zoom: 2 };
+  private cookProp: Phaser.GameObjects.Image | null = null;
   private questPin!: Phaser.GameObjects.Image;
   private questPinBob = 0;
 
@@ -205,10 +209,83 @@ export class WorldScene extends Phaser.Scene {
     const zoom = Math.max(2, Math.floor(minDim / (TILE * 11)));
     cam.setZoom(zoom);
     if (this.zone) this.applyBounds();
+    if (this.cookActive) this.cookFrame(0);
     const vw = Math.ceil(w / zoom) + 4;
     const vh = Math.ceil(h / zoom) + 4;
     this.dark.setSize(vw, vh);
     this.dark.resize?.(vw, vh);
+  }
+
+  // ------------------------------------------------------------------ cooking close-up
+  /** Frames the kitchen in the upper part of the screen (the cooking panel covers the lower part). */
+  private cookFrame(ms = 500) {
+    const cam = this.cameras.main;
+    const w = this.scale.width, h = this.scale.height;
+    const zoom = Math.max(2, Math.floor(Math.min(w / (TILE * 9.5), (h * 0.5) / (TILE * 5.5))));
+    cam.removeBounds();
+    if (ms) cam.zoomTo(zoom, ms); else cam.setZoom(zoom);
+    const cy = 3.9 * TILE + (h * 0.23) / zoom;
+    if (ms) cam.pan(4.7 * TILE, cy, ms, 'Sine.easeInOut'); else cam.centerOn(4.7 * TILE, cy);
+  }
+
+  /** Opens or closes the kitchen close-up. Only possible inside the restaurant. */
+  cookFocus(on: boolean): boolean {
+    const cam = this.cameras.main;
+    if (on) {
+      if (this.cookActive) return true;
+      if (this.zoneId !== 'restaurant' || !this.player || this.transitioning) return false;
+      this.cookActive = true;
+      this.cookSaved = { zoom: cam.zoom };
+      this.player.stop();
+      cam.stopFollow();
+      this.cookFrame(550);
+      document.body.classList.add('cook-focus');
+      return true;
+    }
+    if (!this.cookActive) return false;
+    this.cookActive = false;
+    this.cookPop(null);
+    this.player.setAct('idle');
+    document.body.classList.remove('cook-focus');
+    cam.zoomTo(this.cookSaved.zoom, 450);
+    this.applyBounds();
+    cam.startFollow(this.player.sprite, true, 0.12, 0.12, 0, 8);
+    this.time.delayedCall(500, () => { if (!this.cookActive) cam.startFollow(this.player.sprite, true, 1, 1, 0, 8); });
+    return true;
+  }
+
+  /** Sofi walks to a tile of the kitchen and turns to face the counter. */
+  cookGo(tx: number, ty: number, dir: Dir): Promise<void> {
+    return new Promise((resolve) => {
+      const p = this.player;
+      p.setAct('idle');
+      const done = () => { p.face(dir); resolve(); };
+      const near = this.zone.grid.isSolid(tx, ty) ? this.zone.grid.nearestWalkable(tx, ty) : [tx, ty];
+      if (!near || !p.walkTo(this.zone.grid, near[0], near[1], done)) { if (near) p.teleport(near[0], near[1]); done(); }
+    });
+  }
+
+  /** Sofi works (chopping, mixing, shaping) or stands still. */
+  cookPose(working: boolean) {
+    this.player.setAct(working ? 'cook' : 'idle');
+  }
+
+  /** A little burst above Sofi for how a beat went. */
+  cookSpark(verdict: 'perfect' | 'good' | 'ok' | 'miss') {
+    const p = this.player;
+    const text = verdict === 'perfect' ? '✦' : verdict === 'good' ? '✓' : verdict === 'ok' ? '·' : '…';
+    this.floatAt(p.x + (Math.random() * 10 - 5), p.y - 40, text, verdict === 'perfect' ? '#ffe08a' : verdict === 'good' ? '#bfe3a0' : '#e8dcc4');
+  }
+
+  /** An ingredient or dish held up above the counter for a moment; null clears it. */
+  cookPop(spec: import('../art/icons').IconSpec | null) {
+    this.cookProp?.destroy();
+    this.cookProp = null;
+    if (!spec) return;
+    const p = this.player;
+    const img = this.add.image(p.x, p.y - 34, iconTexture(this, spec)).setOrigin(0.5, 1).setDepth(300000).setScale(0.9);
+    this.cookProp = img;
+    this.tweens.add({ targets: img, y: img.y - 4, yoyo: true, repeat: -1, duration: 500, ease: 'Sine.inOut' });
   }
 
   private applyBounds() {
@@ -1616,7 +1693,7 @@ export class WorldScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ input & interaction
   canAct() {
-    return !this.transitioning && this.inputLocked === 0 && !clock.paused && !this.decorMode;
+    return !this.transitioning && this.inputLocked === 0 && !clock.paused && !this.decorMode && !this.cookActive;
   }
 
   private releaseSteer = () => {
@@ -2056,6 +2133,7 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     if (`${p.tx},${p.ty}` !== wasTile || (p.moving && p.manual)) this.checkWalkDoor();
+    if (this.cookProp) this.cookProp.setPosition(p.x, p.y - 34);
     if (this.notingUntil && (p.moving || performance.now() >= this.notingUntil)) {
       this.notingUntil = 0;
       if (p.act === 'read') p.setAct('idle');

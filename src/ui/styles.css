@@ -1165,3 +1165,43 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 
 @media (max-width: 460px) { .seg { grid-template-columns: repeat(min(var(--n, 3), 3), 1fr); } .seg[data-n="4"] { grid-template-columns: repeat(2, 1fr); } }
 .tile > span { min-width: 0; overflow-wrap: anywhere; }
+
+/* =====================================================================
+   Cooking as an act: the kitchen is the stage, this panel docks under it
+   ===================================================================== */
+body.cook-focus .game-hud, body.cook-focus .joystick, body.cook-focus .hud-joy { visibility: hidden; }
+.ks.dock { inset: auto 0 0 50%; transform: translateX(-50%); width: min(100%, 780px); height: min(54vh, 480px); border-top: 4px solid #2b1d17; border-radius: 16px 16px 0 0; background: rgba(38,28,50,.97); box-shadow: 0 -8px 26px rgba(0,0,0,.45); }
+.ks.dock .ks-chips { max-height: 56px; }
+.ks .cook.act { background: none; display: flex; flex-direction: column; gap: 6px; padding: 0; }
+.ks .cook.act .cook-head { padding: 0; }
+.ks .cook.act .cook-order { padding: 4px 8px; }
+.ks .cook.act .cook-instruction { padding: 4px 8px; }
+.act-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; position: relative; color: var(--cream); touch-action: manipulation; padding-bottom: 6px; overflow: hidden; }
+.act-pad { position: relative; width: 168px; height: 168px; border: 0; background: none; display: grid; place-items: center; touch-action: none; cursor: pointer; padding: 0; -webkit-user-select: none; user-select: none; }
+.act-target { width: 96px; height: 96px; border-radius: 50%; border: 6px solid #f2c66d; background: rgba(242,198,109,.2); display: grid; place-items: center; font-weight: 900; color: #fff4dc; text-shadow: var(--outline); box-shadow: 0 0 0 4px #2b1d17, inset 0 0 0 3px rgba(43,29,23,.6); font-size: 1.05em; }
+.act-ring { position: absolute; left: 50%; top: 50%; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%; border: 6px solid #fff4dc; transform: scale(2.5); opacity: 0; pointer-events: none; box-shadow: 0 0 0 3px #2b1d17; }
+.act-pad.hold.on .act-target { background: #f2c66d; color: #2b1d17; transform: scale(.94); }
+.act-hold { position: relative; width: min(420px, 90%); height: 28px; border: 4px solid #2b1d17; border-radius: 14px; background: #3b2f4a; overflow: hidden; }
+.act-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: #7fb35f; }
+.act-band { position: absolute; top: 0; bottom: 0; background: rgba(242,198,109,.38); }
+.act-mark { position: absolute; top: -2px; bottom: -2px; width: 6px; margin-left: -3px; background: #f2c66d; border: 2px solid #2b1d17; border-radius: 3px; }
+.act-dots { display: flex; gap: 10px; }
+.act-dots i { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #2b1d17; background: #6b5a7c; }
+.act-dots i[data-v="perfect"] { background: #ffe08a; } .act-dots i[data-v="good"] { background: #9bd17a; } .act-dots i[data-v="ok"] { background: #e6b85a; } .act-dots i[data-v="miss"] { background: #c8483f; }
+.act-verdict { min-height: 1.6em; font-size: 1.4em; font-weight: 800; color: #fff4dc; text-shadow: var(--outline); }
+.act-verdict[data-v="perfect"] { color: #ffe08a; } .act-verdict[data-v="miss"] { color: #f1a49b; }
+.act-items { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 100%; }
+.act-item { position: relative; width: 96px; height: 96px; border: 4px solid #2b1d17; border-radius: 12px; background: #fff4dc; color: #2b1d17; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: .8em; font-weight: 700; box-shadow: 0 4px 0 rgba(0,0,0,.4); touch-action: manipulation; }
+.act-item canvas { width: 56px; height: 42px; image-rendering: pixelated; pointer-events: none; }
+.act-item:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.4); }
+.act-item.empty { opacity: .35; box-shadow: none; }
+.act-qty { position: absolute; top: 2px; right: 6px; background: #2b1d17; color: #fff4dc; border-radius: 9px; padding: 0 6px; font-size: .85em; }
+.act-item.shake { animation: act-shake .3s; }
+@keyframes act-shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.act-wait-box { display: grid; gap: 12px; justify-items: center; text-align: center; max-width: 36ch; }
+.act-wait { font-weight: 700; color: #fff4dc; }
+.act-go { min-height: 48px; padding: 0 22px; }
+.act-final { text-align: center; color: #fff4dc; }
+.act-final b { display: block; font-size: 1.8em; text-shadow: var(--outline); color: #ffe08a; }
+@media (max-width: 640px), (max-height: 520px) { .ks.dock { inset: auto 0 0 0; transform: none; width: 100%; height: min(56vh, 470px); } .act-pad { width: 150px; height: 150px; } .act-item { width: 86px; height: 88px; } .ks .cook.act .cook-order { display: none; } .act-pad { width: 132px; height: 132px; } }
+@media (prefers-reduced-motion: reduce) { .act-item.shake { animation: none; } }

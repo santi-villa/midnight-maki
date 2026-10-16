@@ -188,6 +188,8 @@ export interface Settings {
   phoneKey?: string;
   joystick: boolean;
   cookMode: 'relaxed' | 'normal' | 'challenge';
+  /** how a dish is cooked inside the restaurant: the act in the kitchen (default) or the gesture board */
+  cookStyle?: 'act' | 'board';
   settingsVersion?: number;
   /** objective arrow towards the tracked quest */
   guide?: boolean;

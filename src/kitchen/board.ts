@@ -27,6 +27,7 @@ import {
   hash, ingColor, ingLight, rect, type G, type PieceLook, type R,
 } from './art';
 
+import type { DishBoard } from './types';
 export interface CookResult { ok: boolean; quality: 0 | 1 | 2; score: number; variant?: string; variantItem?: string; variantBonus: number; /** active seconds spent, hard mode only */ seconds?: number; hard?: boolean; }
 
 /** Where an embedded board lives (the multi-dish kitchen) and how it talks back to it. */
@@ -36,7 +37,7 @@ export interface CookHost {
   /** switches the kitchen to the griddle station */
   goGrill: () => void;
   /** what the stove says about this dish's piece right now (for the waiting board) */
-  status: (game: KitchenBoard, item: string) => { text: string; p: number } | null;
+  status: (game: DishBoard, item: string) => { text: string; p: number } | null;
 }
 
 const STEP_NAMES: Record<CookStep['t'], string> = {

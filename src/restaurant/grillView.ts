@@ -11,7 +11,7 @@ import { settings } from '../core/settings';
 import { h } from '../ui/dom';
 import { iconElement } from '../art/icons';
 import { ITEMS_BY_ID } from '../data/items';
-import type { CookingGame } from './cooking';
+import type { DishBoard as CookingGame } from '../kitchen/types';
 import { kitchenOval } from '../art/cooking';
 import { ZONES, doneness, grillAdvance, grillZone, type GrillZone } from './grill';
 
