@@ -1182,8 +1182,8 @@ export class WorldScene extends Phaser.Scene {
         this.orderMarks.set(id, mark);
       }
       const bob = Math.sin(now * 4 + spr.x) * 1.5;
-      const top = spr.y - spr.displayHeight + g.actor.pad;
-      mark.setPosition(Math.round(spr.x), Math.round(top - 2 + bob));
+      const top = spr.y - spr.displayHeight + this.headRow(spr) * Math.abs(spr.scaleY);
+      mark.setPosition(Math.round(spr.x), Math.round(top - 1 + bob));
       mark.setDepth(Math.min(190000, spr.depth + 48)).setVisible(true);
     }
     for (const [id, mark] of this.orderMarks) {
@@ -1191,6 +1191,27 @@ export class WorldScene extends Phaser.Scene {
       mark.destroy();
       this.orderMarks.delete(id);
     }
+  }
+
+  private headRows = new Map<string, number>();
+  /** First row of the current frame that has any pixel: sprites carry empty space above short characters. */
+  private headRow(spr: Phaser.GameObjects.Sprite): number {
+    const f = spr.frame;
+    const key = `${spr.texture.key}|${f.name}`;
+    const hit = this.headRows.get(key);
+    if (hit != null) return hit;
+    let row = 0;
+    try {
+      const src = f.source.image as CanvasImageSource & { width: number; height: number };
+      const c = document.createElement('canvas');
+      c.width = f.cutWidth; c.height = f.cutHeight;
+      const g = c.getContext('2d', { willReadFrequently: true })!;
+      g.drawImage(src, f.cutX, f.cutY, f.cutWidth, f.cutHeight, 0, 0, f.cutWidth, f.cutHeight);
+      const data = g.getImageData(0, 0, c.width, c.height).data;
+      outer: for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (data[(y * c.width + x) * 4 + 3] > 20) { row = y; break outer; }
+    } catch { row = 0; }
+    this.headRows.set(key, row);
+    return row;
   }
 
   private hallFree(x: number, y: number): boolean {
