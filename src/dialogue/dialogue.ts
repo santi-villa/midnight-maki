@@ -10,8 +10,7 @@ import { bus } from '../core/events';
 import { reportError } from '../core/errors';
 import { settings } from '../core/settings';
 import { game } from '../core/state';
-import { CHAR_BY_ID } from '../data/characters';
-import { displayName, portraitURL } from '../systems/appearance';
+import { portraitSrc, speakerFace } from './speakerFace';
 import { iconElement } from '../art/icons';
 import { clock } from '../systems/time';
 import { h, panel, uiRoot } from '../ui/dom';
@@ -81,22 +80,15 @@ export function inDialogue() {
   return active > 0;
 }
 
-function speakerInfo(who: string) {
-  if (who === 'narr') return { id: '', name: '', portrait: null as string | null, voice: 1 };
-  if (who === 'player') return { id: 'player', name: game.save.player.name, portrait: null, voice: 1.2 };
-  if (who.startsWith('?')) {
-    // '?Visible name|charId' shows a portrait under a different (unknown yet) name
-    const [nm, pid] = who.slice(1).split('|');
-    return { id: pid || '', name: nm || '???', portrait: pid && CHAR_BY_ID[pid] ? pid : null, voice: CHAR_BY_ID[pid]?.voice ?? 0.9 };
-  }
-  const def = CHAR_BY_ID[who];
-  return { id: who, name: displayName(who) || who, portrait: def ? who : null, voice: def?.voice ?? 1 };
+function speakerInfo(who: string, expr: Expr) {
+  const face = speakerFace(who);
+  return { id: face.id, name: face.name, voice: face.voice, src: portraitSrc(face, expr) };
 }
 
 /** Show one line. Resolves after the player advances. */
 export function say(who: string, text: string, expr: Expr = 'neutral'): Promise<void> {
   text = fmt(text);
-  const info = speakerInfo(who);
+  const info = speakerInfo(who, expr);
   history.push({ who: info.name, text });
   if (history.length > 200) history.shift();
   if (skipping) return Promise.resolve();
@@ -104,7 +96,7 @@ export function say(who: string, text: string, expr: Expr = 'neutral'): Promise<
   root.innerHTML = '';
   return new Promise((resolve) => {
     const txt = h('div', { class: 'text' });
-    const portrait = info.portrait ? h('img', { class: 'portrait', src: portraitURL(info.portrait, expr), alt: info.name }) : h('div', { class: 'portrait none' });
+    const portrait = h('img', { class: 'portrait', src: info.src, alt: info.name || 'Narración' });
     const next = h('div', { class: 'next' }, '▼');
     next.style.visibility = 'hidden';
     const tools = h(
@@ -113,7 +105,7 @@ export function say(who: string, text: string, expr: Expr = 'neutral'): Promise<
       h('button', { class: 'log-btn', title: 'Historial', onclick: (e: Event) => { e.stopPropagation(); showLog(); } }, iconElement({ type: 'book', c1: '#b2585e' }), ' Historial'),
       sceneSeen ? h('button', { onclick: (e: Event) => { e.stopPropagation(); skipping = true; finish(); } }, 'Saltar escena') : null,
     );
-    const dlg = h('div', { class: 'dlg', role: 'dialog' }, info.name ? h('div', { class: 'name' }, info.name) : null, tools, portrait, h('div', { class: 'body' }, txt), next);
+    const dlg = h('div', { class: 'dlg has-portrait', role: 'dialog' }, info.name ? h('div', { class: 'name' }, info.name) : null, tools, portrait, h('div', { class: 'body' }, txt), next);
     root.append(dlg);
     let i = 0;
     let done = false;
@@ -170,7 +162,7 @@ export function choose(options: string[], who = 'player', prompt?: string): Prom
   skipping = false;
   const root = ensureBox();
   root.innerHTML = '';
-  const info = speakerInfo(who);
+  const info = speakerInfo(who, 'neutral');
   return new Promise((resolve) => {
     const list = h('div', { class: 'choices' });
     options.forEach((o, i) =>
@@ -207,7 +199,8 @@ export function choose(options: string[], who = 'player', prompt?: string): Prom
     };
     window.addEventListener('keydown', key);
     if (catcher) catcher.onpointerup = null;
-    const dlg = h('div', { class: 'dlg' }, info.name && who !== 'player' ? h('div', { class: 'name' }, info.name) : null, h('div', { class: 'body' }, prompt ? h('div', { class: 'text', style: { minHeight: '0' } }, fmt(prompt)) : null, list));
+    const portrait = h('img', { class: 'portrait', src: info.src, alt: info.name || 'Narración' });
+    const dlg = h('div', { class: 'dlg has-portrait' }, info.name && who !== 'player' ? h('div', { class: 'name' }, info.name) : null, portrait, h('div', { class: 'body' }, prompt ? h('div', { class: 'text', style: { minHeight: '0' } }, fmt(prompt)) : null, list));
     root.append(dlg);
     buttons()[0]?.focus({ preventScroll: true });
   });

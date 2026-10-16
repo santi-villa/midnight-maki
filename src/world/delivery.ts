@@ -1,13 +1,12 @@
-/** Delivery targets for the food Sofi carries: one per table, with every dish for that table in its label. */
+/** Delivery targets for the food Sofi carries: one short label per table. */
 export interface DeliveryDish { tableId: string; x: number; y: number; table: string; dish: string }
 export interface DeliveryGoal { x: number; y: number; label: string }
 
 export function deliveryGoals(dishes: DeliveryDish[]): DeliveryGoal[] {
   const byTable = new Map<string, DeliveryGoal>();
   for (const d of dishes) {
-    const found = byTable.get(d.tableId);
-    if (found) found.label += ` + ${d.dish}`;
-    else byTable.set(d.tableId, { x: d.x, y: d.y, label: `${d.table} · ${d.dish}` });
+    if (byTable.has(d.tableId)) continue;
+    byTable.set(d.tableId, { x: d.x, y: d.y, label: d.table });
   }
   return [...byTable.values()];
 }

@@ -37,7 +37,7 @@
 }
 .game-hud .hud-buttons .icon-btn .skin-icon { width: 26px; height: 26px; margin: 0; }
 .game-hud .hud-buttons .icon-btn:active { transform: translateY(2px); background: #946a48; box-shadow: inset 0 0 0 3px #b88a60, 0 1px 0 #4c3526; }
-.game-hud button:focus-visible { outline: 2px solid #fff1c9; outline-offset: 3px; }
+.game-hud button:focus-visible { outline: 1px solid #6b5344; outline-offset: 2px; }
 .game-hud .hud-menu-mobile { display: none; }
 .game-hud .hud-quest, .game-hud .hud-quest.mini {
   top: calc(148px + var(--safe-t)); left: calc(12px + var(--safe-l)); max-width: min(280px, 70vw);
