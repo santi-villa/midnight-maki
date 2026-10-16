@@ -223,13 +223,15 @@ function calendarView() {
 }
 
 // ------------------------------------------------------------------ main menu
-export function openMenu() {
+/** Esc: pause menu. Same tiles as the main menu, with save, load and settings first. */
+export function openPauseMenu() { openMenu(true); }
+
+export function openMenu(pause = false) {
   const ICON: Record<string, string> = { Mochila: 'bag', Personaje: 'pet', Mapa: 'map', Misiones: 'clipboard', Investigación: 'inspect', Amigos: 'heart', Colecciones: 'gift', Recetario: 'maki', Cámara: 'camera', NoriPhone: 'phone', 'Descansar un rato': 'bed', Ajustes: 'gear', Guardar: 'scroll', Cargar: 'door', 'Guardar y salir': 'door' };
   const b = (label: string, hint: string, fn: () => void, cls = '') =>
     h('button', { type: 'button', class: 'tile ' + cls, onclick: () => { p.close(); void runTask('ui:menu', fn); } }, skinIconEl(ICON[label] ?? 'menu'), h('span', null, label, h('small', null, hint)));
-  const grid = h(
-    'div',
-    { class: 'tiles' },
+  const tiles = ([
+
     b('Mochila', 'Tus objetos', () => openBag()),
     b('Personaje', 'Cambiar ropa y apariencia', () => import('./wardrobe').then((m) => m.openWardrobe())),
     b('Mapa', 'Villa Nori', () => openMap()),
@@ -259,8 +261,12 @@ export function openMenu() {
       if (!(await saveGame('exit'))) return;
       if (await confirmBox('Partida guardada. ¿Volver a la pantalla de título?', 'Salir', 'Seguir jugando')) location.reload();
     }),
-  );
-  const p = panel({ title: 'Menú', body: grid });
+  ]) as HTMLElement[];
+  const FIRST = ['Guardar', 'Cargar', 'Ajustes'];
+  const names = (el: HTMLElement) => el.querySelector('span')?.firstChild?.textContent ?? '';
+  if (pause) tiles.sort((x, y) => (FIRST.indexOf(names(x)) + 1 || 99) - (FIRST.indexOf(names(y)) + 1 || 99));
+  const grid = h('div', { class: 'tiles' }, ...tiles);
+  const p = panel({ title: pause ? 'Pausa' : 'Menú', body: pause ? h('div', { class: 'col' }, h('p', { class: 'hint' }, 'El juego está en pausa. Esc para seguir jugando.'), grid) : grid });
 }
 
 function restPeriod() {

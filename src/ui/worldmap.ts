@@ -126,6 +126,18 @@ export function openWorldMap() {
     const btn = (t: string, aria: string, fn: () => void) => h('button', { type: 'button', class: 'btn small', 'aria-label': aria, onclick: fn }, t);
     const bar = h('div', { class: 'wm-zoombar' }, btn('−', 'Alejar', () => apply(k / 1.4)), label, btn('+', 'Acercar', () => apply(k * 1.4)), btn('⟲', 'Vista completa', () => { apply(1); view.scrollTo(0, 0); }));
     view.addEventListener('wheel', (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); const r = view.getBoundingClientRect(); apply(k * (e.deltaY < 0 ? 1.15 : 1 / 1.15), (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height); }, { passive: false });
+    // drag to pan with the mouse (a finger scrolls natively); a drag never counts as a click on a zone
+    let drag: { x: number; y: number; sl: number; st: number; moved: boolean } | null = null;
+    view.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button === 0 && k > 1) drag = { x: e.clientX, y: e.clientY, sl: view.scrollLeft, st: view.scrollTop, moved: false }; });
+    window.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+      drag.moved = true; view.classList.add('panning');
+      view.scrollLeft = drag.sl - dx; view.scrollTop = drag.st - dy;
+    });
+    window.addEventListener('pointerup', () => { if (drag?.moved) { const was = view; setTimeout(() => was.classList.remove('panning'), 0); } drag = null; });
+    view.addEventListener('click', (e) => { if (view.classList.contains('panning')) { e.stopPropagation(); e.preventDefault(); } }, true);
     // pinch on touch screens; one finger keeps scrolling natively
     const pts = new Map<number, { x: number; y: number }>();
     let d0 = 0, k0 = 1;
