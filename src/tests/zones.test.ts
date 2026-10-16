@@ -17,6 +17,16 @@ function reach(zone: string, from: [number, number], to: [number, number]) {
 const near = (g: ReturnType<typeof buildZone>['grid'], x: number, y: number): [number, number][] =>
   ([[0, 1], [0, -1], [1, 0], [-1, 0], [0, 0]] as const).map(([dx, dy]) => [x + dx, y + dy] as [number, number]).filter(([a, b]) => !g.isSolid(a, b));
 
+describe('lighthouse interior', () => {
+  it('keeps a path from the door to the mechanism', () => {
+    const built = buildZone('lighthouse');
+    expect(built.def.gloom).toBe(true);
+    expect(built.def.dark).toBeUndefined();
+    expect(built.grid.path(6, 11, 6, 4, 400)).not.toBeNull();
+    expect(near(built.grid, 6, 3).some(([x, y]) => built.grid.path(6, 11, x, y, 400))).toBe(true);
+  });
+});
+
 describe('houses seen from the side', () => {
   it('have their entrance at the outer end of the gable, with a path leading to it', () => {
     for (const h of HOUSES.filter((x) => x.view === 'side')) {

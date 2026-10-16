@@ -2,7 +2,7 @@
 
 ## Qué hace
 1. **Ambiente por momento del día** (`src/scenes/lightmath.ts`, matemática pura y probada): mañana dorada y fresca, tarde luminosa, atardecer que pasa de dorado a rosa y a lavanda, noche azul profundo. Los interiores quedan cálidos para contrastar con la calle fría.
-2. **Faroles** que recortan un charco de luz en la capa de oscuridad y tiñen de cálido el suelo cercano. La textura de luz ahora es de **6 bandas con tramado (dither) 4×4**, para que los charcos de luz se vean pixelados y no un degradé fotográfico.
+2. **Faroles** que aclaran la capa de oscuridad con un color cálido y tenue. De día, si la calle ya es clara, recortan un charco suave. De noche no abren un agujero: un agujero mostraría los tiles de día. La textura de luz es de **6 bandas con tramado (dither) 4×4**, para que los charcos se vean pixelados y no un degradé fotográfico.
 3. **Variaciones naturales:** respiración lenta (±2 %) en faroles y parpadeo más vivo (±5–8 %) en llamas y faroles de papel.
 4. **Ventanas iluminadas:** cada edificio recibe una capa con sus ventanas en ámbar (misma geometría que el sprite, `buildingLayout`), que aparece al atardecer y respira muy despacio.
 5. **Restaurante por horario** (`restaurantPhase`): abierto = ventanas, farolitos rojos y puerta (noren) encendidos —la puerta se ve incluso de tarde—; cerrando = más tenue; cerrado = casi apagado. Adentro, el salón se ilumina más o menos según el horario.

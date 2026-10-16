@@ -95,6 +95,12 @@ export function validateSave(raw: unknown): SaveData {
   for (const [id, q] of Object.entries(out.furnitureOwned as Record<string, number>)) {
     if (!Number.isFinite(q) || q <= 0) delete out.furnitureOwned[id];
   }
+  const prologueDone = Array.isArray(out.quests?.done) && out.quests.done.includes('prologue');
+  if (!out.flags.starter_decor && !prologueDone && Number(out.stats?.decorMoves ?? 0) < 1) {
+    if ((out.furnitureOwned.pt_sushi ?? 0) < 1) out.furnitureOwned.pt_sushi = 1;
+    if ((out.furnitureOwned.bamboo_pot ?? 0) < 1) out.furnitureOwned.bamboo_pot = 1;
+    out.flags.starter_decor = true;
+  }
   out.storedGifts = {};
   if (isObj(s.storedGifts)) {
     for (const [npc, list] of Object.entries(s.storedGifts)) {

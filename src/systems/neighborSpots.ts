@@ -10,7 +10,7 @@ import type { NpcAct } from '../data/characters';
 import { FURN_BY_ID, furnSize, type FurnitureDef } from '../data/furniture';
 import { REN_STALL, type Neighbor } from '../data/neighbors';
 import { PROPS } from '../data/props';
-import { ZONES, type DoorDef } from '../data/zones';
+import { ZONES } from '../data/zones';
 
 export interface Place {
   zone: string;
@@ -54,6 +54,11 @@ function isDoor(zone: string, x: number, y: number): boolean {
 
 function nearDoor(zone: string, x: number, y: number): boolean {
   return !!ZONES[zone]?.doors.some((d) => Math.abs(d.x - x) + Math.abs(d.y - y) <= 1);
+}
+
+/** Door tile or the tile in front of it. People standing there look stuck in the doorway. */
+export function byDoor(zone: string, x: number, y: number): boolean {
+  return nearDoor(zone, x, y);
 }
 
 function thin<T>(spots: T[], cap: number): T[] {
@@ -167,30 +172,31 @@ export function lookAround(zone: string, salt: number, avoid?: { x: number; y: n
   return { x: p.x, y: p.y };
 }
 
-function entryDoor(zone: string): DoorDef | null {
-  const fromPlaza = ZONES.plaza?.doors.find((d) => d.to === zone && d.walk !== false);
-  if (fromPlaza) return fromPlaza;
-  for (const z of Object.values(ZONES)) {
-    const d = z.doors.find((door) => door.to === zone && door.walk !== false);
-    if (d) return d;
+/** Off the door lane: beside the counter, on a library bench, or just south of Ren's stall. */
+export function shopSpot(zone: string): Place | null {
+  if (zone === 'plaza_ren') {
+    const opts: [number, number][] = [[1, 2], [0, 2], [2, 2], [1, 3], [0, 3], [2, 3]];
+    for (const [dx, dy] of opts) {
+      const x = REN_STALL.x + dx;
+      const y = REN_STALL.y + dy;
+      if (tileOpen('plaza', x, y) && !nearDoor('plaza', x, y)) return { zone: 'plaza', x, y, act: 'work', dir: 'up', kind: 'shop' };
+    }
+    return null;
+  }
+  if (zone === 'library') {
+    const seat = benchSpots('library').find((p) => !nearDoor(p.zone, p.x, p.y));
+    if (seat) return { ...seat, kind: 'shop' };
+  }
+  if (!ZONES[zone]) return null;
+  // Counter sits on y=4. Stand in front of it, not on the mat at (5,6) where the door leaves you.
+  const prefer: [number, number][] = [[3, 5], [7, 5], [2, 5], [8, 5], [4, 5], [6, 5], [3, 6], [7, 6], [1, 5], [4, 6], [6, 6]];
+  for (const [x, y] of prefer) {
+    if (tileOpen(zone, x, y) && !nearDoor(zone, x, y)) return { zone, x, y, act: 'work', dir: 'up', kind: 'shop' };
+  }
+  for (let y = 0; y < ZONES[zone].h; y++) for (let x = 0; x < ZONES[zone].w; x++) {
+    if (tileOpen(zone, x, y) && !nearDoor(zone, x, y)) return { zone, x, y, act: zone === 'library' ? 'read' : 'work', dir: 'up', kind: 'shop' };
   }
   return null;
-}
-
-/** Just inside a shop, on a free tile off the mat, facing the way the door leaves them. */
-export function shopSpot(zone: string): Place | null {
-  if (zone === 'plaza_ren') return { zone: 'plaza', x: REN_STALL.x + 1, y: REN_STALL.y + 1, act: 'work', dir: 'up', kind: 'shop' };
-  const door = entryDoor(zone);
-  if (!door || !ZONES[zone]) return null;
-  const opts: [number, number][] = [[0, 0], [0, -1], [0, 1], [1, 0], [-1, 0]];
-  let x = door.tx;
-  let y = door.ty;
-  for (const [dx, dy] of opts) {
-    const tx = door.tx + dx;
-    const ty = door.ty + dy;
-    if (tileOpen(zone, tx, ty) && !isDoor(zone, tx, ty)) { x = tx; y = ty; break; }
-  }
-  return { zone, x, y, act: zone === 'library' ? 'read' : 'work', dir: door.dir, kind: 'shop' };
 }
 
 export const homeSpot = (n: Neighbor): Place => ({ zone: n.home, x: 5, y: 5, kind: 'home' });
@@ -270,4 +276,4 @@ export function lingerTile(id: string, x: number, y: number, open: (x: number, y
   return [x + dx, y + dy];
 }
 
-export const LINGER_KIND = new Set(['stroll']);
+export const LINGER_KIND = new Set(['stroll', 'fountain', 'sea', 'garden', 'forest', 'market', 'bench', 'chat', 'together', 'shop']);
