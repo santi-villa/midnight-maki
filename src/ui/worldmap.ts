@@ -1,124 +1,203 @@
 /**
- * Illustrated map of Villa Nori: a pixel-art painting of the town (drawn on a canvas) with tappable
- * place icons, a "you are here" marker and the raccoons' current whereabouts.
+ * The map (key M): drawn from the real zones. Every outdoor zone is placed where its doors connect it to its neighbours,
+ * with its real ground, paths, water and buildings; locked zones stay hidden behind a veil until they open. Tap a zone to
+ * zoom into it (buildings and doors named), and see where you, the raccoons and the current objective are.
  */
-import { ctx2d, drawTemplate, makeCanvas } from '../art/pixel';
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
-import { ZONES } from '../data/zones';
+import { PROPS } from '../data/props';
+import { ZONES, type DoorDef, type ZoneDef } from '../data/zones';
+import { layout, outdoorSpot } from '../world/mapLayout';
 import { world } from '../scenes/WorldScene';
 import { currentQuestTarget } from '../quests/quests';
 import { portraitURL } from '../systems/appearance';
 import { h, panel } from './dom';
-import { PLACE_ICON_PALETTE, placeIconGrid } from './mapIcons';
 
-/** The illustration is the village as it is laid out: coordinates below are pixels of public/mapa/villa-nori.webp. */
-const MW = 1024;
-const MH = 572;
-const MAP_URL = import.meta.env.BASE_URL + 'mapa/villa-nori.webp';
+const COLOR: Record<string, string> = {
+  g: '#78b255', G: '#5f9c45', p: '#d8b985', c: '#c8b8a2', s: '#ecd8a3', h: '#cdbb92', w: '#62aedb', d: '#3f86c4',
+  b: '#9b6b44', C: '#8c8c96', o: '#8b5e3c', t: '#b79b6c', k: '#b79b6c', f: '#b79b6c',
+};
+const FALLBACK = '#9aab6c';
+const DESC: Record<string, string> = {
+  plaza: 'El corazón de Villa Nori: la fuente, la cartelera, las tiendas, el restaurante y las casas del barrio.',
+  forest: 'Hongos, flores, insectos, un arroyo y un santuario escondido.',
+  market: 'Abre viernes y sábados de noche, detrás del torii.',
+  station: 'Una estación abandonada llena de recuerdos.',
+  garden: 'Canteros, estanque de carpas, casa de té y un huerto de cerezos.',
+  beach: 'Pesca, conchas, cabañas de pescadores y botellas con mensajes.',
+};
+/** the flag that opens a zone, read from the door that leads in from the plaza */
+function lockOf(id: string): string | null {
+  if (id === 'market') return 'market_known';
+  const d = ZONES.plaza.doors.find((x) => x.to === id && x.lock);
+  return d?.lock?.flag ?? null;
+}
+const isOpen = (id: string) => { const f = lockOf(id); return !f || game.has(f) || (id === 'market' && game.has('market_open')); };
 
-interface Place { id: string; name: string; x: number; y: number; flag?: string; desc: string; zone?: string; }
-const PLACES: Place[] = [
-  { id: 'plaza', name: 'Plaza', x: 520, y: 150, desc: 'El corazón de Villa Nori: la fuente, la cartelera y las tiendas.' },
-  { id: 'restaurant', name: 'Midnight Maki', x: 412, y: 100, desc: 'Tu restaurante. Arriba están las habitaciones.', zone: 'plaza' },
-  { id: 'forest', name: 'Bosque Susurrante', x: 190, y: 120, flag: 'unlock_forest', desc: 'Hongos, flores, insectos, un arroyo y un santuario escondido.' },
-  { id: 'market', name: 'Mercado Nocturno', x: 945, y: 62, flag: 'market_known', desc: 'Abre viernes y sábados de noche, detrás del torii.' },
-  { id: 'station', name: 'Estación', x: 105, y: 268, flag: 'unlock_station', desc: 'Una estación abandonada llena de recuerdos.' },
-  { id: 'garden', name: 'Jardín de los Faroles', x: 940, y: 305, flag: 'unlock_garden', desc: 'Canteros, estanque de carpas, casa de té y un huerto de cerezos.' },
-  { id: 'beach', name: 'Playa de las Conchas', x: 790, y: 470, flag: 'unlock_beach', desc: 'Pesca, conchas, cabañas de pescadores y botellas con mensajes.' },
-  { id: 'lighthouse', name: 'Faro', x: 95, y: 470, flag: 'unlock_lighthouse_view', desc: 'El Faro de las Tres Estrellas.' },
-  { id: 'riverside', name: 'Ribera de los Cerezos', x: 880, y: 235, desc: 'Al otro lado del río: cerezos, bancos, la florería y la casa de té.', zone: 'plaza' },
-  { id: 'shrine', name: 'Colina del Santuario', x: 830, y: 85, desc: 'Una escalera de piedra sube al torii y al santuario.', zone: 'plaza' },
-  { id: 'harbor', name: 'Callejón del Puerto', x: 530, y: 480, desc: 'Calles de casas con la puerta al costado, faroles y la bahía con muelles.', zone: 'plaza' },
-];
-
-/** Inside the plaza, which neighbourhood the player is standing in (tile coordinates of data/plazaMap.ts). */
-function plazaPlace(): string {
-  const p = world?.player;
-  if (!p) return 'plaza';
-  if (p.tx >= 47 && p.ty < 16) return 'shrine';
-  if (p.tx >= 36 && p.ty >= 16 && p.ty < 34) return 'riverside';
-  if (p.ty >= 26) return 'harbor';
-  return 'plaza';
+function drawZone(g: CanvasRenderingContext2D, z: ZoneDef, ox: number, oy: number, S: number, open: boolean) {
+  if (!open) {
+    g.fillStyle = '#4b4a5c';
+    g.fillRect(ox * S, oy * S, z.w * S, z.h * S);
+    g.fillStyle = 'rgba(255,255,255,.06)';
+    for (let i = -z.h; i < z.w; i += 3) for (let y = 0; y < z.h; y++) { const x = i + y; if (x >= 0 && x < z.w) g.fillRect((ox + x) * S, (oy + y) * S, S, S); }
+    return;
+  }
+  for (let y = 0; y < z.h; y++) {
+    const row = z.ground[y] ?? '';
+    for (let x = 0; x < z.w; x++) {
+      g.fillStyle = COLOR[row[x]] ?? FALLBACK;
+      g.fillRect((ox + x) * S, (oy + y) * S, S, S);
+    }
+  }
+  // buildings and stalls from the real props
+  for (const p of z.props) {
+    const d = PROPS[p.id];
+    if (!d || (d.kind !== 'building' && d.kind !== 'stall')) continue;
+    g.fillStyle = '#2b1d17';
+    g.fillRect((ox + p.x) * S - 1, (oy + p.y) * S - 1, d.w * S + 2, d.h * S + 2);
+    g.fillStyle = d.kind === 'stall' ? '#e2a96b' : d.c1 || '#b9764b';
+    g.fillRect((ox + p.x) * S, (oy + p.y) * S, d.w * S, d.h * S);
+    g.fillStyle = 'rgba(255,255,255,.28)';
+    g.fillRect((ox + p.x) * S, (oy + p.y) * S, d.w * S, Math.max(1, Math.floor(S / 2)));
+  }
+  for (const d of z.doors) {
+    g.fillStyle = '#f2c66d';
+    const big = d.to.startsWith('shop_') || d.to === 'restaurant' || d.to === 'library';
+    g.fillRect((ox + d.x) * S, (oy + d.y) * S, S * (big ? 1.6 : 1), S * (big ? 1.6 : 1));
+  }
 }
 
-function placeIcon(id: string): HTMLCanvasElement {
-  const rows = placeIconGrid(id);
-  const cv = makeCanvas(16, 16);
-  drawTemplate(ctx2d(cv), rows, PLACE_ICON_PALETTE);
-  cv.setAttribute('aria-hidden', 'true');
-  return cv;
-}
-
-// ------------------------------------------------------------------ panel
-function hereZone(): string {
-  const z = world?.zoneId ?? 'plaza';
-  if (z === 'home' || z === 'storage') return 'restaurant';
-  if (z.startsWith('shop_') || z === 'library') return 'plaza';
-  if (z === 'plaza') return plazaPlace();
-  return z;
-}
+const doorName = (d: DoorDef) => ZONES[d.to]?.name ?? d.to;
+const isLandmark = (d: DoorDef) => d.to.startsWith('shop_') || d.to === 'restaurant' || d.to === 'library';
 
 export function openWorldMap() {
-  const wrap = h('div', { class: 'wmap' });
-  const img = h('img', { class: 'wmap-art', src: MAP_URL, alt: 'Mapa de Villa Nori', draggable: 'false' });
-  wrap.append(img);
-  const info = h('div', { class: 'wmap-info card' }, 'Tocá un lugar para ver qué hay.');
+  const placed = layout();
+  const minX = Math.min(...placed.map((p) => p.x)) - 2, minY = Math.min(...placed.map((p) => p.y)) - 2;
+  const maxX = Math.max(...placed.map((p) => p.x + p.z.w)) + 2, maxY = Math.max(...placed.map((p) => p.y + p.z.h)) + 2;
+  const body = h('div', { class: 'wm' });
+  let zoomed: string | null = null;
+  const info = h('div', { class: 'wm-info card' });
   const qTarget = currentQuestTarget();
-  let questTargetZone: string | null = null;
-  if (qTarget) {
-    if (qTarget.kind === 'npc') {
-      questTargetZone = world.characterZone(qTarget.npc);
-    } else if (qTarget.kind === 'interior') {
-      questTargetZone = qTarget.fromZone;
-    } else if (qTarget.kind === 'location' || qTarget.kind === 'object') {
-      questTargetZone = qTarget.zone;
+  const qSpot = (() => {
+    if (!qTarget) return null;
+    if (qTarget.kind === 'npc') { const z = world.characterZone(qTarget.npc); return z ? outdoorSpot(z, 0, 0) : null; }
+    if (qTarget.kind === 'interior') return outdoorSpot(qTarget.fromZone, qTarget.door.x, qTarget.door.y);
+    return outdoorSpot(qTarget.zone, qTarget.x ?? 0, qTarget.y ?? 0);
+  })();
+  const here = world?.player ? outdoorSpot(world.zoneId, world.player.tx, world.player.ty) : null;
+
+  const show = (id: string | null) => { zoomed = id; render(); };
+
+  function setInfo(title: string, text: string, links: HTMLElement[] = []) {
+    info.replaceChildren(h('b', null, title), h('div', { class: 'hint' }, text), ...(links.length ? [h('div', { class: 'wm-links' }, ...links)] : []));
+  }
+  function connections(id: string): HTMLElement[] {
+    const out: HTMLElement[] = [];
+    const seen = new Set<string>();
+    let locked = 0;
+    for (const z of Object.values(ZONES)) for (const d of z.doors) {
+      const [a, b] = z.id === id ? [z.id, d.to] : d.to === id ? [d.to, z.id] : [null, null];
+      if (!a || !b || !ZONES[b]?.outdoor || seen.has(b)) continue;
+      seen.add(b);
+      const open = isOpen(b);
+      if (open) out.push(h('button', { type: 'button', class: 'btn small', onclick: () => show(b) }, `→ ${ZONES[b].name}`));
+      else locked++;
     }
-    if (questTargetZone === 'home' || questTargetZone === 'storage') {
-      questTargetZone = 'restaurant';
+    if (locked) out.push(h('span', { class: 'hint' }, locked === 1 ? '+ 1 camino cerrado' : `+ ${locked} caminos cerrados`));
+    return out;
+  }
+
+  function overview() {
+    const S = 3, W = (maxX - minX) * S, H = (maxY - minY) * S;
+    const cv = h('canvas', { class: 'wm-canvas', width: W, height: H, role: 'img', 'aria-label': 'Mapa de Villa Nori' }) as HTMLCanvasElement;
+    const g = cv.getContext('2d')!;
+    g.fillStyle = '#2d3b4a'; g.fillRect(0, 0, W, H);
+    for (const p of placed) drawZone(g, p.z, p.x - minX, p.y - minY, S, isOpen(p.z.id));
+    const wrap = h('div', { class: 'wm-stage', style: { aspectRatio: `${W} / ${H}` } }, cv);
+    const pct = (x: number, y: number) => ({ left: ((x - minX) / (maxX - minX)) * 100 + '%', top: ((y - minY) / (maxY - minY)) * 100 + '%' });
+    for (const p of placed) {
+      const open = isOpen(p.z.id);
+      const target = qSpot?.zone === p.z.id;
+      const youHere = here?.zone === p.z.id;
+      wrap.append(h('button', {
+        type: 'button', class: 'wm-zone' + (open ? '' : ' locked') + (youHere ? ' here' : '') + (target ? ' target' : ''),
+        style: pct(p.x + p.z.w / 2, p.y + Math.min(p.z.h * 0.2, 5)),
+        'aria-label': open ? p.z.name + (youHere ? ', estás acá' : '') + (target ? ', objetivo' : '') : 'Zona sin descubrir',
+        onclick: () => {
+          if (!open) { setInfo('???', 'Todavía no descubriste este lugar.'); return; }
+          setInfo(p.z.name, DESC[p.z.id] ?? '', connections(p.z.id));
+          info.append(h('button', { type: 'button', class: 'btn small primary', onclick: () => show(p.z.id) }, 'Ver de cerca'));
+        },
+      }, open ? p.z.name : '???', target ? h('span', { class: 'wm-star', 'aria-hidden': 'true' }, ' ✦') : null));
+    }
+    markers(wrap, (x, y, zone) => { const p = placed.find((q) => q.z.id === zone); return p ? pct(p.x + x, p.y + y) : null; });
+    return wrap;
+  }
+
+  function detail(id: string) {
+    const p = placed.find((q) => q.z.id === id)!;
+    const S = 8, z = p.z;
+    const cv = h('canvas', { class: 'wm-canvas', width: z.w * S, height: z.h * S, role: 'img', 'aria-label': 'Mapa de ' + z.name }) as HTMLCanvasElement;
+    const g = cv.getContext('2d')!;
+    drawZone(g, z, 0, 0, S, true);
+    const wrap = h('div', { class: 'wm-stage wm-detail', style: { aspectRatio: `${z.w} / ${z.h}`, width: `min(100%, calc(60vh * ${z.w / z.h}))` } }, cv);
+    const pct = (x: number, y: number) => ({ left: ((x + 0.5) / z.w) * 100 + '%', top: ((y + 0.5) / z.h) * 100 + '%' });
+    const seen = new Set<string>();
+    for (const d of z.doors) {
+      const key = d.to + (isLandmark(d) ? '' : `:${d.x}:${d.y}`);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const outdoor = ZONES[d.to]?.outdoor;
+      if (outdoor && !isOpen(d.to)) { wrap.append(h('div', { class: 'wm-door locked', style: pct(d.x, d.y), title: 'Camino cerrado' }, '🔒')); continue; }
+      if (!isLandmark(d) && !outdoor) { wrap.append(h('button', { type: 'button', class: 'wm-dot', style: pct(d.x, d.y), 'aria-label': doorName(d), title: doorName(d), onclick: () => setInfo(doorName(d), 'Una puerta del barrio.') })); continue; }
+      wrap.append(h('button', {
+        type: 'button', class: 'wm-door' + (outdoor ? ' road' : ''), style: pct(d.x, d.y),
+        onclick: () => (outdoor ? show(d.to) : setInfo(doorName(d), d.to === 'restaurant' ? 'Tu restaurante. Arriba están las habitaciones.' : 'Un local del pueblo. Mirá sus horarios en el cartel de la puerta.')),
+      }, outdoor ? `→ ${doorName(d)}` : doorName(d)));
+    }
+    markers(wrap, (x, y, zone) => (zone === id ? pct(x, y) : null));
+    // zoomed zones are wide: on a phone they pan sideways instead of squeezing the labels
+    return h('div', { class: 'wm-scroll' }, wrap);
+  }
+
+  /** you, the raccoons and the objective, placed with the given projection */
+  function markers(wrap: HTMLElement, project: (x: number, y: number, zone: string) => Record<string, string> | null) {
+    if (qSpot) {
+      const at = project(qSpot.x, qSpot.y, qSpot.zone);
+      if (at) wrap.append(h('div', { class: 'wm-goal', style: at, 'aria-label': 'Objetivo' }, '✦'));
+    }
+    for (const id of ['spicy', 'rigg', 'pip']) {
+      const z = world.characterZone(id);
+      const spot = z ? outdoorSpot(z, 0, 0) : null;
+      const at = spot ? project(spot.x, spot.y, spot.zone) : null;
+      if (at) wrap.append(h('img', { class: 'wm-friend', src: portraitURL(id), alt: CHARACTERS.find((c) => c.id === id)?.name ?? '', style: at }));
+    }
+    if (here) {
+      const at = project(here.x, here.y, here.zone);
+      if (at) wrap.append(h('div', { class: 'wm-you', style: at }, h('img', { src: portraitURL('player', 'happy'), alt: '' }), h('span', null, 'Estás acá')));
     }
   }
 
-  const here = hereZone();
-  for (const p of PLACES) {
-    const open = !p.flag || game.has(p.flag);
-    const isTarget = p.id === questTargetZone;
-    const label = open ? (isTarget ? `${p.name}, misión` : p.name) : 'Lugar sin descubrir';
-    const plate = h('button', {
-      type: 'button',
-      class: 'wmap-plate' + (open ? '' : ' locked') + (p.id === here ? ' here' : '') + (isTarget ? ' target' : ''),
-      'aria-label': label,
-      title: label,
-      style: {
-        left: (p.x / MW) * 100 + '%',
-        top: (p.y / MH) * 100 + '%',
-      },
-      onclick: () => {
-        info.innerHTML = '';
-        info.append(h('b', null, (open ? p.name : '???') + (isTarget ? ' ✦ Misión' : '')), h('div', { class: 'hint' }, open ? p.desc : 'Todavía no descubriste este lugar.'));
-      },
-    }, placeIcon(open ? p.id : 'unknown'), isTarget ? h('span', { class: 'wmap-mark', 'aria-hidden': 'true' }, '✦') : null);
-    wrap.append(plate);
-    if (p.id === here) {
-      wrap.append(h('div', { class: 'wmap-you', style: { left: (p.x / MW) * 100 + '%', top: (p.y / MH) * 100 + '%' } }, h('img', { src: portraitURL('player', 'happy'), alt: '' }), h('span', null, 'Estás acá')));
+  function render() {
+    body.replaceChildren();
+    requestAnimationFrame(() => body.closest('.panel-body')?.scrollTo(0, 0));
+    if (zoomed && ZONES[zoomed]) {
+      const z = ZONES[zoomed];
+      body.append(h('div', { class: 'wm-bar' }, h('button', { type: 'button', class: 'btn small', onclick: () => show(null) }, '← Todo el pueblo'), h('b', null, z.name)), detail(zoomed));
+      setInfo(z.name, DESC[z.id] ?? '', connections(z.id));
+    } else {
+      body.append(overview());
+      setInfo('Villa Nori', 'Tocá una zona para ver qué hay y cómo se llega. Las zonas con candado todavía están cerradas.');
     }
+    body.append(info);
+    const legend = h('div', { class: 'wm-legend' },
+      h('span', null, h('i', { class: 'sw you' }), 'Vos'), h('span', null, h('i', { class: 'sw door' }), 'Puertas'), h('span', null, h('i', { class: 'sw path' }), 'Caminos'),
+      h('span', null, h('i', { class: 'sw water' }), 'Agua'), h('span', null, h('i', { class: 'sw lock' }), 'Sin descubrir'), qTarget ? h('span', null, '✦ Objetivo') : null);
+    body.append(legend);
+    if (qTarget?.label) body.append(h('div', { class: 'hint wm-goal-text' }, `✦ Objetivo actual: ${qTarget.label}`));
+    const friends = ['pip', 'spicy', 'rigg'].map((r) => `${CHARACTERS.find((c) => c.id === r)!.name} — ${ZONES[world.characterZone(r) ?? '']?.name ?? 'paseando'}`).join(' · ');
+    body.append(h('div', { class: 'hint' }, 'Mapaches: ' + friends));
   }
-  // raccoons, gathered per zone
-  const byZone = new Map<string, string[]>();
-  for (const id of ['spicy', 'rigg', 'pip']) {
-    const z = world.characterZone(id);
-    if (!z) continue;
-    const key = z === 'home' || z === 'storage' ? 'restaurant' : (z.startsWith('shop_') || z === 'library') ? 'plaza' : z;
-    byZone.set(key, [...(byZone.get(key) ?? []), id]);
-  }
-  for (const [z, ids] of byZone) {
-    const p = PLACES.find((q) => q.id === z);
-    if (!p) continue;
-    const row = h('div', { class: 'wmap-friends', style: { left: (p.x / MW) * 100 + '%', top: (p.y / MH) * 100 + '%' } });
-    for (const id of ids) row.append(h('img', { src: portraitURL(id), alt: CHARACTERS.find((c) => c.id === id)?.name ?? '' }));
-    wrap.append(row);
-  }
-  const legend = h('div', { class: 'hint', style: { marginTop: '6px' } }, 'Mapaches: ' + ['pip', 'spicy', 'rigg'].map((r) => `${CHARACTERS.find((c) => c.id === r)!.name} — ${ZONES[world.characterZone(r) ?? '']?.name ?? 'paseando'}`).join(' · '));
-  const qHint = qTarget?.label ? h('div', { class: 'hint', style: { marginTop: '4px', color: '#b85d19', fontWeight: 'bold' } }, `✦ Objetivo actual: ${qTarget.label}`) : null;
-  panel({ title: 'Mapa de Villa Nori', body: h('div', null, wrap, info, legend, qHint) });
+  render();
+  panel({ title: 'Mapa de Villa Nori', body, wide: true });
 }
