@@ -58,3 +58,12 @@ describe('ground tiles vary by coordinate and stay walkable', () => {
     expect(TILE_INDEX.sand2).not.toBe(TILE_INDEX.sand);
   });
 });
+
+import { quantize } from '../scenes/shadowTex';
+describe('baked shadow cache keys', () => {
+  it('rounds the lean and squash so a day needs only a few textures', () => {
+    expect(quantize(3.4, 0.337)).toEqual({ reach: 3, squash: 0.35 });
+    expect(quantize(99, 5)).toEqual({ reach: 14, squash: 0.7 });
+    expect(quantize(-99, 0)).toEqual({ reach: -14, squash: 0.1 });
+  });
+});
