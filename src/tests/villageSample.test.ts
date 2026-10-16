@@ -5,8 +5,24 @@ import { buildingLayout } from '../art/nature';
 import { villageShopLayout } from '../art/village';
 import { game, newSave } from '../core/state';
 import { buildZone } from '../world/zoneRuntime';
+import { HOUSES, houseDoorTile, housePropId } from '../data/houses';
+import { homeLayout } from '../art/homes';
 
 describe('village sample keeps the saved village playable', () => {
+  it('aligns every imported genkan with the saved house entrance and keeps window light off the timber door', () => {
+    for (const house of HOUSES) {
+      const prop = PROPS[housePropId(house)];
+      const L = homeLayout(prop.sw, prop.sh, prop.variant!, house.view === 'side');
+      const [x, y] = houseDoorTile(house);
+      expect(house.x * 16 + L.door.x + L.door.w / 2, house.id).toBe(x * 16 + 8);
+      const threshold = (house.y + prop.h) * 16 - prop.sh + L.door.y + L.door.h;
+      expect(threshold, house.id).toBe(y * 16 + 12);
+      for (const win of L.windows) {
+        expect(win.x >= 0 && win.x + win.w <= prop.sw, house.id).toBe(true);
+        expect(win.x + win.w <= L.door.x || win.x >= L.door.x + L.door.w, house.id).toBe(true);
+      }
+    }
+  });
   it('aligns every new visible doorway with its existing street entrance and interior exit', () => {
     for (const [id, prop, x, y] of [
       ['restaurant', 'bld_restaurant_s0', 5, 6],
