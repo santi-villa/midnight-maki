@@ -7,7 +7,7 @@ import { game } from '../core/state';
 export type QuestTarget =
   | { kind: 'location'; zone: string; x?: number; y?: number; label?: string }
   | { kind: 'npc'; npc: string; label?: string }
-  | { kind: 'object'; zone: string; x: number; y: number; label?: string; interactId?: string }
+  | { kind: 'object'; zone: string; x: number; y: number; label?: string; interactId?: string; /** the arrow follows the dining service (opening hours, a seated customer ready to order) instead of a fixed spot */ service?: boolean }
   | { kind: 'interior'; fromZone: string; door: { x: number; y: number }; targetZone: string; interiorTarget?: { x: number; y: number; label?: string }; label?: string };
 
 export interface QuestStep {

@@ -8,6 +8,7 @@ import { CHARACTERS } from '../data/characters';
 import { ZONES } from '../data/zones';
 import { currentStep } from '../quests/quests';
 import { whereIs } from '../systems/npcs';
+import { serviceGuide } from '../restaurant/service';
 
 export interface GuideTarget {
   zone: string;
@@ -15,6 +16,8 @@ export interface GuideTarget {
   x?: number;
   y?: number;
   npc?: string;
+  /** a dining table (the guest sitting there is ready to order) */
+  tableId?: string;
 }
 
 const PLACE_WORDS: [RegExp, string, string?][] = [
@@ -51,6 +54,11 @@ export function questTarget(locate: (id: string) => string | null = whereIs): Gu
       return z ? { zone: z, npc: t.npc } : null;
     }
     if (t.kind === 'object') {
+      if (t.service) {
+        const g = serviceGuide();
+        if (!g) return null;
+        return g === 'counter' ? { zone: t.zone, x: t.x, y: t.y } : { zone: t.zone, tableId: g.tableId };
+      }
       return { zone: t.zone, x: t.x, y: t.y };
     }
     if (t.kind === 'interior') {

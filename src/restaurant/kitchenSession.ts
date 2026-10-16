@@ -124,6 +124,8 @@ export function openKitchenSession(hooks: KitchenHooks, firstUid?: number): Prom
         if (dishes.length) select(dishes[0]);
         else show('orders');
       } else render();
+      // nothing left to cook and nothing in progress: leave the kitchen instead of showing an empty list
+      if (res.ok && !dishes.length && !hooks.orders().length) { toast('Por ahora no hay pedidos'); finish(); }
     }
 
     function select(d: Dish) {

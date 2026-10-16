@@ -50,7 +50,11 @@ function ingList(r: { ingredients: Record<string, number> }) {
 export function openOrders() {
   refreshOrders(false);
   const body = h('div', { class: 'col' });
+  let had = game.save.orders.length > 0;
   const render = () => {
+    // once the last order is gone the counter has nothing left to show: close it, briefly say so
+    if (had && !game.save.orders.length && p?.root.isConnected) { p.close(); toast('Por ahora no hay pedidos'); return; }
+    had = game.save.orders.length > 0;
     body.innerHTML = '';
     const rs = game.save.restaurant;
     body.append(
@@ -125,7 +129,7 @@ export function openOrders() {
     body.append(h('p', { class: 'hint' }, `Hasta ${maxOrders()} grupos a la vez. Cada integrante tiene su pedido. Recogé los platos listos en la bandeja. Los de la historia siguen en el mostrador.`));
   };
   render();
-  const p = panel({ title: 'Cocina · Pedidos', body, foot: [h('button', { class: 'btn', onclick: () => p.close() }, 'Volver al salón')] });
+  const p: ReturnType<typeof panel> = panel({ title: 'Cocina · Pedidos', body, foot: [h('button', { class: 'btn', onclick: () => p.close() }, 'Volver al salón')] });
 }
 
 /** Cook one order. Food opens the kitchen with that dish started; drinks and one-tap dishes keep their short flow. */
@@ -285,28 +289,26 @@ async function startOrder(uid: number, quick = false) {
   }
 }
 
-/** One short receipt per group, preserving meaningful recipe/level celebrations. */
+/**
+ * The comment and the coins are shown in the room (bubble + coin counter), so nothing here repeats the receipt.
+ * Only milestones are told: first time of a recipe, gifts, level-ups and new recipes.
+ */
 export async function presentPaidMeals(meals: PaidMeal[]) {
   if (!meals.length) return;
-  audio.sfxPlay('coin');
+  for (const m of meals.filter(m => m.result.firstTime)) toast(`¡Primera vez que preparás ${servingName({ recipe: m.recipe, kind: m.kind } as import('../core/types').Order)}! Quedó en tus colecciones.`);
+  for (const m of meals.filter(m => m.result.gift)) toast(`${customerName(m.customer)} dejó un regalito: ${ITEMS_BY_ID[m.result.gift!]?.name ?? m.result.gift}.`);
+  const level = Math.max(0, ...meals.map(m => m.result.levelUp));
+  if (!level) return;
+  audio.sfxPlay('success');
   await runScene('serve_group', async () => {
-    const coins = meals.reduce((n, m) => n + m.result.coins, 0), tips = meals.reduce((n, m) => n + m.result.tip, 0);
-    const reply = GENERIC_CUSTOMERS.find(c => c.id === meals[0].customer);
-    if (reply) await say('?' + reply.name, reply.react?.[meals[0].quality] ?? ['Gracias por la comida.', '¡Muy rico! Fue un lindo rato.', '¡Perfecto! Vamos a volver.'][meals[0].quality]);
-    await say('narr', `${meals.length} pedido${meals.length === 1 ? '' : 's'} servidos. Cobraste ${coins} monedas.${tips ? ` Quedaron ${tips} de propina en la mesa.` : ''}`);
-    for (const m of meals.filter(m => m.result.firstTime)) await say('narr', `¡Primera vez que preparás ${servingName({ recipe: m.recipe, kind: m.kind } as import('../core/types').Order)}! Quedó en tus colecciones.`);
-    const level = Math.max(...meals.map(m => m.result.levelUp));
-    if (level) {
-      await say('spicy', `¡Midnight Maki subió a nivel ${level}! ¡Seguimos creciendo!`, 'happy');
-      for (const recipe of [...new Set(meals.flatMap(m => m.result.newRecipes))]) await say('narr', `Nueva receta: ${RECIPES_BY_ID[recipe].name}.`);
-      applyStageGrants();
-      if (meals.some(m => m.result.levelUp && stageForLevel(m.result.levelUp) !== stageForLevel(m.result.levelUp - 1))) {
-        await say('narr', `Midnight Maki se ve distinto: ${STAGE_NAMES[stageForLevel(level)]}.`);
-        const { world } = await import('../scenes/WorldScene');
-        if (world.zoneId === 'restaurant' && world.player) await world.enterZone('restaurant', world.player.tx, world.player.ty, world.player.dir, false);
-      }
+    await say('spicy', `¡Midnight Maki subió a nivel ${level}! ¡Seguimos creciendo!`, 'happy');
+    for (const recipe of [...new Set(meals.flatMap(m => m.result.newRecipes))]) await say('narr', `Nueva receta: ${RECIPES_BY_ID[recipe].name}.`);
+    applyStageGrants();
+    if (meals.some(m => m.result.levelUp && stageForLevel(m.result.levelUp) !== stageForLevel(m.result.levelUp - 1))) {
+      await say('narr', `Midnight Maki se ve distinto: ${STAGE_NAMES[stageForLevel(level)]}.`);
+      const { world } = await import('../scenes/WorldScene');
+      if (world.zoneId === 'restaurant' && world.player) await world.enterZone('restaurant', world.player.tx, world.player.ty, world.player.dir, false);
     }
-    for (const m of meals.filter(m => m.result.gift)) await say('narr', `${customerName(m.customer)} dejó un regalito: ${ITEMS_BY_ID[m.result.gift!]?.name ?? m.result.gift}.`);
   });
 }
 export async function presentPaidMeal(meal: PaidMeal) { await presentPaidMeals([meal]); }

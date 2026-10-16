@@ -248,3 +248,9 @@ export function canCook(recipeId: string): boolean {
   if (!r) return false;
   return Object.entries(r.ingredients).every(([id, q]) => game.countUsable(id) >= q);
 }
+
+/** What a guest says when they finish eating, by how the dish turned out (shown in a bubble, short). */
+export function mealComment(customerId: string, quality: 0 | 1 | 2): string {
+  const generic = GENERIC_CUSTOMERS.find((c) => c.id === customerId);
+  return generic?.react?.[quality] ?? ['Estuvo bien, gracias.', '¡Muy rico! Fue un lindo rato.', '¡Perfecto! Vamos a volver.'][quality];
+}

@@ -74,7 +74,7 @@ defineQuests([
     auto: () => isDone('prologue'),
     steps: [
       { text: 'Pip quiere mostrarte algo. Buscalo.', done: () => game.has('drawing_found'), target: { kind: 'npc', npc: 'pip', label: 'Pip' } },
-      { text: 'Serví pedidos en el restaurante (5).', done: () => served() >= 6, target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, label: 'Mostrador de pedidos', interactId: 'orders' } },
+      { text: 'Serví pedidos en el restaurante (5).', done: () => served() >= 6, hint: 'El restaurante abre a las 8:00. Cuando un cliente se siente, aparece la flecha hacia su mesa.', target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, label: 'Mostrador de pedidos', interactId: 'orders', service: true } },
       { text: 'Conocé a tres vecinos del pueblo.', done: () => villagersMet() >= 3, target: { kind: 'location', zone: 'plaza', label: 'Plaza' } },
       { text: 'Preguntale a la Abuela Ume por el antiguo dueño.', done: () => game.has('ume_akio'), hint: 'Ume pasa las mañanas en el jardín y las tardes en el restaurante o la plaza.', target: { kind: 'npc', npc: 'ume', label: 'Abuela Ume' } },
       { text: 'Restaurá el cartel del restaurante (afuera, en la plaza).', done: () => game.has('sign_restored'), target: { kind: 'object', zone: 'plaza', x: 4, y: 7, label: 'Cartel del restaurante', interactId: 'sign' } },
