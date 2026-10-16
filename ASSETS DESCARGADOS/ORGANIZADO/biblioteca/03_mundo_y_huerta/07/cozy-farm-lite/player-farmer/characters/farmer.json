@@ -1,0 +1,50 @@
+{
+ "frame_width": 16,
+ "frame_height": 24,
+ "feet_y": 21,
+ "directions": [
+  "down",
+  "left",
+  "right",
+  "up"
+ ],
+ "columns": 6,
+ "rows": [
+  {
+   "row": 0,
+   "y": 0,
+   "animation": "walk",
+   "direction": "down",
+   "frames": 6,
+   "fps": 10,
+   "loop": true
+  },
+  {
+   "row": 1,
+   "y": 24,
+   "animation": "walk",
+   "direction": "left",
+   "frames": 6,
+   "fps": 10,
+   "loop": true
+  },
+  {
+   "row": 2,
+   "y": 48,
+   "animation": "walk",
+   "direction": "right",
+   "frames": 6,
+   "fps": 10,
+   "loop": true
+  },
+  {
+   "row": 3,
+   "y": 72,
+   "animation": "walk",
+   "direction": "up",
+   "frames": 6,
+   "fps": 10,
+   "loop": true
+  }
+ ]
+}

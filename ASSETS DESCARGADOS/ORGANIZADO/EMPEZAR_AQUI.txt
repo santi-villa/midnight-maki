@@ -1,0 +1,14 @@
+MIDNIGHT MAKI - ASSETS ORGANIZADOS
+
+Abrir ABRIR_CATALOGO.html en el navegador para comparar los packs.
+Leer INFORME.md para recomendaciones y GUIA_INTEGRACION.md para el código.
+
+biblioteca/: todos los packs extraídos y agrupados por categorías.
+combinaciones/: las tres selecciones propuestas; A es la recomendada.
+comprimidos_originales/: copias de los 28 ZIP/RAR, agrupadas por categorías.
+entrega_zip/: ZIP de la entrega anterior y su verificación.
+vistas/: comparaciones visuales por pack y combinación.
+referencia_juego_actual/: referencias existentes del juego.
+
+Las carpetas 90 de las combinaciones contienen candidatos con licencia pendiente; las 91 contienen recursos solo no comerciales según los textos adjuntos.
+Los archivos originales fuera de esta carpeta no se movieron ni modificaron.
