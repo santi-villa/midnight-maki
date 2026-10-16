@@ -270,4 +270,22 @@ describe('restaurant tables', () => {
     const early = resolveContext(sense({ zoneId: 'restaurant', ...at(8, 9), furniture }));
     expect(all(early).some((a) => a.id.startsWith('take:'))).toBe(false);
   });
+
+  it('takes the order from any open side, and from beside the seated guest', () => {
+    const wide: SenseFurniture[] = [
+      { uid: 10, id: 'table_family', kind: 'table', name: 'Mesa', room: 'dining', x: 8, y: 8, w: 2, h: 2 },
+    ];
+    const take = (px: number, py: number, extra: Partial<ContextSense> = {}) =>
+      all(resolveContext(sense({ zoneId: 'restaurant', px, py, furniture: wide, ...extra }))).some((a) => a.id === 'take:10');
+    expect(take(at(8, 7).px, at(8, 7).py)).toBe(true);
+    expect(take(at(10, 9).px, at(10, 9).py)).toBe(true);
+    expect(take(at(7, 8).px, at(7, 8).py)).toBe(true);
+    expect(take(at(9, 10).px, at(9, 10).py)).toBe(true);
+    const blocked = (x: number, y: number) => y >= 10 && x >= 0;
+    expect(take(at(9, 10).px, at(9, 10).py, { blocked })).toBe(false);
+    expect(take(at(8, 7).px, at(8, 7).py, { blocked })).toBe(true);
+    const guest = { tableId: '10', x: at(9, 10).px, y: at(9, 10).py - 4 };
+    expect(take(at(9, 11).px, at(9, 11).py, { blocked, guests: [guest] })).toBe(true);
+    expect(take(at(2, 2).px, at(2, 2).py, { guests: [guest] })).toBe(false);
+  });
 });

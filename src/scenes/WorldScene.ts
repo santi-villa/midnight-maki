@@ -131,6 +131,8 @@ export class WorldScene extends Phaser.Scene {
   target: Target | null = null;
   contextOffer: ContextOffer = idleOffer(null);
   private contextKey = '';
+  /** When the notebook pose from taking an order should end. */
+  private notingUntil = 0;
   inputLocked = 0; // cutscenes
   onInteract: (t: Target) => void = () => {};
   onEnterZone: (id: string) => void | Promise<void> = () => {};
@@ -981,19 +983,11 @@ export class WorldScene extends Phaser.Scene {
         art.fillStyle(ready[i].kind === 'drink' ? 0x8ab9ad : 0xf6ecd6).fillRect(6 * TILE + i * 4, 4 * TILE + 10, 3, 3);
       }
       if (drinksUnlocked()) { art.fillStyle(0xe9d8b1).fillRect(2 * TILE + 4, 2 * TILE + 2, 5, 5); art.fillStyle(0x91ab69).fillRect(2 * TILE + 5, 2 * TILE + 3, 3, 2); }
-      const carrying = carriedOrders();
       for (const job of tableJobs()) {
         const f = this.zone.furniture.find(fi => String(fi.f.uid) === job.tableId);
         if (!f) continue;
         const size = furnSize(f.def, f.f.rot);
         const x = f.f.x * TILE + size.w * TILE / 2, y = f.f.y * TILE - 5;
-        const destination = carrying.some(o => o.service?.tableId === job.tableId);
-        const color = destination ? 0xf2c66d : job.impatient ? 0xd77a76 : 0xf6ecd6;
-        // The table only shows a gold mark while it is the delivery destination; orders to take are marked on the customers.
-        if (destination) {
-          art.fillStyle(0x4a3029).fillRect(x - 3, y - 8, 6, 10);
-          art.fillStyle(color).fillRect(x - 1, y - 7, 2, 5).fillRect(x - 1, y, 2, 1);
-        }
         if (tipPending(job.status, job.tip)) {
           const now = performance.now() / 1000;
           const bob = Math.round(Math.sin(now * 2.2 + x) * 1);
@@ -1011,13 +1005,13 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     if (this.zoneId === 'restaurant') {
-      // a yellow "!" follows every seated customer whose order has not been taken yet
-      const now = performance.now() / 1000;
+      // A short cream tick over a customer who is waiting to order. Not a quest marker.
       for (const g of this.guests.values()) {
         if (g.phase !== 'waiting_order' || !g.actor.sprite.visible) continue;
-        const x = Math.round(g.actor.x), y = Math.round(g.actor.y - 38 + Math.sin(now * 4 + x) * 1.5);
-        art.fillStyle(0x4a3029).fillRect(x - 3, y - 1, 6, 11);
-        art.fillStyle(0xf2c66d).fillRect(x - 1, y, 2, 5).fillRect(x - 1, y + 7, 2, 2);
+        const x = Math.round(g.actor.x);
+        const y = Math.round(g.actor.y - 30);
+        art.fillStyle(0x6b5344, 0.8).fillRect(x - 2, y, 1, 3).fillRect(x + 2, y, 1, 3);
+        art.fillStyle(0xe7d7b8).fillRect(x - 1, y + 1, 3, 1);
       }
     }
     const carrying = carriedOrders();
@@ -1725,6 +1719,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     if (intent.type === 'takeOrder') {
+      this.showTakingNotes(intent.tableId);
       this.note(takeOrderAt(intent.tableId));
       this.syncGuests();
       this.contextKey = '';
@@ -1750,6 +1745,18 @@ export class WorldScene extends Phaser.Scene {
 
   private note(text: string) {
     void runTask('world:notice', () => import('../ui/dom').then(({ toast }) => toast(text)), false);
+  }
+
+  /** A short look-down while the order is written. Walking cancels it. */
+  private showTakingNotes(tableId: string) {
+    const table = this.zone?.furniture.find((fi) => String(fi.f.uid) === tableId);
+    if (table) {
+      const size = furnSize(table.def, table.f.rot);
+      this.player.faceTowards(table.f.x * TILE + (size.w * TILE) / 2, table.f.y * TILE + (size.h * TILE) / 2);
+    }
+    if (this.player.dir === 'up') this.player.face('down');
+    this.player.setAct('read');
+    this.notingUntil = performance.now() + 900;
   }
 
   private async offerGift(id: string) {
@@ -1912,7 +1919,22 @@ export class WorldScene extends Phaser.Scene {
           sit: fi.def.sit,
         };
       }),
+      blocked: (x: number, y: number) => this.zone.grid.isSolid(x, y),
+      guests: this.zoneId === 'restaurant' ? this.senseGuests() : [],
     };
+  }
+
+  private senseGuests(): { tableId: string; x: number; y: number }[] {
+    const views = guestViews();
+    const out: { tableId: string; x: number; y: number }[] = [];
+    for (const [key, body] of this.guests) {
+      const cut = key.lastIndexOf(':');
+      const partyId = cut < 0 ? key : key.slice(0, cut);
+      const view = views.find((g) => g.id === partyId);
+      if (!view?.tableId) continue;
+      out.push({ tableId: view.tableId, x: body.actor.x, y: body.actor.y - 4 });
+    }
+    return out;
   }
 
   private refreshContext() {
@@ -2011,6 +2033,10 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     if (`${p.tx},${p.ty}` !== wasTile || (p.moving && p.manual)) this.checkWalkDoor();
+    if (this.notingUntil && (p.moving || performance.now() >= this.notingUntil)) {
+      this.notingUntil = 0;
+      if (p.act === 'read') p.setAct('idle');
+    }
   }
 
   private moveWithCollision(dx: number, dy: number) {
@@ -2804,11 +2830,11 @@ export class WorldScene extends Phaser.Scene {
       this.deliveryGoals.forEach((d, i) => {
         let m = this.deliveryMarks[i];
         if (!m) m = this.deliveryMarks[i] = {
-          mark: this.add.image(0, 0, guideTexture(this, 'mark')).setDepth(250000),
-          label: this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '8px', color: '#fff1d0', backgroundColor: '#4a3029', padding: { x: 3, y: 1 } }).setOrigin(0.5, 1).setDepth(250000),
+          mark: this.add.image(0, 0, guideTexture(this, 'mark')).setDepth(250000).setScale(0.55).setAlpha(0.72),
+          label: this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '6px', color: '#efe6d6', backgroundColor: '#3a2a24', padding: { x: 2, y: 0 } }).setOrigin(0.5, 1).setDepth(250000),
         };
-        m.mark.setVisible(true).setPosition(d.x, d.y - 10 + Math.sin(nowT * 4 + i) * 2);
-        m.label.setVisible(true).setText(d.label).setPosition(d.x, d.y - 22);
+        m.mark.setVisible(true).setPosition(d.x, d.y - 8 + Math.sin(nowT * 4 + i) * 1);
+        m.label.setVisible(true).setText(d.label).setPosition(d.x, d.y - 14);
       });
       goal = nearestGoal(this.deliveryGoals, this.player.x, this.player.y);
       mark.setVisible(false);
@@ -2846,7 +2872,7 @@ export class WorldScene extends Phaser.Scene {
     if (!carrying.length) return [];
     if (this.zoneId !== 'restaurant') {
       const d = nextDoor(this.zoneId, 'restaurant');
-      return d ? [{ x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2, label: 'Llevar pedido al restaurante' }] : [];
+      return d ? [{ x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2, label: 'Al restaurante' }] : [];
     }
     const dishes: DeliveryDish[] = [];
     for (const o of carrying) {

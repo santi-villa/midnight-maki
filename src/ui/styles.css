@@ -211,7 +211,8 @@ h3 { margin: 4px 0 8px; font-size: 1.05em; }
 .dlg .portrait { object-fit: cover; flex: 0 0 auto; width: 96px; height: 108px; image-rendering: pixelated; background: var(--cream-2); border-radius: 10px; border: 3px solid var(--wood-dark); align-self: flex-end; margin-top: -48px; }
 .dlg .portrait.none { display: none; }
 .dlg .body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.dlg .name { position: absolute; top: -20px; left: 16px; background: var(--wood); color: var(--cream); border: 3px solid var(--wood-dark); border-radius: 8px; padding: 2px 10px; font-weight: 600; }
+.dlg .name { position: absolute; top: -20px; left: 16px; z-index: 2; background: var(--wood); color: var(--cream); border: 3px solid var(--wood-dark); border-radius: 8px; padding: 2px 10px; font-weight: 600; }
+.dlg.has-portrait .name { left: 124px; max-width: max(72px, calc(100% - 250px)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dlg .text { font-size: 1.08em; line-height: 1.4; min-height: 3.6em; white-space: pre-wrap; padding-top: 6px; }
 .dlg .choices { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .dlg .choices button { text-align: left; border: 3px solid var(--wood-dark); background: #fff8e8; border-radius: 10px; padding: 8px 12px; min-height: 44px; }
@@ -274,6 +275,7 @@ input[type=range] { width: 100%; accent-color: var(--rose-2); }
   .hud-status { min-width: 100px; font-size: .82em; }
   .icon-btn { width: 44px; height: 44px; }
   .dlg .portrait { width: 72px; height: 81px; margin-top: -36px; }
+  .dlg.has-portrait .name { left: 98px; max-width: max(64px, calc(100% - 210px)); }
   .dlg .text { font-size: 1em; }
 }
 
@@ -938,17 +940,17 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .reduce-motion .drink-fill { transition: none; }
 @media (prefers-reduced-motion: reduce) { .drink-fill { transition: none; } }
 
-/* Keyboard focus stays visible without changing the cozy panels. */
+/* Keyboard focus stays visible as a thin wood edge, not a gold objective box. */
 .panel :focus-visible,
 .dlg button:focus-visible,
 .choices button:focus-visible,
 .decor-sheet button:focus-visible,
 .game-hud button:focus-visible,
 .tt-menu button:focus-visible {
-  outline: 3px solid #f2c66d;
+  outline: 1px solid #6b5344;
   outline-offset: 2px;
 }
-.binding-wait { outline: 3px solid #f2c66d; outline-offset: 2px; }
+.binding-wait { outline: 1px solid #6b5344; outline-offset: 2px; }
 
 /* ---- kitchen session: several dishes, free movement between them ---- */
 .ks { position: fixed; inset: 0; z-index: 30; background: #2b2236; color: var(--cream); display: flex; flex-direction: column; gap: 8px; padding: calc(8px + var(--safe-t)) calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l)); }
