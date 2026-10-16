@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Maki &amp; Mapaches</string>
-    <string name="title_activity_main">Maki &amp; Mapaches</string>
+    <string name="app_name">Mapaches y Sushi</string>
+    <string name="title_activity_main">Mapaches y Sushi</string>
     <string name="package_name">com.santi.midnightmaki</string>
     <string name="custom_url_scheme">com.santi.midnightmaki</string>
 </resources>

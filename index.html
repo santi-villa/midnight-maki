@@ -7,12 +7,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Maki &amp; Mapaches" />
+    <meta name="apple-mobile-web-app-title" content="Mapaches y Sushi" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png?v=2" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=2" />
     <link rel="apple-touch-icon" href="./icons/icon-180.png?v=2" />
-    <title>Maki &amp; Mapaches</title>
+    <title>Mapaches y Sushi</title>
     <style>
       /* boot loader: visible before any script runs */
       html, body { margin: 0; background: #1f2440; height: 100%; overflow: hidden; }
@@ -26,12 +26,16 @@
       #boot .boot-title { z-index: 1; margin: 0; font-size: clamp(26px, 6vw, 38px); line-height: 1.05; letter-spacing: 3px; color: #f2c66d; text-shadow: 3px 3px #6c4334; }
       #boot .boot-subtitle { z-index: 1; font-size: 13px; letter-spacing: 1px; color: #d9a3a6; }
       #boot .tip { z-index: 1; font-size: 14px; line-height: 1.5; color: #f6ecd6; max-width: 280px; min-height: 42px; }
+      #boot .boot-bar { z-index: 1; width: min(260px, 64vw); height: 14px; border: 3px solid #3b2930; background: #2a2032; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 2px #aa7650; }
+      #boot .boot-bar i { display: block; height: 100%; width: 8%; background: repeating-linear-gradient(90deg, #f2c66d 0 8px, #e0a94f 8px 10px); transition: width 260ms steps(8); }
+      #boot .petal { position: absolute; top: -20px; width: 8px; height: 8px; background: #f3b6c0; box-shadow: 2px 0 #e08fa0; opacity: .75; pointer-events: none; animation: petal-fall 7s linear infinite; }
+      @keyframes petal-fall { to { transform: translate(40px, 110vh) rotate(260deg); } }
       @keyframes lantern-glow { 0%,100% { opacity: .8; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
-      @media (prefers-reduced-motion: reduce) { #boot, #boot .boot-lantern { animation: none; transition: none; } }
+      @media (prefers-reduced-motion: reduce) { #boot .petal { display: none; } #boot, #boot .boot-lantern { animation: none; transition: none; } }
     </style>
   </head>
   <body>
-    <div id="boot" role="status" aria-label="Cargando Maki &amp; Mapaches" aria-busy="true">
+    <div id="boot" role="status" aria-label="Cargando Mapaches y Sushi" aria-busy="true">
       <div class="boot-window" aria-hidden="true"></div>
       <svg class="boot-lantern" viewBox="0 0 16 24" shape-rendering="crispEdges" aria-hidden="true">
         <path fill="#3b2930" d="M7 0h2v4H7zM4 4h8v2H4zM2 6h12v14H2zM4 20h8v2H4zM7 22h2v2H7z"/>
@@ -40,9 +44,11 @@
         <path fill="#f9df9b" d="M7 8h2v10H7z"/>
         <path fill="#a8714a" d="M3 10h10v1H3zM3 15h10v1H3z"/>
       </svg>
-      <h1 class="boot-title">MAKI &amp; MAPACHES</h1>
+      <h1 class="boot-title">MAPACHES Y SUSHI</h1>
       <div class="boot-subtitle">Los secretos de Villa Nori</div>
+      <div class="boot-bar" aria-hidden="true"><i id="boot-fill"></i></div>
       <div class="tip" id="boot-tip">Encendiendo los faroles…</div>
+      <i class="petal" style="left:12%;animation-delay:0s"></i><i class="petal" style="left:34%;animation-delay:-2.4s"></i><i class="petal" style="left:58%;animation-delay:-4.6s"></i><i class="petal" style="left:79%;animation-delay:-1.2s"></i><i class="petal" style="left:91%;animation-delay:-5.8s"></i>
     </div>
     <div id="game"></div>
     <div id="ui"></div>
@@ -50,6 +56,7 @@
       (function () {
         var tips = ['Encendiendo los faroles…', 'Pip está buscando su cuchara…', 'Spicy calienta el wasabi…', 'Rigg ordena sus mapas…', 'Cocinando arroz para sushi…'];
         var i = 0, el = document.getElementById('boot-tip');
+        window.__bootProgress = function (p) { var f = document.getElementById('boot-fill'); if (f) f.style.width = Math.max(8, Math.min(100, Math.round(p * 100))) + '%'; };
         window.__bootTips = setInterval(function () { i = (i + 1) % tips.length; if (el) el.textContent = tips[i]; }, 1400);
       })();
     </script>

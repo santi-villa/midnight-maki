@@ -1,10 +1,10 @@
 # Prompts para las entregas restantes
 
-Copiar cada bloque por separado. Los números corresponden al nuevo orden de Maki & Mapaches, no a la serie anterior de recetas y proyectos. La auditoría formal del punto 1 sigue aplazada.
+Copiar cada bloque por separado. Los números corresponden al nuevo orden de Mapaches y Sushi, no a la serie anterior de recetas y proyectos. La auditoría formal del punto 1 sigue aplazada.
 
 ## Punto 7 — Historias y vínculos de Pip, Spicy y Rigg
 
-Implementá el punto 7 de Maki & Mapaches: historias personales, escenas cotidianas y vínculos de Pip, Spicy Beacon y Rigg con su hogar y el misterio de Akio.
+Implementá el punto 7 de Mapaches y Sushi: historias personales, escenas cotidianas y vínculos de Pip, Spicy Beacon y Rigg con su hogar y el misterio de Akio.
 
 Repositorio: santi-villa/midnight-maki. Antes de editar, revisá ramas remotas y estado local. La rama de trabajo autorizada es master-mgsshv; incorporá avances posteriores de forma segura, sin force push ni sobrescribir cambios ajenos. Publicá commits coherentes directamente en esa rama.
 
@@ -29,7 +29,7 @@ Al finalizar, documentá escenas/hitos, requisitos, recompensas, archivos modifi
 
 ## Punto 8 — Pulido, economía y comprobación final
 
-Implementá el punto 8 de Maki & Mapaches: pulido y balance de las entregas recientes, seguido de las pruebas de regresión completas que dejamos para el final.
+Implementá el punto 8 de Mapaches y Sushi: pulido y balance de las entregas recientes, seguido de las pruebas de regresión completas que dejamos para el final.
 
 Repositorio: santi-villa/midnight-maki. Revisá ramas remotas y cambios locales antes de editar. Trabajá sobre master-mgsshv, incorporando avances posteriores sin perder trabajo. Subí commits coherentes directamente a esa rama; no hagas force push.
 

@@ -1,4 +1,4 @@
-# Maki & Mapaches — Experiencia en PC
+# Mapaches y Sushi — Experiencia en PC
 
 Auditoría hecha sobre `master-mgsshv` (`e1934fb`, 14 oct 2026). Es la rama de desarrollo más reciente.
 
@@ -12,7 +12,7 @@ Las otras ramas del remoto quedaron atrás y no se mezclaron:
 | `feat/rutinas-vivas` | Cocina más clara | 2026-10-12 |
 | `main` | Merge viejo de `master-mgsshv` | 2026-10-12 |
 
-El restaurante sigue llamándose Midnight Maki y el pueblo, Villa Nori. El juego se presenta como Maki & Mapaches.
+El restaurante sigue llamándose Midnight Maki y el pueblo, Villa Nori. El juego se presenta como Mapaches y Sushi.
 
 ## Estado de la entrega
 
