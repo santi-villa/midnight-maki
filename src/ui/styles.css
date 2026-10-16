@@ -1,5 +1,6 @@
 @import '@fontsource/pixelify-sans/400.css';
 @import '@fontsource/pixelify-sans/600.css';
+@import '@fontsource/pixelify-sans/700.css';
 
 :root {
   --night: #1f2440;
@@ -1324,3 +1325,14 @@ body.kbd-input .game-hud .ctx-dock .hud-interact { display: none; }
 @keyframes br-spin { 50% { transform: scaleX(.15); } }
 @keyframes br-spark { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(260deg); } }
 @media (prefers-reduced-motion: reduce) { .big-reward, .big-reward .br-coin { animation: none; } }
+
+/* what matters stands out: names, titles and key numbers are really bold */
+b, strong, h1, h2, h3, .panel-title, .card > b:first-child, .hud-quest b, .tab.active, .tab[aria-selected="true"], .step b { font-weight: 700; }
+.hud-quest b { letter-spacing: .3px; text-shadow: 0 1px 0 rgba(0,0,0,.45); }
+.dlg .name, .hud-status .time, .hud-digital, .coin { font-weight: 700; }
+
+.wm-zoomable.zoomed { cursor: grab; user-select: none; } .wm-zoomable.panning { cursor: grabbing; }
+.wm-zoomable.panning * { pointer-events: none; }
+.tile > span { overflow-wrap: break-word; word-break: normal; font-weight: 700; }
+.tile > span small { font-weight: 400; }
+.tiles { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }

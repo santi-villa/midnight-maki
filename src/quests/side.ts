@@ -2,6 +2,7 @@
  * Side quests (villager & raccoon requests) and small optional tasks.
  * Steps can be conditions, item deliveries to the giver, or talking to someone.
  */
+import { bus } from '../core/events';
 import { game } from '../core/state';
 import { CLOTHES_BY_ID } from '../data/clothes';
 import { ITEMS_BY_ID } from '../data/items';
@@ -138,7 +139,7 @@ export function isQuestPerson(npc: string): boolean {
 export function offerableBy(npc: string): string | null {
   for (const [id, m] of Object.entries(SIDE_META)) {
     const q = questDef(id);
-    if (q?.giver !== npc || isActive(id) || isDone(id)) continue;
+    if (q?.giver !== npc || isActive(id) || isDone(id) || giverBusy(npc)) continue;
     if (!m.avail()) continue;
     return id;
   }
@@ -147,7 +148,7 @@ export function offerableBy(npc: string): string | null {
 
 export function boardQuests(): string[] {
   // the legacy alias sq_mika_photos has metadata but no quest of its own: it must never reach the board
-  return Object.entries(SIDE_META).filter(([id, m]) => !!questDef(id) && !isActive(id) && !isDone(id) && m.avail()).map(([id]) => id);
+  return Object.entries(SIDE_META).filter(([id, m]) => !!questDef(id) && !isActive(id) && !isDone(id) && m.avail() && !giverBusy(questDef(id)?.giver)).map(([id]) => id);
 }
 
 /** Called when talking to an NPC: handles deliveries and "talk to" steps. Returns a line to say or null. */
@@ -192,9 +193,17 @@ export function questTalk(npc: string): { text: string; quest: string } | null {
   return null;
 }
 
-export function acceptSide(id: string) {
+/** A character gives one request at a time: another from the same giver waits until the first is done. */
+export function giverBusy(giver: string | undefined): boolean {
+  if (!giver) return false;
+  return Object.keys(game.save.quests.active).some((a) => questDef(a)?.giver === giver);
+}
+
+export function acceptSide(id: string): boolean {
+  if (giverBusy(questDef(id)?.giver)) { bus.emit('toast', { text: 'Primero terminá lo que ya te pidió.' }); return false; }
   startQuest(id);
   game.save.quests.tracked = game.save.quests.tracked ?? id;
+  return true;
 }
 
 export function stepOf(id: string) {

@@ -50,7 +50,7 @@ export function phoneKeyIntent(s: PhoneKeyState): PhoneKeyIntent {
   let intent: PhoneKeyIntent = 'ignore';
   if (s.phase === 'open' || s.phase === 'opening') {
     intent = s.modalOnTop ? 'ignore' : 'close';
-  } else if (s.menuOpen || !s.exploring || (s.code === 'Tab' && s.focusInControl)) {
+  } else if (s.menuOpen || !s.exploring) {
     intent = 'ignore';
   } else {
     intent = 'open';
