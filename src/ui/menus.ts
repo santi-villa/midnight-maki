@@ -2,7 +2,6 @@ import { recipeCollectionView } from './recipes';
 import { runTask } from '../core/errors';
 /** Main in-game menus: bag, journal (quests, investigation, relations, collections, calendar), and menu. */
 import { iconElement } from '../art/icons';
-import { audio } from '../audio/audio';
 import { BALANCE } from '../core/balance';
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
@@ -22,11 +21,13 @@ import { hudSuggestionLabels } from './hudSuggestions';
 import { ACHIEVEMENTS } from '../systems/achievements';
 import { openPhone, registerPhoneApps, type PhoneApp } from './phone/phone';
 import { openTownMemories } from './townMemories';
+import { chip, emptyState, tabBar } from './kit';
+import { skinIconEl } from './skin';
+import { dayOfSeason, seasonOf, SEASONS, weekday } from '../core/balance';
 
-function tabs(names: string[], onPick: (i: number) => void, start = 0) {
-  const bar = h('div', { class: 'tabs' });
-  const btns = names.map((n, i) => h('button', { class: 'tab' + (i === start ? ' active' : ''), onclick: () => { btns.forEach((b, j) => b.classList.toggle('active', j === i)); audio.sfxPlay('tap'); onPick(i); } }, n));
-  bar.append(...btns);
+function tabs(names: string[], onPick: (i: number) => void, start = 0, icons: string[] = []) {
+  const bar = tabBar(names.map((label, i) => ({ label, icon: icons[i] })), onPick, start);
+  bar.classList.add('compact');
   return bar;
 }
 
@@ -43,22 +44,22 @@ export function openBag(start = 0) {
   const show = (i: number) => {
     body.innerHTML = '';
     const items = ITEMS.filter((it) => BAG_CATS[i].cats.includes(it.cat) && game.count(it.id) > 0);
-    const info = h('div', { class: 'card', style: { marginTop: '10px', minHeight: '64px' } }, h('span', { class: 'hint' }, 'Tocá un objeto para ver su descripción.'));
-    const grid = h('div', { class: 'grid' });
+    const info = h('div', { class: 'dock-info' }, h('span', { class: 'hint' }, 'Tocá un objeto para ver su descripción.'));
+    const grid = h('div', { class: 'grid items' });
     for (const it of items) {
       const b = h('button', { class: 'slot', onclick: () => {
         grid.querySelectorAll('.slot').forEach((s) => s.classList.remove('selected'));
         b.classList.add('selected');
-        info.innerHTML = '';
-        info.append(h('b', null, it.name), h('p', { style: { margin: '4px 0' } }, it.desc), h('div', { class: 'hint' }, `Valor: ${it.sell} ●${it.where ? ' · ' + it.where : ''}`));
+        info.replaceChildren(h('div', { class: 'row', style: { gap: '10px', alignItems: 'flex-start' } }, iconElement(it.icon), h('div', { class: 'col', style: { gap: '2px' } }, h('b', null, `${it.name} ×${game.count(it.id)}`), h('div', null, it.desc), h('div', { class: 'chips' }, chip(`${it.sell} c/u`, 'gold', 'coin'), it.where ? chip(it.where, 'blue') : null))));
       } }, iconElement(it.icon), h('span', null, it.name), h('span', { class: 'qty' }, game.count(it.id)));
       grid.append(b);
     }
-    if (!items.length) grid.append(h('p', { class: 'muted' }, 'Nada por acá todavía.'));
-    body.append(grid, info);
+    items.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    body.append(items.length ? grid : emptyState('Nada por acá todavía. Lo que juntes, compres o pesques aparece en esta pestaña.', 'bag'), info);
   };
   show(start);
-  panel({ title: 'Mochila', tabs: tabs(BAG_CATS.map((c) => c.name), show, start), body: h('div', null, h('div', { class: 'row', style: { justifyContent: 'space-between', marginBottom: '8px' } }, h('span', { class: 'coin' }, `${game.coins} monedas`), h('span', { class: 'hint' }, 'Sin límite de espacio')), body) });
+  const counts = BAG_CATS.map((c) => ITEMS.filter((it) => c.cats.includes(it.cat) && game.count(it.id) > 0).length);
+  panel({ title: 'Mochila', tabs: tabs(BAG_CATS.map((c, i) => `${c.name}${counts[i] ? ` (${counts[i]})` : ''}`), show, start, ['bag', 'lantern', 'gift', 'scroll']), body: h('div', null, h('div', { class: 'chips', style: { marginBottom: '10px' } }, chip(`${game.coins} monedas`, 'gold', 'coin'), chip('Sin límite de espacio')), body) });
 }
 
 // ------------------------------------------------------------------ journal
@@ -70,24 +71,27 @@ export function openJournal(start = 0) {
     body.append(views[i]());
   };
   show(start);
-  panel({ title: 'Diario', wide: true, tabs: tabs(['Misiones', 'Investigación', 'Amigos', 'Colección', 'Recetas', 'Calendario'], show, start), body });
+  panel({ title: 'Diario', wide: true, tabs: tabs(['Misiones', 'Investigación', 'Amigos', 'Colección', 'Recetas', 'Calendario'], show, start, ['clipboard', 'inspect', 'heart', 'gift', 'maki', 'calendar']), body });
 }
 
 function questsView() {
   const wrap = h('div', { class: 'col' });
   const active = Object.keys(game.save.quests.active).map((id) => questDef(id)).filter(Boolean);
   wrap.append(h('p', { class: 'hint' }, 'La misión marcada se muestra en pantalla. Ninguna es urgente.'));
+  if (!active.length) wrap.append(emptyState('Todavía no tenés misiones. Hablá con los vecinos y mirá la cartelera de la plaza.', 'clipboard'));
   for (const kind of ['main', 'side', 'task'] as const) {
     const list = active.filter((q) => q!.kind === kind);
     if (!list.length) continue;
     wrap.append(h('h3', null, kind === 'main' ? 'Historia' : kind === 'side' ? 'Misiones secundarias' : 'Pequeños objetivos'));
     for (const q of list) {
       const st = currentStep(q!.id);
+      const stepNo = game.save.quests.active[q!.id]?.step ?? 0;
       const tracked = game.save.quests.tracked === q!.id;
       wrap.append(
         h('div', { class: 'card col', style: { gap: '4px', borderColor: tracked ? '#f2c66d' : undefined } },
           h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, q!.title), h('button', { class: 'btn small ' + (tracked ? 'primary' : ''), onclick: (e: Event) => { game.save.quests.tracked = q!.id; game.touch('track'); (e.target as HTMLElement).textContent = 'Marcada'; } }, tracked ? 'Marcada' : 'Marcar')),
           h('div', { class: 'hint' }, q!.desc),
+          q!.steps.length > 1 ? h('div', { class: 'steps', role: 'img', 'aria-label': `Paso ${stepNo + 1} de ${q!.steps.length}` }, ...q!.steps.map((_, k) => h('i', { class: k < stepNo ? 'done' : k === stepNo ? 'now' : '' }))) : null,
           st ? h('div', null, '→ ', st.text) : null,
           st?.hint ? h('div', { class: 'hint' }, 'Pista: ' + st.hint) : null,
         ),
@@ -108,7 +112,7 @@ function investigationView() {
 }
 
 function relationsView() {
-  const grid = h('div', { class: 'col' }, h('div', { class: 'row', style: { flexWrap: 'wrap' } }, h('button', { class: 'btn small', onclick: openPhotoAlbum }, 'Fotos juntos'), h('button', { class: 'btn small', onclick: () => openJournal(3) }, 'Recuerdos y momentos'), h('button', { class: 'btn small', onclick: () => import('./bonds').then((m) => m.openBonds()) }, 'Vínculos')));
+  const grid = h('div', { class: 'col' }, h('div', { class: 'chips' }, h('button', { class: 'btn small', onclick: openPhotoAlbum }, 'Fotos juntos'), h('button', { class: 'btn small', onclick: () => openJournal(3) }, 'Recuerdos y momentos'), h('button', { class: 'btn small', onclick: () => import('./bonds').then((m) => m.openBonds()) }, 'Vínculos')));
   for (const c of CHARACTERS) {
     const r = game.rel(c.id);
     if (!c.raccoon && r.points <= 0) continue;
@@ -116,10 +120,10 @@ function relationsView() {
     const pct = ((r.points % BALANCE.friendshipPerLevel) / BALANCE.friendshipPerLevel) * 100;
     const where = whereIs(c.id);
     grid.append(
-      h('div', { class: 'card row', style: { gap: '10px' } },
-        h('img', { src: portraitURL(c.id, 'happy'), style: { width: '56px', height: '62px', imageRendering: 'pixelated', background: '#eadbbb', borderRadius: '8px' } }),
-        h('div', { class: 'col', style: { gap: '3px', flex: '1' } },
-          h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, `${c.name} · ${c.title}`), h('span', { style: { color: '#c27f86' } }, '♥'.repeat(lvl) + '♡'.repeat(5 - lvl))),
+      h('div', { class: 'card friend' },
+        h('img', { src: portraitURL(c.id, 'happy'), alt: c.name }),
+        h('div', { class: 'col', style: { gap: '3px', minWidth: '0' } },
+          h('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '2px 8px' } }, h('b', null, `${c.name} · ${c.title}`), h('span', { class: 'hearts', role: 'img', 'aria-label': `Amistad ${lvl} de 5` }, '♥'.repeat(lvl) + '♡'.repeat(5 - lvl))),
           lvl < 5 ? h('div', { class: 'bar' }, h('i', { style: { width: pct + '%' } })) : h('div', { class: 'hint' }, '¡Amistad máxima!'),
           h('div', { class: 'hint' }, c.bio),
           h('div', { class: 'hint' }, `Ahora: ${where ? ZONES[where]?.name ?? where : 'en su casa'}${game.rel(c.id).lastTalkDay === game.save.time.day ? ' · ya charlaron hoy' : ''}`),
@@ -197,20 +201,35 @@ export function openNoriPhone() { openPhone(); }
 
 function calendarView() {
   const wrap = h('div', { class: 'col' });
-  wrap.append(h('p', null, h('b', null, clock.dateLabel()), ` — ${clock.label()}`));
-  wrap.append(h('p', { class: 'hint' }, 'El calendario de Villa Nori es propio: los eventos se repiten cada año del juego y nunca dependen de la fecha real.'));
-  for (const { ev, inDays } of upcomingEvents(game.save.time.day, 5)) wrap.append(h('div', { class: 'card' }, h('b', null, ev.name), h('div', { class: 'hint' }, `${inDays === 0 ? '¡Hoy!' : `En ${inDays} días`} · ${ev.desc}`)));
-  wrap.append(h('p', { class: 'hint' }, `Eventos del año: ${EVENTS.map((e) => e.name).join(', ')}. El Mercado Nocturno abre los viernes y sábados a la noche.`));
+  const day = game.save.time.day;
+  const season = seasonOf(day), today = dayOfSeason(day);
+  const first = day - today + 1;
+  wrap.append(h('div', { class: 'chips' }, chip(clock.dateLabel(), 'gold', 'calendar'), chip(clock.label())));
+  wrap.append(h('h3', null, `${SEASONS[season]} — ${BALANCE.daysPerSeason} días`));
+  const grid = h('div', { class: 'cal', role: 'grid' });
+  for (const d of ['L', 'M', 'M', 'J', 'V', 'S', 'D']) grid.append(h('div', { class: 'dow', 'aria-hidden': 'true' }, d));
+  // the first day of every season is a Monday (14 days per season = two whole weeks)
+  for (let n = 1; n <= BALANCE.daysPerSeason; n++) {
+    const ev = EVENTS.find((e) => e.season === season && e.day === n);
+    const abs = first + n - 1;
+    const cell = h('div', { class: 'day' + (n === today ? ' today' : '') + (n < today ? ' past' : '') + (ev ? ' event' : ''), role: 'gridcell', 'aria-label': `${['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][weekday(abs)]} ${n}${n === today ? ', hoy' : ''}${ev ? ': ' + ev.name : ''}` }, h('b', null, String(n)), ev ? h('span', { class: 'ev' }, ev.name) : null);
+    grid.append(cell);
+  }
+  wrap.append(grid);
+  wrap.append(h('h3', null, 'Próximos eventos'));
+  for (const { ev, inDays } of upcomingEvents(day, 5)) wrap.append(h('div', { class: 'card' }, h('div', { class: 'row', style: { justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' } }, h('b', null, ev.name), chip(inDays === 0 ? '¡Hoy!' : `En ${inDays} días`, inDays === 0 ? 'rose' : 'sage')), h('div', { class: 'hint' }, ev.desc)));
+  wrap.append(h('p', { class: 'hint' }, 'El calendario de Villa Nori es propio: los eventos se repiten cada año del juego y nunca dependen de la fecha real. El Mercado Nocturno abre los viernes y sábados a la noche.'));
   return wrap;
 }
 
 // ------------------------------------------------------------------ main menu
 export function openMenu() {
+  const ICON: Record<string, string> = { Mochila: 'bag', Personaje: 'pet', Mapa: 'map', Misiones: 'clipboard', Investigación: 'inspect', Amigos: 'heart', Colecciones: 'gift', Recetario: 'maki', Cámara: 'camera', NoriPhone: 'phone', 'Descansar un rato': 'bed', Ajustes: 'gear', Guardar: 'scroll', Cargar: 'door', 'Guardar y salir': 'door' };
   const b = (label: string, hint: string, fn: () => void, cls = '') =>
-    h('button', { class: 'btn ' + cls, style: { textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }, onclick: () => { p.close(); void runTask('ui:menu', fn); } }, h('span', null, label), h('span', { class: 'hint', style: { fontWeight: '400' } }, hint));
+    h('button', { type: 'button', class: 'tile ' + cls, onclick: () => { p.close(); void runTask('ui:menu', fn); } }, skinIconEl(ICON[label] ?? 'menu'), h('span', null, label, h('small', null, hint)));
   const grid = h(
     'div',
-    { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' } },
+    { class: 'tiles' },
     b('Mochila', 'Tus objetos', () => openBag()),
     b('Personaje', 'Cambiar ropa y apariencia', () => import('./wardrobe').then((m) => m.openWardrobe())),
     b('Mapa', 'Villa Nori', () => openMap()),

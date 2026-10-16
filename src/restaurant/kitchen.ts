@@ -14,6 +14,7 @@ import { bus } from '../core/events';
 import { add, h, panel, toast, openModal } from '../ui/dom';
 import { registerAction } from '../systems/actions';
 import { cook, type CookResult } from './cooking';
+import { chip, emptyState } from '../ui/kit';
 import { kitchenOpen, openKitchenSession, type KitchenHooks, type SessionOrder } from './kitchenSession';
 import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeCollection';
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
@@ -58,18 +59,20 @@ export function openOrders() {
     body.innerHTML = '';
     const rs = game.save.restaurant;
     body.append(
-      h('div', { class: 'card row', style: { justifyContent: 'space-between', flexWrap: 'wrap' } },
-        h('div', null, h('b', null, `Nivel ${rs.level}`), h('div', { class: 'bar', style: { width: '140px', marginTop: '4px' } }, h('i', { style: { width: `${levelProgress() * 100}%` } })), h('div', { class: 'hint' }, `XP total: ${rs.totalXp ?? xpFloor(rs.level) + rs.xp}${nextAdvance() && !advanceMissing().length ? ' · Ascenso disponible' : ''}`)),
-        h('div', { class: 'hint' }, `Reputación ${rs.reputation} · Encanto ${charm()} · Servidos ${rs.served}`),
-        h('button', { class: 'btn small', onclick: () => openUpgrades(render) }, 'Mejoras'),
-      ),
+      h('div', { class: 'sect', style: { padding: '10px 12px' } },
+        h('div', { class: 'row', style: { justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' } },
+          h('div', { class: 'col', style: { gap: '4px', minWidth: '150px', flex: '1' } },
+            h('b', null, `Nivel ${rs.level}`),
+            h('div', { class: 'bar', role: 'img', 'aria-label': `Progreso al siguiente nivel ${Math.round(levelProgress() * 100)}%` }, h('i', { style: { width: `${levelProgress() * 100}%` } })),
+            h('div', { class: 'hint' }, `XP total: ${rs.totalXp ?? xpFloor(rs.level) + rs.xp}${nextAdvance() && !advanceMissing().length ? ' · Ascenso disponible' : ''}`)),
+          h('button', { class: 'btn small', onclick: () => openUpgrades(render) }, 'Mejoras')),
+        h('div', { class: 'chips', style: { marginTop: '8px' } }, chip(`Reputación ${rs.reputation}`, 'rose', 'heart'), chip(`Encanto ${charm()}`, 'blue'), chip(`Servidos ${rs.served}`, 'sage', 'serve'))),
     );
     const note = serviceBoardNote();
     body.append(
-      h('div', { class: 'card col', style: { gap: '4px' } },
-        h('b', null, 'Horario'),
-        h('div', { class: 'hint' }, note.status),
-        ...note.summary.map((line) => h('div', null, line)),
+      h('div', { class: 'sect', style: { padding: '10px 12px' } },
+        h('div', { class: 'row', style: { justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' } }, h('b', null, 'Horario'), chip(note.status, 'gold', 'calendar')),
+        ...note.summary.map((line) => h('div', { class: 'hint' }, line)),
       ),
     );
     // the tray: dishes that are done and wait to be carried to their tables
@@ -88,7 +91,7 @@ export function openOrders() {
           h('div', { class: 'hint' }, 'Recogelos en la bandeja física junto al mostrador y llevalos a sus mesas.'),
         ),
       );
-    if (!game.save.orders.length) body.append(h('p', { class: 'muted' }, 'No hay pedidos en el mostrador. Cuando un cliente se siente, tomá el pedido en su mesa.'));
+    if (!game.save.orders.length) body.append(emptyState('No hay pedidos en el mostrador. Cuando un cliente se siente, tomá el pedido en su mesa.', 'serve'));
     for (const o of game.save.orders) {
       const r = o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe];
       if (!r) continue;

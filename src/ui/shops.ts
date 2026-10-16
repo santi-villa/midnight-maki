@@ -15,6 +15,7 @@ import { quoteFishSale, rarityLabel } from '../systems/fishMarket';
 import { commitRodPlan, planRodPurchase, ROD_BY_ID, type RodDef, type RodPlan, type RodWallet } from '../systems/rods';
 import { previewCanvas } from './creator';
 import { confirmBox, h, panel, toast } from './dom';
+import { tabBar } from './kit';
 
 type Entry = { kind: 'item' | 'furn' | 'cloth' | 'floor' | 'wall'; id: string; price: number };
 
@@ -173,7 +174,7 @@ export async function openShop(id: string) {
   if (!canTrade()) return; // the greeting may have yielded while service changed
   const hours = h('p', { class: 'hint' });
   const body = h('div');
-  const coins = h('span', { class: 'coin' });
+  const coins = h('span', { class: 'chip gold' });
   const tabNames = [...s.tabs.map((t) => t.name), ...(s.sell ? ['Vender'] : [])];
   let current = 0;
   let serviceKey = '';
@@ -213,7 +214,7 @@ export async function openShop(id: string) {
     if (tab.name === 'Caña' || tab.name === 'Cañas') return renderRods(tab.name === 'Caña' ? ['rod_basic'] : ['rod_basic', 'rod_better', 'rod_advanced']);
     const list = tab.list();
     if (list.some((e) => e.kind === 'cloth')) body.append(fitting);
-    const grid = h('div', { class: 'grid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' } });
+    const grid = h('div', { class: 'grid items', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' } });
     if (!list.length) grid.append(h('p', { class: 'muted' }, '¡Ya tenés todo de acá!'));
     for (const e of list) {
       const info = entryInfo(e);
@@ -309,9 +310,7 @@ export async function openShop(id: string) {
       : 'Lo que ya registraste en tu colección queda guardado aunque lo vendas.';
     body.append(h('p', { class: 'hint' }, note), grid);
   };
-  const bar = h('div', { class: 'tabs' });
-  const btns = tabNames.map((n, i) => h('button', { class: 'tab' + (i === 0 ? ' active' : ''), onclick: () => { current = i; btns.forEach((b, j) => b.classList.toggle('active', j === i)); render(); } }, n));
-  bar.append(...btns);
+  const bar = tabBar(tabNames.map((label) => ({ label, icon: label === 'Vender' ? 'coin' : 'shop' })), (i) => { current = i; render(); });
   render();
   function serviceStamp() {
     const gate = shopGate(id);
@@ -324,5 +323,5 @@ export async function openShop(id: string) {
     render();
   };
   const off = [bus.on('time:changed', refreshService), bus.on('state:changed', refreshService)];
-  panel({ title: s.title, wide: true, tabs: bar, body: h('div', null, hours, h('div', { style: { marginBottom: '8px' } }, coins), body), onClose: () => { for (const unhook of off) unhook(); } });
+  panel({ title: s.title, wide: true, tabs: bar, body: h('div', null, h('div', { class: 'chips', style: { marginBottom: '8px' } }, coins), hours, body), onClose: () => { for (const unhook of off) unhook(); } });
 }
