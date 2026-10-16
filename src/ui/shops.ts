@@ -211,7 +211,8 @@ export async function openShop(id: string) {
     serviceKey = serviceStamp();
     const trading = canTrade(false);
     hours.textContent = shopInteractionText(shopGate(id));
-    coins.textContent = `${game.coins} monedas`;
+    coins.replaceChildren(iconElement({ type: 'coin' }), h('b', null, game.coins.toLocaleString('es-AR')));
+    coins.setAttribute('aria-label', `${game.coins} monedas`);
     body.innerHTML = '';
     if (current >= s.tabs.length) return renderSell();
     const tab = s.tabs[current];
