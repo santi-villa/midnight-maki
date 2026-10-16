@@ -92,7 +92,7 @@ export const PROPS: Record<string, PropDef> = {
   bicycle: P('bicycle', 2, 1, 28, 16, '#7fae5f'),
   bicycle_rose: P('bicycle', 2, 1, 28, 16, '#d9a3a6'),
   pot_rose: P('pot', 1, 1, 16, 18, '#6f9e5a', '#c27f86'),
-  pot_cream: P('pot', 1, 1, 16, 18, '#7fae5f', '#d8c09a'),
+  pot_cream: P('pot', 1, 1, 16, 32, '#7fae5f', '#d8c09a'),
   menuboard: P('menuboard', 1, 1, 16, 22),
   lanternstring: P('lanternstring', 4, 1, 64, 36, '#d9675f', '#f2c66d', { solid: false, light: '#ffb070' }),
   poster_a: P('poster', 1, 1, 14, 18, '#94c0d2', '#f2c66d', { solid: false }),

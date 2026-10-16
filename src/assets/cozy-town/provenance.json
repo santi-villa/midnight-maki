@@ -1,0 +1,206 @@
+[
+  {
+    "frame": "grass",
+    "source": "vectoraith_tileset_16x16_terrains_temperate_autotile_rpgmaker.png",
+    "crop": [
+      0,
+      0,
+      16,
+      16
+    ],
+    "sha256": "bbb4b7def7dd05b7b8e44ed8bec844699c3100abb95df4ecf92c90946d94dbdf",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "roofSlate",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      16,
+      24,
+      48,
+      56
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "roofMoss",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      16,
+      24,
+      48,
+      56
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "roofClay",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      16,
+      24,
+      48,
+      56
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "stoneLantern",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      64,
+      64,
+      80,
+      96
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "roundShrub",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      64,
+      32,
+      80,
+      48
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "table",
+    "source": "livingroom_LRK.png",
+    "crop": [
+      16,
+      160,
+      64,
+      192
+    ],
+    "sha256": "837d60c522af8073636c1737f2e9683011e19725da84430bd0229271aa688b53",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "chairDown",
+    "source": "livingroom_LRK.png",
+    "crop": [
+      128,
+      144,
+      144,
+      176
+    ],
+    "sha256": "837d60c522af8073636c1737f2e9683011e19725da84430bd0229271aa688b53",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "chairUp",
+    "source": "livingroom_LRK.png",
+    "crop": [
+      152,
+      144,
+      168,
+      176
+    ],
+    "sha256": "837d60c522af8073636c1737f2e9683011e19725da84430bd0229271aa688b53",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "chairLeft",
+    "source": "livingroom_LRK.png",
+    "crop": [
+      176,
+      144,
+      192,
+      176
+    ],
+    "sha256": "837d60c522af8073636c1737f2e9683011e19725da84430bd0229271aa688b53",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "chairRight",
+    "source": "livingroom_LRK.png",
+    "crop": [
+      200,
+      144,
+      216,
+      176
+    ],
+    "sha256": "837d60c522af8073636c1737f2e9683011e19725da84430bd0229271aa688b53",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "monstera",
+    "source": "decorations_LRK.png",
+    "crop": [
+      16,
+      80,
+      32,
+      112
+    ],
+    "sha256": "cdf81b59aba819cdd28b304755bc914048f02d7df1b7583bdf2a0c5f10a3bb12",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "topiary",
+    "source": "decorations_LRK.png",
+    "crop": [
+      80,
+      80,
+      96,
+      112
+    ],
+    "sha256": "cdf81b59aba819cdd28b304755bc914048f02d7df1b7583bdf2a0c5f10a3bb12",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "floorLamp",
+    "source": "decorations_LRK.png",
+    "crop": [
+      16,
+      16,
+      32,
+      62
+    ],
+    "sha256": "cdf81b59aba819cdd28b304755bc914048f02d7df1b7583bdf2a0c5f10a3bb12",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "flowerVase",
+    "source": "decorations_LRK.png",
+    "crop": [
+      48,
+      124,
+      64,
+      140
+    ],
+    "sha256": "cdf81b59aba819cdd28b304755bc914048f02d7df1b7583bdf2a0c5f10a3bb12",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "clock",
+    "source": "decorations_LRK.png",
+    "crop": [
+      16,
+      128,
+      32,
+      144
+    ],
+    "sha256": "cdf81b59aba819cdd28b304755bc914048f02d7df1b7583bdf2a0c5f10a3bb12",
+    "author": "Bitglow"
+  },
+  {
+    "frame": "planter",
+    "source": "decorations_LRK.png",
+    "crop": [
+      48,
+      94,
+      64,
+      112
+    ],
+    "sha256": "cdf81b59aba819cdd28b304755bc914048f02d7df1b7583bdf2a0c5f10a3bb12",
+    "author": "Bitglow"
+  }
+]

@@ -1,0 +1,32 @@
+# Recursos seleccionados para Villa Nori
+
+Se integran recortes pequeños a un atlas de 256×256, cargado antes de generar las texturas del juego. No se carga la carpeta completa de descargas ni las variantes ampliadas 32/48 px.
+
+## VectoRaith
+
+Origen: ZIP `vectoraith_tileset_buildings_japanese_traditional_DEMO.zip`, suministrado para este proyecto.
+
+[Página oficial de Traditional Japanese Buildings](https://vectoraith.itch.io/traditional-japanese-buildings-tileset-pack).
+
+La demo suministrada incluye nueve PNG: edificios, terreno y agua, cada uno a tres escalas. La lámina de edificios a 16 px contiene dos pequeñas fachadas y algunos accesorios. La imagen de referencia del conjunto completo tiene muchas más casas, torii, castillos y puentes que no forman parte de ese ZIP.
+
+Se utiliza un recorte nativo de césped y un material de tejado, con adaptación de color. La geometría de las casas se compone con los renderizadores propios para conservar sus puertas, ventanas, perspectiva lateral y huellas. Las barandas de los puentes se dibujan en código tomando la dirección japonesa de la referencia; no se presentan como sprites de puente incluidos en la demo.
+
+La página oficial permite usar el arte en juegos comerciales y gratuitos y modificarlo; conserva la propiedad del autor y restringe la distribución del recurso suelto y su uso para entrenamiento de IA, NFT y actividades similares. Revisado el 16 de octubre de 2026. Este atlas contiene solo piezas utilizadas como recursos de Midnight Maki.
+
+## Bitglow
+
+Origen: `Pixel Interior – Cozy 16x16 Living Room & Kitchen Top Down Tileset.zip`, suministrado para este proyecto.
+
+Se seleccionan una mesa, cuatro orientaciones de silla, plantas, un jarrón, una lámpara y un reloj de `livingroom_LRK.png` y `decorations_LRK.png`. El texto de licencia original acompaña el atlas en `src/assets/cozy-town/Bitglow-license.txt`.
+
+Mesas y sillas conservan las huellas lógicas y orientaciones de los IDs existentes. Las sillas ajustan su altura visual y los recortes se adaptan con escala uniforme. La mesa girada usa el dibujo procedural existente en lugar de estirar lateralmente el sprite horizontal. Las decoraciones se ajustan a sus lienzos manteniendo proporción y pivote en la base.
+
+## Selección restante de las descargas
+
+- **Interiores y muebles:** se priorizó Bitglow por coherencia y permiso comercial adjunto. Cosy Cabin, Cozy Interior, Pixel Lands y Super Retro World quedan como alternativas de estilo, no se mezclan todos en el mismo salón.
+- **Exterior:** se conservaron bancos, carteles, macetas, flores, casas comerciales y objetos de cada zona; se armonizan sus materiales y se añaden tejas de la demo sin cambiar la navegación.
+- **Sprout Lands, Cozy Lands, Farming Pack Free Tier y otros recursos no comerciales:** no se incorporan a esta publicación.
+- Las piezas grandes que solo aparecen en la imagen del pack completo no se extraen de la previsualización para fingir que están disponibles en la demo.
+
+Los créditos del menú del juego mencionan a VectoRaith y Bitglow. El resto de la construcción del mundo, arte de personajes, lógica, animaciones y composición sigue siendo el trabajo propio del proyecto.

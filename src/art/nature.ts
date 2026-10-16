@@ -4,32 +4,33 @@
  * fluffy layered pines, log fences, timber-framed cottages with tiled roofs, crates, sacks and stalls.
  */
 import { drawStorefront, type StoreKind } from './storefronts';
+import { cozyFrame } from './cozyAssets';
 import { ctx2d, ellipse, makeCanvas, mix, px, rng, shade, type Ctx } from './pixel';
 
 export const NAT = {
-  grass: '#91ad70',
-  grassL: '#a4bd82',
-  grassLL: '#bdcc96',
-  grassD: '#7f9d60',
-  grassDD: '#638253',
-  path: '#e6cd98',
-  pathL: '#f3e0b4',
-  pathD: '#d2b47c',
-  pebble: '#c3a26c',
+  grass: '#afc183',
+  grassL: '#bdcc95',
+  grassLL: '#cbd7a6',
+  grassD: '#a2b477',
+  grassDD: '#899d69',
+  path: '#ecd7ae',
+  pathL: '#f5e6c7',
+  pathD: '#d8bf94',
+  pebble: '#b99d78',
   sand: '#f2deaa',
   sandD: '#e2c88c',
-  water: '#3ea8e4',
-  waterL: '#78cdf4',
-  waterLL: '#c9f0ff',
-  waterD: '#2b88cc',
-  deep: '#2479bf',
-  earth: '#8b5a3a',
-  earthD: '#6a4229',
-  leafDD: '#49684b',
-  leafD: '#5e8050',
-  leaf: '#789b5c',
-  leafL: '#98b677',
-  leafLL: '#bacb92',
+  water: '#78b3bb',
+  waterL: '#a5cfd0',
+  waterLL: '#e4efdf',
+  waterD: '#5b94a1',
+  deep: '#4e8191',
+  earth: '#b18a62',
+  earthD: '#896947',
+  leafDD: '#566d4d',
+  leafD: '#718755',
+  leaf: '#8fa66e',
+  leafL: '#adbe88',
+  leafLL: '#ced8a6',
   trunk: '#8a5a3c',
   trunkD: '#64402a',
   wood: '#a8714a',
@@ -50,16 +51,17 @@ function tuft(c: Ctx, x: number, y: number, light: string, dark: string) {
 
 export function brightGrass(variant: number): TileDraw {
   return (c, x, y, r) => {
-    px(c, x, y, NAT.grass, 16, 16);
+    const imported = cozyFrame(c, 'grass', x, y);
+    if (!imported) px(c, x, y, NAT.grass, 16, 16);
     // soft light patches
-    {
+    if (!imported) {
       const cx = x + 2 + Math.floor(r() * 12);
       const cy = y + 2 + Math.floor(r() * 12);
       px(c, cx - 2, cy, NAT.grassL, 5, 1);
       px(c, cx - 1, cy - 1, NAT.grassL, 3, 3);
     }
     // texture speckles
-    for (let i = 0; i < 4; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.grassD : NAT.grassL);
+    if (!imported) for (let i = 0; i < 4; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.grassD : NAT.grassL);
     // tufts
     const n = 1 + (variant % 2);
     for (let i = 0; i < n; i++) tuft(c, x + 1 + Math.floor(r() * 12), y + 2 + Math.floor(r() * 12), r() < 0.5 ? NAT.grassLL : NAT.grassL, NAT.grassD);
@@ -119,8 +121,8 @@ const COBBLE_LAYOUTS: [number, number, number, number][][] = [
   [[0, 0, 5, 6], [5, 0, 6, 5], [11, 0, 5, 5], [0, 6, 7, 5], [7, 5, 5, 6], [12, 5, 4, 6], [0, 11, 4, 5], [4, 11, 7, 5], [11, 11, 5, 5]],
   [[0, 0, 7, 4], [7, 0, 4, 6], [11, 0, 5, 5], [0, 4, 5, 6], [5, 6, 6, 5], [11, 5, 5, 6], [0, 10, 5, 6], [5, 11, 6, 5], [11, 11, 5, 5]],
 ];
-const WARM = ['#c9bba6', '#e8ddcb', '#e0d3be', '#eee5d6', '#dacbb4'];
-export const GREY_STONE = ['#8f8a96', '#c6c2cc', '#bab5c1', '#d1cdd6', '#b0abb8'];
+const WARM = ['#d7c4a5', '#eee1c6', '#e4d5b9', '#f4e8d0', '#e1ccb1'];
+export const GREY_STONE = ['#afa594', '#dad1bf', '#cec5b3', '#e6ddcb', '#c2b7a3'];
 export const paverTile = (variant = 0, pal: string[] = WARM): TileDraw => (c, x, y, r) => {
   px(c, x, y, pal[0], 16, 16);
   for (const [sx, sy, w, h] of COBBLE_LAYOUTS[variant % COBBLE_LAYOUTS.length]) {
@@ -142,9 +144,9 @@ export const paverTile = (variant = 0, pal: string[] = WARM): TileDraw => (c, x,
 interface WaterPal { base: string; dk: string; dk2: string; lt: string; cur: string; glint: string }
 const WATER_PAL: Record<'calm' | 'rain', Record<'shallow' | 'mid' | 'deep', WaterPal>> = {
   calm: {
-    shallow: { base: '#3b9ce0', dk: '#2f86cc', dk2: '#2873b8', lt: '#6ec6f4', cur: '#58b4ec', glint: '#e4f8ff' },
-    mid: { base: '#3387d0', dk: '#2a75bc', dk2: '#2264aa', lt: '#5aaee6', cur: '#4a9ade', glint: '#c4ecff' },
-    deep: { base: '#2c76c0', dk: '#2464ac', dk2: '#1c5498', lt: '#4590d6', cur: '#3a80cc', glint: '#a8dcff' },
+    shallow: { base: '#78b3bb', dk: '#6aa4ae', dk2: '#6198a5', lt: '#a5cfd0', cur: '#8fbfc3', glint: '#e4efdf' },
+    mid: { base: '#659da9', dk: '#598e9c', dk2: '#507f91', lt: '#8abac2', cur: '#79acb7', glint: '#d6e8df' },
+    deep: { base: '#4e8191', dk: '#467383', dk2: '#3d6578', lt: '#72a2b2', cur: '#6191a4', glint: '#c6dfe0' },
   },
   rain: {
     shallow: { base: '#5a90b6', dk: '#4c80a4', dk2: '#417196', lt: '#85b3cd', cur: '#6fa2c0', glint: '#d6e6ef' },
@@ -264,13 +266,13 @@ export const bridgeTile: TileDraw = (c, x, y) => {
 };
 
 export const soilTile = (wet: boolean, shift = 0): TileDraw => (c, x, y, r) => {
-  px(c, x, y, wet ? '#6e4a33' : '#a07049', 16, 16);
+  px(c, x, y, wet ? '#87654c' : '#bb956d', 16, 16);
   const start = 2 + (shift % 3);
   for (let j = start; j < 16; j += 4) {
-    px(c, x + 1, y + j, wet ? '#5a3b28' : '#87593a', 14, 1);
-    px(c, x + 1, y + j - 1, wet ? '#7d5640' : '#b5825a', 14, 1);
+    px(c, x + 1, y + j, wet ? '#74583f' : '#a5825c', 14, 1);
+    px(c, x + 1, y + j - 1, wet ? '#96765c' : '#cba77d', 14, 1);
   }
-  for (let i = 0; i < 5; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), wet ? '#83604a' : '#c09068');
+  for (let i = 0; i < 3; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), wet ? '#9d7d62' : '#d0b18b');
 };
 
 export function flowerBedBright(color: string): TileDraw {
@@ -310,7 +312,7 @@ export function fringe(mask: number): TileDraw {
     ];
     for (const [bit, rect] of sides) {
       if (!(mask & bit)) continue;
-      const depth = jag(r, 16, 1, 4);
+      const depth = jag(r, 16, 1, 2);
       depth.forEach((d, i) => {
         const [rx, ry, rw, rh] = rect(i, d);
         px(c, rx, ry, NAT.grass, rw, rh);
@@ -318,7 +320,7 @@ export function fringe(mask: number): TileDraw {
         const [lx, ly] = bit === 1 ? [rx, ry + d] : bit === 4 ? [rx, ry - 1] : bit === 8 ? [rx + d, ry] : [rx - 1, ry];
         px(c, lx, ly, shade(NAT.path, -0.12));
       });
-      for (let k = 0; k < 3; k++) {
+      for (let k = 0; k < 1; k++) {
         const t = 2 + Math.floor(r() * 11);
         const [tx, ty] = bit === 1 ? [x + t, y + 2] : bit === 4 ? [x + t, y + 14] : bit === 8 ? [x + 1, y + t] : [x + 13, y + t];
         tuft(c, tx, ty, NAT.grassL, NAT.grassD);

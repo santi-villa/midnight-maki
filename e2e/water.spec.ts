@@ -23,7 +23,8 @@ async function visit(page: Page, zone: string, c: Case) {
     const m = (window as any).mmDebug;
     const t = m.game.save.time;
     t.period = c === 'day' || c === 'rain' ? 1 : c === 'dusk' ? 2 : 3;
-    t.minutes = c === 'dusk' ? 40 : 10;
+    // Sample an established night: at minute 10 the moon is still rising, so its pool is deliberately below 0.5.
+    t.minutes = c === 'dusk' || c === 'night' ? 40 : 10;
     m.game.setFlag('weather', c === 'rain' ? 'rain' : 'clear');
     m.world.enterZone(z, spot[0], spot[1], 'down', false);
   }, [zone, c, SPOTS[zone]] as const);
