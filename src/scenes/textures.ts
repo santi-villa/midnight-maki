@@ -60,13 +60,44 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
   return key;
 }
 
+/** True when this look is already a texture, so a zone change does not have to paint the sheet. */
+export function hasCharTexture(scene: Phaser.Scene, id: string): boolean {
+  return scene.textures.exists('ch_' + hashStr(appearanceKey(id)));
+}
+
 /** Texture for an arbitrary appearance (generic customers). */
 export function lookTexture(scene: Phaser.Scene, a: import('../core/types').Appearance): string {
-  const key = 'lk_' + hashStr(JSON.stringify(a));
+  const key = lookKey(a);
   if (!scene.textures.exists(key)) {
     const tex = scene.textures.addCanvas(key, buildCharacterSheet(a))!;
     for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * FW, 0, FW, FH);
   }
+  return key;
+}
+
+export function hasLookTexture(scene: Phaser.Scene, a: import('../core/types').Appearance): boolean {
+  return scene.textures.exists(lookKey(a));
+}
+
+function lookKey(a: import('../core/types').Appearance): string {
+  return 'lk_' + hashStr(JSON.stringify(a));
+}
+
+/** Yellow order mark. Its own sprite so it sorts with the guest instead of a shared Graphics batch. */
+export function orderMarkTexture(scene: Phaser.Scene): string {
+  const key = 'order_bang';
+  if (scene.textures.exists(key)) return key;
+  const c = makeCanvas(7, 13);
+  const g = ctx2d(c);
+  g.fillStyle = '#4a3029';
+  g.fillRect(2, 0, 3, 8);
+  g.fillRect(2, 9, 3, 3);
+  g.fillStyle = '#f2c66d';
+  g.fillRect(3, 1, 1, 6);
+  g.fillRect(3, 10, 1, 1);
+  g.fillStyle = '#ffe7a3';
+  g.fillRect(3, 1, 1, 2);
+  scene.textures.addCanvas(key, c);
   return key;
 }
 
