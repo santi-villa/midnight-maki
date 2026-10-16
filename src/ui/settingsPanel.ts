@@ -74,6 +74,7 @@ export function openSettings(inGame: boolean) {
       choice('Velocidad del texto', [[25, 'Lenta'], [45, 'Normal'], [90, 'Rápida'], [0, 'Instantánea']], () => settings.textSpeed, (v) => updateSettings({ textSpeed: v }))),
     section('Juego', 'gear',
       choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Difícil (con reloj)']], () => settings.cookMode, (v) => updateSettings({ cookMode: v })),
+      choice('Horas de sueño', [['6', '6 h'], ['7', '7 h'], ['8', '8 h'], ['9', '9 h'], ['10', '10 h']], () => String(settings.sleepHours ?? 8), (v) => updateSettings({ sleepHours: Number(v) })),
       choice('Cómo cocinar', [['act', 'En el restaurante'], ['board', 'Tablero de gestos (clásico)']], () => settings.cookStyle ?? 'act', (v) => updateSettings({ cookStyle: v })),
       toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),
       toggle('Joystick virtual', 'joystick', 'Aparece al usar el dedo, además de tocar el suelo para caminar.'),

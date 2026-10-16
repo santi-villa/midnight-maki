@@ -125,6 +125,16 @@ defineQuests([
 ]);
 
 // ------------------------------------------------------------------ hooks used by talk/board
+/** Someone the player must talk to for a quest right now (to deliver, report or take one): time stops for these talks. */
+export function isQuestPerson(npc: string): boolean {
+  for (const id of Object.keys(game.save.quests.active)) {
+    const q = questDef(id), m = SIDE_META[id];
+    if (!q || !m) continue;
+    if (m.talk?.[game.save.quests.active[id].step] === npc || q.giver === npc) return true;
+  }
+  return offerableBy(npc) !== null;
+}
+
 export function offerableBy(npc: string): string | null {
   for (const [id, m] of Object.entries(SIDE_META)) {
     const q = questDef(id);

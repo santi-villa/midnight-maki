@@ -989,8 +989,9 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .gr-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 @media (max-width: 640px) { .gr-board { grid-template-columns: repeat(2, 1fr); } }
 .gr-slot { font: inherit; background: #2a2530; border: 4px solid var(--wood-dark); border-radius: 12px; padding: 6px; cursor: pointer; color: var(--cream); display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 120px; }
-.gr-slot.gr-pot { width: 100%; min-height: 0; flex-direction: row; justify-content: center; gap: 14px; padding: 4px 10px; }
-.gr-slot.gr-pot canvas { width: 192px; max-width: 45%; aspect-ratio: 128 / 56; }
+.gr-sec { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 3px solid var(--wood-dark); border-radius: 14px; background: rgba(255,255,255,.04); }
+.gr-slot.gr-pot { width: 100%; min-height: 0; flex-direction: row; justify-content: center; gap: 16px; padding: 8px 12px; }
+.gr-slot.gr-pot canvas { width: 280px; max-width: 52%; aspect-ratio: 160 / 80; }
 .gr-pot .gr-label { text-align: left; }
 .gr-slot canvas { width: 100%; max-width: 256px; aspect-ratio: 64 / 56; image-rendering: pixelated; }
 .gr-slot[data-zone="ready"] { border-color: #7fb35f; box-shadow: 0 0 10px #7fb35f88; }
@@ -1270,3 +1271,35 @@ body.cook-focus .game-hud, body.cook-focus .joystick, body.cook-focus .hud-joy {
 .decor-style-name { margin: 0; font-weight: 700; }
 .chip.gold { display: inline-flex; align-items: center; gap: 6px; }
 .chip.gold canvas { width: 22px; height: 22px; image-rendering: pixelated; }
+
+.act-ring.fast { border-color: #ffb38a; }
+.act-ring.slow { border-color: #a9d6ff; }
+.act-stage.act-shake { animation: act-stage-shake .35s; }
+.act-stage.act-flash::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle, rgba(255,224,138,.35), transparent 70%); animation: act-flash .45s forwards; pointer-events: none; }
+@keyframes act-stage-shake { 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
+@keyframes act-flash { from { opacity: 1; } to { opacity: 0; } }
+.act-spark { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; background: #ffe08a; border: 2px solid #2b1d17; border-radius: 2px; pointer-events: none; animation: act-spark .65s ease-out forwards; }
+.act-spark[data-v="good"] { background: #9bd17a; } .act-spark[data-v="ok"] { background: #e6b85a; }
+@keyframes act-spark { to { transform: translate(var(--dx), var(--dy)) rotate(200deg); opacity: 0; } }
+.act-combo { position: absolute; right: 14px; top: 8px; font-size: 1.6em; color: #ffe08a; text-shadow: var(--outline); pointer-events: none; animation: act-combo .9s ease-out forwards; }
+@keyframes act-combo { from { transform: scale(.6); opacity: 0; } 25% { transform: scale(1.25); opacity: 1; } to { transform: translateY(-14px) scale(1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .act-stage.act-shake, .act-spark, .act-combo { animation: none; } }
+
+.hud-energy { position: relative; height: 8px; margin-top: 4px; border: 2px solid #2b1d17; border-radius: 5px; background: #3b2f4a; overflow: hidden; }
+.hud-energy i { display: block; height: 100%; width: 100%; background: #7fb35f; transition: width .4s linear; }
+.hud-energy[data-level="low"] i { background: #e6b85a; } .hud-energy[data-level="empty"] i { background: #c8483f; }
+
+/* decorating on a phone: one compact line for the piece, smaller cards, room name out of the way */
+.decor-place { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.decor-place .decor-piece { font-size: 1em; }
+.decor-place .decor-status { flex: 1 1 100%; order: 3; font-size: .85em; min-height: 0; }
+.decor-actions .btn { min-height: 40px; }
+@media (max-width: 640px) {
+  .decor-head > b { display: none; }
+  .decor-head { justify-content: flex-end; }
+  .decor-head-actions { width: 100%; }
+  .decor-head-actions .btn { flex: 1; }
+  .decor-card { width: 88px; min-height: 84px; padding: 6px 4px 4px; }
+  .decor-card .decor-art { width: 56px; height: 42px; }
+  .decor-sheet { max-height: min(38vh, 300px); }
+}

@@ -1,6 +1,7 @@
 /** In-game clock: four periods per day. Pauses during menus/dialogue; never penalizes absence. */
 import { BALANCE, dayOfSeason, SEASONS, seasonOf, WEEKDAYS, weekday } from '../core/balance';
-import { realSecondsPerPeriodMinute } from './daytime';
+import { dayMinutes, realSecondsPerPeriodMinute } from './daytime';
+import { addEnergy, drainFor } from './fatigue';
 import { bus } from '../core/events';
 import { game } from '../core/state';
 
@@ -39,6 +40,7 @@ export const clock = {
     const cap = t.period === 3 ? BALANCE.periodMinutes * 3 - 0.05 : Number.POSITIVE_INFINITY;
     if (t.minutes >= cap) return;
     t.minutes += dt / realSecondsPerPeriodMinute(t.period);
+    addEnergy(-drainFor(dt / BALANCE.realSecondsPerGameMinute, dayMinutes(t.period, t.minutes)));
     if (t.minutes >= BALANCE.periodMinutes && t.period < 3) this.advancePeriod();
     else if (t.minutes > cap) t.minutes = cap;
   },
