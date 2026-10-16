@@ -15,6 +15,14 @@ export function cozyFrame(c: Ctx, name: keyof typeof COZY_FRAMES, x: number, y: 
   return true;
 }
 
+/** Native submodules: repeating complete pixels preserves the original facade's proportions. */
+export function cozyPatch(c: Ctx, name: keyof typeof COZY_FRAMES, sx: number, sy: number, w: number, h: number, x: number, y: number): boolean {
+  if (!atlas) return false;
+  const f = COZY_FRAMES[name];
+  c.drawImage(atlas, f.x + sx, f.y + sy, w, h, x, y, w, h);
+  return true;
+}
+
 /** Repeat the actual roof material inside the existing building silhouette, without moving its openings. */
 export function cozyRoofRow(c: Ctx, x: number, y: number, width: number, row: number, color: string): void {
   if (!atlas) return;

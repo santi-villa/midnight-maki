@@ -190,7 +190,7 @@ export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot
       if (L.trade === 1) { for (let i = 4; i < w.w; i += 4) px(g, w.x + i, w.y, '#b8661e', 1, w.h); for (let j = 4; j < w.h; j += 5) px(g, w.x, w.y + j, '#b8661e', w.w, 1); }
       else { px(g, w.x + Math.floor(w.w / 2), w.y, '#b8661e', 1, w.h); px(g, w.x, w.y + Math.floor(w.h / 2), '#cf7a26', w.w, 1); }
     }
-    px(g, L.door.x + 2, L.door.y + 3, '#ffcf80', L.door.w - 4, 7);
+    // The imported genkan is solid timber; only its windows and lantern emit light.
     const lx = L.right ? L.door.x - 9 : L.door.x + L.door.w + 9;
     px(g, lx - 1, L.door.y - 2, '#ffe9b0', 3, 6);
     scene.textures.addCanvas(key, c);

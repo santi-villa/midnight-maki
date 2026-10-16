@@ -28,7 +28,7 @@ test('the published build loads the selected atlas before generating terrain and
   });
   expect(art.width).toBe(256);
   expect(art.height).toBe(256);
-  expect(art.frames.length).toBe(17);
+  expect(art.frames.length).toBe(19);
   expect(art.frames.every((f) => f.fits && f.painted)).toBe(true);
   expect(art.chairs).toHaveLength(4);
   for (const chair of art.chairs) expect(chair).toEqual({ width: 16, height: 24, nonempty: true });

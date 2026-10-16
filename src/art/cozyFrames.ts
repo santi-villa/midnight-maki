@@ -1,4 +1,4 @@
-/** Crops from the supplied VectoRaith demo and Bitglow pack. See docs/asset-credits.md. */
+/** Native crops from the supplied VectoRaith demo and Bitglow pack. See docs/asset-credits.md. */
 export const COZY_FRAMES = {
   "grass": {
     "x": 0,
@@ -101,5 +101,17 @@ export const COZY_FRAMES = {
     "y": 48,
     "w": 16,
     "h": 18
+  },
+  "homeFacade": {
+    "x": 0,
+    "y": 112,
+    "w": 64,
+    "h": 72
+  },
+  "shopFacade": {
+    "x": 80,
+    "y": 112,
+    "w": 80,
+    "h": 76
   }
 } as const;

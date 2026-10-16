@@ -106,7 +106,7 @@ export const EAST_PROPS: readonly (readonly [string, number, number, string?])[]
   // the mill beside the river, with its door on the street
   ['mill', 42, 7],
   ['pine', 44, 4], ['pine', 46, 5], ['tree_dark', 43, 5], ['bush', 42, 10], ['flowers', 43, 11],
-  ['lamppost', 43, 14], ['bench', 47, 10],
+  ['lamppost', 43, 14],
   // the east road: lamps and a signpost
   ['lamppost', 56, 11], ['lamppost', 66, 11], ['sign_garden', 69, 10],
   // top terrace: market stalls either side of the approach and the torii
@@ -120,20 +120,20 @@ export const EAST_PROPS: readonly (readonly [string, number, number, string?])[]
   ['pine', 70, 6], ['pine', 47, 0],
   // second terrace
   ['stonelantern', 52, 11], ['stonelantern', 65, 11], ['sakura', 49, 11], ['sakura', 58, 10], ['flowers', 55, 11], ['flowers_lav', 60, 11],
-  ['bench', 57, 13], ['sign_shrine', 54, 11],
+  ['sign_shrine', 54, 11],
   // the peninsula: street lamps, benches and a garden
-  ['lamppost', 50, 24], ['lamppost', 45, 29], ['lamppost', 49, 29],
-  ['bench', 49, 20], ['flowers', 41, 20], ['flowers_lav', 42, 20], ['tree', 34, 15], ['tree', 54, 21], ['bush', 54, 22],
+  ['lamppost', 54, 24], ['lamppost', 45, 29], ['lamppost', 49, 29],
+  ['flowers', 42, 24], ['flowers_lav', 43, 24], ['tree', 34, 15], ['tree', 54, 21], ['bush', 54, 22],
   ['fence', 48, 26], ['fence', 49, 26], ['fence', 50, 26], ['fence', 51, 26], ['fence', 52, 26],
   ['flowers', 49, 27], ['flowers_lav', 50, 27], ['flowers', 51, 27], ['bench', 50, 28],
-  ['pot_rose', 44, 24], ['pot_cream', 47, 24], ['tree', 41, 25],
-  ['lantern_cream', 46, 22], ['lantern_cream', 46, 28], ['reeds', 36, 22], ['reeds', 36, 28], ['reeds', 54, 24],
+  ['pot_rose', 44, 24],
+  ['reeds', 36, 22], ['reeds', 36, 28], ['reeds', 54, 24],
   // the cherry grove: trees, lanterns and seats around the pond
   ['sakura', 60, 18], ['sakura', 66, 18], ['sakura', 69, 20], ['sakura', 61, 20], ['sakura', 54, 25], ['sakura', 70, 25],
   ['sakura', 70, 33], ['sakura', 70, 28], ['sakura', 63, 28],
   ['stonelantern', 63, 24], ['stonelantern', 69, 24], ['stonelantern', 63, 27], ['stonelantern', 69, 27],
-  ['bench', 64, 21], ['bench', 67, 21], ['bench', 64, 28], ['flowers', 66, 28], ['flowers_lav', 67, 28],
-  ['bush_flower', 61, 21], ['bush_flower', 70, 21], ['pot_rose', 63, 29], ['pot_cream', 67, 29],
+  ['bench', 64, 21], ['bench', 67, 21], ['bench', 66, 28], ['flowers', 65, 28],
+  ['bush_flower', 61, 21], ['bush_flower', 70, 21], ['pot_rose', 64, 28],
   ['tree', 57, 17], ['tree', 70, 17], ['pine', 71, 19], ['pine', 71, 30],
   // the garden gate keeps its flanking lanterns
   ['stonelantern', 70, 11], ['bush_flower', 71, 11],

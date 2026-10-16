@@ -19,6 +19,7 @@ const TREES = new Set(['tree', 'tree_dark', 'pine', 'sakura']);
 export const STREET_PLANS: Record<string, StreetPlan> = {
   plaza: {
     paths: [
+      [15, 7, 2, 3, 'c'], // open north approach: benches flank the axis instead of blocking it
       [26, 7, 5, 2, 'c'], [29, 9, 2, 13, 'c'], [26, 19, 5, 3, 'c'], // shop walk around Taro's facade
       [31, 8, 2, 5, 'p'], // florist's garden opens onto the west-bank landing
       [0, 31, 36, 2, 'c'], [15, 26, 2, 17, 'p'], // residential street and town axis
@@ -29,39 +30,43 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
     props: [
       // Restaurant forecourt: door and mailbox stay clear; bicycles have a parking bay.
       ['pot_rose', 3, 7], ['pot_cream', 7, 7], ['menuboard', 8, 7],
-      ['lantern_red', 3, 8], ['lantern_red', 8, 8], ['bicycle', 10, 5],
+      ['lantern_red', 3, 8], ['lantern_red', 8, 8], ['bicycle', 9, 6],
       ['bush_flower', 2, 9], ['flowers', 4, 10], ['flowers', 5, 10],
       // Civic green: benches are also the existing characters' seated stops.
-      ['bench', 12, 14], ['bench', 18, 14], ['bench', 14, 9], ['bench', 16, 9],
+      ['bench', 12, 14], ['bench', 18, 14], ['bench', 12, 9], ['bench', 18, 9],
       ['sakura', 13, 7], ['sakura', 19, 7],
       ['street_lamp_l', 10, 8], ['street_lamp_r', 21, 8],
       ['flowers', 9, 9], ['flowers_lav', 10, 9], ['flowers', 21, 16], ['flowers_lav', 22, 16],
       ['tree', 5, 11], ['bush_flower', 3, 11],
       // Shop displays against their own frontages, never across a threshold.
-      ['pot_rose', 21, 6], ['pot_cream', 28, 6], ['street_lamp_r', 28, 11],
-      ['deco_mannequin', 20, 4], ['deco_clothesrack', 18, 4], // Yuki: a dress form and a rack of garments
+      ['pot_cream', 28, 6], ['street_lamp_r', 28, 11],
+      ['deco_mannequin', 21, 5], // one display beside Yuki; the rack no longer hides behind the cherry tree
       ['deco_breadcart', 7, 19], ['street_lamp_l', 9, 19], // Bento: a bread cart by the door
       ['deco_vegcrates', 22, 19], ['deco_sacks', 20, 18], ['street_lamp_r', 31, 19], // Taro: sacks and crates of vegetables
-      ['vending_blue', 31, 17], ['vending_red', 31, 18],
+      ['vending_blue', 31, 18],
       ['pot_cream', 5, 24], ['street_lamp_l', 5, 25], ['street_lamp_r', 14, 24],
       ['bench', 4, 26], ['flowers_lav', 4, 24], ['deco_bookcart', 6, 22], // library: books to return
-      ['bicycle_rose', 18, 23], ['pot_rose', 21, 23],
+      ['bicycle_rose', 22, 21], ['pot_rose', 22, 22],
       // West river landing: a tea garden and shaded seat beside the crossing.
       ['tree', 35, 9], ['tree', 35, 18],
-      ['street_lamp_l', 33, 11], ['street_lamp_l', 33, 14],
-      ['bench', 31, 16], ['pot_cream', 34, 17], ['flowers_lav', 34, 20], ['flowers_lav', 35, 20],
+      ['street_lamp_l', 36, 11],
+      ['bench', 31, 16], ['flowers_lav', 34, 20], ['flowers_lav', 35, 20],
       ['bush_flower', 32, 18], ['bush_flower', 33, 19],
       // Residential veredas and communal courtyard, clear of the new porches.
-      ['street_lamp_l', 1, 30], ['street_lamp_l', 8, 30], ['street_lamp_r', 17, 30], ['street_lamp_r', 25, 33],
-      ['pot_rose', 1, 29], ['pot_cream', 17, 29], ['pot_rose', 24, 30],
+      ['street_lamp_l', 1, 30], ['street_lamp_l', 8, 30], ['street_lamp_r', 17, 33], ['street_lamp_r', 25, 33],
+      ['pot_rose', 1, 29],
       ['fence', 2, 33], ['fence', 3, 33], ['fence', 4, 33], ['fence', 10, 33], ['fence', 11, 33],
       ['flowers', 5, 34], ['flowers', 6, 34], ['flowers_lav', 12, 34], ['flowers_lav', 13, 34],
-      ['sakura', 8, 34], ['tree', 21, 34],
-      ['bench', 10, 36], ['bench', 13, 36], ['pot_cream', 12, 36], ['bicycle', 9, 37],
+      ['sakura', 8, 34], ['tree', 19, 35],
+      ['bench', 11, 36], ['pot_cream', 14, 36],
       ['street_lamp_l', 8, 38], ['street_lamp_l', 21, 38], ['street_lamp_l', 32, 38],
       // Harbour: cargo at the fishing houses, clear deck and fishing stations.
       ['crate', 30, 38], ['barrel', 31, 38], ['sack', 32, 36], ['village_net', 31, 37],
       ['deco_flowerstand', 25, 29],
+      // Trees frame quiet lawns and back gardens, leaving streets and porches in view.
+      ['tree', 11, 2], ['tree', 20, 2], ['sakura', 21, 25],
+      ['tree', 34, 25], ['tree', 33, 34], ['tree', 56, 33],
+      ['bush_flower', 11, 4], ['bush_flower', 20, 4],
       ['lantern_cream', 35, 34], ['lantern_cream', 38, 34],
       ['boat', 34, 42], ['boat', 39, 38],
       ['puddle', 12, 10, 'rain'], ['puddle', 19, 12, 'rain'], ['puddle', 16, 17, 'rain'],
@@ -78,15 +83,15 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['crate', 4, 7], ['barrel', 12, 7], ['village_net', 6, 6],
       ['deco_fishrack', 34, 6], // drying fish by the fishmonger's cabin
       ['vending_red', 23, 6], ['bicycle', 20, 6], ['pot_cream', 29, 5],
-      ['bench', 24, 8], ['bench', 27, 8], ['pot_rose', 29, 9],
+      ['bench', 25, 8], ['pot_rose', 28, 8],
       ['crate', 22, 12], ['barrel', 18, 12], ['lantern_cream', 17, 12], ['lantern_cream', 21, 12],
       ['boat', 23, 14], ['boat', 31, 14], ['boat', 44, 14],
       ['village_beach_pier', 19, 12], ['village_beach_pier', 38, 12],
       // Cove homes: work gear beside walls, seats overlooking the water, clear pier mouths.
       ['street_lamp_l', 29, 8], ['street_lamp_r', 46, 7], ['street_lamp_r', 37, 6],
       ['crate', 36, 6], ['barrel', 38, 6], ['village_net', 24, 13], ['sack', 44, 6],
-      ['lantern_cream', 37, 14], ['lantern_cream', 40, 14],
-      ['bench', 29, 6], ['pot_rose', 39, 6], ['pot_cream', 47, 7],
+      ['lantern_cream', 37, 13], ['lantern_cream', 40, 13],
+      ['tree', 30, 2], ['tree', 38, 2], ['pot_rose', 39, 6],
       ['bush_flower', 30, 4],
       ['reeds', 1, 14], ['reeds', 12, 14], ['reeds', 30, 14], ['reeds', 47, 14],
       ['sign_plaza_up', 17, 2], ['sign_lighthouse', 5, 6], ['puddle', 12, 12, 'rain'],

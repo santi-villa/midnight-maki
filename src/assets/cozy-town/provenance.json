@@ -202,5 +202,29 @@
     ],
     "sha256": "cdf81b59aba819cdd28b304755bc914048f02d7df1b7583bdf2a0c5f10a3bb12",
     "author": "Bitglow"
+  },
+  {
+    "frame": "homeFacade",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      0,
+      20,
+      64,
+      92
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "shopFacade",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      0,
+      100,
+      80,
+      176
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
   }
 ]

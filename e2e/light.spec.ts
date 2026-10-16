@@ -145,6 +145,9 @@ for (const [name, extra] of [['battery mode', { perf: 'low' }], ['reduced motion
   test(`lighting: ${name} -> no flicker redraws and no additive halos`, async ({ page }) => {
     await boot(page, extra);
     await go(page, { ...PLAZA, period: 3 });
+    // Ambient light changes with the clock even when flicker is disabled. Hold the
+    // time fixed so this measures redraws of a still scene, rather than sunset.
+    await page.evaluate(() => (window as any).mmDebug.clock.pause('lighting-still-scene'));
     await page.waitForTimeout(2500); // let the camera settle
     const a = await state(page);
     await page.waitForTimeout(1500);

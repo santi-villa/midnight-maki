@@ -5,6 +5,7 @@
  */
 import { ellipse, px, shade, type Ctx } from './pixel';
 import { cozyRoofRow } from './cozyAssets';
+import { drawDemoHome } from './demoHomes';
 
 const INK = '#4b3c32', TIM = '#795a3e', TIM2 = '#a07952', TIM3 = '#d2ad7c', STONE = '#a89a82', STONE2 = '#d5c5a6';
 export type Trade = 0 | 1 | 2 | 3;
@@ -13,14 +14,14 @@ export interface HomeLayout { windows: Rect[]; door: Rect; eave: number; right: 
 
 export function homeLayout(W: number, H: number, variant: number, side: boolean): HomeLayout {
   const right = (variant & 1) === 1, trade = (variant >> 1) as Trade;
-  const doorX = side ? (right ? W - 9 : 9) : (right ? W - 24 : 24);
-  const door = { x: doorX - 6, y: H - 31, w: 12, h: 27 };
-  const eave = 40;
-  const wy = eave + 9;
+  const doorX = side ? (right ? W - 8 : 8) : (right ? W - 24 : 24);
+  const door = { x: doorX - 8, y: H - 28, w: 16, h: 24 };
+  const eave = H - 32;
+  const wy = H - 23;
   let windows: Rect[];
-  if (side) windows = [{ x: right ? 20 : 38, y: wy, w: 18, h: 15 }];
-  else if (right) windows = [{ x: 9, y: wy, w: 16, h: 15 }, { x: 33, y: wy, w: 16, h: 15 }];
-  else windows = [{ x: 47, y: wy, w: 16, h: 15 }, { x: 71, y: wy, w: 16, h: 15 }];
+  if (side) windows = [{ x: right ? 23 : 41, y: wy, w: 10, h: 8 }];
+  else if (right) windows = [{ x: 12, y: wy, w: 10, h: 8 }, { x: 36, y: wy, w: 10, h: 8 }];
+  else windows = [{ x: 50, y: wy, w: 10, h: 8 }, { x: 74, y: wy, w: 10, h: 8 }];
   return { windows, door, eave, right, trade, side };
 }
 
@@ -133,6 +134,7 @@ function details(c: Ctx, W: number, H: number, L: HomeLayout) {
 /** the whole house, front view (door on one side, two windows) or gable-end view (entrance on the end wall) */
 export function drawHome(c: Ctx, W: number, H: number, walls: string, roof: string, variant: number, side: boolean) {
   const L = homeLayout(W, H, variant, side);
+  if (drawDemoHome(c, W, H, L)) return;
   const { eave, trade, right } = L;
   const base = H - 5;
   // --- walls: plaster with timber frame and a stone footing
