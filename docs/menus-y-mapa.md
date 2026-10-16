@@ -1,0 +1,7 @@
+# Menús, mapa y sombras (etapa 4)
+
+**Sombras** (`src/scenes/shadowTex.ts`): la silueta del sprite se hornea ya inclinada y aplastada según el sol (en una textura chica en caché por cuadro, inclinación y aplastado) y se ancla en los pies; antes se rotaba una copia aplastada y se veía como una raya. Se desvanece hacia la punta, sigue al personaje en cada cuadro y cambia con la hora (mañana a la derecha, tarde a la izquierda, larga al atardecer, suave de noche y con lluvia).
+
+**Mapa** (`src/ui/worldmap.ts`, `src/world/mapLayout.ts`): se arma con las zonas reales. Cada zona exterior se ubica pegada a su vecina por la puerta que las une (el test lo verifica), con su suelo, caminos, agua y edificios reales; las zonas cerradas se ven veladas con «???»; se marcan vos, los mapaches y el objetivo; tocar una zona muestra qué hay y cómo se llega, y «Ver de cerca» muestra los locales y las puertas con su nombre (en el celular se desliza de costado).
+
+**Menús** (`src/ui/kit.ts` + bloque «UI v2» de `styles.css`): barra de pestañas con íconos que se desliza, selector de opciones, interruptor, secciones, chips y estados vacíos compartidos. En el celular los paneles ocupan toda la pantalla. Rediseñados con eso: Mochila (categorías con cantidad, descripción fija abajo), Diario (misiones con progreso por pasos, amigos, calendario en grilla de 14 días con eventos), Ajustes (secciones, interruptores, selectores, volumen con %), Menú (mosaicos con íconos), Pedidos del mostrador, tiendas. El minijuego de cocina no se tocó.

@@ -67,7 +67,9 @@ test('new game → restaurant → cook first sushi → progress persists', async
   // rice ball onto the nori, then real strokes spread it
   await drag(shelf(0, 1), [BW / 2, sheet.y + 38]);
   for (let pass = 0; pass < 3; pass++) for (let row = 0; row < 8; row++) { const y = sheet.y + 5 + row * 9; await drag([sheet.x + 3, y], [sheet.x + 147, y + 2], 14); }
-  await page.getByRole('button', { name: 'Listo el arroz' }).click();
+  // at ~93% coverage the rice finishes by itself; otherwise the player confirms it
+  if (await page.locator('.cook-steps .s.now').textContent() === 'Arroz') await page.getByRole('button', { name: 'Listo el arroz' }).click({ timeout: 5000 }).catch(() => {});
+  await expect(page.locator('.cook-steps .s.now')).toHaveText('Relleno', { timeout: 5000 });
   await drag(shelf(0, 1), [BW / 2, sheet.y + 34]);
   await page.getByRole('button', { name: 'Listo el relleno' }).click();
   // roll slowly, then press and hold
@@ -84,7 +86,7 @@ test('new game → restaurant → cook first sushi → progress persists', async
   // the dish is handed over as soon as it is judged; leaving the kitchen shows the plated dish
   await expect(page.locator('.cook-progress')).toHaveText('¡Listo!', { timeout: 10_000 });
   await expect(page.locator('.cook canvas.board')).toHaveCount(0, { timeout: 10_000 }); // the verdict shows for a moment, then the dish is handed over
-  await page.getByRole('button', { name: 'Salir de la cocina' }).click();
+  // with no orders left the kitchen closes by itself ("Por ahora no hay pedidos")
   // the plated dish is shown first; a tap serves it
   await expect(page.locator('.plate-show')).toBeVisible({ timeout: 10_000 });
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
