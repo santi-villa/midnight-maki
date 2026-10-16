@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
-import { castAnchor, lightState, type LightState } from './lightmath';
+import { lightState, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
@@ -34,6 +34,7 @@ import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, ex
 import { tipPending, type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { furnSize } from '../data/furniture';
 import { isTypingTarget, normalizeStick } from '../input/bindings';
+import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
@@ -2657,11 +2658,10 @@ export class WorldScene extends Phaser.Scene {
     const s = this.add
       .image(img.x, img.y, img.texture.key)
       .setOrigin(0.5, 0)
-      .setFlipY(true)
-      .setTintFill(0x140c24)
       .setAlpha(kind === 'building' || kind === 'stall' ? 0.24 : 0.3)
-      .setScale(1.04, kind === 'building' || kind === 'stall' ? 0.18 : tall ? 0.4 : 0.28)
-      .setDepth(-7);
+      .setDepth(-7)
+      .setVisible(false);
+    s.setData('frame', img.frame.name);
     if (track) this.objs.push(s);
     this.castList.push({ s, src: img, tall, sy: s.scaleY, a: s.alpha, x: 0 });
     return s;
@@ -2731,10 +2731,12 @@ export class WorldScene extends Phaser.Scene {
     if (key === this.shadowKey) return;
     this.shadowKey = key;
     this.castList = this.castList.filter((c) => c.s.active && c.src.active);
+    trimCasts(this);
     for (const c of this.castList) {
       const squash = c.sy * (st.sy / 0.3);
-      const pose = castAnchor(c.src.x, c.src.y, st.dx * (c.tall ? 1.6 : 1), c.src.height || 32, squash);
-      c.s.setOrigin(0.5, 0).setPosition(pose.x, pose.y).setRotation(pose.angle).setScale(c.s.scaleX, pose.scaleY).setAlpha(c.a * st.alpha);
+      const k = castKey(this, c.src.texture.key, c.s.getData('frame') ?? c.src.frame.name, st.dx * (c.tall ? 2.2 : 1.4), squash, c.src.flipX);
+      if (!k) { c.s.setVisible(false); continue; }
+      c.s.setTexture(k).setOrigin(0.5, 0).setPosition(c.src.x, c.src.y).setVisible(c.src.visible).setAlpha(c.a * st.alpha);
     }
   }
 

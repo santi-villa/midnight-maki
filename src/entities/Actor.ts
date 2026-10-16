@@ -4,7 +4,7 @@ import type { Dir } from '../core/types';
 import type { NpcAct } from '../data/characters';
 import { lowFx } from '../core/perf';
 import type { Grid } from '../world/grid';
-import { castAnchor } from '../scenes/lightmath';
+import { castEpoch, castKey } from '../scenes/shadowTex';
 import { restPose } from './restPose';
 
 export const TILE = 16;
@@ -26,6 +26,7 @@ export class Actor {
   /** customer sheets: seated frames are side views (see customerSheet.ts) */
   sideSit = false;
   cast: Phaser.GameObjects.Sprite;
+  private castSeen = -1;
   bubble: Phaser.GameObjects.Text | null = null;
   x: number; // feet position in px
   y: number;
@@ -63,7 +64,7 @@ export class Actor {
     this.shadow = scene.add.ellipse(this.x, this.y, Math.max(11, Math.round(fw * 0.62)), fw > 30 ? 6 : 4, 0x2a2230, 0.25);
     this.sprite = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 1);
     // silhouette cast shadow that follows the current animation frame
-    this.cast = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 0).setFlipY(true).setTintFill(0x140c24).setAlpha(0.3).setScale(1, 0.34);
+    this.cast = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 0).setAlpha(0.34).setVisible(false);
     this.sync();
   }
 
@@ -78,7 +79,6 @@ export class Actor {
     this.pad = (this.scene.textures.get(key).customData as { pad?: number } | undefined)?.pad ?? 0;
     this.sideSit = !!(this.scene.textures.get(key).customData as { sideSit?: boolean } | undefined)?.sideSit;
     this.sprite.setTexture(key, this.sprite.frame.name);
-    this.cast.setTexture(key, this.sprite.frame.name);
   }
 
   face(d: Dir) {
@@ -285,10 +285,7 @@ export class Actor {
     if (this.sprite.frame.name !== String(frame)) this.sprite.setFrame(frame);
     // side-view seated frames look right: mirror them for seats that face left
     const flip = this.sideSit && (this.act === 'sit' || this.act === 'eat' || this.act === 'drink') && this.dir === 'left';
-    if (this.sprite.flipX !== flip) {
-      this.sprite.setFlipX(flip);
-      this.cast.setFlipX(flip);
-    }
+    if (this.sprite.flipX !== flip) this.sprite.setFlipX(flip);
   }
 
   private syncLying(): boolean {
@@ -325,9 +322,12 @@ export class Actor {
       this.shadow.setDepth(ry - 0.5);
       const sun = Actor.sun;
       const squash = 0.34 * (sun.sy / 0.3);
-      const pose = castAnchor(rx, feet - 1, sun.dx * 0.55, this.sprite.frame.height || 32, squash);
-      this.cast.setOrigin(0.5, 0).setPosition(pose.x, pose.y).setRotation(pose.angle).setDepth(ry - 0.6).setVisible(this.sprite.visible && !lowFx()).setScale(1, pose.scaleY).setAlpha(0.3 * sun.alpha);
-      if (this.cast.frame.name !== this.sprite.frame.name) this.cast.setFrame(this.sprite.frame.name);
+      // the silhouette is baked already sheared and squashed for this sun (see shadowTex.ts): it hangs from the feet
+      const key = lowFx() || !this.sprite.visible ? null : castKey(this.scene, this.sprite.texture.key, this.sprite.frame.name, sun.dx * 1.4, squash, this.sprite.flipX);
+      if (key) {
+        if (this.cast.texture.key !== key || this.castSeen !== castEpoch()) { this.cast.setTexture(key); this.castSeen = castEpoch(); }
+        this.cast.setOrigin(0.5, 0).setPosition(rx, feet - 1).setDepth(ry - 0.6).setVisible(true).setAlpha(0.34 * sun.alpha);
+      } else this.cast.setVisible(false);
     }
     if (this.bubble) {
       const view = this.scene.cameras.main.worldView;
