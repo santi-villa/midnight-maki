@@ -1020,3 +1020,35 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .coin-pop.go { animation: coinpop 1.6s ease-out forwards; }
 @keyframes coinpop { 0% { opacity: 0; transform: translate(-6px, -30%) scale(.8); } 12% { opacity: 1; transform: translate(0, -50%) scale(1.15); } 25% { transform: translate(0, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(0, -110%); } }
 @media (prefers-reduced-motion: reduce) { .coin-pop.go { animation: coinfade 1.6s linear forwards; } @keyframes coinfade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } } }
+
+/* ---------- map built from the real zones ---------- */
+.wm { display: flex; flex-direction: column; gap: 8px; }
+.wm-bar { display: flex; align-items: center; gap: 10px; }
+.wm-stage { position: relative; width: 100%; max-height: 62vh; margin: 0 auto; border: 4px solid #2b1d17; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 3px #d9a970; background: #2d3b4a; }
+.wm-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+.wm-zone { position: absolute; transform: translate(-50%, -50%); font: inherit; font-size: .72em; font-weight: 700; padding: 3px 8px; border-radius: 999px; border: 2px solid #2b1d17; background: #fff4dc; color: #2b1d17; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 0 rgba(0,0,0,.35); z-index: 2; }
+.wm-zone.locked { background: #8d8aa3; color: #2d2a3d; }
+.wm-zone.here { background: #f2c66d; box-shadow: 0 0 0 3px #fff4dc, 0 2px 0 rgba(0,0,0,.35); }
+.wm-zone.target { outline: 3px solid #ff7a59; outline-offset: 2px; }
+.wm-star { color: #c2410c; }
+.wm-door { position: absolute; transform: translate(-50%, -140%); font: inherit; font-size: .62em; font-weight: 700; padding: 1px 6px; border-radius: 6px; border: 2px solid #2b1d17; background: #fff4dc; color: #2b1d17; cursor: pointer; white-space: nowrap; z-index: 2; }
+.wm-door.road { background: #f2c66d; }
+.wm-door.locked { background: #8d8aa3; cursor: default; }
+.wm-dot { position: absolute; transform: translate(-50%, -50%); width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 2px solid #2b1d17; background: #f2c66d; cursor: pointer; z-index: 1; }
+.wm-you { position: absolute; transform: translate(-50%, -85%); display: flex; flex-direction: column; align-items: center; z-index: 5; pointer-events: none; animation: bob 1.2s ease-in-out infinite; }
+.wm-you img { width: 30px; height: 34px; image-rendering: pixelated; object-fit: cover; border: 3px solid #2b1d17; border-radius: 50%; background: #f2c66d; }
+.wm-you span { font-size: .6em; color: #fff4dc; text-shadow: var(--outline); font-weight: 700; }
+.wm-friend { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; object-fit: cover; border: 2px solid #2b1d17; border-radius: 50%; background: #f6ead0; image-rendering: pixelated; z-index: 3; pointer-events: none; }
+.wm-goal { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; display: grid; place-items: center; font-weight: 900; color: #fff; background: #e4572e; border: 2px solid #2b1d17; border-radius: 50%; z-index: 4; pointer-events: none; animation: bob 1s ease-in-out infinite; }
+.wm-info { min-height: 54px; display: flex; flex-direction: column; gap: 4px; }
+.wm-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.wm-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .75em; opacity: .85; }
+.wm-legend .sw { display: inline-block; width: 12px; height: 12px; margin-right: 5px; border: 2px solid #2b1d17; vertical-align: -2px; border-radius: 3px; }
+.wm-legend .sw.you { background: #f2c66d; border-radius: 50%; } .wm-legend .sw.door { background: #f2c66d; } .wm-legend .sw.path { background: #d8b985; } .wm-legend .sw.water { background: #62aedb; } .wm-legend .sw.lock { background: #4b4a5c; }
+.wm-goal-text { color: #b85d19; font-weight: 700; }
+@media (max-width: 600px) { .wm-zone { font-size: .62em; padding: 2px 6px; } .wm-stage { max-height: 48vh; } }
+
+.wm-stage { max-height: none; }
+.wm-scroll { overflow-x: auto; border-radius: 6px; -webkit-overflow-scrolling: touch; }
+.wm-detail { margin: 0 auto; }
+@media (max-width: 899px) { .wm-detail { width: 760px !important; } }
