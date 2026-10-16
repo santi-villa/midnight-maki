@@ -10,7 +10,7 @@ Origen: ZIP `vectoraith_tileset_buildings_japanese_traditional_DEMO.zip`, sumini
 
 La demo suministrada incluye nueve PNG: edificios, terreno y agua, cada uno a tres escalas. La lámina de edificios a 16 px contiene dos pequeñas fachadas y algunos accesorios. La imagen de referencia del conjunto completo tiene muchas más casas, torii, castillos y puentes que no forman parte de ese ZIP.
 
-Se utiliza un recorte nativo de césped y un material de tejado, con adaptación de color. La geometría de las casas se compone con los renderizadores propios para conservar sus puertas, ventanas, perspectiva lateral y huellas. Las barandas de los puentes se dibujan en código tomando la dirección japonesa de la referencia; no se presentan como sprites de puente incluidos en la demo.
+Se utiliza un recorte nativo de césped y un material de tejado, con adaptación de color. Las viviendas utilizan ahora las dos fachadas de la demo: sus tejados, entramados, puertas, ventanas y jardineras se ensamblan con módulos a resolución nativa, conservando las huellas y los accesos históricos. Las casas de té y florerías usan el frontón del segundo modelo. Los comercios principales conservan sus fachadas propias. Las barandas de los puentes se dibujan en código tomando la dirección japonesa de la referencia; no se presentan como sprites de puente incluidos en la demo.
 
 La página oficial permite usar el arte en juegos comerciales y gratuitos y modificarlo; conserva la propiedad del autor y restringe la distribución del recurso suelto y su uso para entrenamiento de IA, NFT y actividades similares. Revisado el 16 de octubre de 2026. Este atlas contiene solo piezas utilizadas como recursos de Midnight Maki.
 
