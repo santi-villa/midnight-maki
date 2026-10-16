@@ -19,6 +19,7 @@ export interface LightInput {
   prog: number; // 0..1 inside the period
   outdoor: boolean;
   dark?: boolean; // always-dark zones (storage, market)
+  gloom?: boolean; // dim stone rooms (lighthouse): cooler than a house, lighter than a closed depot
   rain: boolean;
   season: number; // 0 spring .. 3 winter
   restaurant?: RestaurantPhase | null; // set while inside the restaurant
@@ -83,6 +84,12 @@ export function lightState(i: LightInput): LightState {
     lamp = 1;
     windows = 1;
     moon = 1;
+  } else if (i.gloom) {
+    tint = 0xb7c0d4;
+    vig = 0.28;
+    lamp = 0.9;
+    windows = 0.55;
+    moon = 0.25;
   } else if (i.outdoor) {
     if (per === 0) {
       tint = ramp(MORNING, k);

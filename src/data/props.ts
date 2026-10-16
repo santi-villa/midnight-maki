@@ -125,7 +125,7 @@ export const PROPS: Record<string, PropDef> = {
   stairs_down: P('stairs', 1, 1, 16, 16, '', '', { solid: false, variant: 1 }),
   door_storage: P('walldoor', 1, 1, 16, 16, '', '', { variant: 0 }),
   door_storage_open: P('walldoor', 1, 1, 16, 16, '', '', { variant: 1 }),
-  mechanism: P('mechanism', 3, 1, 48, 44),
+  mechanism: P('mechanism', 3, 1, 72, 66),
   // buildings (variant selects details)
   bld_restaurant: P('building', 7, 3, 112, 90, '#f3e3c3', '#2f4f7a', { variant: 0, label: 'MIDNIGHT MAKI' }),
   bld_restaurant_s0: P('building', 7, 3, 112, 112, '#e4d3b3', '#3e5362', { variant: 0, label: 'MIDNIGHT MAKI', stage: 0 }),

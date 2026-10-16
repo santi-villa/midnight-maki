@@ -12,6 +12,7 @@ import { ITEMS_BY_ID } from '../data/items';
 import { choose, fmt, runScene, say } from '../dialogue/dialogue';
 import { check, defineQuests, isDone } from '../quests/quests';
 import { learnRecipe } from '../restaurant/orders';
+import { pantryTotal } from '../restaurant/supplies';
 import { world } from '../scenes/WorldScene';
 import { registerAction } from '../systems/actions';
 import { clock } from '../systems/time';
@@ -61,8 +62,11 @@ defineQuests([
       { text: 'Hablá con Spicy Beacon y conocé a los mapaches.', done: () => game.has('intro_done'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
       { text: 'Aprendé a preparar sushi con Spicy Beacon en la cocina.', done: () => game.has('tut_spicy'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
       { text: 'Prepará tu primer sushi: tocá "Pedidos" en el mostrador y después la tabla de cocina.', done: () => served() >= 1, target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, label: 'Mostrador de pedidos', interactId: 'orders' } },
-      { text: 'Visitá el Almacén de Taro en la plaza y comprá algo.', done: () => (game.save.stats.purchases ?? 0) >= 1, target: { kind: 'object', zone: 'plaza', x: 27, y: 18, label: 'Almacén de Taro', interactId: 'taro_shop' } },
-      { text: 'Decorá tu habitación: subí las escaleras y tocá Decorar. Solo se puede en tu cuarto.', done: () => (game.save.stats.decorMoves ?? 0) >= 1, target: { kind: 'interior', fromZone: 'restaurant', door: { x: 16, y: 2 }, targetZone: 'home', interiorTarget: { x: 4, y: 4, label: 'Tu habitación' }, label: 'Habitación' } },
+      { text: 'Comprá un ingrediente o un paquete en el Almacén de Taro.', done: () => game.has('bought_supply') || ((game.save.stats.purchases ?? 0) >= 1 && !game.has('starter_decor')), hint: 'Lo suelto queda en la mochila y ya se puede cocinar. Los paquetes y las cajas se abren en la despensa.', target: { kind: 'object', zone: 'plaza', x: 27, y: 18, label: 'Almacén de Taro', interactId: 'taro_shop' } },
+      { text: 'Guardá ingredientes en la despensa de la cocina.', done: () => pantryTotal() > 0 || !game.has('starter_decor'), hint: 'Tocá la despensa, al lado de la tabla. «Guardar ingredientes sueltos» pasa lo de la mochila. «Guardar paquetes y cajas» abre lo que compraste por mayor. Al cocinar se usa primero la despensa.', target: { kind: 'object', zone: 'restaurant', x: 1, y: 3, label: 'Despensa', interactId: 'fridge' } },
+      { text: 'Entrá a Ropa de Yuki y mirá qué vende.', done: () => game.has('met_shop_yuki') || !game.has('starter_decor'), hint: 'Yuki vende ropa, zapatos y accesorios.', target: { kind: 'object', zone: 'plaza', x: 26, y: 6, label: 'Ropa de Yuki' } },
+      { text: 'Entrá a la Panadería de Bento.', done: () => game.has('met_shop_bento') || !game.has('starter_decor'), hint: 'Bento vende pan, huevos, frutillas y dulces para regalar.', target: { kind: 'object', zone: 'plaza', x: 5, y: 18, label: 'Panadería de Bento' } },
+      { text: 'Colocá en tu cuarto el cuadro y la maceta. Subí las escaleras y tocá Decorar.', done: () => (game.has('placed_pt_sushi') && game.has('placed_bamboo_pot')) || (!game.has('starter_decor') && (game.save.stats.decorMoves ?? 0) >= 1), hint: 'En Guardados elegí cada uno, movelo con las flechas y tocá Colocar acá. El cuadro se cuelga en la pared.', target: { kind: 'interior', fromZone: 'restaurant', door: { x: 16, y: 2 }, targetZone: 'home', interiorTarget: { x: 4, y: 4, label: 'Tu habitación' }, label: 'Habitación' } },
       { text: 'Descansá en tu cama para terminar el día.', done: () => game.save.time.day >= 2, target: { kind: 'interior', fromZone: 'restaurant', door: { x: 16, y: 2 }, targetZone: 'home', interiorTarget: { x: 4, y: 4, label: 'Cama' }, label: 'Dormir en tu cama' } },
     ],
     reward: { coins: 100 },
@@ -131,7 +135,7 @@ defineQuests([
     steps: [
       { text: 'Spicy encontró algo en el depósito. Hablá con él.', done: () => game.has('notebook_found'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
       { text: 'Visitá el Mercado Nocturno (de noche, por el torii del noreste de la plaza).', done: () => game.has('market_visited'), target: { kind: 'location', zone: 'market', label: 'Mercado Nocturno' } },
-      { text: 'Conseguí una carambola en el mercado.', done: () => game.countUsable('starfruit') >= 1 || (game.save.recipesCooked.three_stars ?? 0) > 0, target: { kind: 'object', zone: 'market', x: 10, y: 5, label: 'Puesto de objetos raros', interactId: 'mk_rare' } },
+      { text: 'Conseguí una carambola en el mercado.', done: () => game.countUsable('starfruit') >= 1 || (game.save.recipesCooked.three_stars ?? 0) > 0, target: { kind: 'object', zone: 'market', x: 4, y: 5, label: 'Dulces de luna', interactId: 'mk_food' } },
       { text: 'Cociná las Tres Estrellas (Cocina → Cocina libre).', done: () => (game.save.recipesCooked.three_stars ?? 0) > 0, target: { kind: 'object', zone: 'restaurant', x: 5, y: 3, label: 'Cocinar', interactId: 'cook' } },
       { text: 'Hablá con la Abuela Ume sobre lo que viste.', done: () => game.has('club_known'), target: { kind: 'npc', npc: 'ume', label: 'Abuela Ume' } },
     ],
@@ -342,6 +346,7 @@ async function tutSpicy() {
   await say('spicy', 'Los pedidos aparecen en el mostrador. Elegís uno, venís a la tabla de cocina y lo preparamos juntos.');
   await say('spicy', 'Rigg dejó un pedido de práctica: un Kappa maki. Pepino, arroz, alga. Simple, honesto, crocante.');
   await say('spicy', 'En la cocina vas a arrastrar ingredientes, esparcir arroz, enrollar y cortar. No hay apuro: modo relajado. Siempre podés cambiarlo en Ajustes.');
+  await say('spicy', 'El arroz, el alga y el pepino de hoy ya están en tu mochila. Cuando se acaben, se compran en lo de Taro y se guardan en la despensa, al lado de esta tabla.');
   game.save.orders = game.save.orders.filter((o) => o.special !== 'tutorial');
   game.addOrder({ recipe: 'kappa', customer: 'rigg', reward: 20, special: 'tutorial' });
   game.setFlag('tut_spicy');
@@ -527,7 +532,7 @@ async function pipHeart() {
 
 // ------------------------------------------------------------------ chapter 4
 async function spicyNotebook() {
-  await say('spicy', '{name}. Siéntese. Respire. Lo que voy a mostrarle cambiará la gastronomía para siempre.', 'smug');
+  await say('spicy', '{name}. Sentate. Respirá. Lo que te voy a mostrar cambia la gastronomía para siempre.', 'smug');
   await say('narr', 'Spicy sostiene un cuaderno de tapas gastadas. "Recetas — Akio".');
   addClue('old_notebook');
   await say('spicy', 'Hay una receta que se llama "Tres Estrellas". Una pieza dulce, una picante y una misteriosa. La misteriosa lleva carambola.', 'happy');

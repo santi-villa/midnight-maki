@@ -2893,6 +2893,7 @@ export class WorldScene extends Phaser.Scene {
       prog: clock.progress(),
       outdoor: !!def.outdoor,
       dark: !!def.dark || this.zoneId === 'market',
+      gloom: !!def.gloom,
       rain,
       season: seasonOf(t.day),
       restaurant: this.zoneId === 'restaurant' ? restaurantPhase(t.period, t.minutes) : null,
