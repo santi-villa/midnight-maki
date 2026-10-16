@@ -195,6 +195,7 @@ h3 { margin: 4px 0 8px; font-size: 1.05em; }
 .toast canvas { width: 24px; height: 24px; image-rendering: pixelated; }
 
 .fade { position: fixed; inset: 0; background: var(--night); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 70; }
+.town-warm { position: fixed; inset: 0; z-index: 75; display: grid; place-items: end center; padding: 0 16px calc(14vh + var(--safe-b)); background: rgba(14, 18, 54, .55); color: var(--cream); font-family: "Pixelify Sans", sans-serif; font-size: 18px; text-align: center; pointer-events: none; }
 .fade.on { opacity: 1; pointer-events: auto; }
 
 /* ---------- Dialogue ---------- */

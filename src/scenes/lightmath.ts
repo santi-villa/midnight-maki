@@ -45,6 +45,27 @@ export function mulHex(a: number, b: number): number {
   const f = (sh: number) => Math.round((ch(a, sh) * ch(b, sh)) / 255);
   return (f(16) << 16) | (f(8) << 8) | f(0);
 }
+
+/** Perceived brightness of a multiply colour, 0..255. Daylight sits near 250. */
+export function tintLum(c: number): number {
+  return 0.2126 * ch(c, 16) + 0.7152 * ch(c, 8) + 0.0722 * ch(c, 0);
+}
+
+/**
+ * Multiply colour under a lamp. Null means the street is already bright, so a soft erase is enough.
+ * A full erase at night uncovers the daytime tiles, so the pool stays dimmer than daylight and never darker than the street.
+ */
+export function lampPoolTint(ambient: number, lampColor: number, strength: number, cap = 150): number | null {
+  if (tintLum(ambient) > 200) return null;
+  const k = Math.max(0, Math.min(1, strength));
+  const mixed = mixHex(ambient, lampColor, 0.22 + 0.2 * k);
+  const chAt = (sh: number) => {
+    const a = ch(ambient, sh);
+    const m = ch(mixed, sh);
+    return Math.max(a, Math.min(cap, m));
+  };
+  return (chAt(16) << 16) | (chAt(8) << 8) | chAt(0);
+}
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);

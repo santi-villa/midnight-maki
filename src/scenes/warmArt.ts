@@ -9,6 +9,12 @@ import { charTexture, hasCharTexture, hasLookTexture, lookTexture, propTexture }
 type WarmJob = (scene: Phaser.Scene) => boolean;
 
 let warmJobs: WarmJob[] | null = null;
+let warmTotal = 0;
+
+/** Drop a queue built before the save's looks existed, so the next pass paints the real ones. */
+export function resetOutdoorWarm(): void {
+  warmJobs = null;
+}
 
 function propJob(id: string, closed = false): WarmJob {
   const key = 'pr_' + id + (closed ? '_closed' : '');
@@ -43,10 +49,21 @@ function buildWarmJobs(): WarmJob[] {
     const kind = PROPS[id]?.kind;
     if (kind === 'building' || kind === 'townhouse' || kind === 'sidehouse') jobs.push(propJob(id, true));
   }
+  warmTotal = jobs.length;
   return jobs;
 }
 
-/** Paints the next missing outdoor sheet. Already-cached jobs are skipped, up to a small cap, so a call stays one real canvas. */
+/** True while a sheet is still waiting. Builds the queue the first time. */
+export function outdoorWarmPending(): boolean {
+  if (!warmJobs) warmJobs = buildWarmJobs();
+  return warmJobs.length > 0;
+}
+
+/**
+ * Paints the next missing outdoor sheet.
+ * Already-cached jobs are skipped, up to a small cap, so a call stays one real canvas.
+ * Returns true while any job remains, including when this call only skipped cached ones.
+ */
 export function warmNextOutdoor(scene: Phaser.Scene): boolean {
   if (!warmJobs) warmJobs = buildWarmJobs();
   let skipped = 0;
@@ -55,5 +72,27 @@ export function warmNextOutdoor(scene: Phaser.Scene): boolean {
     if (job(scene)) return true;
     skipped++;
   }
-  return false;
+  return warmJobs.length > 0;
+}
+
+/** How many sheets are done and how many were queued. */
+export function outdoorWarmProgress(): { done: number; total: number } {
+  if (!warmJobs) warmJobs = buildWarmJobs();
+  return { done: warmTotal - warmJobs.length, total: warmTotal };
+}
+
+/** One sheet per frame, so the status line can paint and the tab stays responsive. */
+export function drainOutdoorWarm(scene: Phaser.Scene, onStep?: (done: number, total: number) => void): Promise<void> {
+  resetOutdoorWarm();
+  return new Promise((resolve) => {
+    const step = () => {
+      const more = warmNextOutdoor(scene);
+      const p = outdoorWarmProgress();
+      onStep?.(p.done, p.total);
+      if (!more) { resolve(); return; }
+      if (typeof document !== 'undefined' && document.hidden) setTimeout(step, 16);
+      else requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
 }
