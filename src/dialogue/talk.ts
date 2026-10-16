@@ -42,6 +42,12 @@ function pickLine(id: string): Line | null {
   return top[Math.floor(Math.random() * top.length)];
 }
 
+/** True once Sofi has walked off from whoever she is talking to. */
+export async function awayFrom(id: string): Promise<() => boolean> {
+  const { world } = await import('../scenes/WorldScene');
+  return () => { const d = world.distanceTo(id); return d != null && d > 56; };
+}
+
 export async function talkTo(id: string) {
   // story beats take priority
   const { storyTalk } = await import('../story/story');
@@ -98,7 +104,7 @@ export async function talkTo(id: string) {
     const raccoon = RACCOONS.includes(id);
     for (;;) {
       const opts = ['Charlar…', 'Regalar…', 'Más acciones…', 'Nada, solo saludar'];
-      const pick = opts[await choose(opts)];
+      const pick = opts[await choose(opts, 'player', undefined, { icons: ['talk', 'gift', 'act', 'door'], cancel: opts.length - 1, away: await awayFrom(id) })];
       if (pick === 'Charlar…') await chatMenu(id, ctx, async () => {
         const l = pickLine(id);
         if (l) { lastLine[id] = l.t; await say(id, l.t, l.e ?? 'neutral'); if (l.set) game.setFlag(l.set); }

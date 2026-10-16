@@ -86,6 +86,8 @@ export interface TableJob {
   orderUid: number | null;
   plated: boolean;
   members: number; patience: number; maxPatience: number; impatient: boolean;
+  /** dishes of this table that have not been served yet: with none left the patience bar goes away */
+  unserved: number;
   tip: number;
 }
 
@@ -385,6 +387,7 @@ export function tableJobs(): TableJob[] {
       recipe: item?.recipe ?? party?.recipe ?? null,
       orderUid: item?.orderUid ?? party?.orderUid ?? null,
       plated: !!item?.orderUid && !!plateOf(item.orderUid),
+      unserved: pending.length,
       tip: table.tip,
     });
   }

@@ -14,6 +14,7 @@ import { portraitSrc, speakerFace } from './speakerFace';
 import { iconElement } from '../art/icons';
 import { clock } from '../systems/time';
 import { h, panel, uiRoot } from '../ui/dom';
+import { skinIconEl } from '../ui/skin';
 
 export interface LogEntry { who: string; text: string; }
 
@@ -160,30 +161,43 @@ export function say(who: string, text: string, expr: Expr = 'neutral'): Promise<
 }
 
 /** Present options; resolves with index. Choices are never skipped automatically. */
-export function choose(options: string[], who = 'player', prompt?: string): Promise<number> {
+export interface ChooseOpts {
+  /** one icon name per option (the HUD icon set), or null */
+  icons?: (string | null)[];
+  /** the index picked when she clicks outside the box, presses Escape or `away()` turns true */
+  cancel?: number;
+  /** polled while the choices are up: true means she walked off, so the menu closes */
+  away?: () => boolean;
+}
+
+export function choose(options: string[], who = 'player', prompt?: string, opts?: ChooseOpts): Promise<number> {
   skipping = false;
   const root = ensureBox();
   root.innerHTML = '';
   const info = speakerInfo(who, 'neutral');
   return new Promise((resolve) => {
     const list = h('div', { class: 'choices' });
+    let watch = 0;
+    const finish = (i: number) => {
+      history.push({ who: '→', text: fmt(options[i]) });
+      window.removeEventListener('keydown', key);
+      clearInterval(watch);
+      audio.sfxPlay('tap');
+      root.innerHTML = '';
+      if (catcher) catcher.onpointerup = null;
+      resolve(i);
+    };
     options.forEach((o, i) =>
       list.append(
-        h('button', {
-          onclick: (e: Event) => {
-            e.stopPropagation();
-            history.push({ who: '→', text: fmt(o) });
-            window.removeEventListener('keydown', key);
-            audio.sfxPlay('tap');
-            root.innerHTML = '';
-            resolve(i);
-          },
-        }, `${i + 1}. ${fmt(o)}`),
+        h('button', { class: opts?.icons ? 'with-icon' : '', onclick: (e: Event) => { e.stopPropagation(); finish(i); } },
+          opts?.icons?.[i] ? skinIconEl(opts.icons[i]!, 'choice-icon') : null,
+          h('span', { class: 'choice-n' }, String(i + 1)), h('span', { class: 'choice-t' }, fmt(o))),
       ),
     );
     const buttons = () => [...list.querySelectorAll('button')];
     const key = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === 'Escape' && opts?.cancel != null) { e.preventDefault(); finish(opts.cancel); return; }
       const n = parseInt(e.key, 10);
       if (n >= 1 && n <= options.length) {
         e.preventDefault();
@@ -200,7 +214,8 @@ export function choose(options: string[], who = 'player', prompt?: string): Prom
       next.focus({ preventScroll: true });
     };
     window.addEventListener('keydown', key);
-    if (catcher) catcher.onpointerup = null;
+    if (catcher) catcher.onpointerup = opts?.cancel != null ? () => finish(opts.cancel!) : null;
+    if (opts?.away) watch = window.setInterval(() => { if (opts.away!()) finish(opts.cancel ?? options.length - 1); }, 250);
     const portrait = h('img', { class: 'portrait', src: info.src, alt: info.name || 'Narración' });
     const dlg = h('div', { class: 'dlg has-portrait' }, info.name && who !== 'player' ? h('div', { class: 'name' }, info.name) : null, portrait, h('div', { class: 'body' }, prompt ? h('div', { class: 'text', style: { minHeight: '0' } }, fmt(prompt)) : null, list));
     root.append(dlg);
