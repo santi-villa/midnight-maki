@@ -5,6 +5,7 @@ import { game, newSave } from './state';
 import type { Appearance, SaveData } from './types';
 import { deleteSlot, saveGame, setActiveSlot } from '../persistence/storage';
 import { world } from '../scenes/WorldScene';
+import { drainOutdoorWarm, outdoorWarmPending } from '../scenes/warmArt';
 import { clock } from '../systems/time';
 import { installActions } from '../systems/actions';
 import { installDaily } from '../systems/daily';
@@ -46,6 +47,10 @@ async function startWorld(isNew: boolean) {
     clock.resetPause();
     ensureDefaultDecor();
     installDaily();
+    // The title scene sleeps as soon as the menu art loads, so its warm timer never finishes.
+    // Paint the remaining sheets here, before the world is playable, instead of hitching once a second in play.
+    const title = phaser.scene.getScene('title');
+    if (title && outdoorWarmPending()) await paintTown(title);
     phaser.scene.stop('title');
     phaser.scene.start('world');
     await new Promise<void>((r) => {
@@ -84,6 +89,22 @@ async function startWorld(isNew: boolean) {
     audio.crossfade('title');
     await (await import('../ui/title')).showTitle(phaser);
     throw err;
+  }
+}
+
+/** Covers the screen while the village sheets are painted, one per frame. */
+async function paintTown(scene: Phaser.Scene) {
+  const veil = document.createElement('div');
+  veil.className = 'town-warm';
+  veil.setAttribute('role', 'status');
+  veil.textContent = 'Preparando Villa Nori…';
+  document.body.append(veil);
+  try {
+    await drainOutdoorWarm(scene, (done, total) => {
+      veil.textContent = total > 0 ? `Preparando Villa Nori… ${done}/${total}` : 'Preparando Villa Nori…';
+    });
+  } finally {
+    veil.remove();
   }
 }
 

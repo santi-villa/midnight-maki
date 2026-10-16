@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lightState, mixHex, mulHex, shadowStyle, type LightInput } from '../scenes/lightmath';
+import { lampPoolTint, lightState, mixHex, mulHex, shadowStyle, tintLum, type LightInput } from '../scenes/lightmath';
 
 const lum = (c: number) => 0.2126 * ((c >> 16) & 255) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255);
 const base: LightInput = { period: 1, prog: 0.5, outdoor: true, rain: false, season: 0 };
@@ -97,6 +97,39 @@ describe('shadows', () => {
 
   it('keep the classic look indoors', () => {
     expect(shadowStyle(3, 0.5, false, false)).toEqual({ dx: 3, sy: 0.3, alpha: 1 });
+  });
+});
+
+describe('lamp pools', () => {
+  const night = at({ period: 3 }).tint;
+  const day = at({ period: 1 }).tint;
+
+  it('leaves a bright afternoon alone', () => {
+    expect(lampPoolTint(day, 0xffc070, 1)).toBeNull();
+  });
+
+  it('lifts the night without uncovering daylight', () => {
+    const pool = lampPoolTint(night, 0xffc070, 1);
+    expect(pool).not.toBeNull();
+    expect(tintLum(pool!)).toBeGreaterThan(tintLum(night) + 20);
+    expect(tintLum(pool!)).toBeLessThan(160);
+    expect((pool! >> 16) & 255).toBeGreaterThan((night >> 16) & 255);
+    for (const sh of [16, 8, 0]) expect((pool! >> sh) & 255).toBeGreaterThanOrEqual((night >> sh) & 255);
+  });
+
+  it('keeps an indoor night and a gloomy room from turning into day', () => {
+    for (const tint of [at({ period: 3, outdoor: false }).tint, at({ outdoor: false, gloom: true }).tint, at({ outdoor: false, dark: true }).tint]) {
+      const pool = lampPoolTint(tint, 0xffc070, 1);
+      expect(pool).not.toBeNull();
+      expect(tintLum(pool!)).toBeLessThan(200);
+    }
+  });
+
+  it('lets Sofi carry a brighter pool that is still short of noon', () => {
+    const self = lampPoolTint(night, 0xfff0dc, 1, 180);
+    const street = lampPoolTint(night, 0xffc070, 1)!;
+    expect(tintLum(self!)).toBeGreaterThan(tintLum(street));
+    expect(tintLum(self!)).toBeLessThan(170);
   });
 });
 

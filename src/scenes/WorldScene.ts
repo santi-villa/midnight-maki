@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
-import { lightState, type LightState } from './lightmath';
+import { lampPoolTint, lightState, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
@@ -39,7 +39,6 @@ import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '..
 import { idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture } from './textures';
-import { warmNextOutdoor } from './warmArt';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife, type TownResident } from '../systems/townLife';
@@ -690,7 +689,6 @@ export class WorldScene extends Phaser.Scene {
   private neighborBodies = new Map<string, { actor: Actor; bike: Phaser.GameObjects.Image | null; barkAt: number; pose: Act | null; poseUntil: number; nextPose: number }>();
   private npcWait = new Set<string>();
   private orderMarks = new Map<string, Phaser.GameObjects.Image>();
-  private warmAcc = 0;
 
   private clearNeighbors() {
     for (const b of this.neighborBodies.values()) { b.actor.destroy(); b.bike?.destroy(); }
@@ -2062,7 +2060,6 @@ export class WorldScene extends Phaser.Scene {
     this.updateOccluders(dt);
     this.updateQuestMarker(dt);
     this.updateServiceArt();
-    this.warmVillage(dt);
     this.flushNpcWait();
     this.dust(dt);
     this.quirks(dt);
@@ -2071,23 +2068,6 @@ export class WorldScene extends Phaser.Scene {
     this.refreshContext();
     this.pumpSpeech(dt);
     this.layoutBubbles();
-  }
-
-  /** While indoors, paint the next outdoor sheet on a timer. Near an exit door the queue moves faster, still one canvas at a time. */
-  private warmVillage(dt: number) {
-    if (this.transitioning) return;
-    this.warmAcc += dt;
-    const indoors = !this.zone.def.outdoor;
-    const gap = indoors && this.nearOutdoorExit() ? 0.1 : indoors ? 0.6 : 0.8;
-    if (this.warmAcc < gap) return;
-    this.warmAcc = 0;
-    warmNextOutdoor(this);
-  }
-
-  private nearOutdoorExit(): boolean {
-    const p = this.player;
-    if (!p) return false;
-    return this.zone.def.doors.some((d) => d.walk && !!ZONES[d.to]?.outdoor && Math.abs(d.x - p.tx) + Math.abs(d.y - p.ty) <= 5);
   }
 
   /** Footstep sound for the surface Sofi is walking on. */
@@ -2877,8 +2857,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Lighting pass. A low-res "darkness" layer multiplies the scene (ambient colour per time of day, weather and place),
-   * lamps cut soft, banded holes in it and tint the lit ground, and a faint additive halo sits on top of each light.
+   * Lighting pass. A low-res "darkness" layer multiplies the scene (ambient colour per time of day, weather and place).
+   * Lamps lighten that colour. At night they stay dim, so the tiles do not show as day. A faint additive halo sits on top.
    * The pass is skipped while nothing it depends on has changed (camera, player, ambient colour, flicker step).
    */
   private updateLighting() {
@@ -2911,7 +2891,10 @@ export class WorldScene extends Phaser.Scene {
     if (key === this.lightKey) return;
     this.lightKey = key;
     this.lightRedraws++;
-    rt.setPosition(Math.floor(view.x) - 2, Math.floor(view.y) - 2);
+    const needW = Math.ceil(view.width) + 8;
+    const needH = Math.ceil(view.height) + 8;
+    if (rt.width < needW || rt.height < needH) rt.resize(needW, needH);
+    rt.setPosition(Math.floor(view.x) - 4, Math.floor(view.y) - 4);
     rt.setVisible(true);
     rt.clear();
     if (ls.tint !== 0xffffff) rt.fill(ls.tint, 1);
@@ -2923,25 +2906,41 @@ export class WorldScene extends Phaser.Scene {
       return 1 + Math.sin(time * 1.3 + l.x * 0.1) * 0.02;
     };
     const lit = visible.map((l) => ({ l, k: this.lampLevel(l, ls) })).filter((e) => e.k > 0.02);
+    // Once the street is dark, a full erase shows the daytime tiles. Paint a dim warm colour instead.
+    const dim = lampPoolTint(ls.tint, 0xffc070, 1) != null;
     if (lit.length) {
       for (const { l, k } of lit) {
-        // Keep the ambient light footprint fixed: pulsing its radius repeatedly uncovers
-        // large patches of daytime colour, especially where plaza lamps overlap.
-        this.lightStamp.setScale((l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64).setAlpha(Math.min(1, k));
-        rt.erase(this.lightStamp, l.x - rt.x, l.y - rt.y);
+        const scale = (l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64;
+        if (dim) {
+          const col = lampPoolTint(ls.tint, l.color ?? 0xffc070, k)!;
+          this.lightStamp.setScale(scale).setTint(col).setAlpha(1);
+          rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
+        } else {
+          this.lightStamp.clearTint().setScale(scale).setAlpha(Math.min(1, k));
+          rt.erase(this.lightStamp, l.x - rt.x, l.y - rt.y);
+        }
       }
-      // tint the lit pools warm (multiply layer: warm colour = warm light on the ground)
-      for (const { l, k } of lit) {
-        this.lightStamp.setScale((l.r * 1.7 * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
-        rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
+      if (!dim) {
+        for (const { l, k } of lit) {
+          this.lightStamp.setScale((l.r * 1.7 * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
+          rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
+        }
       }
       this.lightStamp.clearTint().setAlpha(1);
-      // the player carries a soft light so the night is never too dark to play
-      if (ls.lamp > 0.1) {
-        this.lightStamp.setScale(1.5).setAlpha(Math.min(1, ls.lamp));
+    }
+    // Sofi carries a soft pool so the night stays readable, without a circle of daylight around her.
+    if (ls.lamp > 0.1 && this.player) {
+      if (dim) {
+        const self = lampPoolTint(ls.tint, 0xfff0dc, Math.min(1, ls.lamp), 180);
+        if (self != null) {
+          this.lightStamp.setScale(1.25).setTint(self).setAlpha(1);
+          rt.draw(this.lightStamp, this.player.x - rt.x, this.player.y - 10 - rt.y);
+        }
+      } else if (lit.length) {
+        this.lightStamp.clearTint().setScale(1.5).setAlpha(Math.min(1, ls.lamp));
         rt.erase(this.lightStamp, this.player.x - rt.x, this.player.y - 10 - rt.y);
-        this.lightStamp.setAlpha(1);
       }
+      this.lightStamp.clearTint().setAlpha(1);
     }
     // vignette frames the screen (drawn into the same low-res layer)
     if (!this.vignette) this.vignette = this.make.image({ key: vignetteTexture(this) }, false);
