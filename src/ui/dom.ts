@@ -39,12 +39,14 @@ export function modalOpen() {
   return stack.length > 0;
 }
 
-export function openModal(el: HTMLElement, onClose?: () => void): () => void {
+/** `keepTime`: the window does not stop the game clock (the kitchen: cooking takes time). */
+export function openModal(el: HTMLElement, onClose?: () => void, opts?: { keepTime?: boolean }): () => void {
   const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const rec: ModalRec = { el, onClose };
   stack.push(rec);
   uiRoot().append(el);
-  clock.pause();
+  const stopsTime = !opts?.keepTime;
+  if (stopsTime) clock.pause();
   bus.emit('ui:modal', { open: true });
   let closed = false;
   return () => {
@@ -53,7 +55,7 @@ export function openModal(el: HTMLElement, onClose?: () => void): () => void {
     const i = stack.indexOf(rec);
     if (i >= 0) stack.splice(i, 1);
     el.remove();
-    clock.resume();
+    if (stopsTime) clock.resume();
     cancelKeyCapture();
     rec.onClose?.();
     bus.emit('ui:modal', { open: stack.length > 0 });

@@ -134,6 +134,8 @@ export interface SaveData {
     x: number;
     y: number;
     dir: Dir;
+    /** 0..100, optional so older saves load: missing means rested */
+    energy?: number;
   };
   raccoonOutfits: Record<string, { head: string; extra: string }>;
   coins: number;
@@ -190,6 +192,8 @@ export interface Settings {
   cookMode: 'relaxed' | 'normal' | 'challenge';
   /** how a dish is cooked inside the restaurant: the act in the kitchen (default) or the gesture board */
   cookStyle?: 'act' | 'board';
+  /** how long she sleeps by default (hours) */
+  sleepHours?: number;
   settingsVersion?: number;
   /** objective arrow towards the tracked quest */
   guide?: boolean;

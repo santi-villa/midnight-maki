@@ -109,7 +109,7 @@ export async function talkTo(id: string) {
         if (act) { next.run = act; break; }
       } else break;
     }
-  });
+  }, { keepTime: !side.isQuestPerson(id) });
   if (next.run) await next.run();
 }
 
