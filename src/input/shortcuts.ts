@@ -99,8 +99,8 @@ function closeDecor(): boolean {
 
 function run(action: GameAction) {
   // Escape already closed a window or the decoration sheet before we get here.
-  // Opening a menu now would pause service, so free exploration keeps the clock running.
-  if (action === 'cancel') { void import('../ui/hud').then((m) => m.closeMoreMenu()); return; }
+  // With nothing to close, Esc opens the pause menu (save, load, settings).
+  if (action === 'cancel') { void import('../ui/hud').then((m) => { if (!m.closeMoreMenu()) void import('../ui/menus').then((x) => x.openPauseMenu()); }); return; }
   if (action === 'interact' || action === 'confirm') {
     world.tryInteract();
     return;

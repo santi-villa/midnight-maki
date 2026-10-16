@@ -138,7 +138,7 @@ registerAction('board', () => {
         h('b', null, q.title),
         h('div', { class: 'hint' }, `De: ${q.giver ? q.giver.charAt(0).toUpperCase() + q.giver.slice(1) : '—'} · ${q.desc}`),
         h('div', null, `"${SIDE_META[id].intro}"`),
-        h('button', { class: 'btn small primary', onclick: (e: Event) => { acceptSide(id); (e.target as HTMLButtonElement).replaceWith(h('span', { class: 'pill' }, 'Aceptado')); } }, 'Aceptar')),
+        h('button', { class: 'btn small primary', onclick: (e: Event) => { if (acceptSide(id)) (e.target as HTMLButtonElement).replaceWith(h('span', { class: 'pill' }, 'Aceptado')); } }, 'Aceptar')),
     );
   }
   const projects = projectsSection(async () => {

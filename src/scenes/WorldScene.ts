@@ -2206,6 +2206,34 @@ export class WorldScene extends Phaser.Scene {
     bus.emit('interact:available', { label: primary?.label ?? null, kind: primary?.icon });
   }
 
+  private fishGfx: Phaser.GameObjects.Graphics | null = null;
+  private fishSpots: { x: number; y: number }[] = [];
+  private fishZone = '';
+
+  /** Fishing spots show pulsing rings on the water, so it is clear where a line can be cast. */
+  private drawFishSpots() {
+    if (this.fishZone !== this.zoneId || !this.fishGfx?.active) {
+      this.fishZone = this.zoneId;
+      this.fishSpots = this.zone.def.interact.filter((i) => i.action.startsWith('fish:') && condOk(i.cond)).map((i) => ({ x: i.x, y: i.y }));
+      this.fishGfx?.destroy();
+      this.fishGfx = this.fishSpots.length ? this.add.graphics().setDepth(-2) : null;
+    }
+    const g = this.fishGfx;
+    if (!g) return;
+    g.clear();
+    const t = this.time.now / 1000;
+    for (const [i, s] of this.fishSpots.entries()) {
+      const cx = s.x * TILE + TILE / 2, cy = s.y * TILE + TILE / 2;
+      for (let k = 0; k < 2; k++) {
+        const ph = ((t * 0.7 + k * 0.5 + i * 0.13) % 1);
+        g.lineStyle(1, 0xffffff, 0.75 * (1 - ph));
+        g.strokeEllipse(cx, cy, 6 + ph * 18, 3 + ph * 9);
+      }
+      g.fillStyle(0xffe08a, 0.55 + Math.sin(t * 3 + i) * 0.2);
+      g.fillRect(cx - 1, cy - 1, 2, 2);
+    }
+  }
+
   /** Pixels between Sofi and a raccoon, villager or neighbour; null when that person is not around. */
   distanceTo(id: string): number | null {
     const a = this.npcs.get(id)?.actor ?? this.neighborBodies.get(id)?.actor;
@@ -2243,6 +2271,7 @@ export class WorldScene extends Phaser.Scene {
     if (!this.transitioning) clock.tick(dt);
     this.watchBedtime();
     this.pollHours(dt);
+    this.drawFishSpots();
     this.updatePlayer(dt);
     this.tickTown(dt);
     this.updateConversation(dt);

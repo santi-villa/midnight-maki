@@ -134,3 +134,13 @@ body.input-touch .game-hud .hud-phone { display: none; }
 body.input-touch .game-hud .hud-corner,
 body.input-touch .game-hud .ctx-dock { bottom: calc(max(16px, var(--phone-peek-h, 0px) + 8px) + var(--safe-b)); }
 body.input-touch .joystick.game-joystick { bottom: calc(max(24px, var(--phone-peek-h, 0px) + 8px) + var(--safe-b)); }
+
+/* big screens: the clock card, the round buttons and the action buttons were too small to read */
+@media (min-width: 900px) and (min-height: 560px) {
+  .game-hud .hud-status-wrap { zoom: 1.5; }
+  .game-hud .hud-buttons { zoom: 1.5; }
+  .game-hud .ctx-dock, .game-hud .hud-phone, .game-hud .hud-suggest { zoom: 1.35; }
+  .game-hud .hud-quest { top: calc(124px + var(--safe-t)); font-size: .98em; max-width: min(38vw, 420px); }
+  .game-hud.hud-status-collapsed .hud-quest { top: calc(150px + var(--safe-t)); }
+  .world-prompt { font-size: 1.1em; }
+}

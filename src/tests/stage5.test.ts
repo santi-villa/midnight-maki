@@ -39,7 +39,8 @@ describe('NoriPhone Tab toggle', () => {
     expect(phoneKeyIntent(key({ typing: true }))).toBe('ignore');
     expect(phoneKeyIntent(key({ menuOpen: true }))).toBe('ignore');
     expect(phoneKeyIntent(key({ exploring: false }))).toBe('ignore');
-    expect(phoneKeyIntent(key({ focusInControl: true }))).toBe('ignore');
+    // a HUD button that kept focus after a click must not stop Tab from opening the phone
+    expect(phoneKeyIntent(key({ focusInControl: true }))).toBe('open');
     expect(phoneKeyIntent(key({ shift: true }))).toBe('ignore');
     expect(phoneKeyIntent(key({ ctrl: true }))).toBe('ignore');
     expect(phoneKeyIntent(key({ alt: true }))).toBe('ignore');
