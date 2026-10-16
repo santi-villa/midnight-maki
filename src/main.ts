@@ -28,8 +28,8 @@ onBack(async () => {
 
 if (new URLSearchParams(location.search).has('debug')) {
   // test hooks: inspect state from the console / automated checks
-  void runTask('boot:debug', () => Promise.all([import('./core/state'), import('./scenes/WorldScene'), import('./systems/time'), import('./persistence/storage'), import('./audio/audio')]).then(([s, w, t, st, a]) => {
-    (window as any).mmDebug = { game: s.game, get world() { return w.world; }, clock: t.clock, storage: st, audio: a.audio, errorReports };
+  void runTask('boot:debug', () => Promise.all([import('./core/state'), import('./scenes/WorldScene'), import('./systems/time'), import('./persistence/storage'), import('./audio/audio'), import('./restaurant/service')]).then(([s, w, t, st, a, sv]) => {
+    (window as any).mmDebug = { game: s.game, get world() { return w.world; }, clock: t.clock, storage: st, audio: a.audio, service: sv, errorReports };
   }));
 }
 applySettings();

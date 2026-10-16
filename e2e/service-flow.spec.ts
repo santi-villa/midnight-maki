@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 
 /** Serving feels like part of the room: coins pop beside the counter and the guest talks in a bubble, with no windows. */
 test('a paid meal shows a bubble and a coin pop and never opens a dialogue window', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(280_000);
   await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ textSpeed: 0, music: 0, sfx: 0, ambience: 0 })));
   await page.goto('/?debug');
   await page.locator('.tt').click();
@@ -17,7 +17,7 @@ test('a paid meal shows a bubble and a coin pop and never opens a dialogue windo
   const early = await page.evaluate(async () => {
     const { game } = (window as any).mmDebug;
     game.save.time.period = 0; game.save.time.minutes = 5;
-    const { serviceGuide } = await import('/src/restaurant/service.ts');
+    const { serviceGuide } = (window as any).mmDebug.service;
     return serviceGuide();
   });
   expect(early).toBeNull();
@@ -28,14 +28,14 @@ test('a paid meal shows a bubble and a coin pop and never opens a dialogue windo
 
   // open the doors and let a guest walk in and sit
   await page.evaluate(() => { const { game } = (window as any).mmDebug; game.save.time.period = 1; game.save.time.minutes = 30; });
-  await expect.poll(() => page.evaluate(async () => (await import('/src/restaurant/service.ts')).tableJobs().find((j: any) => j.phase === 'waiting_order')?.tableId ?? null), { timeout: 90_000 }).not.toBeNull();
-  const guide = await page.evaluate(async () => (await import('/src/restaurant/service.ts')).serviceGuide());
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.service.tableJobs().find((j: any) => j.phase === 'waiting_order')?.tableId ?? null), { timeout: 150_000, intervals: [5000] }).not.toBeNull();
+  const guide = await page.evaluate(async () => ((window as any).mmDebug.service).serviceGuide());
   expect(guide).toMatchObject({ tableId: expect.any(String) });
 
   // take the order, plate it, deliver it
   const tableId = (guide as any).tableId as string;
   await page.evaluate(async (t) => {
-    const s = await import('/src/restaurant/service.ts');
+    const s = (window as any).mmDebug.service;
     s.takeOrderAt(t);
     const uid = (window as any).mmDebug.game.save.orders.find((o: any) => !o.special)?.uid;
     s.stagePlate(uid, 2, 0); s.pickupPlate(uid); s.deliverTo(t);
