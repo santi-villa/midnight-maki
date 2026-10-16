@@ -80,6 +80,26 @@ describe('lamps, windows and the moon', () => {
     expect(lum(open.tint)).toBeGreaterThan(lum(closed.tint));
   });
 
+  it('keeps the open restaurant warm and readable against a blue night', () => {
+    const room = at({ period: 3, outdoor: false, restaurant: 'open' });
+    const street = at({ period: 3 });
+    const house = at({ period: 3, outdoor: false });
+    expect(lum(room.tint)).toBeGreaterThan(lum(street.tint));
+    expect(lum(room.tint)).toBeGreaterThan(lum(house.tint));
+    expect((room.tint >> 16) & 255).toBeGreaterThan(room.tint & 255);
+    expect(room.vig).toBeLessThan(house.vig);
+  });
+
+  it('changes restaurant lighting continuously at dusk and night boundaries', () => {
+    const room = { outdoor: false, restaurant: 'open' as const };
+    for (const period of [1, 2]) {
+      const end = at({ ...room, period, prog: 1 });
+      const next = at({ ...room, period: period + 1, prog: 0 });
+      expect(end.tint).toBe(next.tint);
+      expect(end.vig).toBeCloseTo(next.vig);
+    }
+  });
+
   it('seasons grade only the outdoors', () => {
     expect(at({ season: 3 }).tint).not.toBe(at({ season: 0 }).tint);
     expect(at({ season: 3, outdoor: false }).tint).toBe(at({ season: 0, outdoor: false }).tint);

@@ -1,37 +1,35 @@
 /**
  * Izakaya / sushi-bar look for Midnight Maki (style guide: the "Midnight Maki" reference scene).
- * Dark wooden walls with an indigo noren band, night windows, warm planks, a sushi counter with a glass
+ * Cream plaster with honey-wood wainscot, an indigo noren band, broad quiet floorboards and a sushi counter with a glass
  * neta case, red stools, bamboo, sake barrels, paper lamps and the restaurant's hanging sign.
  */
 import { ctx2d, ellipse, makeCanvas, px, shade, type Ctx } from './pixel';
 
 const INK = '#2b1d17';
 export const IZ = {
-  wall: '#5c3c2b',
-  wallD: '#462d21',
-  wallL: '#70503b',
-  beam: '#3a261c',
-  top: '#2a1c16',
+  wall: '#eddfbd',
+  wallD: '#d9c7a3',
+  wallL: '#f7edd5',
+  beam: '#78553c',
+  top: '#59402f',
   noren: '#2f3b6b',
   norenD: '#232c52',
   norenL: '#43508a',
-  plank: '#9c6440',
-  plankD: '#7a4a2f',
-  plankL: '#b07650',
-  counter: '#c99a6b',
-  bar: '#5a3726',
+  plank: '#c99962',
+  plankD: '#b08253',
+  plankL: '#d4a870',
+  counter: '#eee2c6',
+  bar: '#8a603e',
+  cabinet: '#ad8053',
+  cabinetD: '#86603f',
 };
 
 type TileDraw = (c: Ctx, x: number, y: number, r: () => number) => void;
 
 // ------------------------------------------------------------------ tiles
-function planksV(c: Ctx, x: number, y: number, h: number, r: () => number) {
+function plaster(c: Ctx, x: number, y: number, h: number) {
   px(c, x, y, IZ.wall, 16, h);
-  for (let i = 0; i < 16; i += 4) {
-    const tone = r() < 0.33 ? IZ.wallL : r() < 0.5 ? IZ.wallD : IZ.wall;
-    px(c, x + i, y, tone, 4, h);
-    px(c, x + i, y, IZ.wallD, 1, h);
-  }
+  px(c, x, y, IZ.wallL, 16, 1);
 }
 
 export const izakayaTop: TileDraw = (c, x, y) => {
@@ -39,9 +37,9 @@ export const izakayaTop: TileDraw = (c, x, y) => {
   px(c, x, y + 14, IZ.beam, 16, 2);
 };
 
-/** Upper wall: a deep indigo noren (two split panels per tile with a white crest) over dark planks. */
-export const izakayaUpper: TileDraw = (c, x, y, r) => {
-  planksV(c, x, y, 16, r);
+/** Indigo noren over plain plaster: keep the Japanese silhouette without dense wall grain. */
+export const izakayaUpper: TileDraw = (c, x, y) => {
+  plaster(c, x, y, 16);
   px(c, x, y, IZ.beam, 16, 2);
   px(c, x, y + 1, IZ.wallL, 16, 1);
   for (const p0 of [0, 8]) {
@@ -59,13 +57,14 @@ export const izakayaUpper: TileDraw = (c, x, y, r) => {
   px(c, x, y + 14, IZ.wallL, 16, 1);
 };
 
-/** Wall face: vertical planks above a darker wainscot. */
-export const izakayaWall: TileDraw = (c, x, y, r) => {
-  planksV(c, x, y, 16, r);
+/** Cream wall above a warm wooden wainscot. All tile sizes and collision indices stay the same. */
+export const izakayaWall: TileDraw = (c, x, y) => {
+  plaster(c, x, y, 16);
   px(c, x, y + 10, IZ.beam, 16, 1);
-  px(c, x, y + 11, '#3e281e', 16, 4);
-  for (let i = 1; i < 16; i += 5) px(c, x + i, y + 12, '#4a3125', 3, 2);
-  px(c, x, y + 15, '#21150f', 16, 1);
+  px(c, x, y + 11, IZ.cabinet, 16, 4);
+  px(c, x, y + 11, '#c09667', 16, 1);
+  px(c, x + 8, y + 12, IZ.cabinetD, 1, 3);
+  px(c, x, y + 15, IZ.beam, 16, 1);
 };
 
 /** Lattice window: night sky with stars, or a pale day sky. */
@@ -90,22 +89,19 @@ export function izakayaWindow(night: boolean): TileDraw {
   };
 }
 
-/** Warm floor planks: continuous horizontal boards (each row its own tone) with staggered joints. */
+/** Broad honey floorboards: quiet, low-contrast surfaces keep food and actors readable. */
 export function izakayaFloor(shift = 0): TileDraw {
-  const tones = [IZ.plank, IZ.plankL, shade(IZ.plank, -0.07), shade(IZ.plank, 0.05)];
-  const joints = [3, 11, 7, 14].map((j) => (j + shift) % 13);
-  return (c, x, y, r) => {
-    for (let row = 0; row < 4; row++) {
-      const y0 = y + row * 4;
+  const tones = [IZ.plank, IZ.plankL];
+  const joints = [3, 11].map((j) => (j + shift) % 13);
+  return (c, x, y) => {
+    for (let row = 0; row < 2; row++) {
+      const y0 = y + row * 8;
       const tone = tones[row];
-      px(c, x, y0, tone, 16, 4);
-      px(c, x, y0, shade(tone, 0.1), 16, 1);
-      px(c, x, y0 + 3, IZ.plankD, 16, 1);
-      px(c, x + ((joints[row] + 5) % 16), y0 + 2, shade(tone, -0.07), 4, 1);
-      if (row % 2 === 0) px(c, x + joints[row], y0, IZ.plankD, 1, 3);
+      px(c, x, y0, tone, 16, 8);
+      px(c, x, y0, shade(tone, 0.06), 16, 1);
+      px(c, x, y0 + 7, IZ.plankD, 16, 1);
+      px(c, x + joints[row], y0 + 1, shade(tone, -0.12), 1, 6);
     }
-    if (shift) px(c, x + (2 + shift) % 13, y + 6, shade(IZ.plankD, -0.12), 2, 1);
-    if (r() < 2) px(c, x + 9, y + 5, shade(IZ.plankD, -0.1), 1, 1);
   };
 }
 
@@ -125,24 +121,24 @@ export function plankFloor(base: string, line: string, shift = 0): TileDraw {
   };
 }
 
-/** Behind-the-counter floor: darker, tighter boards. */
+/** Behind the counter: a slightly darker honey wood, still distinct from the dining floor. */
 export const barFloor: TileDraw = (c, x, y, r) => {
-  for (let row = 0; row < 4; row++) {
-    const tone = r() < 0.5 ? '#6f452f' : '#7a4e35';
-    px(c, x, y + row * 4, tone, 16, 4);
-    px(c, x, y + row * 4 + 3, '#4f3021', 16, 1);
-    px(c, x + 4 + Math.floor(r() * 8), y + row * 4, '#4f3021', 1, 3);
+  for (let row = 0; row < 2; row++) {
+    const tone = row === 0 ? '#b28659' : '#ba9163';
+    px(c, x, y + row * 8, tone, 16, 8);
+    px(c, x, y + row * 8 + 7, '#967047', 16, 1);
+    px(c, x + 4 + Math.floor(r() * 8), y + row * 8, '#a07850', 1, 7);
   }
 };
 
 /** Tatami mat with dark green borders. */
 export const tatamiMat: TileDraw = (c, x, y, r) => {
-  px(c, x, y, '#cfc98f', 16, 16);
-  for (let j = 1; j < 16; j += 2) px(c, x, y + j, '#c2bb7f', 16, 1);
-  for (let i = 0; i < 6; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), '#dcd6a2');
-  px(c, x, y, '#4f6b47', 16, 2);
-  px(c, x, y, '#4f6b47', 2, 16);
-  px(c, x, y + 1, '#6b8a5f', 16, 1);
+  px(c, x, y, '#ddd6ad', 16, 16);
+  for (let j = 3; j < 16; j += 4) px(c, x, y + j, '#d2cba3', 16, 1);
+  for (let i = 0; i < 2; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), '#e7dfbc');
+  px(c, x, y, '#768764', 16, 2);
+  px(c, x, y, '#768764', 2, 16);
+  px(c, x, y + 1, '#94a17d', 16, 1);
 };
 
 // ------------------------------------------------------------------ props
@@ -208,7 +204,7 @@ export const IZAKAYA_KINDS: Record<string, DrawFn> = {
     const top = c2 || IZ.counter;
     px(c, 0, H - 14, INK, W, 14);
     px(c, 0, H - 13, front, W, 12);
-    for (let x = 1; x < W; x += 4) px(c, x, H - 12, shade(front, -0.2), 1, 10);
+    for (let x = 1; x < W; x += 8) px(c, x, H - 12, shade(front, -0.12), 1, 10);
     px(c, 0, H - 3, shade(front, -0.35), W, 2);
     px(c, 0, H - 18, INK, W, 5);
     px(c, 0, H - 17, top, W, 3);
@@ -374,8 +370,8 @@ export const IZAKAYA_KINDS: Record<string, DrawFn> = {
   /** Charcoal grill (replaces the western stove). */
   konro(c, W, H) {
     px(c, 0, H - 22, INK, W, 22);
-    px(c, 1, H - 21, '#7a4e34', W - 2, 20);
-    px(c, 1, H - 21, '#a8734d', W - 2, 1);
+    px(c, 1, H - 21, IZ.cabinet, W - 2, 20);
+    px(c, 1, H - 21, IZ.counter, W - 2, 1);
     px(c, 2, H - 19, '#3a3440', W - 4, 6);
     for (let x = 3; x < W - 3; x += 2) px(c, x, H - 17, x % 4 ? '#f08c4f' : '#ffd27a', 1, 3);
     px(c, 2, H - 19, '#8d8790', W - 4, 1);
@@ -388,10 +384,10 @@ export const IZAKAYA_KINDS: Record<string, DrawFn> = {
   /** Kitchen cabinet (pantry) with drawers and bowls on top. */
   tansu(c, W, H) {
     px(c, 0, H - 26, INK, W, 26);
-    px(c, 1, H - 25, '#7a4e34', W - 2, 24);
+    px(c, 1, H - 25, IZ.cabinet, W - 2, 24);
     for (let y = H - 23; y < H - 2; y += 5) {
-      px(c, 2, y, '#8f5e3f', W - 4, 4);
-      px(c, 2, y + 3, '#5a3726', W - 4, 1);
+      px(c, 2, y, shade(IZ.cabinet, 0.08), W - 4, 4);
+      px(c, 2, y + 3, IZ.cabinetD, W - 4, 1);
       px(c, W / 2 - 1, y + 1, '#c9a24a', 2, 1);
     }
     px(c, 2, H - 30, INK, 6, 4);
@@ -411,8 +407,8 @@ export const IZAKAYA_KINDS: Record<string, DrawFn> = {
     px(c, 0, H - 18, INK, W, 18);
     px(c, 1, H - 17, IZ.counter, W - 2, 3);
     px(c, 1, H - 17, shade(IZ.counter, 0.2), W - 2, 1);
-    px(c, 1, H - 13, '#7a4e34', W - 2, 12);
-    px(c, 3, H - 11, '#8f5e3f', W - 6, 8);
+    px(c, 1, H - 13, IZ.cabinetD, W - 2, 12);
+    px(c, 3, H - 11, IZ.cabinet, W - 6, 8);
     px(c, W - 5, H - 8, '#c9a24a', 1, 2);
   },
 };

@@ -41,19 +41,19 @@ const F = (
 
 export const FURNITURE: FurnitureDef[] = [
   // ---------------- tables
-  F('table_wood', 'Mesa de madera', 'restaurant', 'natural', 90, 'table', '#a8734d', '', 2, 1, 22, { rotatable: true }),
+  F('table_wood', 'Mesa de madera', 'restaurant', 'natural', 90, 'table', '#b68a5b', '', 2, 1, 22, { rotatable: true }),
   F('table_round', 'Mesita redonda', 'restaurant', 'cozy', 70, 'roundtable', '#a8734d', '', 1, 1, 16),
-  F('table_dark', 'Mesa de nogal', 'restaurant', 'dark', 180, 'table', '#5e3f30', '', 2, 1, 22, { rotatable: true }),
+  F('table_dark', 'Mesa de nogal', 'restaurant', 'dark', 180, 'table', '#76553c', '', 2, 1, 22, { rotatable: true }),
   F('table_pink', 'Mesa pastel', 'restaurant', 'pastel', 160, 'table', '#e8b8c0', '', 2, 1, 22, { rotatable: true, shop: 'sumi' }),
-  F('table_low', 'Chabudai', 'restaurant', 'japanese', 150, 'table', '#8a5a3c', '', 2, 1, 14, { rotatable: true }),
-  F('table_long', 'Mesa larga', 'restaurant', 'natural', 150, 'table', '#a8734d', '', 3, 1, 24, { rotatable: true }),
+  F('table_low', 'Chabudai', 'restaurant', 'japanese', 150, 'table', '#9c734c', '', 2, 1, 14, { rotatable: true }),
+  F('table_long', 'Mesa larga', 'restaurant', 'natural', 150, 'table', '#b68a5b', '', 3, 1, 24, { rotatable: true }),
   F('table_family', 'Mesa familiar', 'restaurant', 'cozy', 210, 'table', '#8a5a3c', '', 2, 2, 32),
   F('kotatsu', 'Kotatsu', 'bedroom', 'japanese', 420, 'kotatsu', '#b2585e', '#f2c66d', 2, 2, 30, { sit: true, likes: ['pip'] }),
   // ---------------- seats
   F('chair_wood', 'Silla de madera', 'restaurant', 'natural', 50, 'chair', '#8a5a3c', '#a8734d', 1, 1, 18, { rotatable: true, sit: true }),
   F('chair_rose', 'Silla rosa', 'restaurant', 'pastel', 80, 'chair', '#c27f86', '#e8b8c0', 1, 1, 18, { rotatable: true, sit: true, shop: 'sumi' }),
   F('chair_sage', 'Silla salvia', 'restaurant', 'cottage', 80, 'chair', '#7c9a7b', '#a9c3a0', 1, 1, 18, { rotatable: true, sit: true }),
-  F('chair_dark', 'Silla de nogal', 'restaurant', 'dark', 110, 'chair', '#4e3428', '#6e4a38', 1, 1, 18, { rotatable: true, sit: true }),
+  F('chair_dark', 'Silla de nogal', 'restaurant', 'dark', 110, 'chair', '#76553c', '#a6b58a', 1, 1, 18, { rotatable: true, sit: true }),
   F('stool', 'Banquito', 'kitchen', 'minimal', 50, 'stool', '#a8734d', '', 1, 1, 14, { sit: true }),
   F('cushion_rose', 'Zabuton rosa', 'bedroom', 'japanese', 55, 'cushion', '#d9a3a6', '#f2c66d', 1, 1, 14, { sit: true, walkable: true }),
   F('cushion_indigo', 'Zabuton índigo', 'bedroom', 'japanese', 55, 'cushion', '#3b4470', '#f6ecd6', 1, 1, 14, { sit: true, walkable: true }),
