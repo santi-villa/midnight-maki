@@ -1,6 +1,7 @@
 /**
  * Grid-based interior decoration editor running on top of the world scene.
  * Place / move / rotate / store furniture, change floors & walls, undo, path-safety validation.
+ * The sheet only browses. A chosen piece is dragged on the room, or nudged with the arrow keys.
  */
 import Phaser from 'phaser';
 import { drawObject } from '../art/objects';
@@ -10,8 +11,9 @@ import { bus } from '../core/events';
 import { game } from '../core/state';
 import type { PlacedFurniture } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
-import { FURN_BY_ID, furnSize, type FurnitureDef } from '../data/furniture';
+import { FURNITURE, FURN_BY_ID, furnSize, type FurnCat, type FurnitureDef } from '../data/furniture';
 import type { RoomDef } from '../data/zones';
+import { decorChips, firstDecorView, ghostAnchor } from './decorView';
 import { TILE } from '../entities/Actor';
 import { world } from '../scenes/WorldScene';
 import { furnTexture } from '../scenes/textures';
@@ -40,15 +42,22 @@ export function startDecor() {
 
 class DecorEditor {
   private sheet!: HTMLElement;
+  private browse!: HTMLElement;
+  private chips!: HTMLElement;
   private list!: HTMLElement;
-  private actions!: HTMLElement;
+  private hint!: HTMLElement;
+  private placeBox!: HTMLElement;
+  private placeName!: HTMLElement;
   private status!: HTMLElement;
+  private actions!: HTMLElement;
+  private placeBtn: HTMLButtonElement | null = null;
   private gfx!: Phaser.GameObjects.Graphics;
   private ghostImg: Phaser.GameObjects.Image | null = null;
   private ghost: Ghost | null = null;
   private undo: string[] = [];
-  private tab = 0;
+  private view = 'room';
   private handler = (p: Phaser.Input.Pointer) => this.onTap(p);
+  private moveHandler = (p: Phaser.Input.Pointer) => this.onDrag(p);
   private down: { x: number; y: number } | null = null;
   private downHandler = (p: Phaser.Input.Pointer) => (this.down = { x: p.x, y: p.y });
   private startOwned = 0;
@@ -63,31 +72,37 @@ class DecorEditor {
     showHud(false);
     this.gfx = world.add.graphics().setDepth(190000);
     world.input.on('pointerdown', this.downHandler);
+    world.input.on('pointermove', this.moveHandler);
     world.input.on('pointerup', this.handler);
-    this.status = h('div', { class: 'hint', style: { color: '#f6ecd6' } });
-    this.actions = h('div', { class: 'row', style: { flexWrap: 'wrap', gap: '6px' } });
-    this.list = h('div', { class: 'cook-tray', style: { minHeight: '92px' } });
-    const tabs = h('div', { class: 'row', style: { gap: '6px' } });
-    const tabBtns = ['Guardados', 'En la habitación', 'Piso y pared'].map((n, i) =>
-      h('button', { class: 'btn small' + (i === 0 ? ' primary' : ''), onclick: () => { this.tab = i; tabBtns.forEach((b, j) => b.classList.toggle('primary', j === i)); this.renderList(); } }, n),
-    );
-    tabs.append(...tabBtns);
+    this.chips = h('div', { class: 'decor-chips', role: 'tablist' });
+    this.list = h('div', { class: 'decor-tray' });
+    this.hint = h('p', { class: 'decor-hint' });
+    this.browse = h('div', { class: 'decor-browse' }, this.chips, this.list, this.hint);
+    this.placeName = h('b', { class: 'decor-piece' });
+    this.status = h('div', { class: 'decor-status' });
+    this.actions = h('div', { class: 'decor-actions' });
+    this.placeBox = h('div', { class: 'decor-place' }, this.placeName, this.status, this.actions);
+    this.placeBox.hidden = true;
+    const chips = decorChips(game.save.furnitureOwned, FURNITURE);
+    this.view = firstDecorView(chips);
     this.sheet = h(
       'div',
-      { class: 'decor-sheet', role: 'dialog', 'aria-label': `Decorar: ${this.room.name}`, style: { position: 'fixed', left: '0', right: '0', bottom: '0', padding: '8px calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l))', background: 'rgba(31,36,64,.92)', borderTop: '3px solid #46291f', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: '25' } },
-      h('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap' } },
-        h('b', { style: { color: '#f2c66d' } }, `Decorar: ${this.room.name}`),
-        h('div', { class: 'row', style: { gap: '6px' } }, h('button', { class: 'btn small', onclick: () => this.doUndo() }, 'Deshacer'), h('button', { class: 'btn small primary', onclick: () => this.close() }, 'Listo'))),
-      tabs, this.list, this.actions, this.status,
+      { class: 'decor-sheet', role: 'dialog', 'aria-label': `Decorar: ${this.room.name}` },
+      h('div', { class: 'decor-head' },
+        h('b', null, this.room.name),
+        h('div', { class: 'decor-head-actions' },
+          h('button', { type: 'button', class: 'btn small', onclick: () => this.doUndo() }, 'Deshacer'),
+          h('button', { type: 'button', class: 'btn small primary', onclick: () => this.close() }, 'Listo'))),
+      this.browse,
+      this.placeBox,
     );
     uiRoot().append(this.sheet);
-    (this.sheet as any).__close = () => this.close();
+    (this.sheet as HTMLElement & { __close?: () => void }).__close = () => this.close();
     window.addEventListener('keydown', this.onKey, true);
-    this.sheet.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
     this.startOwned = Object.values(game.save.furnitureOwned).reduce((a, b) => a + b, 0);
     this.renderList();
     this.drawGrid();
-    this.setStatus('Elegí un mueble guardado o tocá uno de la habitación.');
+    this.chips.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
   }
 
   private onKey = (e: KeyboardEvent) => {
@@ -119,6 +134,7 @@ class DecorEditor {
     this.clearGhost(true);
     this.gfx.destroy();
     world.input.off('pointerup', this.handler);
+    world.input.off('pointermove', this.moveHandler);
     world.input.off('pointerdown', this.downHandler);
     this.sheet.remove();
     world.decorMode = false;
@@ -129,8 +145,10 @@ class DecorEditor {
     bus.emit('ui:modal', { open: false });
   }
 
-  private setStatus(t: string) {
+  private setStatus(t: string, kind?: 'ok' | 'bad') {
     this.status.textContent = t;
+    this.status.classList.toggle('ok', kind === 'ok');
+    this.status.classList.toggle('bad', kind === 'bad');
   }
 
   private snapshot() {
@@ -160,42 +178,94 @@ class DecorEditor {
 
   // ------------------------------------------------------------------ lists
   private renderList() {
-    this.list.innerHTML = '';
-    this.actions.innerHTML = '';
-    if (this.tab === 0) {
-      const ids = Object.entries(game.save.furnitureOwned).filter(([, n]) => n > 0);
-      if (!ids.length) this.list.append(h('div', { class: 'hint', style: { color: '#f6ecd6', padding: '8px' } }, 'No tenés muebles guardados. En «En la habitación» podés mover lo que ya está. También se compran en el Almacén de Taro, el puesto de Sumi o el Mercado Nocturno.'));
-      for (const [id, n] of ids) {
-        const f = FURN_BY_ID[id];
-        if (!f) continue;
-        this.list.append(this.card(f, n, () => this.pickNew(id)));
-      }
-    } else if (this.tab === 1) {
-      for (const p of game.room(this.room.id)) {
-        const f = FURN_BY_ID[p.id];
-        if (!f) continue;
-        this.list.append(this.card(f, 0, () => this.pickExisting(p)));
-      }
-    } else {
-      const floors = Object.entries(FLOOR_STYLES).filter(([k, s]) => s.price === 0 || game.has('floor_' + k) || k === this.room.defFloor);
-      const walls = Object.entries(WALL_STYLES).filter(([k, s]) => s.price === 0 || game.has('wall_' + k) || k === this.room.defWall);
-      for (const [k, s] of floors) {
-        const c = document.createElement('canvas');
-        c.width = 16;
-        c.height = 16;
-        s.draw(c.getContext('2d')!, 0, 0, Math.random);
-        c.style.cssText = 'width:36px;height:36px;image-rendering:pixelated';
-        this.list.append(h('button', { class: 'ing', onclick: () => this.setStyle('floor', k) }, c, h('span', null, s.name)));
-      }
-      for (const [k, s] of walls) this.list.append(h('button', { class: 'ing', onclick: () => this.setStyle('wall', k) }, h('div', { style: { width: '36px', height: '36px', background: s.base, border: `3px solid ${s.accent}`, borderRadius: '4px' } }), h('span', null, s.name)));
-      this.list.append(h('div', { class: 'hint', style: { color: '#f6ecd6', padding: '6px', maxWidth: '160px' } }, 'Más pisos y paredes en el Almacén de Taro.'));
+    const chips = decorChips(game.save.furnitureOwned, FURNITURE);
+    if (!chips.some((c) => c.id === this.view)) this.view = firstDecorView(chips);
+    this.chips.innerHTML = '';
+    for (const chip of chips) {
+      const on = chip.id === this.view;
+      this.chips.append(h('button', {
+        type: 'button',
+        class: 'btn small decor-chip' + (on ? ' primary' : ''),
+        role: 'tab',
+        'aria-selected': on ? 'true' : 'false',
+        onclick: () => { this.view = chip.id; this.renderList(); },
+      }, chip.label));
     }
+    this.list.innerHTML = '';
+    this.hint.hidden = true;
+    if (this.view === 'room') this.renderRoom();
+    else if (this.view === 'style') this.renderStyle();
+    else this.renderOwned(this.view as FurnCat);
+  }
+
+  private renderOwned(cat: FurnCat) {
+    this.list.className = 'decor-tray';
+    const ids = Object.entries(game.save.furnitureOwned)
+      .filter(([, n]) => n > 0)
+      .map(([id, n]) => ({ f: FURN_BY_ID[id], n }))
+      .filter((row): row is { f: FurnitureDef; n: number } => !!row.f && row.f.cat === cat)
+      .sort((a, b) => a.f.name.localeCompare(b.f.name, 'es'));
+    if (!ids.length) {
+      this.hint.hidden = false;
+      this.hint.textContent = 'No te queda ninguno de estos. Mirá En el cuarto, o comprá en el Almacén de Taro, el puesto de Sumi o el Mercado Nocturno.';
+      return;
+    }
+    for (const { f, n } of ids) this.list.append(this.card(f, n, () => this.pickNew(f.id)));
+  }
+
+  private renderRoom() {
+    this.list.className = 'decor-tray';
+    const placed = game.room(this.room.id).filter((p) => FURN_BY_ID[p.id]);
+    if (!placed.length) {
+      this.hint.hidden = false;
+      this.hint.textContent = 'Todavía no hay muebles en esta habitación. Elegí uno guardado para colocarlo.';
+      return;
+    }
+    for (const p of placed) this.list.append(this.card(FURN_BY_ID[p.id], 0, () => this.pickExisting(p)));
+  }
+
+  private renderStyle() {
+    this.list.className = 'decor-style';
+    const cur = game.save.roomStyle[this.room.id] ?? { floor: this.room.defFloor, wall: this.room.defWall };
+    const floors = Object.entries(FLOOR_STYLES).filter(([k, s]) => s.price === 0 || game.has('floor_' + k) || k === this.room.defFloor || k === cur.floor);
+    const walls = Object.entries(WALL_STYLES).filter(([k, s]) => s.price === 0 || game.has('wall_' + k) || k === this.room.defWall || k === cur.wall);
+    this.list.append(
+      this.swatchRow('Piso', floors.map(([k, s]) => this.floorSwatch(k, s.name, s.draw, k === cur.floor))),
+      this.swatchRow('Pared', walls.map(([k, s]) => this.wallSwatch(k, s.name, s.base, s.accent, k === cur.wall))),
+      h('p', { class: 'decor-style-name' }, `${FLOOR_STYLES[cur.floor]?.name ?? 'Piso'} · ${WALL_STYLES[cur.wall]?.name ?? 'Pared'}`),
+    );
+    this.hint.hidden = false;
+    this.hint.textContent = 'Más pisos y paredes en el Almacén de Taro.';
+  }
+
+  private swatchRow(label: string, swatches: HTMLElement[]) {
+    return h('div', { class: 'decor-style-row' }, h('span', null, label), h('div', { class: 'decor-swatches' }, ...swatches));
+  }
+
+  private floorSwatch(key: string, name: string, draw: (c: CanvasRenderingContext2D, x: number, y: number, r: () => number) => void, on: boolean) {
+    const c = document.createElement('canvas');
+    c.width = 32;
+    c.height = 32;
+    const g = c.getContext('2d')!;
+    const rnd = styleRand(key);
+    draw(g, 0, 0, rnd);
+    draw(g, 16, 0, rnd);
+    draw(g, 0, 16, rnd);
+    draw(g, 16, 16, rnd);
+    return h('button', { type: 'button', class: 'btn decor-swatch' + (on ? ' primary' : ''), 'aria-label': name, 'aria-pressed': on ? 'true' : 'false', onclick: () => this.setStyle('floor', key) }, c);
+  }
+
+  private wallSwatch(key: string, name: string, base: string, accent: string, on: boolean) {
+    const chip = h('i');
+    chip.style.background = base;
+    chip.style.boxShadow = `inset 0 0 0 6px ${accent}`;
+    return h('button', { type: 'button', class: 'btn decor-swatch' + (on ? ' primary' : ''), 'aria-label': name, 'aria-pressed': on ? 'true' : 'false', onclick: () => this.setStyle('wall', key) }, chip);
   }
 
   private card(f: FurnitureDef, n: number, onClick: () => void) {
     const c = drawObject(f.kind, f.w * 16, f.sh, f.c1, f.c2 || f.c1, f.variant ?? 0);
-    c.style.cssText = `width:${Math.min(44, f.w * 22)}px;max-height:44px;image-rendering:pixelated`;
-    return h('button', { class: 'ing', style: { width: '86px' }, onclick: onClick }, n ? h('span', { class: 'q' }, n) : null, c, h('span', null, f.name));
+    c.className = 'decor-art';
+    return h('button', { type: 'button', class: 'btn decor-card', onclick: onClick }, n ? h('span', { class: 'q' }, String(n)) : null, c, h('span', { class: 'decor-name' }, f.name));
   }
 
   private setStyle(kind: 'floor' | 'wall', k: string) {
@@ -204,7 +274,6 @@ class DecorEditor {
     game.save.roomStyle[this.room.id] = { ...cur, [kind]: k };
     audio.sfxPlay('place');
     this.commit();
-    this.renderList();
   }
 
   // ------------------------------------------------------------------ ghost placement
@@ -229,15 +298,19 @@ class DecorEditor {
     const f = FURN_BY_ID[g.id];
     this.ghostImg?.destroy();
     this.ghostImg = world.add.image(0, 0, furnTexture(world as unknown as Phaser.Scene, g.id, g.rot)).setOrigin(0.5, 1).setDepth(195000).setAlpha(0.85);
-    this.updateGhost();
+    this.browse.hidden = true;
+    this.placeBox.hidden = false;
+    this.placeName.textContent = f.name;
     this.actions.innerHTML = '';
+    this.placeBtn = h('button', { type: 'button', class: 'btn primary', onclick: () => this.place() }, 'Colocar');
     add(this.actions,
-      h('button', { class: 'btn small primary', onclick: () => this.place() }, 'Colocar acá'),
-      f.rotatable ? h('button', { class: 'btn small', onclick: () => { g.rot = (g.rot + 1) % 4; this.showGhost(); audio.sfxPlay('tap'); } }, 'Rotar') : null,
-      ...(['↑', '↓', '←', '→'] as const).map((a) => h('button', { class: 'btn small', onclick: () => this.nudge(a) }, a)),
-      g.uid != null ? h('button', { class: 'btn small rose', onclick: () => this.store() }, 'Guardar') : null,
-      h('button', { class: 'btn small', onclick: () => { this.clearGhost(true); this.renderList(); } }, 'Cancelar'),
+      this.placeBtn,
+      f.rotatable ? h('button', { type: 'button', class: 'btn', onclick: () => { g.rot = (g.rot + 1) % 4; this.showGhost(); audio.sfxPlay('tap'); } }, 'Rotar') : null,
+      g.uid != null ? h('button', { type: 'button', class: 'btn', onclick: () => this.store() }, 'Guardar') : null,
+      h('button', { type: 'button', class: 'btn', onclick: () => { this.clearGhost(true); this.renderList(); } }, 'Cancelar'),
     );
+    this.updateGhost();
+    this.placeBtn.focus({ preventScroll: true });
   }
 
   private nudge(a: '↑' | '↓' | '←' | '→') {
@@ -249,6 +322,17 @@ class DecorEditor {
     this.updateGhost();
   }
 
+  private moveGhostTo(worldX: number, worldY: number) {
+    const g = this.ghost;
+    if (!g) return;
+    const size = furnSize(FURN_BY_ID[g.id], g.rot);
+    const next = ghostAnchor(Math.floor(worldX / TILE), Math.floor(worldY / TILE), size.w, size.h);
+    if (next.x === g.x && next.y === g.y) return;
+    g.x = next.x;
+    g.y = next.y;
+    this.updateGhost();
+  }
+
   private updateGhost() {
     const g = this.ghost;
     if (!g || !this.ghostImg) return;
@@ -257,7 +341,8 @@ class DecorEditor {
     this.ghostImg.setPosition(g.x * TILE + (size.w * TILE) / 2, (g.y + size.h) * TILE);
     const why = this.blockReason(g);
     this.ghostImg.setTint(why ? 0xf0a0a0 : 0xc8f0c0);
-    this.setStatus(why ?? (f.wall ? 'Verde: se puede colgar.' : 'Verde: se puede colocar.'));
+    if (this.placeBtn) this.placeBtn.disabled = !!why;
+    this.setStatus(why ?? 'Se puede colocar.', why ? 'bad' : 'ok');
     this.drawGrid();
   }
 
@@ -266,7 +351,10 @@ class DecorEditor {
     this.ghostImg?.destroy();
     this.ghostImg = null;
     this.ghost = null;
+    this.placeBtn = null;
     this.actions.innerHTML = '';
+    if (this.placeBox) this.placeBox.hidden = true;
+    if (this.browse) this.browse.hidden = false;
     this.drawGrid();
   }
 
@@ -335,7 +423,7 @@ class DecorEditor {
     const why = this.blockReason(g);
     if (why) {
       audio.sfxPlay('error');
-      this.setStatus(why);
+      this.setStatus(why, 'bad');
       return;
     }
     this.snapshot();
@@ -356,7 +444,6 @@ class DecorEditor {
     audio.sfxPlay('place');
     this.clearGhost(false);
     this.commit();
-    this.setStatus('¡Listo! Podés seguir decorando.');
   }
 
   private store() {
@@ -371,16 +458,18 @@ class DecorEditor {
     this.commit();
   }
 
+  private onDrag(p: Phaser.Input.Pointer) {
+    if (!this.ghost || !this.down || !p.isDown) return;
+    if (Math.hypot(p.x - this.down.x, p.y - this.down.y) < 10) return;
+    this.moveGhostTo(p.worldX, p.worldY);
+  }
+
   private onTap(p: Phaser.Input.Pointer) {
     if (!this.down || Math.hypot(p.x - this.down.x, p.y - this.down.y) > 12) return;
     const tx = Math.floor(p.worldX / TILE);
     const ty = Math.floor(p.worldY / TILE);
     if (this.ghost) {
-      const f = FURN_BY_ID[this.ghost.id];
-      const size = furnSize(f, this.ghost.rot);
-      this.ghost.x = tx - Math.floor((size.w - 1) / 2);
-      this.ghost.y = ty - (size.h - 1);
-      this.updateGhost();
+      this.moveGhostTo(tx * TILE + TILE / 2, ty * TILE + TILE / 2);
       return;
     }
     // select existing furniture (prefer non-rug)
@@ -405,22 +494,15 @@ class DecorEditor {
 
   private drawGrid() {
     const gfx = this.gfx;
+    if (!gfx?.active) return;
     gfx.clear();
-    const r = this.room;
-    gfx.lineStyle(1, 0xf6ecd6, 0.25);
-    for (let y = r.y; y < r.y + r.h; y++)
-      for (let x = r.x; x < r.x + r.w; x++) {
-        if (!this.inRoomInterior(x, y, false) && !this.inRoomInterior(x, y, true)) continue;
-        gfx.strokeRect(x * TILE + 0.5, y * TILE + 0.5, TILE - 1, TILE - 1);
-      }
     const g = this.ghost;
-    if (g) {
-      const f = FURN_BY_ID[g.id];
-      const size = furnSize(f, g.rot);
-      const ok = this.valid(g);
-      gfx.fillStyle(ok ? 0x6f9e6a : 0xc0676b, 0.35);
-      gfx.fillRect(g.x * TILE, g.y * TILE, size.w * TILE, size.h * TILE);
-    }
+    if (!g) return;
+    const f = FURN_BY_ID[g.id];
+    const size = furnSize(f, g.rot);
+    const ok = this.valid(g);
+    gfx.fillStyle(ok ? 0x6f9e6a : 0xc0676b, 0.35);
+    gfx.fillRect(g.x * TILE, g.y * TILE, size.w * TILE, size.h * TILE);
   }
 
   /** raccoons comment on new special furniture in their rooms or the dining room */
@@ -446,4 +528,16 @@ function overlap(a: { x: number; y: number; rot?: number }, af: FurnitureDef, b:
   const as = furnSize(af, a.rot ?? 0);
   const bs = furnSize(bf, b.rot ?? 0);
   return a.x < b.x + bs.w && a.x + as.w > b.x && a.y < b.y + bs.h && a.y + as.h > b.y;
+}
+
+/** Same speckles every time the swatch is drawn, so the sample does not flicker. */
+function styleRand(key: string): () => number {
+  let seed = 2166136261;
+  for (const ch of key) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619);
+  return () => {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return (seed >>> 0) / 4294967296;
+  };
 }
