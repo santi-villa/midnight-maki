@@ -78,7 +78,7 @@ defineQuests([
     auto: () => isDone('prologue'),
     steps: [
       { text: 'Pip quiere mostrarte algo. Buscalo.', done: () => game.has('drawing_found'), target: { kind: 'npc', npc: 'pip', label: 'Pip' } },
-      { text: 'Serví pedidos en el restaurante (5).', done: () => served() >= 6, hint: 'El restaurante abre a las 8:00. Cuando un cliente se siente, aparece la flecha hacia su mesa.', target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, label: 'Mostrador de pedidos', interactId: 'orders', service: true } },
+      { text: 'Serví pedidos en el restaurante (5).', needsOpen: true, done: () => served() >= 6, hint: 'El restaurante abre a las 8:00. Cuando un cliente se siente, aparece la flecha hacia su mesa.', target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, label: 'Mostrador de pedidos', interactId: 'orders', service: true } },
       { text: 'Conocé a tres vecinos del pueblo.', done: () => villagersMet() >= 3, target: { kind: 'location', zone: 'plaza', label: 'Plaza' } },
       { text: 'Preguntale a la Abuela Ume por el antiguo dueño.', done: () => game.has('ume_akio'), hint: 'Ume pasa las mañanas en el jardín y las tardes en el restaurante o la plaza.', target: { kind: 'npc', npc: 'ume', label: 'Abuela Ume' } },
       { text: 'Restaurá el cartel del restaurante (afuera, en la plaza).', done: () => game.has('sign_restored'), target: { kind: 'object', zone: 'plaza', x: 4, y: 7, label: 'Cartel del restaurante', interactId: 'sign' } },
@@ -102,7 +102,7 @@ defineQuests([
     auto: () => chapterDone(1) && game.save.time.day > Number(game.flag('ch1_done_day') ?? 0),
     steps: [
       { text: 'Revisá el buzón de la plaza.', done: () => game.has('odd_order_read'), target: { kind: 'object', zone: 'plaza', x: 9, y: 6, label: 'Buzón', interactId: 'mailbox' } },
-      { text: 'Prepará el pedido sin remitente (Sake maki).', done: () => game.has('odd_order_served'), target: { kind: 'object', zone: 'restaurant', x: 5, y: 3, label: 'Cocinar', interactId: 'cook' } },
+      { text: 'Prepará el pedido sin remitente (Sake maki).', needsOpen: true, done: () => game.has('odd_order_served'), target: { kind: 'object', zone: 'restaurant', x: 5, y: 3, label: 'Cocinar', interactId: 'cook' } },
       { text: 'Revisá las pistas en el Diario (Investigación) y conectá dos.', done: () => game.has('ded_order') },
       { text: 'Buscá el tablón flojo en el depósito.', done: () => game.has('compartment_open'), target: { kind: 'interior', fromZone: 'restaurant', door: { x: 13, y: 2 }, targetZone: 'storage', interiorTarget: { x: 7, y: 3, label: 'Tabla floja' }, label: 'Depósito' } },
     ],

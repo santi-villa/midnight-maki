@@ -1303,3 +1303,9 @@ body.cook-focus .game-hud, body.cook-focus .joystick, body.cook-focus .hud-joy {
   .decor-card .decor-art { width: 56px; height: 42px; }
   .decor-sheet { max-height: min(38vh, 300px); }
 }
+
+.world-prompt { position: fixed; z-index: 12; transform: translate(-50%, -100%); font: inherit; font-weight: 700; font-size: .9em; white-space: nowrap; padding: 4px 10px; border: 3px solid #2b1d17; border-radius: 10px; background: #fff4dc; color: #2b1d17; box-shadow: 0 3px 0 rgba(0,0,0,.35); cursor: pointer; animation: prompt-bob 1.4s ease-in-out infinite; }
+.world-prompt[hidden] { display: none; }
+@keyframes prompt-bob { 50% { margin-top: -3px; } }
+@media (prefers-reduced-motion: reduce) { .world-prompt { animation: none; } }
+body.kbd-input .game-hud .ctx-dock .hud-interact { display: none; }

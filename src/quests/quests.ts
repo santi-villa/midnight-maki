@@ -3,6 +3,7 @@ import { haptic } from '../core/haptics';
 import { bus } from '../core/events';
 import { runTask } from '../core/errors';
 import { game } from '../core/state';
+import { restaurantPhase } from '../systems/schedule';
 
 export type QuestTarget =
   | { kind: 'location'; zone: string; x?: number; y?: number; label?: string }
@@ -16,6 +17,13 @@ export interface QuestStep {
   hint?: string;
   onDone?: () => void;
   target?: QuestTarget;
+  /** needs the restaurant to be open: while it is closed the tracker says to explore instead */
+  needsOpen?: boolean;
+}
+
+/** True when this step cannot be done right now because the restaurant is closed. */
+export function stepWaitsForOpening(step: QuestStep | null | undefined): boolean {
+  return !!step?.needsOpen && restaurantPhase(game.save.time.period, game.save.time.minutes) !== 'open';
 }
 
 export interface QuestDef {
@@ -153,6 +161,7 @@ export function trackedText(): string | null {
   const q = REG.get(id);
   const step = currentStep(id);
   if (!q || !step) return null;
+  if (stepWaitsForOpening(step)) return `<b>${q.title}</b><br><span class="step">Explorá el pueblo un rato: el restaurante abre a las 8:00.</span>`;
   return `<b>${q.title}</b><br><span class="step">${step.text}</span>`;
 }
 

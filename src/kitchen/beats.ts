@@ -60,8 +60,8 @@ export function planBeats(recipe: RecipeDef, mode: CookModeName, pot: boolean): 
 }
 
 /** Seconds between the pulses of a rhythm beat, and the grace around each one (a fraction of that period). */
-export const pulsePeriod = (mode: CookModeName) => (mode === 'relaxed' ? 1.15 : mode === 'challenge' ? 0.7 : 0.9);
-export const pulseGrace = (mode: CookModeName) => (mode === 'relaxed' ? 0.42 : mode === 'challenge' ? 0.2 : 0.3);
+export const pulsePeriod = (mode: CookModeName) => (mode === 'relaxed' ? 0.8 : mode === 'challenge' ? 0.46 : 0.62);
+export const pulseGrace = (mode: CookModeName) => (mode === 'relaxed' ? 0.5 : mode === 'challenge' ? 0.28 : 0.38);
 
 export type Verdict = 'perfect' | 'good' | 'ok' | 'miss';
 
@@ -76,7 +76,7 @@ export function pulseScore(offset: number, period: number, mode: CookModeName): 
 }
 
 /** Seconds a hold needs to fill the whole bar. */
-export const holdSeconds = (mode: CookModeName) => (mode === 'relaxed' ? 2.6 : mode === 'challenge' ? 1.6 : 2.1);
+export const holdSeconds = (mode: CookModeName) => (mode === 'relaxed' ? 1.5 : mode === 'challenge' ? 0.9 : 1.15);
 export const holdTolerance = (mode: CookModeName) => (mode === 'relaxed' ? 0.22 : mode === 'challenge' ? 0.1 : 0.16);
 
 /** How close the release was to the gold mark, 0..1. An empty bar or an overflow never scores above "ok". */
@@ -97,7 +97,7 @@ export function itemsScore(placed: number, wrong: number): number {
 }
 
 /** The tap beat is one pulse with a generous window. */
-export const tapPeriod = (mode: CookModeName) => pulsePeriod(mode) * 1.3;
+export const tapPeriod = (mode: CookModeName) => pulsePeriod(mode) * 1.15;
 
 
 /** Each prompt rolls a small twist so no two feel the same: tempo, uneven rhythm, a target that hops, a bar that speeds up or drags. */
@@ -122,8 +122,9 @@ const PATTERNS: number[][] = [[1, 1, 1, 1, 1], [1, 0.65, 1.35, 1, 1], [0.7, 0.7,
 
 /** `rand` returns 0..1; pass a seeded one in tests. */
 export function rollTwist(kind: PromptKind, mode: CookModeName, pulses: number, rand: () => number = Math.random): Twist {
-  const lo = mode === 'relaxed' ? 0.92 : mode === 'challenge' ? 0.75 : 0.82;
-  const hi = mode === 'relaxed' ? 1.08 : mode === 'challenge' ? 1.6 : 1.35;
+  // never slower than the base pace: only quicker, by a different amount each time
+  const lo = mode === 'relaxed' ? 1 : mode === 'challenge' ? 1.1 : 1.02;
+  const hi = mode === 'relaxed' ? 1.3 : mode === 'challenge' ? 1.9 : 1.65;
   const speed = lo + rand() * (hi - lo);
   let gaps = new Array(Math.max(1, pulses)).fill(1);
   if (kind === 'rhythm' && mode !== 'relaxed') {
@@ -135,7 +136,7 @@ export function rollTwist(kind: PromptKind, mode: CookModeName, pulses: number, 
   const jump = mode !== 'relaxed' && rand() < (mode === 'challenge' ? 0.7 : 0.4);
   const shuffle = mode !== 'relaxed' && rand() < (mode === 'challenge' ? 0.7 : 0.35);
   const nudge = mode === 'relaxed' ? 0 : (rand() - 0.5) * (mode === 'challenge' ? 0.2 : 0.14);
-  const label = speed > 1.25 ? 'Rápido' : speed < 0.88 ? 'Despacio' : gaps.some((g) => g !== 1) ? 'Ritmo raro' : jump ? 'Ojo: se mueve' : curve === 'surge' ? 'Acelera' : '';
+  const label = speed > 1.45 ? '¡Rápido!' : gaps.some((g) => g !== 1) ? 'Ritmo raro' : jump ? 'Ojo: se mueve' : curve === 'surge' ? 'Acelera' : '';
   return { speed, gaps, jump, curve, shuffle, nudge, label };
 }
 

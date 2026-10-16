@@ -195,6 +195,28 @@ interface BtnSpec {
   run: () => void;
 }
 
+/** The main action floats right over what it is about: "[E] Hablar" above the raccoon, the door, the counter. */
+let promptEl: HTMLButtonElement | null = null;
+let promptKey = '';
+function promptLoop() {
+  requestAnimationFrame(promptLoop);
+  const offer = world?.contextOffer;
+  const a = offer?.primary;
+  const pos = a && root?.isConnected && root.style.display !== 'none' && !document.body.classList.contains('cook-focus') ? world.promptScreenPos(a) : null;
+  if (!a || !pos) { if (promptEl) promptEl.hidden = true; return; }
+  if (!promptEl) {
+    promptEl = h('button', { type: 'button', class: 'world-prompt', onclick: (e: Event) => { e.stopPropagation(); const cur = world?.contextOffer?.primary; if (cur) { audio.sfxPlay('tap'); world.perform(cur); } } }) as HTMLButtonElement;
+    uiRoot().append(promptEl);
+  }
+  const key = inputMethod() === 'touch' ? null : keyLabel(bindingMap(settings.bindings)['interact']);
+  const text = `${key ? `[${key}] ` : ''}${a.label}`;
+  if (text !== promptKey) { promptKey = text; promptEl.textContent = text; }
+  promptEl.hidden = false;
+  promptEl.style.left = `${Math.round(pos.x)}px`;
+  promptEl.style.top = `${Math.round(pos.y)}px`;
+}
+promptLoop();
+
 function renderContext() {
   if (!dock || !tagEl || !menuEl) return;
   const offer = world?.contextOffer ?? idleOffer(null);
@@ -396,6 +418,7 @@ function paintChrome() {
 }
 
 function syncInputChrome() {
+  document.body.classList.toggle('kbd-input', inputMethod() === 'keyboard');
   setupJoystick();
   renderContext();
   paintChrome();

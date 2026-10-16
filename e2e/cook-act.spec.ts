@@ -10,13 +10,13 @@ const BOT = `(() => {
     const ring = document.querySelector('.act-ring'), pad = document.querySelector('.act-pad:not(.hold)');
     if (ring && pad) {
       const m = /scale\\(([\\d.]+)\\)/.exec(ring.style.transform || ''); const s = m ? parseFloat(m[1]) : 9;
-      if (s <= 1.07 && now - b.lastTap > 450 && ring.style.opacity === '1') { b.lastTap = now; fire(pad, 'pointerdown'); fire(pad, 'pointerup'); }
+      if (s <= 1.07 && now - b.lastTap > 110 && ring.style.opacity === '1') { b.lastTap = now; fire(pad, 'pointerdown'); fire(pad, 'pointerup'); }
     }
     const hold = document.querySelector('.act-pad.hold'), fill = document.querySelector('.act-fill'), mark = document.querySelector('.act-mark');
     if (hold && fill && mark) {
       if (b.pad !== hold) { b.pad = hold; b.held = false; }
       const target = parseFloat(mark.style.left) || 80, cur = parseFloat(fill.style.width) || 0;
-      if (!b.held && now - b.lastTap > 700) { b.held = true; b.lastTap = now; fire(hold, 'pointerdown'); }
+      if (!b.held && now - b.lastTap > 300) { b.held = true; b.lastTap = now; fire(hold, 'pointerdown'); }
       else if (b.held && cur >= target - 1.2) { b.held = false; b.lastTap = now; fire(hold, 'pointerup'); }
     }
     const item = document.querySelector('.act-item:not(.decoy):not(.empty)');

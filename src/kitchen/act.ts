@@ -176,7 +176,7 @@ export class KitchenAct {
     if (this.stageOn()) world.cookPose(false);
     this.bi++;
     if (this.bi >= this.beats.length) { this.complete(); return; }
-    setTimeout(() => { if (!this.done && this.active) void this.enterBeat(false); }, 350);
+    setTimeout(() => { if (!this.done && this.active) void this.enterBeat(false); }, 120);
   }
 
   /** a ring closes on a circle: tap when they meet */
@@ -184,11 +184,11 @@ export class KitchenAct {
     if (b.kind === 'rhythm' && this.mode === 'challenge') pulses += 1;
     const tw = rollTwist(b.kind, this.mode, pulses);
     const period = (b.kind === 'tap' ? tapPeriod(this.mode) : pulsePeriod(this.mode)) / tw.speed;
-    const lead = 1.0;
+    const lead = 0.5;
     const hits: number[] = [];
     { let at = this.t + lead; for (let i = 0; i < pulses; i++) { at += period * tw.gaps[i]; hits.push(at); } }
     const target = h('div', { class: 'act-target' }, h('span', null, b.kind === 'tap' ? '¡Ahora!' : 'Tocá'));
-    const ring = h('div', { class: 'act-ring' + (tw.speed > 1.25 ? ' fast' : tw.speed < 0.88 ? ' slow' : '') });
+    const ring = h('div', { class: 'act-ring' + (tw.speed > 1.45 ? ' fast' : '') });
     const dots = h('div', { class: 'act-dots' }, ...hits.map(() => h('i')));
     const verdict = h('div', { class: 'act-verdict' });
     const pad = h('button', { type: 'button', class: 'act-pad', 'aria-label': b.title }, ring, target);
@@ -211,7 +211,7 @@ export class KitchenAct {
       audio.sfxPlay(v === 'miss' ? 'tap' : this.sfxFor(b));
       if (v === 'perfect') haptic('light' as never);
       k++;
-      if (k >= pulses) { this.tick = null; this.onKey = null; setTimeout(() => this.beatDone(scores), 500); }
+      if (k >= pulses) { this.tick = null; this.onKey = null; setTimeout(() => this.beatDone(scores), 220); }
     };
     const press = () => {
       if (k >= pulses) return;
@@ -258,7 +258,7 @@ export class KitchenAct {
       if (this.stageOn()) { world.cookSpark(r.verdict); world.cookPose(false); }
       audio.sfxPlay(r.verdict === 'miss' ? 'tap' : this.sfxFor(b));
       this.tick = null; this.onKey = null;
-      setTimeout(() => this.beatDone([r.score]), 550);
+      setTimeout(() => this.beatDone([r.score]), 260);
     };
     const press = () => { if (down || finished) return; down = true; t0 = this.t; pad.classList.add('on'); audio.sfxPlay('tap'); };
     pad.addEventListener('pointerdown', (e) => { e.preventDefault(); try { pad.setPointerCapture(e.pointerId); } catch { /* synthetic */ } press(); });
@@ -311,7 +311,7 @@ export class KitchenAct {
       if (!need.length) {
         this.tick = null;
         verdict.textContent = wrong ? 'Listo' : '¡Perfecto!'; verdict.dataset.v = wrong ? 'good' : 'perfect';
-        setTimeout(() => this.beatDone([itemsScore(placed, wrong)], wrong), 450);
+        setTimeout(() => this.beatDone([itemsScore(placed, wrong)], wrong), 220);
       }
     };
     paint();
@@ -375,7 +375,7 @@ export class KitchenAct {
     const shown = performance.now();
     this.finishNow = () => { if (performance.now() - shown > 500) leave(); };
     this.stage.addEventListener('pointerdown', () => this.finishNow?.());
-    this.revealTimer = window.setTimeout(leave, 1900);
+    this.revealTimer = window.setTimeout(leave, 1200);
   }
 
   private cleanup() {
