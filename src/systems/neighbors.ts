@@ -7,7 +7,7 @@ import { buildZone } from '../world/zoneRuntime';
 import type { Grid } from '../world/grid';
 import { Journey } from './journeys';
 import { planVillage, type PlanContext } from './neighborPlan';
-import { FOUNTAIN, SHORE, STROLL, type Place } from './neighborSpots';
+import { FOUNTAIN, SHORE, STROLL, byDoor, type Place } from './neighborSpots';
 
 export interface NeighborState {
   n: Neighbor;
@@ -110,8 +110,9 @@ export class NeighborLife {
       s.beat = 0;
       const cur = s.trip.position;
       const grid = this.grid(s.anchor.zone);
-      const far = pool.filter((p) => p.zone === s.anchor.zone && Math.hypot(p.x - cur.x, p.y - cur.y) >= HOP_MIN && !grid.isSolid(p.x, p.y) && !onDoor(p.zone, p.x, p.y));
-      const spots = far.length ? far : pool.filter((p) => p.zone === s.anchor.zone && (p.x !== cur.x || p.y !== cur.y));
+      const openHop = (p: Place) => p.zone === s.anchor.zone && !grid.isSolid(p.x, p.y) && !onDoor(p.zone, p.x, p.y) && !byDoor(p.zone, p.x, p.y);
+      const far = pool.filter((p) => openHop(p) && Math.hypot(p.x - cur.x, p.y - cur.y) >= HOP_MIN);
+      const spots = far.length ? far : pool.filter((p) => openHop(p) && (p.x !== cur.x || p.y !== cur.y));
       if (!spots.length) continue;
       const next = spots[(hash(s.n.id) + s.hops * 5 + Math.floor(cur.x)) % spots.length];
       s.hops++;

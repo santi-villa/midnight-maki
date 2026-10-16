@@ -38,10 +38,11 @@ import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture } from './textures';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture } from './textures';
+import { warmNextOutdoor } from './warmArt';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
-import { TownLife } from '../systems/townLife';
+import { TownLife, type TownResident } from '../systems/townLife';
 import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
 import { layoutSpeech } from '../ui/speechLayout';
 import { SpeechTurns } from '../world/speechTurns';
@@ -686,7 +687,10 @@ export class WorldScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ ambient neighbours
   private neighborLife = new NeighborLife();
-  private neighborBodies = new Map<string, { actor: Actor; bike: Phaser.GameObjects.Image | null; barkAt: number }>();
+  private neighborBodies = new Map<string, { actor: Actor; bike: Phaser.GameObjects.Image | null; barkAt: number; pose: Act | null; poseUntil: number; nextPose: number }>();
+  private npcWait = new Set<string>();
+  private orderMarks = new Map<string, Phaser.GameObjects.Image>();
+  private warmAcc = 0;
 
   private clearNeighbors() {
     for (const b of this.neighborBodies.values()) { b.actor.destroy(); b.bike?.destroy(); }
@@ -698,16 +702,22 @@ export class WorldScene extends Phaser.Scene {
     this.neighborLife.tick(dt);
     const here = new Set<string>();
     const now = performance.now();
+    let minted = false;
     for (const st of this.neighborLife.inZone(this.zoneId)) {
       const n = st.n, trip = st.trip;
-      here.add(n.id);
       let body = this.neighborBodies.get(n.id);
       if (!body) {
+        // One new sheet per frame. Cached looks are free, so a warmed plaza still fills in immediately.
+        if (!hasLookTexture(this, n.look)) {
+          if (minted) continue;
+          minted = true;
+        }
         const actor = new Actor(this, 'nb_' + n.id, lookTexture(this, n.look), trip.position.x, trip.position.y);
         actor.manual = true;
-        body = { actor, bike: null, barkAt: now + 8000 + (n.id.length * 1700) % 6000 };
+        body = { actor, bike: null, barkAt: now + 8000 + (n.id.length * 1700) % 6000, pose: null, poseUntil: 0, nextPose: now + 2500 + (n.id.length * 400) % 3000 };
         this.neighborBodies.set(n.id, body);
       }
+      here.add(n.id);
       const a = body.actor;
       const riding = st.ride && trip.moving;
       a.x = trip.position.x * TILE + TILE / 2;
@@ -716,8 +726,21 @@ export class WorldScene extends Phaser.Scene {
       a.moving = trip.moving && !riding;
       a.seatLift = trip.settled ? st.place.seatLift ?? 0 : 0;
       a.bed = trip.settled && st.place.act === 'sleep' ? st.place.bed ?? null : null;
-      const act = riding ? 'sit' : trip.moving ? 'idle' : trip.settled ? st.place.act ?? 'idle' : 'idle';
+      const base: Act = riding ? 'sit' : trip.moving ? 'idle' : trip.settled ? st.place.act ?? 'idle' : 'idle';
+      if (riding || trip.moving || !trip.settled) { body.pose = null; body.poseUntil = 0; }
+      const posing = !riding && !!body.pose && now < body.poseUntil;
+      const act = posing ? body.pose! : base;
       if (a.act !== act) a.setAct(act);
+      const quiet = base === 'sleep' || base === 'sit' || base === 'eat' || base === 'read' || base === 'drink' || base === 'fish' || base === 'stars' || base === 'paint' || base === 'cook';
+      if (!posing && !riding && trip.settled && !quiet && now >= body.nextPose) {
+        body.nextPose = now + 6000 + (n.id.charCodeAt(0) % 5) * 700;
+        const g = microFor(n.id, { act: st.place.act, period: clock.period, rain: game.flag('weather') === 'rain', outdoor: !!ZONES[this.zoneId]?.outdoor }, Math.random(), Math.random());
+        if (g) {
+          body.pose = g.act as Act;
+          body.poseUntil = now + g.seconds * 1000;
+          a.setAct(g.act as Act);
+        }
+      }
       // a bicycle under whoever is riding
       if (riding) {
         if (!body.bike?.active) body.bike = this.add.image(0, 0, propTexture(this, 'bicycle')).setOrigin(0.5, 1);
@@ -825,9 +848,15 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  private clearOrderMarks() {
+    for (const mark of this.orderMarks.values()) mark.destroy();
+    this.orderMarks.clear();
+  }
+
   private clearGuests() {
     for (const g of this.guests.values()) g.actor.destroy();
     this.guests.clear();
+    this.clearOrderMarks();
   }
 
   private diningPieces(): FurnPiece[] {
@@ -1003,16 +1032,7 @@ export class WorldScene extends Phaser.Scene {
         }
       }
     }
-    if (this.zoneId === 'restaurant') {
-      // A short cream tick over a customer who is waiting to order. Not a quest marker.
-      for (const g of this.guests.values()) {
-        if (g.phase !== 'waiting_order' || !g.actor.sprite.visible) continue;
-        const x = Math.round(g.actor.x);
-        const y = Math.round(g.actor.y - 30);
-        art.fillStyle(0x6b5344, 0.8).fillRect(x - 2, y, 1, 3).fillRect(x + 2, y, 1, 3);
-        art.fillStyle(0xe7d7b8).fillRect(x - 1, y + 1, 3, 1);
-      }
-    }
+    this.syncOrderMarks();
     const carrying = carriedOrders();
     this.carriedSprites.forEach(s => s.setVisible(false));
     carrying.forEach((order, i) => {
@@ -1024,6 +1044,32 @@ export class WorldScene extends Phaser.Scene {
       if (sprite.texture.key !== texture) sprite.setTexture(texture);
       sprite.setVisible(true).setPosition(this.player.x + (this.player.dir === 'left' ? -1 : 1) * (7 + i * 9), this.player.y - 17 + i * 2).setDepth(this.player.y + 1 + i);
     });
+  }
+
+  /** Yellow "!" above a guest who is waiting to order. Depth follows that guest so a nearer person can still pass in front. */
+  private syncOrderMarks() {
+    if (this.zoneId !== 'restaurant') { this.clearOrderMarks(); return; }
+    const live = new Set<string>();
+    const now = performance.now() / 1000;
+    for (const [id, g] of this.guests) {
+      const spr = g.actor.sprite;
+      if (g.phase !== 'waiting_order' || !spr.active || !spr.visible) continue;
+      live.add(id);
+      let mark = this.orderMarks.get(id);
+      if (!mark?.active) {
+        mark = this.add.image(0, 0, orderMarkTexture(this)).setOrigin(0.5, 1);
+        this.orderMarks.set(id, mark);
+      }
+      const bob = Math.sin(now * 4 + spr.x) * 1.5;
+      const top = spr.y - spr.displayHeight + g.actor.pad;
+      mark.setPosition(Math.round(spr.x), Math.round(top - 2 + bob));
+      mark.setDepth(Math.min(190000, spr.depth + 48)).setVisible(true);
+    }
+    for (const [id, mark] of this.orderMarks) {
+      if (live.has(id)) continue;
+      mark.destroy();
+      this.orderMarks.delete(id);
+    }
   }
 
   private hallFree(x: number, y: number): boolean {
@@ -1398,32 +1444,48 @@ export class WorldScene extends Phaser.Scene {
       if (keep.has(id)) continue;
       n.actor.destroy(); this.npcs.delete(id);
     }
-    for (const resident of present) {
-      const { id, stop, trip } = resident;
-      const p = trip.position;
-      let n = this.npcs.get(id);
-      if (!n) {
-        const actor = new Actor(this, id, charTexture(this, id), p.x, p.y);
-        actor.speed = (CHAR_BY_ID[id]?.raccoon ? 46 : 40) * pace(id);
-        n = { actor, anchor: [stop.x, stop.y], wander: stop.wander ?? 0, act: stop.act, t: 2 + Math.random() * 4 };
-        this.npcs.set(id, n);
-        if (stop.act) actor.setAct(stop.act);
-      }
-      const wasTraveling = n.traveling;
-      n.traveling = !trip.settled;
-      if (n.out && (n.anchor[0] !== stop.x || n.anchor[1] !== stop.y || n.traveling)) n.out = false; // a new part of the day ends the outing
-      n.anchor = [stop.x, stop.y]; n.wander = stop.wander ?? 0; n.act = stop.act;
-      if (!n.out) n.actor.seatLift = n.traveling ? 0 : stop.seatLift ?? 0;
-      n.actor.bed = !n.traveling && stop.act === 'sleep' ? stop.bed ?? null : null;
-      if (!n.traveling && stop.dir && !n.social && !n.out) n.actor.face(stop.dir);
-      if (n.traveling) { n.actor.stop(); n.actor.setAct('idle'); }
-      else if (wasTraveling) {
-        n.actor.x = p.x * TILE + TILE / 2;
-        n.actor.y = p.y * TILE + TILE - 2;
-        n.actor.moving = false;
-        n.actor.setAct(stop.act ?? 'idle');
-      }
+    for (const id of [...this.npcWait]) if (!keep.has(id)) this.npcWait.delete(id);
+    for (const resident of present) this.attachNpc(resident);
+  }
+
+  /** Creates a villager when their sheet is ready. A cold sheet waits for the next frame so the door does not paint everyone at once. */
+  private attachNpc(resident: TownResident) {
+    const { id, stop, trip } = resident;
+    const p = trip.position;
+    let n = this.npcs.get(id);
+    if (!n) {
+      if (!hasCharTexture(this, id)) { this.npcWait.add(id); return; }
+      this.npcWait.delete(id);
+      const actor = new Actor(this, id, charTexture(this, id), p.x, p.y);
+      actor.speed = (CHAR_BY_ID[id]?.raccoon ? 46 : 40) * pace(id);
+      n = { actor, anchor: [stop.x, stop.y], wander: stop.wander ?? 0, act: stop.act, t: 2 + Math.random() * 4 };
+      this.npcs.set(id, n);
+      if (stop.act) actor.setAct(stop.act);
     }
+    const wasTraveling = n.traveling;
+    n.traveling = !trip.settled;
+    if (n.out && (n.anchor[0] !== stop.x || n.anchor[1] !== stop.y || n.traveling)) n.out = false; // a new part of the day ends the outing
+    n.anchor = [stop.x, stop.y]; n.wander = stop.wander ?? 0; n.act = stop.act;
+    if (!n.out) n.actor.seatLift = n.traveling ? 0 : stop.seatLift ?? 0;
+    n.actor.bed = !n.traveling && stop.act === 'sleep' ? stop.bed ?? null : null;
+    if (!n.traveling && stop.dir && !n.social && !n.out) n.actor.face(stop.dir);
+    if (n.traveling) { n.actor.stop(); n.actor.setAct('idle'); }
+    else if (wasTraveling) {
+      n.actor.x = p.x * TILE + TILE / 2;
+      n.actor.y = p.y * TILE + TILE - 2;
+      n.actor.moving = false;
+      n.actor.setAct(stop.act ?? 'idle');
+    }
+  }
+
+  private flushNpcWait() {
+    if (!this.npcWait.size || this.transitioning) return;
+    const id = this.npcWait.values().next().value;
+    if (!id) return;
+    charTexture(this, id);
+    const resident = this.town.inZone(this.zoneId).find((r) => r.id === id);
+    if (!resident) { this.npcWait.delete(id); return; }
+    this.attachNpc(resident);
   }
 
   /** Walk on the grid. If the spot can't be reached, stay put instead of popping through a wall. */
@@ -2000,6 +2062,8 @@ export class WorldScene extends Phaser.Scene {
     this.updateOccluders(dt);
     this.updateQuestMarker(dt);
     this.updateServiceArt();
+    this.warmVillage(dt);
+    this.flushNpcWait();
     this.dust(dt);
     this.quirks(dt);
     this.updateGuide(dt);
@@ -2007,6 +2071,23 @@ export class WorldScene extends Phaser.Scene {
     this.refreshContext();
     this.pumpSpeech(dt);
     this.layoutBubbles();
+  }
+
+  /** While indoors, paint the next outdoor sheet on a timer. Near an exit door the queue moves faster, still one canvas at a time. */
+  private warmVillage(dt: number) {
+    if (this.transitioning) return;
+    this.warmAcc += dt;
+    const indoors = !this.zone.def.outdoor;
+    const gap = indoors && this.nearOutdoorExit() ? 0.1 : indoors ? 0.6 : 0.8;
+    if (this.warmAcc < gap) return;
+    this.warmAcc = 0;
+    warmNextOutdoor(this);
+  }
+
+  private nearOutdoorExit(): boolean {
+    const p = this.player;
+    if (!p) return false;
+    return this.zone.def.doors.some((d) => d.walk && !!ZONES[d.to]?.outdoor && Math.abs(d.x - p.tx) + Math.abs(d.y - p.ty) <= 5);
   }
 
   /** Footstep sound for the surface Sofi is walking on. */
@@ -2268,16 +2349,17 @@ export class WorldScene extends Phaser.Scene {
     if (n.t > 0) return;
     // back from a small gesture
     if (n.micro) { n.micro = false; a.setAct(n.act ?? 'idle'); n.t = 4 + Math.random() * 5; return; }
-    // a small gesture of their own: a sip of tea, a look at the sky, the rain...
-    const gesture = n.act === 'sleep' || n.leaving ? null : microFor(a.id, { act: n.act as never, period: clock.period, rain: game.flag('weather') === 'rain', outdoor: !!this.zone.def.outdoor }, Math.random(), Math.random());
-    if (gesture) {
-      n.micro = true; a.setAct(gesture.act as Act); n.t = gesture.seconds;
-      if (gesture.say) this.sayLine(a.id, gesture.say, Math.min(3.5, gesture.seconds), undefined, true);
-      return;
-    }
+    // sitting, sleeping, cooking and the other held poses stay as they are
     if (held) {
       if (n.act && a.act !== n.act) a.setAct(n.act);
       n.t = 5 + Math.random() * 4;
+      return;
+    }
+    // a small gesture of their own: a sip of tea, a look at the sky, the rain...
+    const gesture = n.leaving ? null : microFor(a.id, { act: n.act as never, period: clock.period, rain: game.flag('weather') === 'rain', outdoor: !!this.zone.def.outdoor }, Math.random(), Math.random());
+    if (gesture) {
+      n.micro = true; a.setAct(gesture.act as Act); n.t = gesture.seconds;
+      if (gesture.say) this.sayLine(a.id, gesture.say, Math.min(3.5, gesture.seconds), undefined, true);
       return;
     }
     if (n.act === 'talk') { a.setAct('look'); n.t = 4; return; }
@@ -2307,22 +2389,63 @@ export class WorldScene extends Phaser.Scene {
     }
     // outdoors even those who "stay put" take a few steps around their spot
     const reach = n.wander || (this.zone.def.outdoor && (!n.act || n.act === 'work' || n.act === 'look') ? 2 : 0);
-    if (reach > 0 && Math.random() < 0.55) {
-      for (let k = 0; k < 6; k++) {
+    if (reach > 0 && Math.random() < 0.72) {
+      for (let k = 0; k < 8; k++) {
         const tx = ax + Math.round((Math.random() * 2 - 1) * reach);
         const ty = ay + Math.round((Math.random() * 2 - 1) * reach);
         if (n.last && tx === n.last[0] && ty === n.last[1]) continue;
-        if (this.zone.grid.isSolid(tx, ty)) continue;
-        if (tx === this.player.tx && ty === this.player.ty) continue;
-        if (tx === a.tx && ty === a.ty) continue;
+        if (this.feetBlocked(tx, ty, a.id, true)) continue;
         n.last = [a.tx, a.ty];
         a.setAct('idle');
         if (a.walkTo(this.zone.grid, tx, ty, () => n.act && n.act !== 'sleep' && a.setAct(n.act))) return;
       }
-    } else if (a.tx !== ax || a.ty !== ay) {
-      this.walkNpc(n, ax, ay);
-    } else if (n.act && a.act !== n.act) a.setAct(n.act);
-    else if (Math.random() < 0.4) a.face((['up', 'down', 'left', 'right'] as const)[Math.floor(Math.random() * 4)]);
+    }
+    const [hx, hy] = this.standTile(ax, ay, a.id);
+    if (a.tx !== hx || a.ty !== hy) {
+      this.walkNpc(n, hx, hy);
+      return;
+    }
+    if (n.act && a.act !== n.act) a.setAct(n.act);
+    else if (!(this.zone.def.outdoor && this.nearbyFace(a)) && Math.random() < 0.4) a.face((['up', 'down', 'left', 'right'] as const)[Math.floor(Math.random() * 4)]);
+  }
+
+  /** A doorway, or a tile someone is already using. The player only counts when choosing a wander step. */
+  private feetBlocked(tx: number, ty: number, self: string, avoidPlayer: boolean): boolean {
+    if (this.zone.grid.isSolid(tx, ty)) return true;
+    if (this.zone.def.doors.some((d) => Math.abs(d.x - tx) + Math.abs(d.y - ty) <= 1)) return true;
+    if (avoidPlayer && this.player && tx === this.player.tx && ty === this.player.ty) return true;
+    for (const [id, n] of this.npcs) if (id !== self && n.actor.tx === tx && n.actor.ty === ty) return true;
+    for (const b of this.neighborBodies.values()) if (b.actor.tx === tx && b.actor.ty === ty) return true;
+    return false;
+  }
+
+  private standTile(tx: number, ty: number, self: string): [number, number] {
+    if (!this.feetBlocked(tx, ty, self, false)) return [tx, ty];
+    for (let r = 1; r <= 3; r++) {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = tx + dx;
+        const y = ty + dy;
+        if (!this.feetBlocked(x, y, self, false)) return [x, y];
+      }
+    }
+    return [tx, ty];
+  }
+
+  private nearbyFace(a: Actor): boolean {
+    let x = 0;
+    let y = 0;
+    let best = 72;
+    const consider = (id: string, px: number, py: number) => {
+      if (id === a.id) return;
+      const d = Math.hypot(px - a.x, py - a.y);
+      if (d > 8 && d < best) { best = d; x = px; y = py; }
+    };
+    for (const [id, n] of this.npcs) consider(id, n.actor.x, n.actor.y);
+    for (const [id, b] of this.neighborBodies) consider(id, b.actor.x, b.actor.y);
+    if (best >= 72) return false;
+    a.faceTowards(x, y);
+    return true;
   }
 
   private outingPools = new Map<string, Place[]>();
@@ -2332,16 +2455,29 @@ export class WorldScene extends Phaser.Scene {
     let pool = this.outingPools.get(zone);
     if (!pool) {
       pool = [...fountainSpots(zone), ...benchSpots(zone), ...shoreSpots(zone), ...clearings(zone, 'stroll', 10)];
-      // shop windows: stand outside the street door and look in
+      // shop windows: stand beside the street door and look in, not on the mat
+      const street: Record<Dir, [number, number]> = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] };
+      const onMat = (x: number, y: number) => this.zone.def.doors.some((d) => Math.abs(d.x - x) + Math.abs(d.y - y) <= 1);
       for (const d of this.zone.def.doors) if (d.to.startsWith('shop_') || d.to === 'library') {
-        const w = this.zone.grid.nearestWalkable(d.x, d.y + 1);
-        if (w) pool.push({ zone, x: w[0], y: w[1], act: 'look', dir: 'up', kind: 'window' });
+        const [sx, sy] = street[d.dir];
+        const side: [number, number][] = sx === 0
+          ? [[-1, sy], [1, sy], [-2, sy], [2, sy], [0, sy * 2]]
+          : [[sx, -1], [sx, 1], [sx, -2], [sx, 2], [sx * 2, 0]];
+        for (const [dx, dy] of side) {
+          const x = d.x + dx;
+          const y = d.y + dy;
+          if (onMat(x, y) || this.zone.grid.isSolid(x, y)) continue;
+          pool.push({ zone, x, y, act: 'look', dir: d.dir, kind: 'window' });
+          break;
+        }
       }
+      pool = pool.filter((p) => !onMat(p.x, p.y));
       this.outingPools.set(zone, pool);
     }
     const [ax, ay] = n.anchor, a = n.actor;
+    const onMat = (x: number, y: number) => this.zone.def.doors.some((d) => Math.abs(d.x - x) + Math.abs(d.y - y) <= 1);
     const far = pool.filter((p) => Math.hypot(p.x - ax, p.y - ay) >= 5 && Math.hypot(p.x - a.tx, p.y - a.ty) >= 4 && Math.hypot(p.x - a.tx, p.y - a.ty) <= 28
-      && !this.zone.grid.isSolid(p.x, p.y) && !(p.x === this.player.tx && p.y === this.player.ty)
+      && !this.zone.grid.isSolid(p.x, p.y) && !onMat(p.x, p.y) && !(p.x === this.player.tx && p.y === this.player.ty)
       && ![...this.npcs.values()].some((o) => o !== n && o.out && Math.abs(o.actor.tx - p.x) + Math.abs(o.actor.ty - p.y) < 1));
     return far.length ? far[Math.floor(Math.random() * far.length)] : null;
   }
