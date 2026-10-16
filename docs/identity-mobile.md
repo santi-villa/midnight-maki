@@ -1,10 +1,10 @@
-# Maki & Mapaches · Identidad y experiencia móvil
+# Mapaches y Sushi · Identidad y experiencia móvil
 
 Entregas 2 y 6 del nuevo orden. La auditoría formal del punto 1 se aplaza por pedido del usuario.
 
 ## Identidad
 
-El videojuego se presenta como **Maki & Mapaches** en carga inicial, portada, fallback sin ilustración, créditos, metadatos web, nombre de instalación PWA y etiquetas Android/Capacitor. El restaurante conserva **Midnight Maki** y el pueblo, **Villa Nori**. No se renombraron appId, repositorio, claves de guardado, rutas de navegación ni paquetes.
+El videojuego se presenta como **Mapaches y Sushi** en carga inicial, portada, fallback sin ilustración, créditos, metadatos web, nombre de instalación PWA y etiquetas Android/Capacitor. El restaurante conserva **Midnight Maki** y el pueblo, **Villa Nori**. No se renombraron appId, repositorio, claves de guardado, rutas de navegación ni paquetes.
 
 Portadas vertical y horizontal adaptadas mediante edición generativa de las ilustraciones originales de `docs/canvas/01-menu/arte-original/`. Conservan la composición nocturna, los tres mapaches, el restaurante, río y faroles; el título nuevo sigue el estilo pixel art. Los originales permanecen disponibles. Los WebP publicados pesan aproximadamente 214 y 220 KiB. No se cambiaron ilustraciones de la historia, sprites del juego ni canciones.
 

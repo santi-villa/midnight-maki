@@ -6,7 +6,7 @@ for (const [width, height] of [[390, 844], [1280, 720]]) {
     await page.route('**/src/main.ts*', async route => { await new Promise<void>(resolve => { release = resolve; }); await route.continue(); });
     await page.goto('/', { waitUntil: 'commit' });
     await expect(page.locator('#boot')).toBeVisible();
-    await expect(page.locator('#boot .boot-title')).toHaveText('MAKI & MAPACHES');
+    await expect(page.locator('#boot .boot-title')).toHaveText('MAPACHES Y SUSHI');
     await expect(page.locator('#boot')).toHaveAttribute('aria-busy', 'true');
     await expect(page.locator('#boot .bar, #boot progress')).toHaveCount(0);
     const box = await page.locator('#boot .boot-title').boundingBox();

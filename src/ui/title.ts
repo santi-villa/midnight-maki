@@ -151,7 +151,7 @@ export async function showTitle(phaser: Phaser.Game) {
 
   // ---- artwork, framed so that nothing is ever cropped (the logo is part of the picture)
   const back = h('img', { class: 'tt-back', alt: '', draggable: 'false' }) as HTMLImageElement;
-  const img = h('img', { class: 'tt-img', alt: 'Maki & Mapaches: Pip, Spicy y Rigg junto a Midnight Maki', draggable: 'false' }) as HTMLImageElement;
+  const img = h('img', { class: 'tt-img', alt: 'Mapaches y Sushi: Pip, Spicy y Rigg junto a Midnight Maki', draggable: 'false' }) as HTMLImageElement;
   let artworkReady!: () => void;
   const artwork = new Promise<void>(resolve => { artworkReady = resolve; });
   const fx = h('div', { class: 'tt-fx' });
@@ -258,7 +258,7 @@ function credits() {
     body: h(
       'div',
       { class: 'col', style: { lineHeight: '1.5' } },
-      h('p', null, h('b', null, 'Maki & Mapaches: Los secretos de Villa Nori')),
+      h('p', null, h('b', null, 'Mapaches y Sushi: Los secretos de Villa Nori')),
       h('p', null, 'Un regalo para Sofi, de Santi.'),
       h('p', null, 'Ilustraciones pixel art, música y sonidos para Villa Nori.'),
       h('p', null, 'Terreno y tejas: VectoRaith (demo Traditional Japanese, con adaptación de color). Muebles y decoración: Bitglow.'),
@@ -269,9 +269,9 @@ function credits() {
 }
 
 function brandLogo(className: string) {
-  return h('div', { class: className, 'aria-label': 'Maki & Mapaches' },
-    h('div', { class: 'brand-top' }, 'MAKI ', h('span', null, '&')),
-    h('div', { class: 'brand-bottom' }, 'MAPACHES'),
+  return h('div', { class: className, 'aria-label': 'Mapaches y Sushi' },
+    h('div', { class: 'brand-top' }, 'MAPACHES ', h('span', null, 'y')),
+    h('div', { class: 'brand-bottom' }, 'SUSHI'),
     h('div', { class: 'brand-subtitle' }, 'Los secretos de Villa Nori'),
     h('div', { class: 'brand-family' }, 'Pip · Spicy Beacon · Rigg'));
 }

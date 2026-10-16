@@ -106,7 +106,7 @@ Se corrigieron pérdidas demostradas de cocina libre y California, y se acercaro
 
 Regresiones agregadas para registros del recetario, etapas y cultivos existentes, provisiones diarias, encargos archivados y entregas, escenas opcionales y bloqueos, márgenes, pedidos antiguos y desbloqueos. Browser: proyectos/encargos/recuerdos y vista de cocina libre a 1280×800 y 390×844. Se ejecutan las suites aplazadas como cierre del orden 2 → 3 → 6 → 5 → 7 → 8. Balance orgánico prolongado y celular físico pendientes.
 
-## Maki & Mapaches · Entregas 2 y 6 del nuevo orden
+## Mapaches y Sushi · Entregas 2 y 6 del nuevo orden
 
 Identidad pública actualizada, conservando Midnight Maki como restaurante y Villa Nori como pueblo. Portadas adaptadas en vertical/horizontal; metadatos PWA y nombre Android conservan los identificadores técnicos. NoriPhone reúne pantallas actuales, fotos y recuerdos; acciones con iconos más claros y vibración opcional. No se reconstruyeron la historia, cocina ni guardados. La auditoría formal del punto 1 sigue aplazada.
 

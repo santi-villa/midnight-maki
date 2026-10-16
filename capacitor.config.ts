@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.santi.midnightmaki',
-  appName: 'Maki & Mapaches',
+  appName: 'Mapaches y Sushi',
   webDir: 'dist',
   backgroundColor: '#1f2440',
   android: {

@@ -1,6 +1,6 @@
 # Punto 5 — Progresión y hogar
 
-Entrega del nuevo orden de Maki & Mapaches. Se partió de master-mgsshv actualizado a 87b8532, incorporando antes los cambios remotos de mapa, reloj, NoriPhone, rutinas nocturnas y controles. Antes de publicar se integró también f49248e (entradas laterales y casas visitables) y se repitieron las comprobaciones afectadas. Se conservan estos avances.
+Entrega del nuevo orden de Mapaches y Sushi. Se partió de master-mgsshv actualizado a 87b8532, incorporando antes los cambios remotos de mapa, reloj, NoriPhone, rutinas nocturnas y controles. Antes de publicar se integró también f49248e (entradas laterales y casas visitables) y se repitieron las comprobaciones afectadas. Se conservan estos avances.
 
 ## Comportamiento
 
