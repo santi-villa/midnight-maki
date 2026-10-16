@@ -42,6 +42,7 @@ import { Journey, type Position } from '../systems/journeys';
 import { TownLife } from '../systems/townLife';
 import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
 import { layoutSpeech } from '../ui/speechLayout';
+import { SpeechTurns } from '../world/speechTurns';
 import { customerLook } from '../restaurant/customers';
 import { clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
 import { neighborOf } from '../restaurant/townClients';
@@ -130,6 +131,8 @@ export class WorldScene extends Phaser.Scene {
   target: Target | null = null;
   contextOffer: ContextOffer = idleOffer(null);
   private contextKey = '';
+  /** When the notebook pose from taking an order should end. */
+  private notingUntil = 0;
   inputLocked = 0; // cutscenes
   onInteract: (t: Target) => void = () => {};
   onEnterZone: (id: string) => void | Promise<void> = () => {};
@@ -328,6 +331,7 @@ export class WorldScene extends Phaser.Scene {
     this.shadowKey = '';
     for (const f of this.furnSprites) f.destroy();
     this.furnSprites = [];
+    this.stopSpeech();
     this.endConversation();
     this.rememberResidents();
     for (const n of this.npcs.values()) n.actor.destroy();
@@ -674,6 +678,8 @@ export class WorldScene extends Phaser.Scene {
   private ateParties = new Set<string>();
   private hostId: string | null = null;
   private hostWait = 0;
+  private speech = new SpeechTurns();
+  private speechActor: Actor | null = null;
   private diningCache: FurnPiece[] | null = null;
 
   // ------------------------------------------------------------------ ambient neighbours
@@ -723,13 +729,15 @@ export class WorldScene extends Phaser.Scene {
       } else body.bike?.setVisible(false);
       a.update(dt);
       // a word for whoever walks by
-      if (now > body.barkAt && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 60 && !a.bubble) {
-        a.emote(n.lines[Math.floor((now / 1000 + n.id.length) % n.lines.length)], 3);
-        body.barkAt = now + 25000 + (n.id.length * 2300) % 15000;
+      if (now > body.barkAt && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 60 && this.roomForAmbient('nb:' + n.id)) {
+        const said = this.sayLine('nb:' + n.id, n.lines[Math.floor((now / 1000 + n.id.length) % n.lines.length)], 3, undefined, true);
+        if (said) body.barkAt = now + 25000 + (n.id.length * 2300) % 15000;
       }
     }
     for (const [id, body] of this.neighborBodies) {
       if (here.has(id)) continue;
+      this.speech.dropSpeaker('nb:' + id);
+      if (this.speechActor === body.actor) this.speechActor = null;
       body.actor.destroy(); body.bike?.destroy(); this.neighborBodies.delete(id);
     }
   }
@@ -899,7 +907,7 @@ export class WorldScene extends Phaser.Scene {
           });
         } else if (g.phase === 'leaving') {
           v.trips.forEach((t) => t.go(v.origin));
-          this.sayVisitor(v.id, '¡Hasta pronto!', true);
+          this.sayVisitor(v.id, '¡Hasta pronto!');
         } else if (g.phase === 'waiting_order') {
           const ask = customerAsk(g.customerId, guestHash(g.id));
           if (ask) this.sayVisitor(v.id, ask);
@@ -909,7 +917,7 @@ export class WorldScene extends Phaser.Scene {
       if (v.stage === 'dining' && g?.phase === 'walking' && v.trips.every((t) => t.settled) && (this.hostId !== v.id || this.town.residents.get('pip')?.trip.settled)) {
         seatGuest(v.id);
         if (this.hostId === v.id) {
-          this.npc('pip')?.emote('¡Que estén cómodos!', 3);
+          this.sayLine('pip', '¡Que estén cómodos!', 3, 'host:' + v.id);
           this.hostId = null;
           this.town.duty('pip', null);
         }
@@ -972,19 +980,11 @@ export class WorldScene extends Phaser.Scene {
         art.fillStyle(ready[i].kind === 'drink' ? 0x8ab9ad : 0xf6ecd6).fillRect(6 * TILE + i * 4, 4 * TILE + 10, 3, 3);
       }
       if (drinksUnlocked()) { art.fillStyle(0xe9d8b1).fillRect(2 * TILE + 4, 2 * TILE + 2, 5, 5); art.fillStyle(0x91ab69).fillRect(2 * TILE + 5, 2 * TILE + 3, 3, 2); }
-      const carrying = carriedOrders();
       for (const job of tableJobs()) {
         const f = this.zone.furniture.find(fi => String(fi.f.uid) === job.tableId);
         if (!f) continue;
         const size = furnSize(f.def, f.f.rot);
         const x = f.f.x * TILE + size.w * TILE / 2, y = f.f.y * TILE - 5;
-        const destination = carrying.some(o => o.service?.tableId === job.tableId);
-        const color = destination ? 0xf2c66d : job.impatient ? 0xd77a76 : 0xf6ecd6;
-        // The table only shows a gold mark while it is the delivery destination; orders to take are marked on the customers.
-        if (destination) {
-          art.fillStyle(0x4a3029).fillRect(x - 3, y - 8, 6, 10);
-          art.fillStyle(color).fillRect(x - 1, y - 7, 2, 5).fillRect(x - 1, y, 2, 1);
-        }
         if (tipPending(job.status, job.tip)) {
           const now = performance.now() / 1000;
           const bob = Math.round(Math.sin(now * 2.2 + x) * 1);
@@ -1002,13 +1002,13 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     if (this.zoneId === 'restaurant') {
-      // a yellow "!" follows every seated customer whose order has not been taken yet
-      const now = performance.now() / 1000;
+      // A short cream tick over a customer who is waiting to order. Not a quest marker.
       for (const g of this.guests.values()) {
         if (g.phase !== 'waiting_order' || !g.actor.sprite.visible) continue;
-        const x = Math.round(g.actor.x), y = Math.round(g.actor.y - 38 + Math.sin(now * 4 + x) * 1.5);
-        art.fillStyle(0x4a3029).fillRect(x - 3, y - 1, 6, 11);
-        art.fillStyle(0xf2c66d).fillRect(x - 1, y, 2, 5).fillRect(x - 1, y + 7, 2, 2);
+        const x = Math.round(g.actor.x);
+        const y = Math.round(g.actor.y - 30);
+        art.fillStyle(0x6b5344, 0.8).fillRect(x - 2, y, 1, 3).fillRect(x + 2, y, 1, 3);
+        art.fillStyle(0xe7d7b8).fillRect(x - 1, y + 1, 3, 1);
       }
     }
     const carrying = carriedOrders();
@@ -1072,10 +1072,81 @@ export class WorldScene extends Phaser.Scene {
     for (const trip of v.trips) trip.go(v.origin);
   }
 
-  private sayVisitor(id: string, text: string, soft = false) {
-    const a = this.guests.get(id + ':0')?.actor;
-    if (soft && a?.bubble) return; // never cut off what they were saying
-    a?.emote(text, 4);
+  private sayVisitor(id: string, text: string) {
+    this.sayLine('guest:' + id + ':0', text, 4, 'host:' + id);
+  }
+
+  /** Conversational bubbles share one queue. Sleep and meal poses stay on the actor. */
+  private sayLine(speaker: string, text: string, seconds: number, exchange?: string, ambient = false): boolean {
+    if (ambient && !this.roomForAmbient(speaker)) return false;
+    return this.speech.say({ speaker, text, seconds, exchange }, ambient);
+  }
+
+  private roomForAmbient(speaker: string): boolean {
+    return !this.conversation && !this.hostId && this.speech.roomFor(speaker);
+  }
+
+  private speakerActor(id: string): Actor | null {
+    if (id.startsWith('guest:')) return this.guests.get(id.slice(6))?.actor ?? null;
+    if (id.startsWith('nb:')) return this.neighborBodies.get(id.slice(3))?.actor ?? null;
+    return this.npcs.get(id)?.actor ?? this.extras.get(id) ?? null;
+  }
+
+  private pumpSpeech(dt: number) {
+    if (this.transitioning || this.decorMode || this.inputLocked) {
+      this.stopSpeech();
+      return;
+    }
+    if (clock.paused || this.mealBusy) return;
+    const before = this.speech.activeSpeaker();
+    const started = this.speech.tick(dt, (id) => !!this.speakerActor(id)?.sprite?.active);
+    if (!started) {
+      if (before && !this.speech.activeSpeaker()) this.releaseSpeechActor();
+      return;
+    }
+    const actor = this.speakerActor(started.speaker);
+    if (!actor?.sprite?.active) return;
+    this.hushTalk(actor);
+    // The queue dismisses the bubble. The extra second keeps Actor from fading it first.
+    actor.emote(started.text, started.seconds + 1);
+    this.speechActor = actor;
+    const chat = this.conversation;
+    if (chat && chat.exchange === started.exchange) {
+      for (const n of [chat.a, chat.b]) {
+        if (n.actor.id === started.speaker) n.actor.setAct(n.actor.seatLift ? 'sit' : 'talk');
+        else if (n.actor.act === 'talk') n.actor.setAct(n.actor.seatLift ? 'sit' : (n.act ?? 'look'));
+      }
+    }
+  }
+
+  private stopSpeech() {
+    const line = this.speech.current();
+    this.speech.clear();
+    const actor = this.speechActor;
+    this.speechActor = null;
+    if (actor?.sprite?.active && (!line || actor.bubble?.text === line.text)) actor.clearEmote();
+  }
+
+  private releaseSpeechActor() {
+    const actor = this.speechActor;
+    this.speechActor = null;
+    if (actor?.sprite?.active) actor.clearEmote();
+  }
+
+  /** Word bubbles yield the floor. A nap or a bite can stay. */
+  private hushTalk(except: Actor) {
+    const flavor = new Set(['z', 'ñam', 'té', '*']);
+    const actors: Actor[] = [
+      ...[...this.npcs.values()].map((n) => n.actor),
+      ...[...this.guests.values()].map((g) => g.actor),
+      ...[...this.neighborBodies.values()].map((b) => b.actor),
+      ...this.extras.values(),
+    ];
+    for (const actor of actors) {
+      if (actor === except || !actor.bubble || !actor.sprite?.active) continue;
+      if (flavor.has(actor.bubble.text)) continue;
+      actor.clearEmote();
+    }
   }
 
   private updateHost(dt: number) {
@@ -1105,7 +1176,8 @@ export class WorldScene extends Phaser.Scene {
       visitor.greeted = true;
       this.hostWait = 3.5 * hostSlowdown();
       practicePip();
-      this.npc('pip')?.emote(party.size > 1 ? `¡Bienvenidos! ¿Mesa para ${party.size}?` : '¡Hola! Bienvenido a Midnight Maki.', 3.5);
+      const exchange = 'host:' + party.id;
+      this.sayLine('pip', party.size > 1 ? `¡Bienvenidos! ¿Mesa para ${party.size}?` : '¡Hola! Bienvenido a Midnight Maki.', 3.5, exchange);
       this.sayVisitor(party.id, party.size > 1 ? 'Sí, gracias. Venimos a comer juntos.' : '¡Hola! ¿Tenés una mesa libre?');
       return;
     }
@@ -1113,13 +1185,13 @@ export class WorldScene extends Phaser.Scene {
     if (this.hostWait > 0) return;
     const events = hostGuest(party.id);
     if (events.some((e) => e.type === 'queued')) {
-      this.npc('pip')?.emote('Esperá acá. Enseguida queda una mesa.', 4);
+      this.sayLine('pip', 'Esperá acá. Enseguida queda una mesa.', 4, 'host:' + party.id);
       this.hostWait = 3 * hostSlowdown();
     }
     if (events.some((e) => e.type === 'assigned')) {
       const seated = guestViews().find((g) => g.id === party.id)!;
       const seat = seated.seats[0];
-      this.npc('pip')?.emote('¡Por acá! Esta es tu mesa.', 4);
+      this.sayLine('pip', '¡Por acá! Esta es tu mesa.', 4, 'host:' + party.id);
       this.town.duty('pip', { zone: 'restaurant', x: seat.x - 1, y: seat.y, wander: 0, act: 'work' });
     }
   }
@@ -1163,8 +1235,8 @@ export class WorldScene extends Phaser.Scene {
     const owner = [...this.visitors.values()].find((v) => v.customers.includes(meal.customer));
     const body = owner ? this.guests.get(`${owner.id}:${owner.customers.indexOf(meal.customer)}`) : undefined;
     const a = body?.actor;
-    if (!a?.sprite.active) return;
-    a.emote(mealComment(meal.customer, meal.quality), 4.5);
+    if (!owner || !a?.sprite.active) return;
+    this.sayLine(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, mealComment(meal.customer, meal.quality), 4.5);
     const total = meal.result.coins;
     if (total > 0) this.floatAt(a.x, a.y - 44, `+${total}`);
   }
@@ -1235,6 +1307,8 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const [key, body] of this.guests) {
       if (live.has(key)) continue;
+      this.speech.dropSpeaker('guest:' + key);
+      if (this.speechActor === body.actor) this.speechActor = null;
       body.actor.destroy(); this.guests.delete(key);
     }
   }
@@ -1292,7 +1366,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
     if (this.townSave !== game.save || this.townDay !== clock.day) {
       if (this.townSave !== game.save) resetService();
-      this.visitors.clear(); this.restoredDining = false; this.clearGuests(); this.endConversation();
+      this.visitors.clear(); this.restoredDining = false; this.clearGuests(); this.endConversation(); this.stopSpeech();
       this.chatSequence.clear(); this.chatCooldown.clear(); this.chatIn = 8;
       this.hostId = null; this.visitorIn = 4;
       this.diningCache = null;
@@ -1663,6 +1737,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     if (intent.type === 'takeOrder') {
+      this.showTakingNotes(intent.tableId);
       this.note(takeOrderAt(intent.tableId));
       this.syncGuests();
       this.contextKey = '';
@@ -1688,6 +1763,18 @@ export class WorldScene extends Phaser.Scene {
 
   private note(text: string) {
     void runTask('world:notice', () => import('../ui/dom').then(({ toast }) => toast(text)), false);
+  }
+
+  /** A short look-down while the order is written. Walking cancels it. */
+  private showTakingNotes(tableId: string) {
+    const table = this.zone?.furniture.find((fi) => String(fi.f.uid) === tableId);
+    if (table) {
+      const size = furnSize(table.def, table.f.rot);
+      this.player.faceTowards(table.f.x * TILE + (size.w * TILE) / 2, table.f.y * TILE + (size.h * TILE) / 2);
+    }
+    if (this.player.dir === 'up') this.player.face('down');
+    this.player.setAct('read');
+    this.notingUntil = performance.now() + 900;
   }
 
   private async offerGift(id: string) {
@@ -1723,6 +1810,7 @@ export class WorldScene extends Phaser.Scene {
     if (!b) return;
     b.actor.faceTowards(this.player.x, this.player.y); this.player.faceTowards(b.actor.x, b.actor.y);
     b.actor.clearEmote();
+    if (this.speechActor === b.actor) { this.speech.dropSpeaker('nb:' + id); this.speechActor = null; }
     b.barkAt = performance.now() + 30000;
   }
 
@@ -1735,6 +1823,7 @@ export class WorldScene extends Phaser.Scene {
     const st = this.npcs.get(id);
     if (!st) return;
     st.actor.stop(); st.actor.clearEmote();
+    if (this.speechActor === st.actor) { this.speech.dropSpeaker(id); this.speechActor = null; }
     st.t = 6;
     if (st.actor.act === 'sleep') st.actor.setAct('idle');
   }
@@ -1848,7 +1937,22 @@ export class WorldScene extends Phaser.Scene {
           sit: fi.def.sit,
         };
       }),
+      blocked: (x: number, y: number) => this.zone.grid.isSolid(x, y),
+      guests: this.zoneId === 'restaurant' ? this.senseGuests() : [],
     };
+  }
+
+  private senseGuests(): { tableId: string; x: number; y: number }[] {
+    const views = guestViews();
+    const out: { tableId: string; x: number; y: number }[] = [];
+    for (const [key, body] of this.guests) {
+      const cut = key.lastIndexOf(':');
+      const partyId = cut < 0 ? key : key.slice(0, cut);
+      const view = views.find((g) => g.id === partyId);
+      if (!view?.tableId) continue;
+      out.push({ tableId: view.tableId, x: body.actor.x, y: body.actor.y - 4 });
+    }
+    return out;
   }
 
   private refreshContext() {
@@ -1896,6 +2000,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateGuide(dt);
     this.syncLife(dt);
     this.refreshContext();
+    this.pumpSpeech(dt);
     this.layoutBubbles();
   }
 
@@ -1946,6 +2051,10 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     if (`${p.tx},${p.ty}` !== wasTile || (p.moving && p.manual)) this.checkWalkDoor();
+    if (this.notingUntil && (p.moving || performance.now() >= this.notingUntil)) {
+      this.notingUntil = 0;
+      if (p.act === 'read') p.setAct('idle');
+    }
   }
 
   private moveWithCollision(dx: number, dy: number) {
@@ -2146,9 +2255,9 @@ export class WorldScene extends Phaser.Scene {
       this.time.delayedCall(1300, () => a.act === 'wave' && a.setAct(back));
     }
     // something to say about what they are doing or seeing, for whoever walks by
-    if (a.act !== 'sleep' && !a.bubble && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 64 && now > (n.barkAt ?? 0)) {
-      n.barkAt = now + 28000 + Math.random() * 22000;
-      a.emote(topicLine(Math.random() < 0.7 ? 'doing' : 'how', this.npcTalkCtx(n)).t.replace('{name}', game.save.player.name), 4.5);
+    if (a.act !== 'sleep' && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 64 && now > (n.barkAt ?? 0) && this.roomForAmbient(a.id)) {
+      const said = this.sayLine(a.id, topicLine(Math.random() < 0.7 ? 'doing' : 'how', this.npcTalkCtx(n)).t.replace('{name}', game.save.player.name), 4.5, undefined, true);
+      if (said) n.barkAt = now + 28000 + Math.random() * 22000;
     }
     n.t -= dt;
     if (n.t > 0) return;
@@ -2158,7 +2267,7 @@ export class WorldScene extends Phaser.Scene {
     const gesture = n.act === 'sleep' || n.leaving ? null : microFor(a.id, { act: n.act as never, period: clock.period, rain: game.flag('weather') === 'rain', outdoor: !!this.zone.def.outdoor }, Math.random(), Math.random());
     if (gesture) {
       n.micro = true; a.setAct(gesture.act as Act); n.t = gesture.seconds;
-      if (gesture.say) a.emote(gesture.say, Math.min(3.5, gesture.seconds));
+      if (gesture.say) this.sayLine(a.id, gesture.say, Math.min(3.5, gesture.seconds), undefined, true);
       return;
     }
     if (held) {
@@ -2202,7 +2311,7 @@ export class WorldScene extends Phaser.Scene {
     };
   }
 
-  private conversation: { a: NpcState; b: NpcState; lines: AmbientLine[]; index: number; wait: number; approach: number } | null = null;
+  private conversation: { a: NpcState; b: NpcState; lines: AmbientLine[]; wait: number; approach: number; exchange: string; queued: boolean } | null = null;
   private chatIn = 8;
   private chatSequence = new Map<string, number>();
   private chatCooldown = new Map<string, number>();
@@ -2210,11 +2319,15 @@ export class WorldScene extends Phaser.Scene {
   private endConversation() {
     const c = this.conversation;
     if (!c) return;
+    const droppedActive = this.speech.current()?.exchange === c.exchange;
+    this.speech.dropExchange(c.exchange);
     for (const n of [c.a, c.b]) {
       n.social = false;
       if (this.npcs.get(n.actor.id) !== n) continue;
       n.actor.stop(); n.actor.setAct(n.act ?? 'idle'); n.t = 5;
-      n.actor.clearEmote();
+      const ownsBubble = this.speechActor === n.actor;
+      if (!ownsBubble || droppedActive) n.actor.clearEmote();
+      if (ownsBubble && droppedActive) this.speechActor = null;
     }
     this.conversation = null;
   }
@@ -2244,16 +2357,15 @@ export class WorldScene extends Phaser.Scene {
       }
       c.a.actor.faceTowards(c.b.actor.x, c.b.actor.y);
       c.b.actor.faceTowards(c.a.actor.x, c.a.actor.y);
-      c.wait -= dt;
-      if (c.wait > 0) return;
-      const line = c.lines[c.index++];
-      if (!line) { this.endConversation(); return; }
-      const speaker = this.npcs.get(line.speaker)?.actor;
-      // A turn replaces the previous speaker, including its fade-out tween.
-      c.a.actor.clearEmote(); c.b.actor.clearEmote();
-      speaker?.setAct(speaker.seatLift ? 'sit' : 'talk');
-      speaker?.emote(line.text, 4.3);
-      c.wait = 4.8;
+      if (!c.queued) {
+        c.wait -= dt;
+        if (c.wait > 0) return;
+        for (const line of c.lines) this.sayLine(line.speaker, line.text, 4.3, c.exchange);
+        c.queued = true;
+        return;
+      }
+      if (this.speech.holds(c.exchange)) return;
+      this.endConversation();
       return;
     }
     this.chatIn -= dt;
@@ -2285,7 +2397,7 @@ export class WorldScene extends Phaser.Scene {
     a.social = true; b.social = true;
     b.actor.stop();
     if (!a.actor.seatLift) { a.actor.setAct('idle'); a.actor.walkTo(this.zone.grid, spot[0], spot[1]); }
-    this.conversation = { a, b, lines, index: 0, wait: 0.5, approach: 8 };
+    this.conversation = { a, b, lines, wait: 0.5, approach: 8, exchange: 'chat:' + key + ':' + sequence, queued: false };
   }
 
   private npcStamp() {
@@ -2739,11 +2851,11 @@ export class WorldScene extends Phaser.Scene {
       this.deliveryGoals.forEach((d, i) => {
         let m = this.deliveryMarks[i];
         if (!m) m = this.deliveryMarks[i] = {
-          mark: this.add.image(0, 0, guideTexture(this, 'mark')).setDepth(250000),
-          label: this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '8px', color: '#fff1d0', backgroundColor: '#4a3029', padding: { x: 3, y: 1 } }).setOrigin(0.5, 1).setDepth(250000),
+          mark: this.add.image(0, 0, guideTexture(this, 'mark')).setDepth(250000).setScale(0.55).setAlpha(0.72),
+          label: this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '6px', color: '#efe6d6', backgroundColor: '#3a2a24', padding: { x: 2, y: 0 } }).setOrigin(0.5, 1).setDepth(250000),
         };
-        m.mark.setVisible(true).setPosition(d.x, d.y - 10 + Math.sin(nowT * 4 + i) * 2);
-        m.label.setVisible(true).setText(d.label).setPosition(d.x, d.y - 22);
+        m.mark.setVisible(true).setPosition(d.x, d.y - 8 + Math.sin(nowT * 4 + i) * 1);
+        m.label.setVisible(true).setText(d.label).setPosition(d.x, d.y - 14);
       });
       goal = nearestGoal(this.deliveryGoals, this.player.x, this.player.y);
       mark.setVisible(false);
@@ -2781,7 +2893,7 @@ export class WorldScene extends Phaser.Scene {
     if (!carrying.length) return [];
     if (this.zoneId !== 'restaurant') {
       const d = nextDoor(this.zoneId, 'restaurant');
-      return d ? [{ x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2, label: 'Llevar pedido al restaurante' }] : [];
+      return d ? [{ x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2, label: 'Al restaurante' }] : [];
     }
     const dishes: DeliveryDish[] = [];
     for (const o of carrying) {
@@ -2795,7 +2907,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private quirks(dt: number) {
-    if (!this.canAct()) return;
+    if (!this.canAct() || !this.speech.idle()) return;
     if (this.decorReaction) {
       this.decorReaction = false;
       const view = this.cameras.main.worldView;

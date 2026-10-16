@@ -249,6 +249,8 @@ export function buildZone(id: string, night = false): BuiltZone {
       const fd = FURN_BY_ID[f.id];
       if (!fd) continue;
       furniture.push({ room: r.id, f, def: fd });
+      // Chairs can be walked through. Tables, walls and every other solid piece stay blocked.
+      if (fd.kind === 'chair') continue;
       for (const [x, y] of furnitureSolidTiles(f, fd)) grid.setSolid(x, y, true);
     }
   }

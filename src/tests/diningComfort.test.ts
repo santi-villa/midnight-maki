@@ -10,7 +10,7 @@ import {
 } from '../restaurant/floor';
 import { seatDrawOffset, seatsApproachable, standApart } from '../restaurant/seating';
 import { planWaitSpots, queueHasRoom, RECEPTION_SPOTS, scanWaitSpots, WAITING_SPOTS } from '../restaurant/waiting';
-import { ensureDefaultDecor, placementBlock } from '../world/zoneRuntime';
+import { buildZone, ensureDefaultDecor, placementBlock } from '../world/zoneRuntime';
 import { Grid } from '../world/grid';
 
 const FAST = { approach: 1, walk: 1, settle: 1, eat: 1, pay: 1, leave: 1 };
@@ -130,6 +130,21 @@ describe('waiting for a table', () => {
     expect(new Set(spots.map((t) => `${t.x},${t.y}`)).size).toBe(4);
     expect(spots.some((t) => t.x >= 7 && t.x <= 10 && t.y >= 10)).toBe(false);
     expect(linked(spots)).toBe(true);
+  });
+});
+
+describe('chair collision', () => {
+  it('lets the player walk through chairs and not through tables or other furniture', () => {
+    ensureDefaultDecor();
+    game.room('dining').push({ uid: 900, id: 'stool', x: 6, y: 10, rot: 0 });
+    const grid = buildZone('restaurant').grid;
+    expect(grid.isSolid(7, 9)).toBe(false);
+    expect(grid.isSolid(9, 7)).toBe(false);
+    expect(grid.isSolid(7, 8)).toBe(true);
+    expect(grid.isSolid(8, 8)).toBe(true);
+    expect(grid.isSolid(9, 8)).toBe(true);
+    expect(grid.isSolid(16, 6)).toBe(true);
+    expect(grid.isSolid(6, 10)).toBe(true);
   });
 });
 
