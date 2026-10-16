@@ -43,6 +43,7 @@ import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife, type TownResident } from '../systems/townLife';
 import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
+import { clampFrameZoom, walkingZoom } from '../ui/frameMath';
 import { layoutSpeech } from '../ui/speechLayout';
 import { SpeechTurns } from '../world/speechTurns';
 import { customerLook } from '../restaurant/customers';
@@ -136,6 +137,8 @@ export class WorldScene extends Phaser.Scene {
   /** When the notebook pose from taking an order should end. */
   private notingUntil = 0;
   inputLocked = 0; // cutscenes
+  /** Phone camera: layout keeps this zoom and does not follow the player until the shot ends. */
+  private framingZoom: number | null = null;
   onInteract: (t: Target) => void = () => {};
   onEnterZone: (id: string) => void | Promise<void> = () => {};
   /** story hook: may unlock a door when the player tries it (returns true if now open) */
@@ -205,13 +208,56 @@ export class WorldScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const w = this.scale.width;
     const h = this.scale.height;
-    const minDim = Math.min(w, h);
-    const zoom = Math.max(2, Math.floor(minDim / (TILE * 11)));
+    const fit = walkingZoom(w, h, TILE);
+    const framing = this.framingZoom != null;
+    const zoom = framing ? clampFrameZoom(this.framingZoom!, fit) : fit;
+    if (framing) this.framingZoom = zoom;
+    const mid = framing ? { x: cam.midPoint.x, y: cam.midPoint.y } : null;
     cam.setZoom(zoom);
     if (this.zone) this.applyBounds();
-    if (this.cookActive) this.cookFrame(0);
-    const vw = Math.ceil(w / zoom) + 4;
-    const vh = Math.ceil(h / zoom) + 4;
+    if (mid) cam.centerOn(mid.x, mid.y);
+    else if (this.cookActive) this.cookFrame(0);
+    this.sizeDark(zoom);
+  }
+
+  /** Stop following the player so a phone photo can pan and zoom. */
+  beginPhotoFrame() {
+    if (this.framingZoom != null || !this.player) return;
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    this.framingZoom = cam.zoom;
+    this.inputLocked++;
+  }
+
+  /** Scroll and integer zoom while a phone photo is being framed. */
+  applyPhotoFrame(scrollX: number, scrollY: number, zoom: number) {
+    if (this.framingZoom == null) return;
+    const cam = this.cameras.main;
+    const z = clampFrameZoom(zoom, walkingZoom(this.scale.width, this.scale.height, TILE));
+    this.framingZoom = z;
+    // A drag calls this every move. Resize the darkness layer only when the zoom actually changes.
+    if (z !== cam.zoom) {
+      cam.setZoom(z);
+      if (this.zone) this.applyBounds();
+      this.sizeDark(z);
+    }
+    cam.setScroll(scrollX, scrollY);
+  }
+
+  /** Back to walking behind the player. Safe to call when no photo is open. */
+  endPhotoFrame() {
+    if (this.framingZoom == null) return;
+    this.framingZoom = null;
+    this.inputLocked = Math.max(0, this.inputLocked - 1);
+    this.layout();
+    if (this.cookActive || !this.player?.sprite?.active) return;
+    this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, 8);
+    this.cameras.main.centerOn(this.player.x, this.player.y);
+  }
+
+  private sizeDark(zoom: number) {
+    const vw = Math.ceil(this.scale.width / zoom) + 4;
+    const vh = Math.ceil(this.scale.height / zoom) + 4;
     this.dark.setSize(vw, vh);
     this.dark.resize?.(vw, vh);
   }
