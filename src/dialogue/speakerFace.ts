@@ -23,6 +23,8 @@ export type SpeakerArt =
 
 export interface SpeakerFace {
   id: string;
+  /** who the voice belongs to when `id` is empty (customers, visitors); the narrator and letters have none */
+  vkey?: string;
   name: string;
   voice: number;
   art: SpeakerArt;
@@ -59,7 +61,7 @@ function faceForId(id: string, name: string): SpeakerFace | null {
   const neighbor = NEIGHBOR_BY_ID[id];
   if (neighbor) return { id, name: name || neighbor.name, voice: 0.95, art: { kind: 'neighbor', id } };
   const customer = customerIdOf(id);
-  if (customer) return { id: '', name: name || id, voice: 0.9, art: { kind: 'customer', id: customer } };
+  if (customer) return { id: '', vkey: 'guest:' + id, name: name || id, voice: 0.9, art: { kind: 'customer', id: customer } };
   return null;
 }
 
@@ -69,7 +71,7 @@ function faceForName(name: string): SpeakerFace | null {
   const neighbor = named(NEIGHBORS, name);
   if (neighbor) return faceForId(neighbor.id, name);
   const customer = customerIdOf(name);
-  if (customer) return { id: '', name, voice: 0.9, art: { kind: 'customer', id: customer } };
+  if (customer) return { id: '', vkey: 'guest:' + name, name, voice: 0.9, art: { kind: 'customer', id: customer } };
   return null;
 }
 
@@ -87,12 +89,12 @@ export function speakerFace(who: string): SpeakerFace {
     const byName = faceForName(name);
     if (byName) return byName;
     if (/carta/i.test(name)) return { id: '', name, voice: 0.85, art: { kind: 'letter' } };
-    return { id: '', name, voice: 0.9, art: { kind: 'guest', id: name } };
+    return { id: '', vkey: 'guest:' + name, name, voice: 0.9, art: { kind: 'guest', id: name } };
   }
   return faceForId(who, '') ?? faceForName(who) ?? (
     /carta/i.test(who)
       ? { id: '', name: who, voice: 0.85, art: { kind: 'letter' } }
-      : { id: who, name: who, voice: 1, art: { kind: 'guest', id: who } }
+      : { id: who, vkey: 'guest:' + who, name: who, voice: 1, art: { kind: 'guest', id: who } }
   );
 }
 

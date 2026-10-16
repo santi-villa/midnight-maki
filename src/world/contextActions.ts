@@ -49,6 +49,11 @@ export interface ContextAction {
   intent: ContextIntent;
 }
 
+/** Every action except the main one (E). */
+export const secondaryActions = (o: ContextOffer): ContextAction[] => [...(o.chip ? [o.chip] : []), ...o.overflow];
+/** With more than two actions, F opens the list "Más acciones…" instead of running one of them. */
+export const needsMore = (o: ContextOffer): boolean => !!o.primary && secondaryActions(o).length > 1;
+
 export interface ContextOffer {
   primary: ContextAction | null;
   /** Second action, shown beside the primary when there are only two. */

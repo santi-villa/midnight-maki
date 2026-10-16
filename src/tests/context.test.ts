@@ -6,6 +6,8 @@ import { pickupPlate, resetService, spawnGuest, stagePlate, stepService, takeOrd
 import {
   decorateBlockReason,
   isPlayerRoom,
+  needsMore,
+  secondaryActions,
   resolveContext,
   TILE,
   type ContextAction,
@@ -287,5 +289,18 @@ describe('restaurant tables', () => {
     const guest = { tableId: '10', x: at(9, 10).px, y: at(9, 10).py - 4 };
     expect(take(at(9, 11).px, at(9, 11).py, { blocked, guests: [guest] })).toBe(true);
     expect(take(at(2, 2).px, at(2, 2).py, { guests: [guest] })).toBe(false);
+  });
+});
+
+describe('E/F actions', () => {
+  const act = (id: string) => ({ id, label: id, detail: id, icon: 'act' as const, intent: { type: 'orders' as const } });
+  it('one action is E, two are E and F, more make F open the list', () => {
+    const one = { primary: act('a'), chip: null, overflow: [], roomTag: null };
+    const two = { primary: act('a'), chip: act('b'), overflow: [], roomTag: null };
+    const three = { primary: act('a'), chip: act('b'), overflow: [act('c')], roomTag: null };
+    expect(needsMore(one)).toBe(false);
+    expect(needsMore(two)).toBe(false);
+    expect(needsMore(three)).toBe(true);
+    expect(secondaryActions(three).map((a) => a.id)).toEqual(['b', 'c']);
   });
 });

@@ -7,7 +7,7 @@ import { buildZone } from '../world/zoneRuntime';
 import type { Grid } from '../world/grid';
 import { Journey } from './journeys';
 import { planVillage, type PlanContext } from './neighborPlan';
-import { LINGER_KIND, lingerTile, type Place } from './neighborSpots';
+import { FOUNTAIN, SHORE, STROLL, type Place } from './neighborSpots';
 
 export interface NeighborState {
   n: Neighbor;
@@ -18,10 +18,17 @@ export interface NeighborState {
   key: string;
   ride: boolean;
   beat: number;
-  stepped: boolean;
+  /** short walks already made inside this part of the day */
+  hops: number;
 }
 
 const onDoor = (zone: string, x: number, y: number) => !!ZONES[zone]?.doors.some((d) => d.x === x && d.y === y);
+
+/** where each kind of lingering person moves on to, and how long they stay put before doing so (seconds, by person) */
+const HOP_POOL: Record<string, () => readonly Place[]> = { stroll: () => STROLL, fountain: () => FOUNTAIN, sea: () => SHORE };
+const HOP_MIN = 4;
+const hash = (s: string) => { let h = 17; for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0; return h; };
+export const hopDelay = (id: string, hops: number) => 8 + ((hash(id) + hops * 7) % 11);
 
 export const WALK_TILES = 2.5;
 export const BIKE_TILES = 5.2;
@@ -31,7 +38,7 @@ export function planContext(): PlanContext {
   const open = new Set<string>(['plaza', 'library']);
   for (const [flag, zone] of [['unlock_beach', 'beach'], ['unlock_garden', 'garden'], ['unlock_forest', 'forest']] as const) if (game.has(flag)) open.add(zone);
   if (game.flag('market_open')) open.add('market');
-  return { day: t.day, period: Math.max(0, Math.min(3, t.period)), half: t.minutes >= 45 ? 1 : 0, rain: game.flag('weather') === 'rain', open };
+  return { day: t.day, period: Math.max(0, Math.min(3, t.period)), half: t.minutes >= 45 ? 1 : 0, part: Math.max(0, Math.min(3, Math.floor(t.minutes / 22.5))) as 0 | 1 | 2 | 3, rain: game.flag('weather') === 'rain', open };
 }
 
 export class NeighborLife {
@@ -68,16 +75,16 @@ export class NeighborLife {
     for (const n of NEIGHBORS) {
       const wanted = plan.get(n.id);
       if (!wanted) continue;
-      const key = `${ctx.day}:${ctx.period}:${ctx.half}:${ctx.rain ? 1 : 0}`;
+      const key = `${ctx.day}:${ctx.period}:${ctx.part ?? ctx.half}:${ctx.rain ? 1 : 0}`;
       const place = { ...this.reachable(wanted), ride: wanted.ride, withFriend: wanted.withFriend };
       const stop: RoutineStop = { zone: place.zone, x: place.x, y: place.y, wander: 0, act: place.act, dir: place.dir, seatLift: place.seatLift, bed: place.bed };
       const cur = this.state.get(n.id);
       if (!cur) {
         const trip = new Journey({ zone: place.zone, x: place.x, y: place.y }, this.grid, WALK_TILES);
         trip.destination = { ...stop };
-        this.state.set(n.id, { n, trip, place, anchor: place, key, ride: !!place.ride, beat: 0, stepped: false });
+        this.state.set(n.id, { n, trip, place, anchor: place, key, ride: !!place.ride, beat: 0, hops: 0 });
       } else if (cur.key !== key) {
-        cur.key = key; cur.place = place; cur.anchor = place; cur.ride = !!place.ride; cur.beat = 0; cur.stepped = false;
+        cur.key = key; cur.place = place; cur.anchor = place; cur.ride = !!place.ride; cur.beat = 0; cur.hops = 0;
         cur.trip.speed = (cur.ride ? BIKE_TILES : WALK_TILES) * (0.92 + (n.id.length % 5) / 25);
         cur.trip.go(stop);
       }
@@ -93,22 +100,22 @@ export class NeighborLife {
     if (this.syncIn <= 0) { this.syncIn = 1; this.sync(); }
     for (const s of this.state.values()) {
       s.trip.tick(dt);
-      if (!LINGER_KIND.has(s.anchor.kind)) continue;
+      // between plan changes they do not stand still: strollers, fountain watchers and shore walkers move on to
+      // another spot of the same kind, a few tiles away, after a while
+      const pool = HOP_POOL[s.anchor.kind]?.();
+      if (!pool) continue;
       if (!s.trip.settled) { s.beat = 0; continue; }
       s.beat += dt;
-      const back = this.asStop(s.anchor);
-      if (!s.stepped && s.beat >= 7) {
-        const grid = this.grid(s.anchor.zone);
-        const tile = lingerTile(s.n.id, s.anchor.x, s.anchor.y, (x, y) => !grid.isSolid(x, y) && !onDoor(s.anchor.zone, x, y));
-        if (!tile) continue;
-        s.stepped = true;
-        s.beat = 0;
-        s.trip.go({ ...back, x: tile[0], y: tile[1], act: 'look', bed: undefined });
-      } else if (s.stepped && s.beat >= 14) {
-        s.stepped = false;
-        s.beat = 0;
-        s.trip.go(back);
-      }
+      if (s.beat < hopDelay(s.n.id, s.hops)) continue;
+      s.beat = 0;
+      const cur = s.trip.position;
+      const grid = this.grid(s.anchor.zone);
+      const far = pool.filter((p) => p.zone === s.anchor.zone && Math.hypot(p.x - cur.x, p.y - cur.y) >= HOP_MIN && !grid.isSolid(p.x, p.y) && !onDoor(p.zone, p.x, p.y));
+      const spots = far.length ? far : pool.filter((p) => p.zone === s.anchor.zone && (p.x !== cur.x || p.y !== cur.y));
+      if (!spots.length) continue;
+      const next = spots[(hash(s.n.id) + s.hops * 5 + Math.floor(cur.x)) % spots.length];
+      s.hops++;
+      s.trip.go({ ...this.asStop(s.anchor), x: next.x, y: next.y, dir: next.dir ?? s.anchor.dir, act: next.act ?? 'look', bed: undefined });
     }
   }
 

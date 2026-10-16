@@ -100,7 +100,7 @@ function closeDecor(): boolean {
 function run(action: GameAction) {
   // Escape already closed a window or the decoration sheet before we get here.
   // Opening a menu now would pause service, so free exploration keeps the clock running.
-  if (action === 'cancel') return;
+  if (action === 'cancel') { void import('../ui/hud').then((m) => m.closeMoreMenu()); return; }
   if (action === 'interact' || action === 'confirm') {
     world.tryInteract();
     return;

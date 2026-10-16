@@ -82,7 +82,7 @@ export function inDialogue() {
 
 function speakerInfo(who: string, expr: Expr) {
   const face = speakerFace(who);
-  return { id: face.id, name: face.name, voice: face.voice, src: portraitSrc(face, expr) };
+  return { id: face.id, vkey: face.vkey ?? face.id, name: face.name, voice: face.voice, src: portraitSrc(face, expr) };
 }
 
 /** Show one line. Resolves after the player advances. */
@@ -123,7 +123,8 @@ export function say(who: string, text: string, expr: Expr = 'neutral'): Promise<
       resolve();
     };
     if (speed <= 0) {
-      if (hasVoice(info.id)) audio.speakLine(info.id);
+      if (hasVoice(info.vkey)) audio.speakLine(info.vkey);
+      else if (info.vkey) audio.voice(info.voice);
       complete();
     } else {
       timer = window.setInterval(() => {
@@ -131,7 +132,7 @@ export function say(who: string, text: string, expr: Expr = 'neutral'): Promise<
         txt.textContent = text.slice(0, i);
         const ch = text[i - 1];
         if (ch && ch !== ' ') {
-          if (hasVoice(info.id)) audio.speak(info.id, i);
+          if (hasVoice(info.vkey)) audio.speak(info.vkey, i);
           else if (i % 2 === 0) audio.voice(info.voice);
         }
         if (i >= text.length) complete();
