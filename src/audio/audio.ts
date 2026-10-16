@@ -581,11 +581,11 @@ class AudioEngine {
       case 'door': noiseHit(0, 0.12, 400, 0.3); tone(180, 0, 0.12, 'sine', 0.2); break;
       case 'paper': noiseHit(0, 0.25, 2600, 0.18); noiseHit(0.2, 0.18, 3200, 0.12); break;
       case 'train': for (let i = 0; i < 8; i++) { noiseHit(i * 0.22, 0.08, 500, 0.22); noiseHit(i * 0.22 + 0.09, 0.06, 700, 0.14); } tone(392, 1.9, 0.5, 'triangle', 0.09); tone(330, 1.9, 0.5, 'triangle', 0.08); break;
-      case 'step': noiseHit(0, 0.04, 1500, 0.06); break;
-      case 'step_grass': noiseHit(0, 0.06, 2600, 0.05); noiseHit(0.02, 0.05, 1800, 0.035); break;
-      case 'step_wood': noiseHit(0, 0.035, 700, 0.08); tone(150 + Math.random() * 30, 0, 0.05, 'triangle', 0.05); break;
-      case 'step_stone': noiseHit(0, 0.025, 2400, 0.07); tone(900 + Math.random() * 200, 0, 0.02, 'square', 0.015); break;
-      case 'step_sand': noiseHit(0, 0.08, 1100, 0.04); break;
+      case 'step': noiseHit(0, 0.05, 650, 0.06); break;
+      case 'step_grass': noiseHit(0, 0.07, 800, 0.05); noiseHit(0.02, 0.06, 520, 0.035); break;
+      case 'step_wood': noiseHit(0, 0.04, 380, 0.07); tone(110 + Math.random() * 20, 0, 0.06, 'sine', 0.05); break;
+      case 'step_stone': noiseHit(0, 0.035, 900, 0.07); tone(240 + Math.random() * 40, 0, 0.04, 'sine', 0.03); break;
+      case 'step_sand': noiseHit(0, 0.09, 520, 0.04); break;
       case 'bell': tone(1318, 0, 0.5, 'sine', 0.1); tone(1760, 0.04, 0.6, 'sine', 0.07); break;
       case 'blip': tone(520, 0, 0.035, 'triangle', 0.05); break;
       case 'clue': [784, 988, 1318].forEach((f, i) => tone(f, i * 0.1, 0.3, 'sine', 0.15)); break;
@@ -667,8 +667,9 @@ class AudioEngine {
       o.stop(t + end + 0.02);
     };
     const slide = note.chirp > 1 ? note.chirp : note.slide;
-    tone(note.freq, note.vol, slide);
-    if (note.harm > 0 && note.harmMix > 0) tone(note.freq * note.harm, note.vol * note.harmMix, note.slide);
+    const boost = VOICE_BOOST;
+    tone(note.freq, note.vol * boost, slide);
+    if (note.harm > 0 && note.harmMix > 0) tone(note.freq * note.harm, note.vol * boost * note.harmMix, note.slide);
     if (note.noise > 0) {
       const s = c.createBufferSource();
       s.buffer = this.noise();
@@ -677,7 +678,7 @@ class AudioEngine {
       f.frequency.setValueAtTime(Math.max(40, note.freq), t);
       f.Q.setValueAtTime(3.2, t);
       const g = c.createGain();
-      g.gain.setValueAtTime(note.noise, t);
+      g.gain.setValueAtTime(note.noise * VOICE_BOOST, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + end);
       s.connect(f).connect(g).connect(this.sfx);
       s.start(t, Math.random());
@@ -685,6 +686,9 @@ class AudioEngine {
     }
   }
 }
+
+/** Voices were too quiet next to music and effects. */
+const VOICE_BOOST = 2.4;
 
 export const audio = new AudioEngine();
 export type { Track };

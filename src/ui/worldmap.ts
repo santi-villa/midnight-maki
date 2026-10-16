@@ -107,6 +107,40 @@ export function openWorldMap() {
     return out;
   }
 
+  /** Zoom buttons, ctrl+wheel and pinch resize the map itself, so labels keep their size and the scroll area pans it. */
+  function zoomView(stage: HTMLElement): HTMLElement {
+    let k = 1;
+    const view = h('div', { class: 'wm-scroll wm-zoomable' }, stage);
+    const apply = (next: number, cx = 0.5, cy = 0.5) => {
+      const nk = Math.max(1, Math.min(4, next));
+      if (nk === k) return;
+      const before = { w: stage.offsetWidth, h: stage.offsetHeight };
+      const px = (view.scrollLeft + view.clientWidth * cx) / Math.max(1, before.w), py = (view.scrollTop + view.clientHeight * cy) / Math.max(1, before.h);
+      k = nk; stage.style.setProperty('--k', String(k));
+      view.scrollLeft = px * stage.offsetWidth - view.clientWidth * cx;
+      view.scrollTop = py * stage.offsetHeight - view.clientHeight * cy;
+      view.classList.toggle('zoomed', k > 1);
+      label.textContent = `${Math.round(k * 100)}%`;
+    };
+    const label = h('span', { class: 'wm-zoom-pct' }, '100%');
+    const btn = (t: string, aria: string, fn: () => void) => h('button', { type: 'button', class: 'btn small', 'aria-label': aria, onclick: fn }, t);
+    const bar = h('div', { class: 'wm-zoombar' }, btn('−', 'Alejar', () => apply(k / 1.4)), label, btn('+', 'Acercar', () => apply(k * 1.4)), btn('⟲', 'Vista completa', () => { apply(1); view.scrollTo(0, 0); }));
+    view.addEventListener('wheel', (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); const r = view.getBoundingClientRect(); apply(k * (e.deltaY < 0 ? 1.15 : 1 / 1.15), (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height); }, { passive: false });
+    // pinch on touch screens; one finger keeps scrolling natively
+    const pts = new Map<number, { x: number; y: number }>();
+    let d0 = 0, k0 = 1;
+    const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    view.addEventListener('pointerdown', (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) { d0 = dist(); k0 = k; } });
+    view.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2 && d0 > 0) { const r = view.getBoundingClientRect(); const [a, b] = [...pts.values()]; apply(k0 * (dist() / d0), ((a.x + b.x) / 2 - r.left) / r.width, ((a.y + b.y) / 2 - r.top) / r.height); }
+    });
+    const up = (e: PointerEvent) => { pts.delete(e.pointerId); d0 = 0; };
+    view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
+    return h('div', { class: 'wm-zoomwrap' }, bar, view);
+  }
+
   function overview() {
     const S = 3, W = (maxX - minX) * S, H = (maxY - minY) * S;
     const cv = h('canvas', { class: 'wm-canvas', width: W, height: H, role: 'img', 'aria-label': 'Mapa de Villa Nori' }) as HTMLCanvasElement;
@@ -131,7 +165,7 @@ export function openWorldMap() {
       }, open ? p.z.name : '???', target ? h('span', { class: 'wm-star', 'aria-hidden': 'true' }, ' ✦') : null));
     }
     markers(wrap, (x, y, zone) => { const p = placed.find((q) => q.z.id === zone); return p ? pct(p.x + x, p.y + y) : null; });
-    return wrap;
+    return zoomView(wrap);
   }
 
   function detail(id: string) {
@@ -140,7 +174,7 @@ export function openWorldMap() {
     const cv = h('canvas', { class: 'wm-canvas', width: z.w * S, height: z.h * S, role: 'img', 'aria-label': 'Mapa de ' + z.name }) as HTMLCanvasElement;
     const g = cv.getContext('2d')!;
     drawZone(g, z, 0, 0, S, true);
-    const wrap = h('div', { class: 'wm-stage wm-detail', style: { aspectRatio: `${z.w} / ${z.h}`, width: `min(100%, calc(60vh * ${z.w / z.h}))` } }, cv);
+    const wrap = h('div', { class: 'wm-stage wm-detail', style: { aspectRatio: `${z.w} / ${z.h}`, '--base': `min(100%, calc(60vh * ${z.w / z.h}))` } }, cv);
     const pct = (x: number, y: number) => ({ left: ((x + 0.5) / z.w) * 100 + '%', top: ((y + 0.5) / z.h) * 100 + '%' });
     const seen = new Set<string>();
     for (const d of z.doors) {
@@ -157,7 +191,7 @@ export function openWorldMap() {
     }
     markers(wrap, (x, y, zone) => (zone === id ? pct(x, y) : null));
     // zoomed zones are wide: on a phone they pan sideways instead of squeezing the labels
-    return h('div', { class: 'wm-scroll' }, wrap);
+    return zoomView(wrap);
   }
 
   /** you, the raccoons and the objective, placed with the given projection */

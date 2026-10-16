@@ -1049,10 +1049,16 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 .wm-goal-text { color: #b85d19; font-weight: 700; }
 @media (max-width: 600px) { .wm-zone { font-size: .62em; padding: 2px 6px; } .wm-stage { max-height: 48vh; } }
 
-.wm-stage { max-height: none; }
-.wm-scroll { overflow-x: auto; border-radius: 6px; -webkit-overflow-scrolling: touch; }
-.wm-detail { margin: 0 auto; }
-@media (max-width: 899px) { .wm-detail { width: 760px !important; } }
+.wm-stage { max-height: none; width: calc(100% * var(--k, 1)); }
+.wm-scroll { overflow: auto; max-height: 66vh; border-radius: 6px; -webkit-overflow-scrolling: touch; }
+.wm-zoomable { touch-action: pan-x pan-y; }
+.wm-zoomable.zoomed { cursor: grab; }
+.wm-detail { margin: 0 auto; width: calc(var(--base, 100%) * var(--k, 1)); }
+@media (max-width: 899px) { .wm-detail { --base: 760px !important; } }
+.wm-zoomwrap { display: flex; flex-direction: column; gap: 6px; }
+.wm-zoombar { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.wm-zoombar .btn { min-width: 40px; min-height: 36px; }
+.wm-zoom-pct { min-width: 3.2em; text-align: center; font-weight: 700; font-size: .85em; }
 
 /* =====================================================================
    UI v2: one look for every menu (panels, tabs, choices, switches, sections, chips)
@@ -1262,3 +1268,5 @@ body.cook-focus .game-hud, body.cook-focus .joystick, body.cook-focus .hud-joy {
 .decor-swatch { flex: 0 0 auto; width: 64px; height: 64px; padding: 0; display: grid; place-items: center; }
 .decor-swatch canvas, .decor-swatch i { width: 44px; height: 44px; image-rendering: pixelated; display: block; pointer-events: none; }
 .decor-style-name { margin: 0; font-weight: 700; }
+.chip.gold { display: inline-flex; align-items: center; gap: 6px; }
+.chip.gold canvas { width: 22px; height: 22px; image-rendering: pixelated; }
