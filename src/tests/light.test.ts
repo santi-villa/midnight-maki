@@ -61,6 +61,16 @@ describe('lamps, windows and the moon', () => {
     expect(at({ period: 3, rain: true }).moon).toBeLessThan(0.5);
   });
 
+  it('a gloomy room stays readable, cooler than a house, with its lamps on', () => {
+    const gloom = at({ outdoor: false, gloom: true });
+    const dark = at({ outdoor: false, dark: true });
+    const inn = at({ outdoor: false });
+    expect(lum(gloom.tint)).toBeGreaterThan(lum(dark.tint));
+    expect(lum(gloom.tint)).toBeLessThan(lum(inn.tint));
+    expect((gloom.tint & 255)).toBeGreaterThan((gloom.tint >> 16) & 255);
+    expect(gloom.lamp).toBeGreaterThanOrEqual(0.8);
+  });
+
   it('the restaurant lights its room by its hours', () => {
     const open = at({ period: 3, outdoor: false, restaurant: 'open' });
     const closing = at({ period: 3, outdoor: false, restaurant: 'closing' });

@@ -90,11 +90,20 @@ const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 const MUSIC_FILES = import.meta.glob('../music/*.{mp3,ogg,m4a,wav,webm,opus}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const SONG_MATCH: Partial<Record<Track, RegExp>> = { title: /menu|title|principal/i, intro: /intro/i, kitchen: /^(?!.*(hard|dificil|difícil)).*(kitchen|cocina)/i, kitchen_hard: /(kitchen|cocina).*(hard|dificil|difícil)/i };
 
-function songURL(track: Track): string | null {
+/** Opus and Ogg first: Chromium plays them. AAC in m4a stays as the next try. */
+function songRank(name: string): number {
+  if (/\.(opus|ogg|webm)(\?|$)/i.test(name)) return 0;
+  if (/\.mp3(\?|$)/i.test(name)) return 1;
+  return 2;
+}
+
+export function songURLs(track: Track): string[] {
   const re = SONG_MATCH[track];
-  if (!re) return null;
-  const hit = Object.entries(MUSIC_FILES).find(([name]) => re.test(name.split('/').pop() ?? ''));
-  return hit ? hit[1] : null;
+  if (!re) return [];
+  return Object.entries(MUSIC_FILES)
+    .filter(([name]) => re.test(name.split('/').pop() ?? ''))
+    .sort((a, b) => songRank(a[0]) - songRank(b[0]) || a[0].localeCompare(b[0]))
+    .map(([, url]) => url);
 }
 
 class AudioEngine {
@@ -119,9 +128,17 @@ class AudioEngine {
 
   /** Streams the custom song for a track (no big decode in memory). Returns false when there is none. */
   private startCustom(track: Track): boolean {
+    const urls = songURLs(track);
+    if (!this.ctx || !urls.length || this.badSongs.has(track)) return false;
+    this.playCustom(track, urls, 0);
+    return true;
+  }
+
+  /** Tries each file for the track. A format this browser cannot decode is skipped before the generated tune. */
+  private playCustom(track: Track, urls: string[], index: number) {
     const c = this.ctx;
-    const url = songURL(track);
-    if (!c || !url || this.badSongs.has(track)) return false;
+    const url = urls[index];
+    if (!c || !url) return;
     const el = new Audio();
     el.src = url;
     el.loop = true;
@@ -136,16 +153,19 @@ class AudioEngine {
     this.custom = me;
     const fallback = (err?: unknown) => {
       if (this.custom !== me) return;
+      this.stopCustom(true);
+      if (index + 1 < urls.length) {
+        this.playCustom(track, urls, index + 1);
+        return;
+      }
       reportError('audio:custom:' + track, err ?? new Error('Unavailable music file'), false);
       this.badSongs.add(track);
-      this.stopCustom(true);
       this.current = 'none'; // unreadable file: bring the generated tune back
       this.play(track);
     };
     me.fallback = fallback;
     el.addEventListener('error', () => fallback(), { once: true });
     this.tryCustom();
-    return true;
   }
 
   /** Autoplay denial is temporary: retry the same element on the next gesture, without seeking. */

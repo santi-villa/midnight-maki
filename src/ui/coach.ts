@@ -57,7 +57,7 @@ export function installCoach() {
   });
   bus.on('zone:enter', ({ zone }) => {
     if (zone === 'plaza' && game.has('arrived')) arrival();
-    if (zone === 'restaurant' && game.has('tut_spicy')) show({ id: 'bag', who: 'spicy', target: '.hud-buttons .icon-btn:nth-child(1)', text: 'En la Mochila están tus ingredientes. ¡Sin arroz no hay sushi, y sin sushi no hay gloria!' });
+    if (zone === 'restaurant' && game.has('tut_spicy')) show({ id: 'bag', who: 'spicy', target: '.hud-buttons .icon-btn:nth-child(1)', text: 'En la Mochila está lo que comprás suelto. La despensa de la cocina guarda los paquetes. ¡Sin arroz no hay sushi, y sin sushi no hay gloria!' });
     if (zone === 'home') show({ id: 'menu', who: 'pip', target: '.ctx-dock', text: 'En tu cuarto, el de la izquierda, aparece Decorar. Junto a tu cama, Dormir. El Menú queda para el ropero, la cámara y los ajustes.' });
   });
   bus.on('interact:available', ({ label }) => {

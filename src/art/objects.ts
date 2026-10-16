@@ -820,13 +820,16 @@ const K: Record<string, DrawFn> = {
     }
   },
   mechanism(c, W, H) {
-    ellipse(c, W / 2, H - 8, W / 2 - 2, 6, '#5d5864');
-    ellipse(c, W / 2, H - 9, W / 2 - 4, 4, '#3d3a4a');
-    px(c, W / 2 - 1, H - 30, PAL.goldD, 2, 22);
-    ellipse(c, W / 2, H - 30, 10, 3, PAL.goldD);
-    for (const [dx, dy] of [[-9, -30], [9, -30], [0, -36]]) {
-      ellipse(c, W / 2 + dx, H + dy, 3, 3, '#2a2230');
-      px(c, W / 2 + dx, H + dy, PAL.gold, 1, 1);
+    const sx = W / 48;
+    const sy = H / 44;
+    const cx = W / 2;
+    ellipse(c, cx, H - 8 * sy, W / 2 - 2 * sx, 6 * sy, '#5d5864');
+    ellipse(c, cx, H - 9 * sy, W / 2 - 4 * sx, 4 * sy, '#3d3a4a');
+    px(c, cx - sx, H - 30 * sy, PAL.goldD, Math.max(2, 2 * sx), 22 * sy);
+    ellipse(c, cx, H - 30 * sy, 10 * sx, 3 * sy, PAL.goldD);
+    for (const [dx, dy] of [[-9, -30], [9, -30], [0, -36]] as const) {
+      ellipse(c, cx + dx * sx, H + dy * sy, 4 * sx, 4 * sy, '#2a2230');
+      px(c, cx + dx * sx - sx, H + dy * sy - sy, PAL.gold, Math.max(2, 2 * sx), Math.max(2, 2 * sy));
     }
   },
   starlamp(c, W, H, c1) {

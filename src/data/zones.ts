@@ -33,7 +33,8 @@ export interface ZoneDef {
   gather: GatherDef[];
   fishing?: 'sea' | 'lake';
   bugs?: boolean;
-  dark?: boolean; // always dim (station, lighthouse inside)
+  dark?: boolean; // always dim (storage, and the night market)
+  gloom?: boolean; // cool and dim, but the lamps still read (lighthouse)
   walls?: string; // wall style outside decor rooms
   floor?: string; // floor style outside decor rooms
 }
@@ -480,10 +481,20 @@ function lighthouse(): ZoneDef {
     id: 'lighthouse', name: 'Faro de las Tres Estrellas', music: 'stars', outdoor: false,
     doors: [{ x: 6, y: 11, to: 'beach', tx: 3, ty: 5, dir: 'down', walk: true }],
     interact: [{ id: 'mechanism', x: 6, y: 3, label: 'Mecanismo', action: 'story:mechanism' }],
-    props: [{ id: 'mechanism', x: 5, y: 2 }, { id: 'stars', x: 1, y: 5 }, { id: 'stars', x: 10, y: 5 }, { id: 'lantern_cream', x: 1, y: 2 }, { id: 'lantern_cream', x: 11, y: 2 }, { id: 'stonelantern', x: 2, y: 9 }, { id: 'stonelantern', x: 10, y: 9 }, { id: 'stars', x: 5, y: 7, cond: 'story_done' }],
+    props: [
+      { id: 'mechanism', x: 5, y: 2 },
+      { id: 'wallshelf', x: 2, y: 1 }, { id: 'wallshelf', x: 9, y: 1 },
+      { id: 'lantern_cream', x: 1, y: 2 }, { id: 'lantern_cream', x: 11, y: 2 },
+      { id: 'andon', x: 2, y: 4 }, { id: 'andon', x: 10, y: 4 },
+      { id: 'stars', x: 1, y: 5 }, { id: 'stars', x: 10, y: 5 },
+      { id: 'library_shelf', x: 1, y: 6 }, { id: 'library_shelf', x: 9, y: 6 },
+      { id: 'crate', x: 1, y: 8 }, { id: 'crate', x: 2, y: 8 }, { id: 'crate', x: 10, y: 8 }, { id: 'barrel', x: 11, y: 8 },
+      { id: 'sack', x: 1, y: 9 }, { id: 'stonelantern', x: 2, y: 9 }, { id: 'stonelantern', x: 10, y: 9 }, { id: 'barrel', x: 11, y: 9 },
+      { id: 'stars', x: 5, y: 7, cond: 'story_done' },
+    ],
     rooms: [{ id: 'lighthouse_room', name: 'Faro', x: 0, y: 0, w: 13, h: 12, defWall: 'night', defFloor: 'stone' }],
     gather: [],
-    dark: true,
+    gloom: true,
   });
 }
 
