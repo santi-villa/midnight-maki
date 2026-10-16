@@ -351,6 +351,21 @@ export function guestViews(): GuestView[] {
   }));
 }
 
+/**
+ * Where the "serve orders" objective points. Nothing while the restaurant is closed and empty; once a party is
+ * seated and ready to order, their table; while dishes wait to be cooked or carried, the counter.
+ */
+export function serviceGuide(): { tableId: string } | 'counter' | null {
+  session();
+  if (!salon || !game.has('intro_done')) return null;
+  const take = tableJobs().find((j) => j.phase === 'waiting_order');
+  if (take) return { tableId: take.tableId };
+  const phase = hoursNow();
+  const busy = (phase === 'open' || phase === 'closing') && game.save.orders.some((o) => !o.special && plateState(o.uid) !== 'delivered');
+  if (busy) return 'counter';
+  return null;
+}
+
 export function tableJobs(): TableJob[] {
   session();
   if (!salon || !game.has('intro_done')) return [];

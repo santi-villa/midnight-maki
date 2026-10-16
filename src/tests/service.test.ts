@@ -17,7 +17,10 @@ import {
   stepService,
   tableJobs,
   takeOrderAt,
+  serviceGuide,
 } from '../restaurant/service';
+import { questTarget } from '../world/guide';
+import { defineQuests } from '../quests/quests';
 
 const FAST = { approach: 1, walk: 1, settle: 1, eat: 1, pay: 1, leave: 1 };
 
@@ -158,5 +161,28 @@ describe('dining service', () => {
     expect(game.coins).toBe(145);
     expect(game.save.restaurant.served).toBe(1);
     expect(stagePlate(uid, 2, 0)).toBe(false);
+  });
+});
+
+describe('serve-orders arrow', () => {
+  it('stays off until a guest is seated and ready, then points at their table, then at the counter', () => {
+    expect(serviceGuide()).toBeNull();
+    seatOne();
+    expect(serviceGuide()).toEqual({ tableId: '1' });
+    takeOrderAt('1');
+    expect(serviceGuide()).toBe('counter');
+  });
+  it('shows nothing before the restaurant opens even with an order waiting', () => {
+    seatOne(); takeOrderAt('1');
+    game.save.time.period = 0; game.save.time.minutes = 5; // early morning, doors still closed
+    expect(serviceGuide()).toBeNull();
+  });
+  it('the quest step follows it', () => {
+    defineQuests([{ id: 't_serve', kind: 'main', title: 't', desc: 't', steps: [{ text: 'Serví pedidos', done: () => false, target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, service: true } }] }]);
+    game.save.quests.tracked = 't_serve';
+    game.save.quests.active.t_serve = { step: 0, progress: {} };
+    expect(questTarget()).toBeNull(); // closed and empty: no arrow
+    seatOne();
+    expect(questTarget()).toEqual({ zone: 'restaurant', tableId: '1' });
   });
 });

@@ -139,7 +139,19 @@ function refreshSuggestions() {
     suggestEl.append(h('button', { onclick: () => { audio.sfxPlay('tap'); s.run(); } }, s.label));
 }
 
-bus.on('coins:changed', () => refresh());
+/** "+12 🪙" next to the counter; gains that arrive close together add up into one pop */
+let popEl: HTMLElement | null = null, popTotal = 0, popTimer = 0;
+function coinPop(delta: number) {
+  const host = coinEl?.parentElement;
+  if (!host || !root?.isConnected) return;
+  if (!popEl || !popEl.isConnected) { popEl = h('span', { class: 'coin-pop', 'aria-hidden': 'true' }); host.append(popEl); popTotal = 0; }
+  popTotal += delta;
+  popEl.textContent = `+${popTotal.toLocaleString('es-AR')} 🪙`;
+  popEl.classList.remove('go'); void popEl.offsetWidth; popEl.classList.add('go');
+  clearTimeout(popTimer);
+  popTimer = window.setTimeout(() => { popEl?.remove(); popEl = null; popTotal = 0; }, 1700);
+}
+bus.on('coins:changed', ({ delta }) => { refresh(); if (delta > 0) coinPop(delta); });
 bus.on('time:changed', () => {
   refresh();
   refreshSuggestions();

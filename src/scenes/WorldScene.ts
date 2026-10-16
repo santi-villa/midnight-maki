@@ -29,7 +29,7 @@ import { facingTable, seatDrawOffset, standApart } from '../restaurant/seating';
 import { planWaitSpots, scanWaitSpots, RECEPTION_SPOTS, WAITING_SPOTS, type WaitTile } from '../restaurant/waiting';
 import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
-import { customerAsk } from '../restaurant/orders';
+import { customerAsk, mealComment } from '../restaurant/orders';
 import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, tableLabel, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
 import { tipPending, type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { furnSize } from '../data/furniture';
@@ -177,9 +177,6 @@ export class WorldScene extends Phaser.Scene {
         this.town.invalidate(); this.diningCache = null;
         for (const v of this.visitors.values()) for (const trip of v.trips) trip.replan();
         this.refreshFurniture(); this.decorReaction = true;
-      }),
-      bus.on('coins:changed', ({ delta }) => {
-        if (delta > 0 && this.sys.isActive()) this.floatText('+' + delta + ' ●');
       }),
       bus.on('state:changed', () => {
         if (this.zoneId === 'restaurant') this.syncGuests();
@@ -902,7 +899,7 @@ export class WorldScene extends Phaser.Scene {
           });
         } else if (g.phase === 'leaving') {
           v.trips.forEach((t) => t.go(v.origin));
-          this.sayVisitor(v.id, '¡Hasta pronto!');
+          this.sayVisitor(v.id, '¡Hasta pronto!', true);
         } else if (g.phase === 'waiting_order') {
           const ask = customerAsk(g.customerId, guestHash(g.id));
           if (ask) this.sayVisitor(v.id, ask);
@@ -1075,8 +1072,10 @@ export class WorldScene extends Phaser.Scene {
     for (const trip of v.trips) trip.go(v.origin);
   }
 
-  private sayVisitor(id: string, text: string) {
-    this.guests.get(id + ':0')?.actor.emote(text, 4);
+  private sayVisitor(id: string, text: string, soft = false) {
+    const a = this.guests.get(id + ':0')?.actor;
+    if (soft && a?.bubble) return; // never cut off what they were saying
+    a?.emote(text, 4);
   }
 
   private updateHost(dt: number) {
@@ -1150,9 +1149,30 @@ export class WorldScene extends Phaser.Scene {
     if (notice) this.note(notice);
   }
 
+  /** A finished meal is part of the room: the guest says what they thought in a bubble and the coins show beside the counter. */
   private enqueueMeal(meal: PaidMeal) {
-    this.mealQueue.push(meal);
-    void runTask('world:paid-meal', () => this.drainMeals());
+    this.mealReceipt(meal);
+    // only real milestones (level up, new recipes, first time, gifts) still pause for a scene
+    if (meal.result.levelUp || meal.result.newRecipes.length || meal.result.firstTime || meal.result.gift) { // levels pause for a scene; first-time and gifts are toasts
+      this.mealQueue.push(meal);
+      void runTask('world:paid-meal', () => this.drainMeals());
+    }
+  }
+
+  private mealReceipt(meal: PaidMeal) {
+    const owner = [...this.visitors.values()].find((v) => v.customers.includes(meal.customer));
+    const body = owner ? this.guests.get(`${owner.id}:${owner.customers.indexOf(meal.customer)}`) : undefined;
+    const a = body?.actor;
+    if (!a?.sprite.active) return;
+    a.emote(mealComment(meal.customer, meal.quality), 4.5);
+    const total = meal.result.coins;
+    if (total > 0) this.floatAt(a.x, a.y - 44, `+${total}`);
+  }
+
+  /** a small number near a spot of the world (the table), not on the player */
+  floatAt(x: number, y: number, text: string, color = '#ffe08a') {
+    const t = this.add.text(x, y, text, { fontFamily: 'Pixelify Sans, sans-serif', fontSize: '20px', color, stroke: '#2a2230', strokeThickness: 4, resolution: 2 }).setOrigin(0.5, 1).setScale(0.3).setDepth(300000);
+    this.tweens.add({ targets: t, y: y - 16, alpha: { from: 1, to: 0 }, scale: 0.34, duration: 1500, delay: 200, ease: 'Sine.out', onComplete: () => t.destroy() });
   }
 
   private async drainMeals() {
@@ -2700,7 +2720,10 @@ export class WorldScene extends Phaser.Scene {
       if (t) {
         if (t.zone === this.zoneId || (t.zone === 'home' && this.zoneId === 'home')) {
           if (t.npc) this.guideGoal = { x: 0, y: 0, npc: t.npc };
-          else if (t.x != null && t.y != null) this.guideGoal = { x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 };
+          else if (t.tableId) {
+            const f = this.zone.furniture.find((fi) => String(fi.f.uid) === t.tableId);
+            if (f) { const size = furnSize(f.def, f.f.rot); this.guideGoal = { x: f.f.x * TILE + (size.w * TILE) / 2, y: f.f.y * TILE + (size.h * TILE) / 2 }; }
+          } else if (t.x != null && t.y != null) this.guideGoal = { x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 };
         } else {
           const d = nextDoor(this.zoneId, t.zone);
           if (d) this.guideGoal = { x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2 };
