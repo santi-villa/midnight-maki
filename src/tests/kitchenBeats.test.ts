@@ -66,9 +66,12 @@ describe('twists keep every prompt different but fair', () => {
       const t = rollTwist('rhythm', 'relaxed', 3, seeded(i));
       expect(t.gaps.every((g) => g === 1)).toBe(true);
       expect(t.jump).toBe(false);
-      expect(t.speed).toBeGreaterThan(0.9);
-      expect(t.speed).toBeLessThan(1.1);
+      expect(t.speed).toBeGreaterThanOrEqual(1);
+      expect(t.speed).toBeLessThan(1.31);
     }
+  });
+  it('never gets slower than the base pace in any mode', () => {
+    for (const m of ['relaxed', 'normal', 'challenge'] as const) for (let i = 1; i < 40; i++) expect(rollTwist('tap', m, 1, seeded(i)).speed).toBeGreaterThanOrEqual(1);
   });
   it('challenge varies tempo and rhythm across rolls', () => {
     const rolls = Array.from({ length: 40 }, (_, i) => rollTwist('rhythm', 'challenge', 4, seeded(i + 3)));
