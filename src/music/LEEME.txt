@@ -7,5 +7,5 @@ Poné acá los archivos de audio (m4a, mp3, ogg, wav, webm u opus). El nombre el
   kitchen-hard / cocina-dificil -> minijuego de cocina en modo difícil
 Suenan en loop con entrada suave y se apagan al cambiar de escena. Las escenas sin archivo siguen con la música generada
 (la de cocina ya es generada por código; si ponés un archivo, lo reemplaza).
-Para celular conviene m4a (AAC) a ~96 kbps: suena en todos los dispositivos y pesa poco. Las dos canciones actuales
-ya están así (antes eran mp3 de 4 MB cada una).
+Si hay varios archivos para la misma escena, se prueba primero ogg, opus o webm y después mp3 o m4a.
+El ogg suena en el navegador de escritorio; el m4a queda para el celular. Las dos canciones actuales están en los dos formatos.

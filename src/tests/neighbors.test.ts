@@ -3,7 +3,7 @@ import { game, newSave } from '../core/state';
 import { NEIGHBORS } from '../data/neighbors';
 import { ZONES } from '../data/zones';
 import { planVillage, type PlanContext } from '../systems/neighborPlan';
-import { FOREST, FOUNTAIN, GARDEN, SHORE, STROLL, allBenches, homeActivity, tileOpen } from '../systems/neighborSpots';
+import { FOREST, FOUNTAIN, GARDEN, SHORE, STROLL, allBenches, byDoor, homeActivity, shopSpot, tileOpen } from '../systems/neighborSpots';
 import { NeighborLife } from '../systems/neighbors';
 import { buildZone, ensureDefaultDecor } from '../world/zoneRuntime';
 import { HOUSES } from '../data/houses';
@@ -113,6 +113,27 @@ describe('ambient neighbours', () => {
       expect(grid.isSolid(day.x, day.y), n.id).toBe(false);
       expect(day.act === 'sit' || day.act === 'read' || day.act === 'look', n.id).toBe(true);
       if (day.seatLift) expect(day.dir, n.id).toBe('up');
+    }
+  });
+
+  it('keeps people off doorways, and a chat is a pair rather than a pile', () => {
+    for (const shop of ['shop_yuki', 'shop_taro', 'shop_bento', 'library', 'plaza_ren']) {
+      const spot = shopSpot(shop);
+      expect(spot, shop).toBeTruthy();
+      expect(byDoor(spot!.zone, spot!.x, spot!.y), shop).toBe(false);
+      expect(tileOpen(spot!.zone, spot!.x, spot!.y), shop).toBe(true);
+    }
+    for (let day = 1; day <= 6; day++) for (const c of slots(1)(ctx(day, 1, 0))) {
+      const plan = planVillage(c);
+      const crowds = new Map<string, number>();
+      for (const [id, p] of plan) {
+        if (p.kind === 'home') continue;
+        expect(byDoor(p.zone, p.x, p.y), `${id} ${p.kind} ${p.zone} ${p.x},${p.y}`).toBe(false);
+        if (p.kind !== 'chat') continue;
+        const key = `${p.zone}:${Math.round(p.x / 3)}:${Math.round(p.y / 3)}`;
+        crowds.set(key, (crowds.get(key) ?? 0) + 1);
+      }
+      for (const n of crowds.values()) expect(n).toBeLessThanOrEqual(2);
     }
   });
 

@@ -164,7 +164,7 @@ class DecorEditor {
     this.actions.innerHTML = '';
     if (this.tab === 0) {
       const ids = Object.entries(game.save.furnitureOwned).filter(([, n]) => n > 0);
-      if (!ids.length) this.list.append(h('div', { class: 'hint', style: { color: '#f6ecd6', padding: '8px' } }, 'No tenés muebles guardados. Comprá en el Almacén de Taro, el puesto de Sumi o el Mercado Nocturno.'));
+      if (!ids.length) this.list.append(h('div', { class: 'hint', style: { color: '#f6ecd6', padding: '8px' } }, 'No tenés muebles guardados. En «En la habitación» podés mover lo que ya está. También se compran en el Almacén de Taro, el puesto de Sumi o el Mercado Nocturno.'));
       for (const [id, n] of ids) {
         const f = FURN_BY_ID[id];
         if (!f) continue;
@@ -349,6 +349,8 @@ class DecorEditor {
       if (game.save.furnitureOwned[g.id] <= 0) delete game.save.furnitureOwned[g.id];
       list.push({ uid: game.uid(), id: g.id, x: g.x, y: g.y, rot: g.rot });
       game.stat('decorPlaced');
+      if (g.id === 'pt_sushi') game.setFlag('placed_pt_sushi');
+      if (g.id === 'bamboo_pot') game.setFlag('placed_bamboo_pot');
     }
     game.stat('decorMoves');
     audio.sfxPlay('place');

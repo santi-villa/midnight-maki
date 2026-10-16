@@ -41,7 +41,7 @@ const styles = (): Entry[] => [
 
 export const SHOPS: Record<string, ShopDef> = {
   taro: {
-    title: 'Almacén de Taro', keeper: 'taro', greet: '¡{Bienvenido|Bienvenida}! Arroz, nori, muebles y rumores. Lo último es gratis.',
+    title: 'Almacén de Taro', keeper: 'taro', greet: '¡{Bienvenido|Bienvenida}! Acá está la cocina: arroz, nori, pescado y verdura. Lo suelto va a tu mochila y ya se puede cocinar. Los paquetes se abren en la despensa del restaurante. También vendo muebles, semillas y regalos. Los rumores son gratis.',
     tabs: [
       { name: 'Ingredientes', list: () => items(['rice', 'nori', 'salmon', 'tuna', 'cucumber', 'avocado', 'egg', 'shrimp', 'crab', 'cream', 'sesame', 'wasabi', 'chili', 'tempura', 'mango', 'eel', 'roe', 'scallion', 'carrot', 'ginger', 'umeboshi', 'tea_leaves', 'ramune_bottle', 'milk', 'berry']) },
       { name: 'Paquetes y cajas', list: () => packEntries() },
@@ -54,14 +54,14 @@ export const SHOPS: Record<string, ShopDef> = {
     sell: ['fish', 'flower', 'shell', 'material', 'bug', 'ingredient'],
   },
   yuki: {
-    title: 'Tienda de Yuki', keeper: 'yuki', greet: 'Pasá, pasá. Todo hecho a mano. Bueno, casi todo.',
+    title: 'Tienda de Yuki', keeper: 'yuki', greet: 'Pasá, pasá. Acá hay ropa, zapatos y accesorios, hechos a mano. Bueno, casi todo. Los sombreros y las bolsas están en Accesorios.',
     tabs: [
       { name: 'Ropa', list: () => clothes('yuki').filter((c) => ['top', 'bottom', 'shoes'].includes(CLOTHES_BY_ID[c.id].slot)) },
       { name: 'Accesorios', list: () => clothes('yuki').filter((c) => !['top', 'bottom', 'shoes'].includes(CLOTHES_BY_ID[c.id].slot)) },
     ],
   },
   bento: {
-    title: 'Panadería de Bento', keeper: 'bento', greet: '¡Pan de leche recién salido! Y dulces para regalar.',
+    title: 'Panadería de Bento', keeper: 'bento', greet: '¡Pan de leche recién salido! También huevos, frutillas y dulces para regalar. El arroz de todos los días está en lo de Taro. Más adelante, Nami vende pescado en la playa y Sumi vende cuadros.',
     tabs: [{ name: 'Mostrador', list: () => items(['g_candy', 'g_tea', 'egg', 'berry'], 1) }],
   },
   nami: {
@@ -144,7 +144,11 @@ function buy(e: Entry, qty = 1): boolean {
     audio.sfxPlay('error');
     return false;
   }
-  if (e.kind === 'item') game.addItem(e.id, qty, 'shop');
+  if (e.kind === 'item') {
+    game.addItem(e.id, qty, 'shop');
+    const cat = ITEMS_BY_ID[e.id]?.cat;
+    if (cat === 'ingredient' || cat === 'supply') game.setFlag('bought_supply');
+  }
   else if (e.kind === 'furn') game.save.furnitureOwned[e.id] = (game.save.furnitureOwned[e.id] ?? 0) + qty;
   else if (e.kind === 'cloth') game.save.clothesOwned.push(e.id);
   else game.setFlag(`${e.kind}_${e.id}`);

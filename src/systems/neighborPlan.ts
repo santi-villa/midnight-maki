@@ -5,8 +5,10 @@
  * friends sometimes spend a free moment together.
  */
 import { rng } from '../art/pixel';
+import type { Dir } from '../core/types';
 import { NEIGHBORS, type Like, type Neighbor } from '../data/neighbors';
-import { FOREST, FOUNTAIN, GARDEN, MARKET, SHORE, STROLL, allBenches, homeActivity, shopSpot, tileOpen, type Place } from './neighborSpots';
+import { ZONES } from '../data/zones';
+import { FOREST, FOUNTAIN, GARDEN, MARKET, SHORE, STROLL, allBenches, byDoor, homeActivity, shopSpot, tileOpen, type Place } from './neighborSpots';
 
 export interface PlanContext {
   day: number;
@@ -83,37 +85,68 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
   const used = new Set<string>();
   const slot = ctx.period * 4 + (ctx.part ?? ctx.half * 2);
   const seats = new Set(allBenches().map((b) => `${b.zone}:${b.x}:${b.y}`));
+  const shifts: [number, number][] = [[0, 0]];
+  for (let r = 1; r <= 3; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      shifts.push([dx, dy]);
+    }
+  }
+  const open = (zone: string, x: number, y: number) => {
+    const key = `${zone}:${x}:${y}`;
+    return !used.has(key) && tileOpen(zone, x, y) && !byDoor(zone, x, y);
+  };
+  const take = (p: Place, x: number, y: number): Place => {
+    const key = `${p.zone}:${x}:${y}`;
+    used.add(key);
+    const spot = x === p.x && y === p.y ? p : { ...p, x, y };
+    if (spot.seatLift && !seats.has(key)) return { ...spot, seatLift: 0 };
+    return spot;
+  };
+  /** A free tile near the wanted one. Never stacks two people, and never leaves them in a doorway. */
   const claim = (p: Place, id: string): Place => {
     void id;
     if (p.kind === 'home') {
       used.add(`${p.zone}:${p.x}:${p.y}`);
       return p;
     }
-    const shifts: [number, number][] = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [1, 1], [-1, 1]];
+    const bench = p.kind === 'bench' || p.kind === 'read';
     for (const [dx, dy] of shifts) {
       const x = p.x + dx;
       const y = p.y + dy;
-      const key = `${p.zone}:${x}:${y}`;
-      if (used.has(key) || !tileOpen(p.zone, x, y)) continue;
-      const bench = p.kind === 'bench' || p.kind === 'read';
-      if (bench && !seats.has(key)) continue;
-      used.add(key);
-      const spot = x === p.x && y === p.y ? p : { ...p, x, y };
-      if (spot.seatLift && !seats.has(key) && spot.kind !== 'home') return { ...spot, seatLift: 0 };
-      return spot;
+      if (!open(p.zone, x, y)) continue;
+      if (bench && !seats.has(`${p.zone}:${x}:${y}`)) continue;
+      return take(p, x, y);
     }
-    if (p.kind === 'bench' || p.kind === 'read') {
+    if (bench) {
       for (const [dx, dy] of shifts) {
         const x = p.x + dx;
         const y = p.y + dy;
-        const key = `${p.zone}:${x}:${y}`;
-        if (used.has(key) || !tileOpen(p.zone, x, y)) continue;
-        used.add(key);
+        if (!open(p.zone, x, y)) continue;
+        used.add(`${p.zone}:${x}:${y}`);
         return { ...p, x, y, seatLift: 0, act: 'look', kind: 'stroll' };
+      }
+    }
+    const z = ZONES[p.zone];
+    if (z) {
+      let best: [number, number] | null = null;
+      let bestD = 1e9;
+      for (let y = 0; y < z.h; y++) for (let x = 0; x < z.w; x++) {
+        if (!open(p.zone, x, y)) continue;
+        const d = Math.abs(x - p.x) + Math.abs(y - p.y);
+        if (d < bestD) { bestD = d; best = [x, y]; }
+      }
+      if (best) {
+        used.add(`${p.zone}:${best[0]}:${best[1]}`);
+        return { ...p, x: best[0], y: best[1], seatLift: 0, act: bench ? 'look' : p.act, kind: bench ? 'stroll' : p.kind };
       }
     }
     used.add(`${p.zone}:${p.x}:${p.y}`);
     return p;
+  };
+  const claimExact = (p: Place): Place | null => {
+    if (!open(p.zone, p.x, p.y)) return null;
+    return take(p, p.x, p.y);
   };
   const chatters: Neighbor[] = [];
   const mood = new Map<string, Activity>();
@@ -141,25 +174,80 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
     const p = pool[Math.floor(r() * pool.length)];
     out.set(n.id, { ...claim(p, n.id), ride: !!n.bike && (act === 'stroll' || p.kind === 'sea') });
   }
-  // chatters meet at one spot in the square, up to three together
+  // chatters pair up at different spots, facing each other, instead of crowding one fountain
   if (chatters.length) {
     const meet = rng(ctx.day * 977 + slot * 31);
-    const anchors = [...FOUNTAIN, ...STROLL.filter((p) => p.zone === 'plaza')];
-    if (!anchors.length) {
-      for (const n of chatters) out.set(n.id, claim(homeActivity(n, ctx.period), n.id));
-    } else {
-      const at = anchors[Math.floor(meet() * anchors.length)];
-      chatters.forEach((n, i) => { const g = Math.floor(i / 3); out.set(n.id, { ...claim({ ...at, x: at.x + (i % 3) - 1 + g * 4, kind: 'chat' }, n.id), act: 'talk' }); });
+    const anchors = [...FOUNTAIN, ...allBenches().filter((b) => b.zone === 'plaza'), ...STROLL.filter((p) => p.zone === 'plaza')];
+    const parked: { x: number; y: number }[] = [];
+    const pickAnchor = (): Place | null => {
+      if (!anchors.length) return null;
+      let fallback: Place | null = null;
+      for (let k = 0; k < anchors.length; k++) {
+        const at = anchors[Math.floor(meet() * anchors.length)];
+        if (!fallback) fallback = at;
+        if (parked.every((p) => Math.abs(p.x - at.x) + Math.abs(p.y - at.y) >= 4)) return at;
+      }
+      return fallback;
+    };
+    const beside = (at: Place): Place | null => {
+      const opts: [number, number][] = [[2, 0], [-2, 0], [0, 2], [0, -2], [3, 0], [0, 3], [-3, 0], [0, -3]];
+      for (const [dx, dy] of opts) {
+        const x = at.x + dx;
+        const y = at.y + dy;
+        if (tileOpen(at.zone, x, y) && !byDoor(at.zone, x, y)) return { ...at, x, y, seatLift: 0, bed: undefined };
+      }
+      return null;
+    };
+    for (let i = 0; i < chatters.length; i += 2) {
+      const a = chatters[i];
+      const b = chatters[i + 1];
+      const at = pickAnchor();
+      if (!at) {
+        out.set(a.id, claim(homeActivity(a, ctx.period), a.id));
+        if (b) out.set(b.id, claim(homeActivity(b, ctx.period), b.id));
+        continue;
+      }
+      parked.push(at);
+      if (!b) {
+        out.set(a.id, claim(at, a.id));
+        continue;
+      }
+      const other = beside(at);
+      const pa = claim({ ...at, kind: 'chat', act: 'talk', seatLift: 0 }, a.id);
+      const pb = other ? claim({ ...other, kind: 'chat', act: 'talk' }, b.id) : claim({ ...at, x: at.x + 2, kind: 'chat', act: 'talk', seatLift: 0 }, b.id);
+      out.set(a.id, { ...pa, act: 'talk', kind: 'chat', dir: faceToward(pa, pb) });
+      out.set(b.id, { ...pb, act: 'talk', kind: 'chat', dir: faceToward(pb, pa) });
     }
   }
-  // friends who are both out sometimes spend the moment together
+  // friends who are both out stand a couple of tiles apart and face each other
   for (const n of roster) for (const fid of n.friends) {
     if (n.id > fid) continue;
     const a = out.get(n.id), b = out.get(fid);
     if (!a || !b || a.kind === 'home' || b.kind === 'home' || a.kind === 'shop' || b.kind === 'shop' || a.zone !== 'plaza' && !ctx.open.has(a.zone)) continue;
     if (mood.get(n.id) === 'chat' || mood.get(fid) === 'chat') continue;
     const roll = rng(hash(n.id + fid) + ctx.day * 53 + slot)();
-    if (roll < 0.45) out.set(fid, { ...claim({ ...a, x: a.x + 1, act: 'talk', kind: 'together' }, fid), withFriend: n.id });
+    if (roll >= 0.45) continue;
+    const oldKey = `${b.zone}:${b.x}:${b.y}`;
+    used.delete(oldKey);
+    const offs: [number, number][] = [[2, 0], [-2, 0], [0, 2], [0, -2], [3, 0], [-3, 0], [0, 3], [0, -3], [2, 1], [-2, 1]];
+    let spot: Place | null = null;
+    for (const [dx, dy] of offs) {
+      const trial = claimExact({ ...a, x: a.x + dx, y: a.y + dy, act: 'talk', kind: 'together', seatLift: 0, bed: undefined, dir: 'down' });
+      if (!trial) continue;
+      spot = { ...trial, dir: faceToward(trial, a) };
+      break;
+    }
+    if (!spot) { used.add(oldKey); continue; }
+    out.set(fid, { ...spot, withFriend: n.id });
+    if (!a.seatLift) out.set(n.id, { ...a, dir: faceToward(a, spot), act: a.act === 'sit' || a.act === 'read' ? a.act : 'talk' });
+    else out.set(n.id, { ...a, dir: faceToward(a, spot) });
   }
   return out;
+}
+
+function faceToward(from: { x: number; y: number }, to: { x: number; y: number }): Dir {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'right' : 'left';
+  return dy > 0 ? 'down' : 'up';
 }

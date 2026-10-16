@@ -9,6 +9,7 @@ import { settings } from '../core/settings';
 import type { ZoneDef } from '../data/zones';
 import { buildOverlay } from '../world/zoneRuntime';
 import { charTexture, dotTexture, ensureTileset, glowTexture, propTexture, vignetteTexture } from './textures';
+import { warmNextOutdoor } from './warmArt';
 
 const W = 32;
 const H = 28;
@@ -186,6 +187,7 @@ export class TitleScene extends Phaser.Scene {
         vig.setPosition(cam.midPoint.x, cam.midPoint.y);
       });
     this.scale.on('resize', fit);
-    this.events.once('shutdown', () => this.scale.off('resize', fit));
+    const warm = this.time.addEvent({ delay: 400, loop: true, callback: () => { if (!warmNextOutdoor(this)) this.time.removeEvent(warm); } });
+    this.events.once('shutdown', () => { this.scale.off('resize', fit); this.time.removeEvent(warm); });
   }
 }
