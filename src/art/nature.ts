@@ -1,5 +1,5 @@
 /**
- * Bright cozy outdoor art (style guide: the farm-village reference): saturated grass with tufts,
+ * Soft cozy outdoor art: sage grass with sparse tufts,
  * soft beige paths that blend into the lawn, sparkling blue water with grassy banks, round leafy trees,
  * fluffy layered pines, log fences, timber-framed cottages with tiled roofs, crates, sacks and stalls.
  */
@@ -7,11 +7,11 @@ import { drawStorefront, type StoreKind } from './storefronts';
 import { ctx2d, ellipse, makeCanvas, mix, px, rng, shade, type Ctx } from './pixel';
 
 export const NAT = {
-  grass: '#5db449',
-  grassL: '#7ccb59',
-  grassLL: '#9be070',
-  grassD: '#43963c',
-  grassDD: '#2f7a35',
+  grass: '#91ad70',
+  grassL: '#a4bd82',
+  grassLL: '#bdcc96',
+  grassD: '#7f9d60',
+  grassDD: '#638253',
   path: '#e6cd98',
   pathL: '#f3e0b4',
   pathD: '#d2b47c',
@@ -25,11 +25,11 @@ export const NAT = {
   deep: '#2479bf',
   earth: '#8b5a3a',
   earthD: '#6a4229',
-  leafDD: '#24683a',
-  leafD: '#2f8a3e',
-  leaf: '#46a846',
-  leafL: '#6cc456',
-  leafLL: '#9be06a',
+  leafDD: '#49684b',
+  leafD: '#5e8050',
+  leaf: '#789b5c',
+  leafL: '#98b677',
+  leafLL: '#bacb92',
   trunk: '#8a5a3c',
   trunkD: '#64402a',
   wood: '#a8714a',
@@ -52,16 +52,16 @@ export function brightGrass(variant: number): TileDraw {
   return (c, x, y, r) => {
     px(c, x, y, NAT.grass, 16, 16);
     // soft light patches
-    for (let i = 0; i < 2; i++) {
+    {
       const cx = x + 2 + Math.floor(r() * 12);
       const cy = y + 2 + Math.floor(r() * 12);
       px(c, cx - 2, cy, NAT.grassL, 5, 1);
       px(c, cx - 1, cy - 1, NAT.grassL, 3, 3);
     }
     // texture speckles
-    for (let i = 0; i < 14; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.grassD : NAT.grassL);
+    for (let i = 0; i < 4; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.grassD : NAT.grassL);
     // tufts
-    const n = 3 + variant;
+    const n = 1 + (variant % 2);
     for (let i = 0; i < n; i++) tuft(c, x + 1 + Math.floor(r() * 12), y + 2 + Math.floor(r() * 12), r() < 0.5 ? NAT.grassLL : NAT.grassL, NAT.grassD);
     if (variant === 3) {
       const fx = x + 3 + Math.floor(r() * 9);
@@ -78,9 +78,9 @@ export function brightGrass(variant: number): TileDraw {
 }
 
 export const darkGrassBright: TileDraw = (c, x, y, r) => {
-  px(c, x, y, '#4fa543', 16, 16);
-  for (let i = 0; i < 16; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.grassD : NAT.grass);
-  for (let i = 0; i < 5; i++) tuft(c, x + 1 + Math.floor(r() * 12), y + 2 + Math.floor(r() * 12), NAT.grassL, NAT.grassD);
+  px(c, x, y, NAT.grassD, 16, 16);
+  for (let i = 0; i < 5; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.grassDD : NAT.grass);
+  for (let i = 0; i < 2; i++) tuft(c, x + 1 + Math.floor(r() * 12), y + 2 + Math.floor(r() * 12), NAT.grassL, NAT.grassD);
 };
 
 /** Worn path. Each variant keeps the same beige, with a different pebble and a small scuff. */
@@ -88,7 +88,7 @@ export function pathTile(variant = 0): TileDraw {
   const base = variant === 2 ? shade(NAT.path, -0.05) : variant === 1 ? shade(NAT.path, 0.03) : NAT.path;
   return (c, x, y, r) => {
     px(c, x, y, base, 16, 16);
-    for (let i = 0; i < 12 + variant; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.pathD : NAT.pathL);
+    for (let i = 0; i < 4 + variant; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.pathD : NAT.pathL);
     for (let i = 0; i < 1 + (variant % 2); i++) {
       const sx = x + 2 + Math.floor(r() * 11);
       const sy = y + 2 + Math.floor(r() * 11);
@@ -379,7 +379,7 @@ function cluster(c: Ctx, cx: number, cy: number, rx: number, ry: number, pal: st
   ellipse(c, cx, cy, rx - 0.5, ry - 0.5, d);
   ellipse(c, cx - rx * 0.12, cy - ry * 0.18, rx * 0.8, ry * 0.72, m);
   ellipse(c, cx - rx * 0.3, cy - ry * 0.38, rx * 0.45, ry * 0.4, l);
-  for (let i = 0; i < rx * ry * 0.16; i++) {
+  for (let i = 0; i < rx * ry * 0.055; i++) {
     const a = r() * Math.PI * 2;
     const k = Math.sqrt(r()) * 0.85;
     const fx = Math.round(cx + Math.cos(a) * rx * k);

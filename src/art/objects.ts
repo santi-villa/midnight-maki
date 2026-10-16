@@ -350,7 +350,8 @@ const K: Record<string, DrawFn> = {
     px(c, 1, topY + 1, top, Math.max(1, W - 2), Math.max(1, topH - 2));
     px(c, 1, topY + 1, shade(top, 0.18), Math.max(1, W - 2), 1);
     px(c, 1, topY + topH - 2, shade(c1, -0.25), Math.max(1, W - 2), 2);
-    for (let x = 4; x < W - 3; x += 8) px(c, x, topY + 3, shade(top, -0.06), Math.min(4, W - x - 2), 1);
+    // One quiet grain mark; the place settings carry the useful detail.
+    if (W > 12) px(c, 4, topY + 3, shade(top, -0.04), Math.min(4, W - 6), 1);
     // placemats sit at the ends, with a gap in the middle wide enough for two plates
     const mats = W >= 28 ? 2 : W >= 14 ? 1 : 0;
     if (mats && topH >= 6) {
@@ -390,7 +391,7 @@ const K: Record<string, DrawFn> = {
       px(c, 3, y, o, W - 6, h);
       px(c, 4, y + 1, wood, W - 8, h - 2);
       px(c, 4, y + 1, shade(wood, 0.2), W - 8, 1);
-      for (let x = 6; x < W - 5; x += 3) px(c, x, y + 3, shade(wood, -0.3), 1, h - 4);
+      for (let x = 7; x < W - 5; x += 5) px(c, x, y + 3, shade(wood, -0.18), 1, h - 4);
     };
     const seatTop = (y: number) => {
       px(c, 3, y, o, W - 6, 5);

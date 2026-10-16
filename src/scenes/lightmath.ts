@@ -90,6 +90,9 @@ const NIGHT = [[0, 0x6a6cb2], [0.3, 0x4a5296], [1, 0x383f82]] as [number, number
 const IN_DAY = 0xffffff;
 const IN_DUSK = [[0, 0xffeed8], [1, 0xe6c8c0]] as [number, number][];
 const IN_NIGHT = 0xc7a8b8;
+// A lit sushi bar stays honey/cream against the blue street, rather than turning purple.
+const RESTAURANT_DUSK = [[0, IN_DUSK[0][1]], [1, 0xe4cbb0]] as [number, number][];
+const RESTAURANT_NIGHT = 0xd9bfa8;
 
 export function lightState(i: LightInput): LightState {
   const per = Math.max(0, Math.min(3, Math.floor(i.period)));
@@ -136,11 +139,14 @@ export function lightState(i: LightInput): LightState {
       moon = 0.6 + 0.4 * smooth(0, 0.4, k);
     }
   } else {
+    const dusk = i.restaurant ? RESTAURANT_DUSK : IN_DUSK;
+    const night = i.restaurant ? RESTAURANT_NIGHT : IN_NIGHT;
     if (per === 0) tint = IN_DAY;
-    else if (per === 1) tint = mixHex(IN_DAY, IN_DUSK[0][1], smooth(0.5, 1, k));
-    else if (per === 2) tint = ramp(IN_DUSK, k);
-    else tint = mixHex(IN_DUSK[1][1], IN_NIGHT, smooth(0, 0.4, k));
+    else if (per === 1) tint = mixHex(IN_DAY, dusk[0][1], smooth(0.5, 1, k));
+    else if (per === 2) tint = ramp(dusk, k);
+    else tint = mixHex(dusk[1][1], night, smooth(0, 0.4, k));
     vig = per === 3 ? 0.26 + 0.1 * smooth(0, 0.4, k) : per === 2 ? 0.26 : 0.1 + (per === 1 ? 0.16 * smooth(0.5, 1, k) : 0);
+    if (i.restaurant && per >= 2) vig = per === 2 ? 0.26 : 0.26 + 0.02 * smooth(0, 0.4, k);
     lamp = per === 3 ? 1 : per === 2 ? 0.4 + 0.6 * k : per === 1 ? 0.35 + 0.05 * k : 0.35;
     windows = 1;
   }
