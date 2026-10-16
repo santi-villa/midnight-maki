@@ -14,20 +14,24 @@ export interface PlanContext {
   period: number;
   /** first or second half of the period */
   half: 0 | 1;
+  /** quarter of the period (about 45 real seconds each): people change place four times per part of the day */
+  part?: 0 | 1 | 2 | 3;
   rain: boolean;
   /** zones the player has opened (beach, garden, forest, market at night...) */
   open: ReadonlySet<string>;
 }
 
-export type Activity = 'home' | 'work' | 'free' | 'stroll' | 'chat';
+export type Activity = 'home' | 'work' | 'free' | 'stroll' | 'chat' | 'errand';
 
 const hash = (s: string) => { let h = 17; for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0; return h; };
 const BASE: Record<number, Record<Activity, number>> = {
-  0: { home: 0.15, work: 0.5, free: 0.2, stroll: 0.15, chat: 0 },
-  1: { home: 0.1, work: 0.3, free: 0.3, stroll: 0.2, chat: 0.1 },
-  2: { home: 0.2, work: 0, free: 0.35, stroll: 0.15, chat: 0.3 },
-  3: { home: 0.8, work: 0, free: 0.2, stroll: 0, chat: 0 },
+  0: { home: 0.12, work: 0.45, free: 0.18, stroll: 0.12, chat: 0, errand: 0.13 },
+  1: { home: 0.08, work: 0.28, free: 0.26, stroll: 0.16, chat: 0.08, errand: 0.14 },
+  2: { home: 0.15, work: 0, free: 0.32, stroll: 0.15, chat: 0.25, errand: 0.13 },
+  3: { home: 0.8, work: 0, free: 0.2, stroll: 0, chat: 0, errand: 0 },
 };
+/** the businesses a neighbour can pop into (interior zones with a street door) */
+const ERRAND_ZONES = ['shop_taro', 'shop_yuki', 'shop_bento', 'library'];
 
 /** the odds of each activity for this person at this time */
 export function weights(n: Neighbor, ctx: PlanContext): Record<Activity, number> {
@@ -39,7 +43,8 @@ export function weights(n: Neighbor, ctx: PlanContext): Record<Activity, number>
     if (ctx.period === 3) { w.home *= 0.2; w.free *= 3; w.stroll += 0.2; }
   }
   if (has('shy')) { w.chat *= 0.3; w.stroll *= 0.7; }
-  if (has('sociable')) { w.chat *= 2.5; w.stroll *= 1.2; }
+  if (has('sociable')) { w.chat *= 2.5; w.stroll *= 1.2; w.errand *= 1.3; }
+  if (has('shy')) w.errand *= 0.7;
   if (has('hardworking') && ctx.period <= 1) { w.work *= 1.8; w.free *= 0.6; }
   if (has('sporty')) w.stroll *= 1.7;
   if (ctx.rain) {
@@ -76,7 +81,7 @@ function spotsFor(like: Like, ctx: PlanContext, n: Neighbor): Place[] {
 export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIGHBORS): Map<string, Place & { ride?: boolean; withFriend?: string }> {
   const out = new Map<string, Place & { ride?: boolean; withFriend?: string }>();
   const used = new Set<string>();
-  const slot = ctx.period * 2 + ctx.half;
+  const slot = ctx.period * 4 + (ctx.part ?? ctx.half * 2);
   const seats = new Set(allBenches().map((b) => `${b.zone}:${b.x}:${b.y}`));
   const claim = (p: Place, id: string): Place => {
     void id;
@@ -119,6 +124,12 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
     if (act === 'home') { out.set(n.id, claim(homeActivity(n, ctx.period), n.id)); continue; }
     if (act === 'work') { const s = n.shop ? shopSpot(n.shop) : null; out.set(n.id, claim(s ?? homeActivity(n, ctx.period), n.id)); continue; }
     if (act === 'chat') { chatters.push(n); continue; }
+    if (act === 'errand') {
+      // a visit to someone else's business: walks there, looks around, then moves on with the next part of the day
+      const zones = ERRAND_ZONES.filter((z) => z !== n.shop);
+      const spot = shopSpot(zones[Math.floor(r() * zones.length)]);
+      if (spot) { out.set(n.id, claim({ ...spot, act: spot.zone === 'library' ? 'read' : 'look', kind: 'errand' }, n.id)); continue; }
+    }
     let pool: Place[] = [];
     if (act === 'free') {
       // adventurers lean on the far places, the rest on their favourites

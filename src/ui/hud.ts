@@ -9,7 +9,7 @@ import { inputMethod } from '../input/keys';
 import { dayOfSeason, WEEKDAYS, weekday } from '../core/balance';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
-import { idleOffer, type ContextAction, type ContextOffer } from '../world/contextActions';
+import { idleOffer, needsMore, secondaryActions, type ContextAction, type ContextOffer } from '../world/contextActions';
 import { h, uiRoot } from './dom';
 import { skinIconEl } from './skin';
 import { formatHudTime, hudTime, paintHudClock } from './hudClock';
@@ -185,7 +185,7 @@ function renderContext() {
   if (!dock || !tagEl || !menuEl) return;
   const offer = world?.contextOffer ?? idleOffer(null);
   paintTag(offer.roomTag);
-  const nextOverflow = offer.overflow.map((a) => a.id).join();
+  const nextOverflow = secondaryActions(offer).map((a) => a.id).join();
   if (nextOverflow !== overflowKey) {
     menuOpen = false;
     overflowKey = nextOverflow;
@@ -208,20 +208,21 @@ function renderContext() {
 
 function buttonSpecs(offer: ContextOffer): BtnSpec[] {
   const specs: BtnSpec[] = [];
-  if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
-  if (offer.overflow.length) {
+  // one action: E. Two: E and F. More: E is the main one and F opens "Más acciones…" (touch gets the same two buttons)
+  if (needsMore(offer)) {
     specs.push({
       id: '__more',
-      label: menuOpen ? 'Cerrar' : 'Más',
+      label: menuOpen ? 'Cerrar' : 'Más acciones…',
       detail: menuOpen ? 'Cerrar acciones' : 'Más acciones',
       icon: 'act',
       cls: 'btn ctx-chip ctx-more',
+      keyAction: 'secondary',
       run: () => {
         menuOpen = !menuOpen;
         renderContext();
       },
     });
-  }
+  } else if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
   if (offer.primary) specs.push(actionSpec(offer.primary, 'hud-interact', true, 'interact'));
   return specs;
 }
@@ -299,12 +300,12 @@ function removeAction(id: string, el: HTMLButtonElement) {
 
 function paintMenu(offer: ContextOffer) {
   if (!menuEl || !dock) return;
-  if (!menuOpen || !offer.overflow.length) {
+  if (!menuOpen || !needsMore(offer)) {
     if (menuEl.isConnected) menuEl.remove();
     return;
   }
   menuEl.innerHTML = '';
-  for (const a of offer.overflow) {
+  for (const a of secondaryActions(offer)) {
     menuEl.append(h('button', {
       type: 'button',
       class: 'btn ctx-row' + (settings.reduceMotion ? '' : ' ctx-pop'),
@@ -426,4 +427,20 @@ function setupJoystick() {
   };
   joyEl.addEventListener('pointerup', end);
   joyEl.addEventListener('pointercancel', end);
+}
+
+/** F with more than two actions: open or close the "Más acciones…" list. Returns whether the list is open now. */
+export function toggleMoreMenu(): boolean {
+  const offer = world?.contextOffer;
+  if (!offer || !needsMore(offer)) return false;
+  menuOpen = !menuOpen;
+  renderContext();
+  return menuOpen;
+}
+/** Escape closes the list first. Returns whether something was closed. */
+export function closeMoreMenu(): boolean {
+  if (!menuOpen) return false;
+  menuOpen = false;
+  renderContext();
+  return true;
 }

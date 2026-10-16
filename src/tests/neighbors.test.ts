@@ -3,7 +3,7 @@ import { game, newSave } from '../core/state';
 import { NEIGHBORS } from '../data/neighbors';
 import { ZONES } from '../data/zones';
 import { planVillage, type PlanContext } from '../systems/neighborPlan';
-import { FOREST, FOUNTAIN, GARDEN, SHORE, STROLL, allBenches, homeActivity, lingerTile, tileOpen } from '../systems/neighborSpots';
+import { FOREST, FOUNTAIN, GARDEN, SHORE, STROLL, allBenches, homeActivity, tileOpen } from '../systems/neighborSpots';
 import { NeighborLife } from '../systems/neighbors';
 import { buildZone, ensureDefaultDecor } from '../world/zoneRuntime';
 import { HOUSES } from '../data/houses';
@@ -116,7 +116,7 @@ describe('ambient neighbours', () => {
     }
   });
 
-  it('lets a strolling neighbour step aside and keeps that step on open ground', () => {
+  it('keeps a strolling neighbour walking: after a short while they move on to another spot a few tiles away', () => {
     const life = new NeighborLife();
     let stroller: ReturnType<typeof life.state.get> | undefined;
     for (let day = 1; day <= 12 && !stroller; day++) {
@@ -127,20 +127,29 @@ describe('ambient neighbours', () => {
       const found = [...life.state.values()].find((s) => s.anchor.kind === 'stroll');
       if (!found) continue;
       found.beat = 0;
-      found.stepped = false;
+      found.hops = 0;
       found.trip.place({ zone: found.anchor.zone, x: found.anchor.x, y: found.anchor.y });
       stroller = found;
     }
     expect(stroller, 'someone strolls').toBeTruthy();
     const anchor = { ...stroller!.anchor };
-    for (let i = 0; i < 20; i++) life.tick(0.5);
+    for (let i = 0; i < 240; i++) life.tick(0.5); // two minutes
+    expect(stroller!.hops).toBeGreaterThanOrEqual(2);
     const dest = stroller!.trip.destination;
-    expect(dest.x !== anchor.x || dest.y !== anchor.y).toBe(true);
-    expect(Math.abs(dest.x - anchor.x) + Math.abs(dest.y - anchor.y)).toBeLessThanOrEqual(2);
-    const grid = buildZone(anchor.zone).grid;
-    expect(grid.isSolid(dest.x, dest.y)).toBe(false);
-    const back = lingerTile('oto', 4, 4, (x, y) => Math.abs(x - 4) + Math.abs(y - 4) === 1 && x === 5);
-    expect(back).toEqual([5, 4]);
+    expect(Math.hypot(dest.x - anchor.x, dest.y - anchor.y)).toBeGreaterThanOrEqual(3);
+    expect(buildZone(anchor.zone).grid.isSolid(dest.x, dest.y)).toBe(false);
+  });
+
+  it('plans four parts per period and sends some neighbours to visit other businesses', () => {
+    const seen = new Set<string>();
+    for (let day = 1; day <= 20; day++) for (const part of [0, 1, 2, 3] as const) {
+      const plan = planVillage({ day, period: 1, half: part > 1 ? 1 : 0, part, rain: false, open: OPEN });
+      for (const p of plan.values()) seen.add(p.kind);
+    }
+    expect(seen.has('errand')).toBe(true);
+    const a = planVillage({ day: 3, period: 1, half: 0, part: 0, rain: false, open: OPEN });
+    const b = planVillage({ day: 3, period: 1, half: 0, part: 1, rain: false, open: OPEN });
+    expect([...a].some(([id, p]) => { const q = b.get(id)!; return q.x !== p.x || q.y !== p.y; })).toBe(true);
   });
 });
 

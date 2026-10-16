@@ -34,7 +34,8 @@ import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, ex
 import { tipPending, type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { furnSize } from '../data/furniture';
 import { isTypingTarget, normalizeStick } from '../input/bindings';
-import { idleOffer, isPlayerRoom, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
+import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
+import { idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
@@ -59,7 +60,7 @@ import type { CompanyActivity } from '../systems/companionship';
 
 export type { Target };
 
-interface NpcState { actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; micro?: boolean; barkAt?: number; }
+interface NpcState { out?: boolean; actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; micro?: boolean; barkAt?: number; }
 /** kind: lamp (default, follows lamp level), spill = light from windows / doors, window = interior window light, ambient = soft room fill */
 interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window' | 'ambient'; facade?: boolean }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
@@ -1409,10 +1410,11 @@ export class WorldScene extends Phaser.Scene {
       }
       const wasTraveling = n.traveling;
       n.traveling = !trip.settled;
+      if (n.out && (n.anchor[0] !== stop.x || n.anchor[1] !== stop.y || n.traveling)) n.out = false; // a new part of the day ends the outing
       n.anchor = [stop.x, stop.y]; n.wander = stop.wander ?? 0; n.act = stop.act;
-      n.actor.seatLift = n.traveling ? 0 : stop.seatLift ?? 0;
+      if (!n.out) n.actor.seatLift = n.traveling ? 0 : stop.seatLift ?? 0;
       n.actor.bed = !n.traveling && stop.act === 'sleep' ? stop.bed ?? null : null;
-      if (!n.traveling && stop.dir && !n.social) n.actor.face(stop.dir);
+      if (!n.traveling && stop.dir && !n.social && !n.out) n.actor.face(stop.dir);
       if (n.traveling) { n.actor.stop(); n.actor.setAct('idle'); }
       else if (wasTraveling) {
         n.actor.x = p.x * TILE + TILE / 2;
@@ -1712,7 +1714,9 @@ export class WorldScene extends Phaser.Scene {
 
   /** F: the side action, or the first extra action, and nothing when the player is alone. */
   trySecondary() {
-    const alt = this.contextOffer.chip ?? this.contextOffer.overflow[0] ?? null;
+    const offer = this.contextOffer;
+    if (needsMore(offer)) { void import('../ui/hud').then((m) => m.toggleMoreMenu()); return; }
+    const alt = offer.chip;
     if (alt) this.perform(alt);
   }
 
@@ -2278,6 +2282,28 @@ export class WorldScene extends Phaser.Scene {
     if (n.act === 'talk') { a.setAct('look'); n.t = 4; return; }
     n.t = 7 + Math.random() * 8;
     const [ax, ay] = n.anchor;
+    // an outing: they walk a good distance to somewhere with a reason (the fountain, a bench, a shop window, the shore),
+    // stay a while doing what fits the place, and come back
+    if (n.out) {
+      n.out = false; a.seatLift = 0; a.setAct('idle');
+      n.t = 4 + Math.random() * 4;
+      this.walkNpc(n, ax, ay);
+      return;
+    }
+    if (this.zone.def.outdoor && !n.social && Math.random() < 0.4 && (n.wander >= 2 || !n.act || n.act === 'look' || n.act === 'play')) {
+      const spot = this.outingSpot(n);
+      if (spot) {
+        n.out = true; a.setAct('idle');
+        const pose = () => {
+          if (!n.out) return;
+          a.seatLift = spot.seatLift ?? 0;
+          a.setAct(spot.act ?? 'look');
+          if (spot.dir) a.face(spot.dir);
+        };
+        if (a.walkTo(this.zone.grid, spot.x, spot.y, pose)) { n.t = 16 + Math.random() * 12; return; }
+        n.out = false;
+      }
+    }
     // outdoors even those who "stay put" take a few steps around their spot
     const reach = n.wander || (this.zone.def.outdoor && (!n.act || n.act === 'work' || n.act === 'look') ? 2 : 0);
     if (reach > 0 && Math.random() < 0.55) {
@@ -2296,6 +2322,27 @@ export class WorldScene extends Phaser.Scene {
       this.walkNpc(n, ax, ay);
     } else if (n.act && a.act !== n.act) a.setAct(n.act);
     else if (Math.random() < 0.4) a.face((['up', 'down', 'left', 'right'] as const)[Math.floor(Math.random() * 4)]);
+  }
+
+  private outingPools = new Map<string, Place[]>();
+  /** A place worth walking to in this map, far enough from where they usually stand. */
+  private outingSpot(n: NpcState): Place | null {
+    const zone = this.zoneId;
+    let pool = this.outingPools.get(zone);
+    if (!pool) {
+      pool = [...fountainSpots(zone), ...benchSpots(zone), ...shoreSpots(zone), ...clearings(zone, 'stroll', 10)];
+      // shop windows: stand outside the street door and look in
+      for (const d of this.zone.def.doors) if (d.to.startsWith('shop_') || d.to === 'library') {
+        const w = this.zone.grid.nearestWalkable(d.x, d.y + 1);
+        if (w) pool.push({ zone, x: w[0], y: w[1], act: 'look', dir: 'up', kind: 'window' });
+      }
+      this.outingPools.set(zone, pool);
+    }
+    const [ax, ay] = n.anchor, a = n.actor;
+    const far = pool.filter((p) => Math.hypot(p.x - ax, p.y - ay) >= 5 && Math.hypot(p.x - a.tx, p.y - a.ty) >= 4 && Math.hypot(p.x - a.tx, p.y - a.ty) <= 28
+      && !this.zone.grid.isSolid(p.x, p.y) && !(p.x === this.player.tx && p.y === this.player.ty)
+      && ![...this.npcs.values()].some((o) => o !== n && o.out && Math.abs(o.actor.tx - p.x) + Math.abs(o.actor.ty - p.y) < 1));
+    return far.length ? far[Math.floor(Math.random() * far.length)] : null;
   }
 
   /** Surroundings of a story character for the lines they say to whoever passes by. */

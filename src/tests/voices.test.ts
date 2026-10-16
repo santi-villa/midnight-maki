@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { CHARACTERS } from '../data/characters';
+import { NEIGHBORS } from '../data/neighbors';
 import { hasVoice, voiceNote, voicePhraseCount, voiceWhen, type VoiceNote } from '../audio/voices';
 
 const LEADS = ['pip', 'spicy', 'rigg', 'ume', 'kiki', 'akio'];
@@ -10,11 +12,46 @@ function note(id: string, step = 0): VoiceNote {
 }
 
 describe('character voices', () => {
-  it('gives a voice only to the six leads', () => {
+  it('gives a voice to every character, neighbour, the player and any guest; the narrator stays silent', () => {
     for (const id of LEADS) expect(hasVoice(id)).toBe(true);
-    for (const id of ['taro', 'momo', 'player', 'narr', '']) expect(hasVoice(id)).toBe(false);
-    expect(voiceNote('taro', 0)).toBeNull();
-    expect(voicePhraseCount('taro')).toBe(0);
+    for (const c of CHARACTERS) expect(hasVoice(c.id), c.id).toBe(true);
+    for (const n of NEIGHBORS) expect(hasVoice(n.id), n.id).toBe(true);
+    for (const id of ['player', 'guest:Cliente', 'guest:???']) expect(hasVoice(id), id).toBe(true);
+    for (const id of ['narr', '', 'nobody']) expect(hasVoice(id), id).toBe(false);
+    expect(voiceNote('narr', 0)).toBeNull();
+    expect(voicePhraseCount('')).toBe(0);
+    expect(voicePhraseCount('taro')).toBeGreaterThan(0);
+  });
+
+  it('keeps everyone in a speakable range and gives each of them a sound within a short line', () => {
+    const ids = [...CHARACTERS.map((c) => c.id), ...NEIGHBORS.map((n) => n.id), 'player', 'guest:Turista'];
+    for (const id of ids) {
+      let sounded = 0;
+      for (let step = 0; step < 40; step++) {
+        const n = note(id, step);
+        expect(n.freq, id).toBeGreaterThan(80);
+        expect(n.freq * (n.chirp > 1 ? n.chirp : 1), id).toBeLessThanOrEqual(900);
+        expect(n.dur, id).toBeGreaterThan(n.attack);
+        expect(n.gap, id).toBeGreaterThan(0);
+        if (n.sound && step % n.every === 0) sounded++;
+      }
+      expect(sounded, id).toBeGreaterThanOrEqual(3);
+      expect(voiceWhen(id, 0), id).toBe(0);
+    }
+  });
+
+  it('follows the personalities: big and warm is low and slow, bright and adventurous is high and quick, shy is soft', () => {
+    expect(note('bento').freq).toBeLessThan(note('taro').freq);
+    expect(note('nami').freq).toBeGreaterThan(note('taro').freq);
+    expect(note('nami').gap).toBeLessThan(note('bento').gap);
+    expect(note('momo').vol).toBeLessThan(note('taro').vol);
+    expect(note('kumo').freq).toBeLessThan(note('yuki').freq);
+    // neighbours: a shy night owl speaks softer and slower than a sporty cat
+    expect(note('oto').vol).toBeLessThan(note('rin').vol);
+    expect(note('oto').gap).toBeGreaterThan(note('rin').gap);
+    // distinct people do not share a voice
+    const sig = (id: string) => [0, 4, 8, 12].map((s) => Math.round(note(id, s).freq)).join();
+    expect(new Set(NEIGHBORS.map((n) => sig(n.id))).size).toBe(NEIGHBORS.length);
   });
 
   it('keeps pitch, pace and texture in the order the personalities ask for', () => {
