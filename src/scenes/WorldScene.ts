@@ -30,6 +30,7 @@ import { planWaitSpots, scanWaitSpots, RECEPTION_SPOTS, WAITING_SPOTS, type Wait
 import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery';
 import { currentQuestTarget } from '../quests/quests';
 import { customerAsk, mealComment } from '../restaurant/orders';
+import { mirror, type PartySnap } from '../restaurant/mirror';
 import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, tableLabel, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
 import { tipPending, type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { furnSize } from '../data/furniture';
@@ -1485,7 +1486,8 @@ export class WorldScene extends Phaser.Scene {
     if (!this.zone || !game.has('intro_done')) { this.clearGuests(); return; }
     const live = new Set<string>();
     const views = guestViews();
-    for (const v of this.visitors.values()) {
+    const parties: { id: string; customer: string; customers: string[]; trips: { position: { zone: string; x: number; y: number }; moving: boolean; dir: Dir }[] }[] = mirror.on ? [...this.mirrorParties.values()] : [...this.visitors.values()];
+    for (const v of parties) {
       const g = views.find((g) => g.id === v.id);
       const phase = g?.phase ?? 'outside';
       v.trips.forEach((trip, i) => {
@@ -2000,6 +2002,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private note(text: string) {
+    if (!text) return; // a friend's request: the host answers with the line
     void runTask('world:notice', () => import('../ui/dom').then(({ toast }) => toast(text)), false);
   }
 
@@ -2207,8 +2210,70 @@ export class WorldScene extends Phaser.Scene {
     bus.emit('interact:available', { label: primary?.label ?? null, kind: primary?.icon });
   }
 
+  // ------------------------------------------------------------------ visiting a friend's dining room
+  /** the host's customers as the guest sees them, walking smoothly between the positions the host reports */
+  private mirrorParties = new Map<string, { id: string; customer: string; customers: string[]; trips: { position: { zone: string; x: number; y: number }; moving: boolean; dir: Dir; tx: number; ty: number }[] }>();
+  private mirrorWas = false;
+
+  /** The guest does not run a restaurant of their own while visiting: everything comes from the host's snapshot. */
+  private pumpMirror(dt: number) {
+    if (!this.mirrorWas) { this.mirrorWas = true; this.visitors.clear(); this.restoredDining = false; this.clearGuests(); this.clearStaff(); this.mirrorParties.clear(); }
+    const seen = new Set<string>();
+    for (const p of mirror.snap.parties) {
+      seen.add(p.id);
+      let m = this.mirrorParties.get(p.id);
+      if (!m) { m = { id: p.id, customer: p.customer, customers: p.customers, trips: [] }; this.mirrorParties.set(p.id, m); }
+      p.trips.forEach((t, i) => {
+        let q = m!.trips[i];
+        if (!q) { q = m!.trips[i] = { position: { zone: t.z, x: t.x, y: t.y }, moving: t.m, dir: t.d, tx: t.x, ty: t.y }; }
+        if (q.position.zone !== t.z) { q.position.zone = t.z; q.position.x = t.x; q.position.y = t.y; }
+        q.tx = t.x; q.ty = t.y; q.moving = t.m; q.dir = t.d;
+      });
+    }
+    for (const id of [...this.mirrorParties.keys()]) if (!seen.has(id)) this.mirrorParties.delete(id);
+    const k = Math.min(1, dt * 8);
+    for (const m of this.mirrorParties.values()) for (const q of m.trips) {
+      const far = Math.hypot(q.tx - q.position.x, q.ty - q.position.y);
+      if (far > 4) { q.position.x = q.tx; q.position.y = q.ty; } else { q.position.x += (q.tx - q.position.x) * k; q.position.y += (q.ty - q.position.y) * k; }
+      if (q.moving && far < 0.02) q.moving = false;
+    }
+    this.syncGuests();
+  }
+
+  /** Back in my own restaurant: forget the friend's customers and let mine be restored from my save. */
+  private leaveMirror() {
+    if (!this.mirrorWas) return;
+    this.mirrorWas = false;
+    this.mirrorParties.clear(); this.visitors.clear(); this.restoredDining = false; this.clearGuests(); this.clearStaff();
+    this.diningCache = null; this.contextKey = '';
+  }
+
+  /** The guest has the host's time of day, so lights and opening hours match. */
+  private followHostClock() {
+    const t = game.save.time, h = mirror.snap.time;
+    if (t.day === h.day && t.period === h.period && Math.abs(t.minutes - h.minutes) < 0.3) return;
+    const periodChanged = t.period !== h.period;
+    t.day = h.day; t.period = h.period; t.minutes = h.minutes;
+    if (periodChanged) bus.emit('time:changed', { day: t.day, period: t.period });
+  }
+
+  private floorT = 0;
+  /** Host: tell the guest where every customer stands, a few times a second and right after something they asked for. */
+  private syncCoopFloor(dt: number) {
+    const link = this.coopLink;
+    if (!link || mirror.on || !link.hosting()) return;
+    this.floorT += dt;
+    if (this.floorT < 0.4 && !link.isDirty()) return;
+    this.floorT = 0;
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    link.sendFloor([...this.visitors.values()].map((v) => ({
+      id: v.id, customer: v.customer, customers: v.customers,
+      trips: v.trips.map((t) => ({ z: t.position.zone, x: r2(t.position.x), y: r2(t.position.y), m: t.moving, d: t.dir })),
+    })));
+  }
+
   // ------------------------------------------------------------------ playing together
-  coopLink: { peer: () => { info: { name: string; appearance: import('../core/types').Appearance }; pos: { x: number; y: number; dir: Dir; moving: boolean; zone: string } } | null; send: (p: { x: number; y: number; dir: Dir; moving: boolean; zone: string }) => void } | null = null;
+  coopLink: { peer: () => { info: { name: string; appearance: import('../core/types').Appearance }; pos: { x: number; y: number; dir: Dir; moving: boolean; zone: string } } | null; send: (p: { x: number; y: number; dir: Dir; moving: boolean; zone: string }) => void; hosting: () => boolean; isDirty: () => boolean; sendFloor: (parties: PartySnap[]) => void } | null = null;
   private remote: Actor | null = null;
   private remoteKey = '';
   private remoteTag: Phaser.GameObjects.Text | null = null;
@@ -2313,18 +2378,18 @@ export class WorldScene extends Phaser.Scene {
     if (sampleFrame(dms)) this.enterLowFx(true);
     const dt = Math.min(0.05, dms / 1000);
     if (!this.player || !this.zone) return;
-    if (!this.transitioning) clock.tick(dt);
-    this.watchBedtime();
+    if (!this.transitioning) { if (mirror.on) this.followHostClock(); else clock.tick(dt); }
+    if (!mirror.on) this.watchBedtime();
     this.syncCoop(dt);
-    this.pollHours(dt);
+    this.syncCoopFloor(dt);
+    if (!mirror.on) this.pollHours(dt);
     this.drawFishSpots();
     this.updatePlayer(dt);
     this.tickTown(dt);
     this.updateConversation(dt);
     for (const [, n] of this.npcs) this.updateNpc(n, dt);
     for (const e of this.extras.values()) e.update(dt);
-    this.pumpFloor(dt);
-    this.updateStaff(dt);
+    if (mirror.on) this.pumpMirror(dt); else { this.leaveMirror(); this.pumpFloor(dt); this.updateStaff(dt); }
     this.updateNeighbors(dt);
     for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);

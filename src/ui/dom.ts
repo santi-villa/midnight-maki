@@ -169,6 +169,7 @@ export function confirmBox(text: string, yes = 'Sí', no = 'Cancelar'): Promise<
 let toastWrap: HTMLElement | null = null;
 const recent: string[] = [];
 export function toast(text: string, icon?: HTMLCanvasElement) {
+  if (!text) return;
   if (!toastWrap) {
     toastWrap = h('div', { class: 'toast-wrap' });
     uiRoot().append(toastWrap);

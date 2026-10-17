@@ -28,3 +28,13 @@ Plan gratis (Spark) de Realtime Database: unas 100 conexiones simultáneas; con 
 - **Etapa 2:** el invitado ve a los clientes y el estado del salón (mesas, pedidos, platos) y puede tomar pedidos, llevar platos y recoger propinas. Cada acción la pide el invitado y la ejecuta el anfitrión con las mismas funciones que usa el personal contratado.
 - **Etapa 3:** el invitado cocina (el acto en la cocina corre en su dispositivo; el anfitrión descuenta los ingredientes y recibe el plato con su calidad). Propina para el invitado con un tope por día.
 - Pendiente de decidir: qué pasa con el reloj si el anfitrión abre una ventana (hoy cada uno tiene el suyo).
+
+## Etapa 2: servir juntos (protocolo v3)
+
+El anfitrión sigue siendo la autoridad. El invitado no simula nada del salón: ve una copia.
+
+- **Espejo.** Cada 0,4 s (y enseguida después de una acción del invitado) el anfitrión manda el estado `floor`: clientes del salón (`guestViews`), dónde está parado cada uno, trabajos por mesa (`tableJobs`), platos terminados, orden de las mesas y hora. En el invitado, `restaurant/mirror.ts` guarda esa copia y `restaurant/service.ts` responde desde ella mientras `mirror.on` (así el menú de acciones, la bandeja, las marcas "!" y las barras de paciencia funcionan sin cambios). El invitado no corre `pumpFloor`, el personal, el horario ni el sueño: toma la hora del anfitrión.
+- **Pedidos del invitado.** Mensajes `act` (`take`, `claim`, `release`, `deliver`, `tip`) → el anfitrión los ejecuta con las mismas funciones que usa el personal (`takeOrderAt`, `claimPlate`, `staffDeliver`) y contesta `res` con el texto y las monedas. `coop/serve.ts` revisa todo de nuevo contra la partida del anfitrión.
+- **Bandeja.** Un plato que lleva el invitado queda reservado con el nombre `guest`. Si el invitado se va, los platos vuelven a la bandeja.
+- **Propinas.** Solo propinas, con tope por día de juego (`GUEST_TIP_CAP`, 120). Pasado el tope, la propina de esa mesa queda para el restaurante. El invitado no recibe otras monedas.
+- **Todavía no:** cocinar como invitado (etapa 3), ver al personal contratado ni las burbujas de los clientes en el invitado.

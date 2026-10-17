@@ -10,6 +10,7 @@ import { RECIPES_BY_ID } from '../data/recipes';
 import { ZONES, type DoorDef, type InteractDef, type RoomDef } from '../data/zones';
 import { canCook, customerName } from '../restaurant/orders';
 import { carriedOrder, trayOrders, tableJobs, type TableJob } from '../restaurant/service';
+import { mirror } from '../restaurant/mirror';
 import type { GatherSpot } from '../systems/gather';
 
 export const TILE = 16;
@@ -183,7 +184,9 @@ function jobAction(job: TableJob): ContextAction | null {
       intent: { type: 'deliver', tableId: job.tableId },
     };
   }
-  if (job.plated) return { id: `tray:${job.tableId}`, label: 'Recoger pedido', detail: `${dish} espera en la bandeja de salida.`, icon: 'serve', intent: { type: 'orders' } };
+  if (job.plated) return { id: `tray:${job.tableId}`, label: 'Recoger pedido', detail: `${dish} espera en la bandeja de salida.`, icon: 'serve', intent: mirror.on ? { type: 'tray' } : { type: 'orders' } };
+  // visiting a friend's restaurant: the kitchen is theirs for now
+  if (mirror.on) return null;
   const order = game.save.orders.find(o => o.uid === job.orderUid);
   const ready = !!job.orderUid && order?.kind !== 'drink' && canCook(job.recipe);
   return {
