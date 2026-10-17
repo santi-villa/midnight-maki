@@ -246,14 +246,15 @@ function beach(): ZoneDef {
       { x: 3, y: 4, to: 'lighthouse', tx: 6, ty: 10, dir: 'up', walk: false, label: 'Faro', lock: { flag: 'lighthouse_open', msg: 'La puerta del faro tiene tres huecos con forma de estrella.' } },
     ],
     interact: [
-      { id: 'fish1', x: 19, y: 19, label: 'Pescar', action: 'fish:sea' },
-      { id: 'fish2', x: 20, y: 19, label: 'Pescar', action: 'fish:sea' },
-      { id: 'fish3', x: 8, y: 14, label: 'Pescar', action: 'fish:sea' },
+      // pier tip, the water beside that pier, and the open shoreline (the wet sand, not the dry beach)
+      { id: 'fish1', x: 20, y: 19, label: 'Pescar', action: 'fish:sea' },
+      { id: 'fish2', x: 18, y: 17, label: 'Pescar', action: 'fish:sea' },
+      { id: 'fish3', x: 8, y: 15, label: 'Pescar', action: 'fish:sea' },
       { id: 'market_stall', x: 6, y: 8, label: 'Puesto de pescado', action: 'shop:nami' },
       { id: 'market_stall2', x: 10, y: 8, label: 'Puesto de conchas', action: 'shop:shells' },
       { id: 'lh_door', x: 3, y: 4, label: 'Faro', action: 'door:lighthouse', cond: 'unlock_lighthouse_view' },
       { id: 'sunset', x: 16, y: 13, label: 'Mirar el mar', action: 'sunset' },
-      { id: 'fish4', x: 38, y: 19, label: 'Pescar', action: 'fish:sea' },
+      { id: 'fish4', x: 26, y: 15, label: 'Pescar', action: 'fish:sea' },
       { id: 'fish5', x: 39, y: 19, label: 'Pescar', action: 'fish:sea' },
     ],
     rooms: [],
@@ -311,12 +312,13 @@ function forest(): ZoneDef {
     ],
     interact: [
       { id: 'cabin', x: 4, y: 6, label: 'Cabaña', action: 'story:cabin' },
-      { id: 'lake1', x: 21, y: 11, label: 'Pescar', action: 'fish:lake' },
-      { id: 'lake2', x: 24, y: 11, label: 'Pescar', action: 'fish:lake' },
+      // south edge of the lake, and the pond's west and south banks
+      { id: 'lake1', x: 21, y: 9, label: 'Pescar', action: 'fish:lake' },
+      { id: 'lake2', x: 25, y: 9, label: 'Pescar', action: 'fish:lake' },
       { id: 'stump', x: 10, y: 12, label: 'Tocón tallado', action: 'puzzle:stump' },
       { id: 'kiki_path', x: 28, y: 20, label: 'Sendero oculto', action: 'secret:forest_path' },
-      { id: 'pond_fish1', x: 34, y: 13, label: 'Pescar', action: 'fish:lake' },
-      { id: 'pond_fish2', x: 38, y: 13, label: 'Pescar', action: 'fish:lake' },
+      { id: 'pond_fish1', x: 33, y: 16, label: 'Pescar', action: 'fish:lake' },
+      { id: 'pond_fish2', x: 36, y: 19, label: 'Pescar', action: 'fish:lake' },
       { id: 'forest_shrine', x: 44, y: 8, label: 'Santuario del bosque', action: 'note:shrine' },
       { id: 'hunter_cabin', x: 45, y: 4, label: 'Cabaña vieja', action: 'note:house' },
     ],
@@ -381,10 +383,11 @@ function garden(): ZoneDef {
     ],
     interact: [
       ...GARDEN_PLOT_POSITIONS.map(([x, y], i) => ({ id: 'plot' + i, x, y, label: 'Parcela', action: 'plot:' + i, ...(i >= 6 ? { cond: 'proj_garden_lanterns_4' } : {}) })),
-      { id: 'pond', x: 17, y: 7, label: 'Estanque', action: 'fish:lake' },
+      { id: 'pond', x: 17, y: 6, label: 'Estanque', action: 'fish:lake' },
       { id: 'merge', x: 13, y: 9, label: 'Banco de macetas', action: 'minigame:merge' },
-      { id: 'koi_fish1', x: 30, y: 19, label: 'Pescar', action: 'fish:lake' },
-      { id: 'koi_fish2', x: 31, y: 21, label: 'Pescar', action: 'fish:lake' },
+      // opposite banks of the koi pond, not the middle of the bridge
+      { id: 'koi_fish1', x: 26, y: 18, label: 'Pescar', action: 'fish:lake' },
+      { id: 'koi_fish2', x: 35, y: 16, label: 'Pescar', action: 'fish:lake' },
     ],
     rooms: [],
     gather: [
