@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { lampPoolTint, lightState, mixHex, mulHex, shadowStyle, tintLum, type LightInput } from '../scenes/lightmath';
+import { windowGlowRects } from '../art/windowGlow';
+import { coversLitPane, lampPoolTint, lightState, mixHex, mulHex, shadowStyle, tintLum, type LightInput } from '../scenes/lightmath';
 
 const lum = (c: number) => 0.2126 * ((c >> 16) & 255) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255);
 const base: LightInput = { period: 1, prog: 0.5, outdoor: true, rain: false, season: 0 };
@@ -150,6 +151,39 @@ describe('lamp pools', () => {
     const street = lampPoolTint(night, 0xffc070, 1)!;
     expect(tintLum(self!)).toBeGreaterThan(tintLum(street));
     expect(tintLum(self!)).toBeLessThan(170);
+  });
+});
+
+describe('window light occlusion', () => {
+  const pane = { l: 10, r: 20, t: 30, b: 40 };
+  const body = { l: 12, r: 28, t: 24, b: 50 };
+
+  it('hides a pane only when someone in front of the wall overlaps it', () => {
+    expect(coversLitPane(48, body, pane, 40)).toBe(true);
+    expect(coversLitPane(37, body, pane, 40)).toBe(false);
+    expect(coversLitPane(48, { l: 0, r: 8, t: 24, b: 50 }, pane, 40)).toBe(false);
+  });
+
+  it('counts feet on the wall as in front', () => {
+    expect(coversLitPane(38, body, pane, 40)).toBe(true);
+  });
+
+  it('matches the restaurant panes, the doorway, house lanterns and the cabin attic', () => {
+    expect(windowGlowRects(112, 90, 0, false)).toEqual([
+      { x: 10, y: 52, w: 9, h: 7 },
+      { x: 30, y: 52, w: 9, h: 7 },
+      { x: 71, y: 52, w: 9, h: 7 },
+      { x: 91, y: 52, w: 9, h: 7 },
+    ]);
+    expect(windowGlowRects(112, 90, 0, true)).toEqual([{ x: 50, y: 67, w: 12, h: 17 }]);
+    expect(windowGlowRects(96, 80, 0, false, 'front')).toEqual([
+      { x: 50, y: 57, w: 10, h: 8 },
+      { x: 74, y: 57, w: 10, h: 8 },
+      { x: 40, y: 50, w: 3, h: 6 },
+    ]);
+    const cabin = windowGlowRects(80, 72, 2, false);
+    expect(cabin[cabin.length - 1]).toEqual({ x: 39, y: 24, w: 2, h: 2 });
+    expect(windowGlowRects(80, 72, 5, false).some((r) => r.w === 2 && r.h === 2)).toBe(false);
   });
 });
 

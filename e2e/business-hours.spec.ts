@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { finishArrival } from './helpers/arrival';
 
 for (const width of [390, 1280]) {
-  test(`08:00–23:00 matches HUD, counters, purchases, library and saved progress (${width}px)`, async ({ page }, info) => {
+  test(`08:00–22:00 matches HUD, counters, purchases, library and saved progress (${width}px)`, async ({ page }, info) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width, height: width === 390 ? 844 : 720 });
     const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
@@ -20,15 +20,16 @@ for (const width of [390, 1280]) {
       const d = (window as any).mmDebug; d.game.save.time.period = period; d.game.save.time.minutes = minutes;
       (await import('/src/core/events.ts')).bus.emit('time:changed', { day: d.game.save.time.day, period });
     }, { period, minutes });
-    for (const [period, minutes, text, open] of [[0, 29.75, '07:59', false], [0, 30, '08:00', true], [1, 30, '14:00', true], [2, 15, '18:30', true], [3, 59.5, '22:59', true], [3, 60, '23:00', false], [3, 90, '00:00', false]] as const) {
+    for (const [period, minutes, text, early, late] of [[0, 29.75, '07:59', false, false], [0, 30, '08:00', true, true], [1, 30, '14:00', true, true], [2, 15, '18:30', true, true], [2, 70, '20:20', false, true], [3, 20, '21:40', false, true], [3, 40, '22:20', false, false], [3, 90, '00:00', false, false]] as const) {
       await at(period, minutes); await expect(page.locator('.hud-digital')).toHaveText(text);
       const states = await page.evaluate(async () => {
-        const { SHOP_PLACES, restaurantPhase } = await import('/src/systems/schedule.ts');
+        const { SHOP_PLACES, EARLY_HOURS, restaurantPhase } = await import('/src/systems/schedule.ts');
         const { shopGate } = await import('/src/systems/npcs.ts');
         const t = (window as any).mmDebug.game.save.time;
-        return [...SHOP_PLACES.map(p => shopGate(p.id).open), restaurantPhase(t.period, t.minutes) === 'open'];
+        return { shops: SHOP_PLACES.map(p => ({ early: p.closeAt === EARLY_HOURS.closeAt, open: shopGate(p.id).open })), door: restaurantPhase(t.period, t.minutes) === 'open' };
       });
-      expect(states).toEqual(states.map(() => open));
+      expect(states.door).toBe(late);
+      for (const shop of states.shops) expect(shop.open).toBe(shop.early ? early : late);
     }
     await at(2, 15);
     await page.evaluate(async () => { const w = (window as any).mmDebug.world; await w.enterZone('shop_taro', 5, 6, 'up', false); (await import('/src/ui/shops.ts')).openShop('taro'); });
@@ -37,10 +38,10 @@ for (const width of [390, 1280]) {
     await rice.getByRole('button', { name: 'Comprar', exact: true }).click();
     const bought = await page.evaluate(() => ({ coins: (window as any).mmDebug.game.coins, rice: (window as any).mmDebug.game.count('rice') }));
     expect(bought.rice).toBe(before.rice + 1); expect(bought.coins).toBeLessThan(before.coins);
-    await at(3, 59.5); await expect(rice.getByRole('button', { name: 'Comprar', exact: true })).toBeEnabled();
-    await page.screenshot({ path: info.outputPath(`taro-open-2259-${width}.png`) });
-    await at(3, 60); await expect(page.locator('.panel .slot button').first()).toBeDisabled();
-    await expect(page.locator('.panel')).toContainText('08:00–23:00'); await page.keyboard.press('Escape');
+    await at(3, 20); await expect(rice.getByRole('button', { name: 'Comprar', exact: true })).toBeEnabled();
+    await page.screenshot({ path: info.outputPath(`taro-open-2140-${width}.png`) });
+    await at(3, 40); await expect(page.locator('.panel .slot button').first()).toBeDisabled();
+    await expect(page.locator('.panel')).toContainText('08:00–22:00'); await page.keyboard.press('Escape');
     await page.evaluate(async () => {
       const d = (window as any).mmDebug; await d.world.enterZone('library', 6, 7, 'up', false);
       d.game.save.quests.active.sq_rigg_book = { step: 0, progress: {} };
