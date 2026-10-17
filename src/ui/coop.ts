@@ -7,6 +7,7 @@ let open: { close: () => void } | null = null;
 export async function openCoop() {
   if (open) return;
   const { coop, coopOpenPref, joinFriend, leaveCoop, openMyRoom, setCoopOpenPref } = await import('../coop');
+  const { guestWantsSleep, hostSleepNow, sleepWish } = await import('../coop/sleepTogether');
   const body = h('div', { class: 'col account' });
   const off = bus.on('coop:changed', () => render());
   const p = panel({ title: 'Jugar juntos', body, onClose: () => { open = null; off(); } });
@@ -55,6 +56,10 @@ export async function openCoop() {
       body.append(
         h('p', null, h('b', null, st.role === 'host' ? `${st.peer?.name ?? 'Tu amigo'} está en tu restaurante` : `Estás en el restaurante de ${st.peer?.name ?? 'tu amigo'}`)),
         h('p', { class: 'hint' }, st.role === 'host' ? 'Atiendan juntos: uno cocina y el otro sirve.' : 'Cocinás y servís. Te quedás con las propinas que recojas.'),
+        h('p', { class: 'hint' }, 'El día pasa cuando duermen los dos.' + (sleepWish().theirs ? ` ${st.peer?.name ?? 'Tu amigo'} quiere dormir.` : '')),
+        st.role === 'host'
+          ? h('button', { class: 'btn', onclick: () => { p.close(); void hostSleepNow(); } }, 'Ir a dormir')
+          : h('button', { class: 'btn', onclick: () => { guestWantsSleep(!sleepWish().mine); render(); } }, sleepWish().mine ? 'Ya no quiero dormir' : 'Quiero dormir'),
         h('button', { class: 'btn danger', onclick: () => { void leaveCoop(); p.close(); } }, st.role === 'host' ? 'Cerrar la sala' : 'Salir del restaurante'));
     }
   }

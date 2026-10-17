@@ -81,7 +81,15 @@ async function open(role: Role, code: string): Promise<CoopTransport> {
 
   const handlers = { msg: [] as ((m: unknown) => void)[], state: [] as ((k: string, v: unknown) => void)[], peer: [] as ((p: boolean) => void)[] };
   const offs: (() => void)[] = [];
-  offs.push(onChildAdded(ref(d, `${mine}/q`), (snap) => { const v = unpack((snap.val() as { j?: string } | null)?.j); void remove(snap.ref); if (v) handlers.msg.forEach((f) => f(v)); }));
+  // A message is handled once, whatever the database does: if a delete is refused the SDK shows the child again, and that must not repeat it.
+  const handled = new Set<string>();
+  offs.push(onChildAdded(ref(d, `${mine}/q`), (snap) => {
+    if (!snap.key || handled.has(snap.key)) return;
+    handled.add(snap.key);
+    const v = unpack((snap.val() as { j?: string } | null)?.j);
+    void remove(snap.ref).catch(() => undefined);
+    if (v) handlers.msg.forEach((f) => f(v));
+  }));
   const seen: Record<string, number> = {};
   offs.push(onValue(ref(d, `${mine}/state`), (snap) => {
     snap.forEach((c) => { const v = c.val() as { j: string; n: number } | null; if (v && v.n !== seen[c.key!]) { seen[c.key!] = v.n; handlers.state.forEach((f) => f(c.key!, unpack(v.j))); } });
