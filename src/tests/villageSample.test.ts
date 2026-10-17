@@ -40,14 +40,15 @@ describe('village sample keeps the saved village playable', () => {
       expect(ZONES[id].doors.find(d => d.to === 'plaza')).toMatchObject({ tx: x, ty: y + 1 });
     }
   });
-  it('lays decks only on existing bridge tiles and keeps every deck tile reachable from the village', () => {
+  it('keeps every connected bridge tile reachable without straight overlays crossing the pier bend', () => {
     game.load(newSave()); const b = buildZone('plaza');
-    const decks = b.props.filter(p => p.def.kind === 'village_deck');
-    expect(decks.length).toBeGreaterThan(0);
-    for (const p of decks) for (let y = p.y; y < p.y + p.def.h; y++) for (let x = p.x; x < p.x + p.def.w; x++) {
-      expect(b.def.ground[y][x]).toBe('b');
+    expect(b.props.some(p => p.def.kind === 'village_deck')).toBe(false);
+    let count = 0;
+    for (let y = 0; y < b.def.h; y++) for (let x = 0; x < b.def.w; x++) if (b.def.ground[y][x] === 'b') {
+      count++;
       expect(b.grid.path(5, 7, x, y, 20000)).not.toBeNull();
     }
+    expect(count).toBeGreaterThan(0);
   });
   it('keeps river banks on land and free of collisions, without opening story exits', () => {
     game.load(newSave()); const b = buildZone('plaza');

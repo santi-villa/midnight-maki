@@ -1,5 +1,6 @@
 /** Procedural 16x16 tileset. Each tile key maps to an index in the generated sheet. */
 import { PAL } from './palette';
+import { drawBridgeTile } from './bridges';
 import { bank, bridgeTile, brightGrass, darkGrassBright, flowerBedBright, fringe, GREY_STONE, pathTile, paverTile, sandTile, shoreTile, shoreTileFrame, soilTile, waterTile } from './nature';
 import { barFloor, plankFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWall, izakayaWindow, tatamiMat } from './izakaya';
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
@@ -216,6 +217,7 @@ for (const rain of [false, true])
   for (const depth of ['shallow', 'mid', 'deep'] as const)
     for (let v = 0; v < 3; v++) for (let f = 0; f < 4; f++) add(`wt${rain ? 'r' : 'c'}${depth[0]}${v}_${f}`, true, waterTile(v, f, depth, rain));
 add('bridge', false, bridgeTile);
+for (let mask = 0; mask < 256; mask++) add('bridge_' + mask, false, (c, x, y) => drawBridgeTile(c, x, y, mask));
 add('mat', false, doorMat());
 add('bed_rose', false, flowerBedBright('#f4a6c0'));
 add('bed_gold', false, flowerBedBright('#ffd36a'));
