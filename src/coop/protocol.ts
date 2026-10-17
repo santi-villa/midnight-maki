@@ -1,0 +1,42 @@
+/** What the two players say to each other. The host's game is the authority; the guest asks and the host answers. */
+import type { Appearance, Dir, PlacedFurniture } from '../core/types';
+
+export const COOP_VERSION = 1;
+export type Role = 'host' | 'guest';
+
+export interface PeerInfo { name: string; appearance: Appearance }
+export interface PosState { x: number; y: number; dir: Dir; moving: boolean; zone: string }
+
+/** The parts of the host's restaurant the guest needs to see it the same way. */
+export interface WorldPack {
+  decor: Record<string, PlacedFurniture[]>;
+  roomStyle: Record<string, { floor: string; wall: string }>;
+  restaurant: { level: number; upgrades: string[]; reputation: number };
+  time: { day: number; period: number; minutes: number };
+  restaurantName: string;
+}
+
+export type Msg =
+  | { t: 'hello'; v: number; info: PeerInfo }
+  | { t: 'world'; world: WorldPack }
+  | { t: 'bye'; why: 'left' | 'full' | 'closed' | 'version' };
+
+export type StateKey = 'pos' | 'hb';
+
+export function isMsg(m: unknown): m is Msg {
+  if (!m || typeof m !== 'object') return false;
+  const t = (m as { t?: unknown }).t;
+  if (t === 'hello') { const x = m as { v?: unknown; info?: { name?: unknown } }; return typeof x.v === 'number' && typeof x.info?.name === 'string'; }
+  if (t === 'world') return typeof (m as { world?: unknown }).world === 'object' && (m as { world?: unknown }).world !== null;
+  if (t === 'bye') return ['left', 'full', 'closed', 'version'].includes(String((m as { why?: unknown }).why));
+  return false;
+}
+
+export function isPos(v: unknown): v is PosState {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Record<string, unknown>;
+  return Number.isFinite(p.x) && Number.isFinite(p.y) && ['up', 'down', 'left', 'right'].includes(String(p.dir)) && typeof p.moving === 'boolean' && typeof p.zone === 'string';
+}
+
+/** Short room codes reuse the friend-code alphabet, so they are easy to read out loud. */
+export const ROOM_CODE_LENGTH = 6;

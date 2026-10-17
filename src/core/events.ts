@@ -8,6 +8,7 @@ export interface GameEvents {
   'energy:changed': { energy: number };
   'reward:coins': { coins: number; title?: string };
   'cloud:changed': Record<string, never>;
+  'coop:changed': Record<string, never>;
   'zone:enter': { zone: string };
   'dialogue:start': { id: string };
   'dialogue:end': { id: string };

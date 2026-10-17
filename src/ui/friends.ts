@@ -54,6 +54,7 @@ export function openFriends() {
           h('div', { class: 'friend-code', 'aria-label': `Tu código es ${code.split('').join(' ')}` }, code),
           h('div', { class: 'hint' }, 'Pasáselo a quien quieras. Quien lo escriba te agrega a su lista y ve la tarjeta de tu restaurante.'),
           h('button', { class: 'btn small', onclick: async () => { try { await navigator.clipboard.writeText(code); toast('Código copiado.'); } catch { toast(`Tu código: ${code}`); } } }, 'Copiar código')),
+        h('button', { class: 'btn primary big', onclick: () => void import('./coop').then((m) => m.openCoop()) }, 'Jugar juntos en el restaurante'),
         h('div', { class: 'row' }, input, h('button', { class: 'btn primary', onclick: () => void add() }, 'Agregar amigo')),
         inbox.length ? h('h3', null, `Tarjetas recibidas (${inbox.length})`) : null,
         ...inbox.map((m: Postcard) => h('div', { class: 'card row' },

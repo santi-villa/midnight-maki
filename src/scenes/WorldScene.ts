@@ -38,7 +38,7 @@ import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture } from './textures';
+import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife, type TownResident } from '../systems/townLife';
@@ -162,6 +162,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
+    void import('../coop').then((m) => { this.coopLink = m.coopLink; });
     this.releaseBus();
     this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT') as any;
     // Text fields must receive letters. shortcuts.ts decides when a key scrolls the page.
@@ -2206,6 +2207,50 @@ export class WorldScene extends Phaser.Scene {
     bus.emit('interact:available', { label: primary?.label ?? null, kind: primary?.icon });
   }
 
+  // ------------------------------------------------------------------ playing together
+  coopLink: { peer: () => { info: { name: string; appearance: import('../core/types').Appearance }; pos: { x: number; y: number; dir: Dir; moving: boolean; zone: string } } | null; send: (p: { x: number; y: number; dir: Dir; moving: boolean; zone: string }) => void } | null = null;
+  private remote: Actor | null = null;
+  private remoteKey = '';
+  private remoteTag: Phaser.GameObjects.Text | null = null;
+  private coopSendT = 0;
+
+  /** Tell the friend where we are, and keep their character moving smoothly in this room. */
+  private syncCoop(dt: number) {
+    const link = this.coopLink;
+    if (!link || !this.player) return this.dropRemote();
+    this.coopSendT += dt;
+    if (this.coopSendT >= 0.15) {
+      this.coopSendT = 0;
+      link.send({ x: Math.round(this.player.x * 10) / 10, y: Math.round(this.player.y * 10) / 10, dir: this.player.dir, moving: this.player.moving, zone: this.zoneId });
+    }
+    const peer = link.peer();
+    if (!peer || peer.pos.zone !== this.zoneId) return this.dropRemote();
+    const key = JSON.stringify(peer.info.appearance);
+    if (!this.remote || this.remoteKey !== key) {
+      this.dropRemote();
+      const tex = appearanceTexture(this, peer.info.appearance);
+      this.remote = new Actor(this, 'friend', tex, Math.floor(peer.pos.x / TILE), Math.floor(peer.pos.y / TILE));
+      this.remote.manual = true;
+      this.remote.x = peer.pos.x; this.remote.y = peer.pos.y;
+      this.remoteKey = key;
+      this.remoteTag = this.add.text(0, 0, peer.info.name, { fontFamily: 'Pixelify Sans, sans-serif', fontSize: '20px', color: '#fff4dc', stroke: '#2b1d17', strokeThickness: 5, resolution: 2 }).setOrigin(0.5, 1).setScale(0.33).setDepth(190000);
+    }
+    const a = this.remote;
+    const k = Math.min(1, dt * 9);
+    a.x += (peer.pos.x - a.x) * k; a.y += (peer.pos.y - a.y) * k;
+    a.dir = peer.pos.dir;
+    a.moving = peer.pos.moving || Math.hypot(peer.pos.x - a.x, peer.pos.y - a.y) > 1.5;
+    a.update(dt);
+    this.remoteTag?.setPosition(a.x, a.y - a.sprite.displayHeight + a.pad - 2).setText(peer.info.name);
+  }
+
+  private dropRemote() {
+    if (!this.remote) return;
+    this.remote.sprite.destroy(); this.remote.shadow.destroy(); this.remote.cast.destroy();
+    this.remoteTag?.destroy();
+    this.remote = null; this.remoteTag = null; this.remoteKey = '';
+  }
+
   private fishGfx: Phaser.GameObjects.Graphics | null = null;
   private fishSpots: { x: number; y: number }[] = [];
   private fishZone = '';
@@ -2270,6 +2315,7 @@ export class WorldScene extends Phaser.Scene {
     if (!this.player || !this.zone) return;
     if (!this.transitioning) clock.tick(dt);
     this.watchBedtime();
+    this.syncCoop(dt);
     this.pollHours(dt);
     this.drawFishSpots();
     this.updatePlayer(dt);
