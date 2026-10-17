@@ -16,6 +16,10 @@ Mesas y sillas se ajustan con escala uniforme, sin cambiar sus huellas. La mesa 
 
 Los permisos y fuentes de los recortes están en [créditos de recursos](asset-credits.md), y los autores aparecen también en el menú de créditos del juego.
 
+## Revisión de conexiones y modelos
+
+La entrega posterior de [caminos y modelos](caminos-y-modelos.md) conecta accesos a las calles, retira adornos del paso y utiliza las esquinas de madera nativas que sí están en la lámina de terrenos de VectoRaith. También sustituye el aspecto de los muebles anteriores y agrega vistas laterales nativas de mesa. Las capturas y verificaciones de abajo corresponden a la entrega original.
+
 ## Capturas
 
 [Galería del juego real](art/exterior-cozy/index.html).
