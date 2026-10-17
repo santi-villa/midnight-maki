@@ -633,7 +633,7 @@ export class WorldScene extends Phaser.Scene {
     const key = furnTexture(this, f.id, f.rot);
     const size = furnSize(def, f.rot);
     const px = f.x * TILE + (size.w * TILE) / 2;
-    const py = (f.y + size.h) * TILE;
+    const py = (f.y + size.h) * TILE + (def.wallOffsetY ?? 0);
     const img = this.add.image(px, py, key).setOrigin(0.5, 1).setFlipX(!def.rotatable && (f.rot & 2) !== 0);
     if (def.walkable) img.setDepth(-6);
     else if (def.wall) img.setDepth(-5);
