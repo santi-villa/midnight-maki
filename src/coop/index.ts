@@ -7,7 +7,7 @@ import { world } from '../scenes/WorldScene';
 import { setSaveBlocked } from '../persistence/storage';
 import { cloud } from '../cloud/cloud';
 import { mirror, normalizeFloor, type PartySnap } from '../restaurant/mirror';
-import { buildFloor, releaseGuestClaims, runAct } from './serve';
+import { buildFloor, dropGuestCooking, releaseGuestClaims, runAct } from './serve';
 import { CoopError } from './errors';
 import type { ActKind, PeerInfo, PosState, Role, WorldPack } from './protocol';
 import { CoopSession } from './session';
@@ -140,5 +140,5 @@ bus.on('coop:changed', () => {
   if (wasGuestConnected && !guest) void leaveGuestWorld();
   wasGuestConnected = guest;
   // plates a friend was carrying go back to the tray when they leave
-  if (st.role === 'host' && st.phase !== 'connected') releaseGuestClaims();
+  if (st.role === 'host' && st.phase !== 'connected') { releaseGuestClaims(); dropGuestCooking(); }
 });

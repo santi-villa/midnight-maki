@@ -16,6 +16,10 @@ export interface FloorSnap {
   jobs: TableJob[];
   /** orders that have a finished plate and are not delivered yet */
   orders: Order[];
+  /** food orders at a table that nobody is cooking yet: what a visiting friend can start */
+  cookable: Order[];
+  /** what the host has of the ingredients those dishes need (pantry plus what the host carries) */
+  pantry: Record<string, number>;
   /** table ids in the host's order, so "Mesa 2" means the same thing on both screens */
   tables: string[];
   time: { day: number; period: number; minutes: number };
@@ -24,13 +28,13 @@ export interface FloorSnap {
 /** guests may carry for the host's tray, under this claim name */
 export const GUEST_CLAIM = 'guest';
 
-const empty = (): FloorSnap => ({ views: [], parties: [], jobs: [], orders: [], tables: [], time: { day: 1, period: 0, minutes: 0 } });
+const empty = (): FloorSnap => ({ views: [], parties: [], jobs: [], orders: [], cookable: [], pantry: {}, tables: [], time: { day: 1, period: 0, minutes: 0 } });
 
 export const mirror = {
   on: false,
   snap: empty(),
   /** set by the coop module: sends the request to the host */
-  ask: null as ((a: ActKind, arg: { tableId?: string; uid?: number }) => void) | null,
+  ask: null as ((a: ActKind, arg: { tableId?: string; uid?: number; q?: number; b?: number; v?: string }) => void) | null,
   start() { this.on = true; this.snap = empty(); },
   stop() { this.on = false; this.snap = empty(); },
   apply(s: FloorSnap) { if (this.on) this.snap = s; },
@@ -50,7 +54,12 @@ export function normalizeFloor(raw: unknown): FloorSnap | null {
     parties: asArray<PartySnap>(r.parties).map((p) => ({ ...p, customers: asArray<string>(p.customers), trips: asArray<TripSnap>(p.trips) })),
     jobs: asArray<TableJob>(r.jobs),
     orders: asArray<Order>(r.orders),
+    cookable: asArray<Order>(r.cookable),
+    pantry: r.pantry && typeof r.pantry === 'object' ? r.pantry : {},
     tables: asArray<string>(r.tables),
     time: { day: Number(t.day) || 1, period: Number(t.period) || 0, minutes: Number(t.minutes) || 0 },
   };
 }
+
+/** does the host's kitchen have what this recipe needs, going by the last snapshot */
+export const hostHasIngredients = (req: Record<string, number>) => Object.entries(req).every(([id, q]) => (mirror.snap.pantry[id] ?? 0) >= q);
