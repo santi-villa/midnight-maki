@@ -1342,3 +1342,11 @@ b, strong, h1, h2, h3, .panel-title, .card > b:first-child, .hud-quest b, .tab.a
 .account .btn.big { min-height: 52px; font-size: 1.05em; }
 .account .btn.danger { border-color: #c27f86; color: #8a2f3a; }
 .account-error { margin: 0; padding: 8px 10px; border: 3px solid #c27f86; border-radius: 10px; background: #fbe4e4; color: #8a2f3a; font-weight: 700; }
+
+.friend { display: flex; align-items: center; gap: 12px; }
+.friend-art { image-rendering: pixelated; flex: 0 0 auto; background: #f1d6a6; border: 3px solid var(--wood-dark); border-radius: 10px; }
+.friend-code { font-size: 2.2em; font-weight: 700; letter-spacing: .25em; color: var(--wood-dark); }
+.friends .row { display: flex; gap: 8px; align-items: center; }
+.friends .grow { flex: 1; min-width: 0; }
+.friends input { flex: 1; min-height: 44px; padding: 8px 12px; border: 3px solid var(--wood-dark); border-radius: 10px; background: #fff8e8; font: inherit; text-transform: uppercase; }
+.btn.with-icon { display: flex; align-items: center; gap: 10px; text-align: left; }
