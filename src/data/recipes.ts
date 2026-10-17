@@ -1,4 +1,5 @@
 import type { IconSpec } from '../art/icons';
+import { ICON_ART } from '../art/iconArtMap';
 
 export type CookStep =
   | { t: 'nori' }
@@ -258,6 +259,7 @@ export const RECIPES: RecipeDef[] = [
   }),
 ];
 
+for (const r of RECIPES) { const art = ICON_ART[r.id]; if (art) r.icon = { ...r.icon, art }; }
 export const RECIPES_BY_ID: Record<string, RecipeDef> = Object.fromEntries(RECIPES.map((r) => [r.id, r]));
 export const STARTER_RECIPES = ['kappa', 'sake_maki', 'onigiri', 'sake_nigiri'];
 

@@ -23,6 +23,7 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { LampMoths } from './lampMoths';
+import { Pets } from './pets';
 import { CROP_ART, cropStage } from '../art/farm';
 import { nextDoor, questTarget } from '../world/guide';
 import { employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
@@ -761,9 +762,12 @@ export class WorldScene extends Phaser.Scene {
 
   private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat' | 'butterfly'; vx: number; vy: number; t: number; flying: boolean; ox?: number; oy?: number }[] = [];
   /** birds hop around by day and fly off when you get close; a cat strolls through the plaza */
+  private pets: Pets | null = null;
   spawnCritters() {
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
+    this.pets?.destroy();
+    this.pets = this.zone?.def.outdoor ? new Pets(this, this.zoneId, clock.isNight()) : null;
     const def = this.zone.def;
     if (!def.outdoor || game.flag('weather') === 'rain' || ['market', 'station'].includes(this.zoneId)) return;
     const night = clock.isNight();
@@ -2472,6 +2476,7 @@ export class WorldScene extends Phaser.Scene {
     for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);
     this.moths?.update(dt, this.cameras.main.worldView);
+    if (this.pets && this.player) this.pets.update(dt, this.player);
     this.updateBugs(dt);
     this.updateWater(dt);
     this.waterFx?.update(dt, this.waterEnv());

@@ -1,0 +1,56 @@
+{
+ "cat_brown_idle": {
+  "y": 0,
+  "w": 32,
+  "h": 32,
+  "frames": 7
+ },
+ "cat_brown_jump": {
+  "y": 32,
+  "w": 32,
+  "h": 32,
+  "frames": 13
+ },
+ "cat_white_idle": {
+  "y": 64,
+  "w": 32,
+  "h": 32,
+  "frames": 7
+ },
+ "cat_white_jump": {
+  "y": 96,
+  "w": 32,
+  "h": 32,
+  "frames": 13
+ },
+ "cat_siamese_idle": {
+  "y": 128,
+  "w": 32,
+  "h": 32,
+  "frames": 7
+ },
+ "cat_siamese_jump": {
+  "y": 160,
+  "w": 32,
+  "h": 32,
+  "frames": 13
+ },
+ "frog_idle": {
+  "y": 192,
+  "w": 32,
+  "h": 32,
+  "frames": 4
+ },
+ "dog_sleep": {
+  "y": 224,
+  "w": 64,
+  "h": 64,
+  "frames": 8
+ },
+ "dog_golden": {
+  "y": 288,
+  "w": 64,
+  "h": 64,
+  "frames": 11
+ }
+}
