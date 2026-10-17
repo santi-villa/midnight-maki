@@ -1,18 +1,21 @@
 # Fachadas elegidas y puentes con barandillas
 
-## Selección del restaurante pendiente de sprites originales
+## Fachadas del restaurante incorporadas
 
-El usuario eligió tres referencias, en este orden:
+Se utiliza la lámina PNG enviada posteriormente dentro de `Imagen de ChatGPT 17 oct 2026, 01_34_44.zip`, conservada en `art-source/village/lamina-aportada.png`. El archivo tiene 1013×1181 píxeles y transparencia; empaquetarlo no aumenta su calidad, pero permite acceder a sus píxeles en el entorno y recortarlos de forma reproducible.
 
-1. Edificio compacto de tejado oscuro y frontón triangular: primera apariencia.
-2. Edificio más alto, con planta superior y balcón de madera: segunda apariencia.
-3. Edificio ancho de tejado oscuro, alero curvo y gran frente de ventanas: tercera apariencia y siguientes.
+| Etapa visual existente | Nivel | Referencia elegida |
+| --- | --- | --- |
+| Heredado | 1–2 | Primera: edificio compacto de tejado oscuro y frontón triangular |
+| Recuperado | 3–4 | Segunda: edificio con planta superior y balcón de madera |
+| Popular | 5–7 | Tercera: edificio ancho de tejado oscuro y alero curvo |
+| Corazón de Villa Nori | 8 en adelante | Tercera, con guirnalda y tres estrellas decorativas |
 
-El restaurante seguirá llamándose Midnight Maki. El juego actual tiene cuatro etapas visuales; la propuesta es mantener el tercer modelo en la última con sus mejoras decorativas, sin cambiar los niveles, costes, misiones ni progresión. **La sustitución de las fachadas todavía no está implementada.**
+El restaurante sigue llamándose Midnight Maki. Se mantienen niveles, costes, misiones, puertas, huellas de colisión y posiciones guardadas. Los recortes se ajustan con escala uniforme y sin suavizado adicional. El nombre y los faroles acompañan la fachada. Las máscaras de ventanas siguen la geometría de cada modelo; las puertas de madera/cortinas no emiten un rectángulo de luz sobre el personaje. Los faroles conservan el sistema de iluminación de la entrada.
 
-En el entorno solo está `ASSETS DESCARGADOS/vectoraith_tileset_buildings_japanese_traditional_DEMO.zip`: nueve láminas, con dos fachadas pequeñas y accesorios, terrenos y agua en tres escalas. No contiene esas tres fachadas, los barcos ni buena parte de los comercios y accesorios de la lámina completa mostrada en el chat. Las referencias del chat son visibles para seleccionar los modelos, pero no están disponibles como archivos de imagen locales para hacer recortes fieles.
+`scripts/build-village-assets.py` genera un atlas de 512×256 con 18 piezas. `src/assets/village/catalog.json` registra rectángulos, hash de la imagen fuente, puertas y ventanas. La lámina completa no se precarga. Si el atlas no carga, el renderizador conserva la apariencia anterior.
 
-Para completar esta parte hace falta el PNG original del tileset completo o su ZIP. No se presentan reproducciones aproximadas como si fueran recortes originales. Cuando esté disponible, hay que integrar cada fachada manteniendo las puertas y sus interacciones, revisar su espacio visual y alinear las ventanas con la iluminación existente. Seleccionar únicamente accesorios del paquete que encajen con cada zona, sin llenar caminos ni accesos.
+Archivos: `src/art/restaurantFacade.ts`, `src/art/villageAssets.ts`, `src/scenes/BootScene.ts`, `src/scenes/textures.ts`, `src/scenes/WorldScene.ts`.
 
 ## Puentes implementados
 
@@ -24,11 +27,15 @@ Para completar esta parte hace falta el PNG original del tileset completo o su Z
 
 Archivos: `src/world/bridge.ts`, `src/art/bridges.ts`, `src/scenes/WorldScene.ts`, `src/tests/villageSample.test.ts`.
 
-## Decoraciones disponibles implementadas
+## Decoraciones incorporadas
 
-El atlas existente incorpora los recortes nativos de la demo de una conífera pequeña, buzón, cartel cubierto y caja de madera. Se utilizan en el buzón, menú exterior y cajas existentes; los arbustos sencillos/floridos pasan a su modelo nativo. Cuatro coníferas pequeñas acompañan casas y jardines de la plaza, playa y jardín. Los grandes árboles y arbustos de bayas conservan sus modelos y funciones. Los faroles de piedra y módulos de casas disponibles ya se utilizaban.
+Los botes, dos arbustos tipo bonsái, faroles de papel y piedra, guirnalda, puesto/soporte de madera, barriles, secadero de pescado, mesa con redes y cajas de pescado usan recortes de la lámina aportada. Los puestos de mercado usan sus fachadas pequeñas de tres colores. Se conservan los contenidos y acciones de cada vendedor.
 
-Archivos: `scripts/build-exterior-details.py`, `src/art/cozyFrames.ts`, `src/art/cozyAssets.ts`, `src/assets/cozy-town/`, `src/data/props.ts`, `src/data/outdoorLayout.ts`.
+Se sustituyen gráficos de objetos existentes. Algunos botes pasan a la variante con cuerda y dos cajas costeras al modelo de pescado, en las mismas coordenadas y con las mismas huellas. Las decoraciones permanecen fuera de los caminos. Se mantienen los modelos de bayas y objetos especializados sin equivalente adecuado.
+
+La demo sigue aportando buzón, cajas y coníferas pequeñas. Sus cuatro coníferas decorativas acompañan casas y jardines de la plaza, playa y jardín. Los grandes árboles conservan sus modelos. Las casas existentes mantienen sus puertas laterales y su ensamblado, ya basado en esa familia de assets: no se superponen edificios de referencia sobre sus accesos.
+
+Archivos: `src/art/villageAssets.ts`, `src/assets/village/`, `src/data/props.ts`, `src/data/outdoorLayout.ts`; para las piezas de la demo, `scripts/build-exterior-details.py`, `src/art/cozyFrames.ts`, `src/art/cozyAssets.ts` y `src/assets/cozy-town/`.
 
 ## Verificación
 
@@ -39,3 +46,17 @@ Archivos: `scripts/build-exterior-details.py`, `src/art/cozyFrames.ts`, `src/art
 - Sin errores de página ni reportes del manejador global durante esa comprobación.
 
 Capturas: [muelle en PC](art/puentes-cozy/muelle-giro-pc.png), [muelle en móvil emulado](art/puentes-cozy/muelle-giro-movil.png), [detalles junto a las casas](art/puentes-cozy/barrio-detalles.png).
+
+## Verificación de la lámina completa
+
+- Typecheck y build correctos.
+- 18 pruebas específicas aprobadas: accesos, carreteras, proyectos, giros de puente, orden de las tres fachadas y alineación de sus puertas y ventanas. No se ejecutó la suite completa.
+- Chromium/Playwright: entrada y salida del restaurante en niveles 1, 3, 5 y 8; revisión visual diurna, nocturna y en 390×844 (móvil emulado), además de PC 1366×768.
+- La máscara emisiva de la puerta tiene alfa cero; las ventanas conservan sus máscaras por etapa.
+- Arranque y selección del fallback comprobados bloqueando la carga del atlas: el menú aparece y el renderizador devuelve el control al dibujo anterior.
+- Guardar y leer conserva decoración, monedas, inventario y misiones. No aparecieron errores de página ni reportes globales durante la comprobación.
+- Se preservaron los cambios de pesca, audio y nube recibidos en `8f40fea` antes de empezar esta integración.
+
+Capturas actuales: [primera fachada](art/fachadas-elegidas/restaurante-nivel-1.png), [segunda](art/fachadas-elegidas/restaurante-nivel-3.png), [tercera](art/fachadas-elegidas/restaurante-nivel-5.png), [última etapa](art/fachadas-elegidas/restaurante-nivel-8.png), [noche](art/fachadas-elegidas/restaurante-noche.png), [móvil emulado](art/fachadas-elegidas/restaurante-movil.png), [muelle](art/fachadas-elegidas/detalles-plaza.png), [puestos](art/fachadas-elegidas/detalles-market.png), [botes y pesca](art/fachadas-elegidas/detalles-beach.png).
+
+[Vista comparativa de las cuatro etapas, generada con el renderizador del juego](art/fachadas-elegidas/evolucion.png).
