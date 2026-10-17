@@ -114,7 +114,7 @@ describe('complete outdoor layout', () => {
       for (const project of PROJECTS) for (let p = 1; p <= Math.min(phases, project.phases.length); p++) game.save.flags[`proj_${project.id}_${p}`] = true;
       for (const id of Object.keys(STREET_PLANS)) {
         const b = buildZone(id), occupied = new Map<string, string>();
-        for (const p of b.props.filter(p => p.def.solid && p.key !== 'boat')) for (let dy = 0; dy < p.def.h; dy++) for (let dx = 0; dx < p.def.w; dx++) {
+        for (const p of b.props.filter(p => p.def.solid && p.def.kind !== 'boat')) for (let dy = 0; dy < p.def.h; dy++) for (let dx = 0; dx < p.def.w; dx++) {
           const x = p.x + dx, y = p.y + dy, key = `${x},${y}`;
           expect.soft(occupied.get(key), `${id} ${p.key} ${key}`).toBeUndefined();
           expect.soft('wd'.includes(b.def.ground[y]?.[x] ?? 'w'), `${id} ${p.key} on water`).toBe(false);
