@@ -37,7 +37,6 @@ El anfitrión sigue siendo la autoridad. El invitado no simula nada del salón: 
 - **Pedidos del invitado.** Mensajes `act` (`take`, `claim`, `release`, `deliver`, `tip`) → el anfitrión los ejecuta con las mismas funciones que usa el personal (`takeOrderAt`, `claimPlate`, `staffDeliver`) y contesta `res` con el texto y las monedas. `coop/serve.ts` revisa todo de nuevo contra la partida del anfitrión.
 - **Bandeja.** Un plato que lleva el invitado queda reservado con el nombre `guest`. Si el invitado se va, los platos vuelven a la bandeja.
 - **Propinas.** Solo propinas, con tope por día de juego (`GUEST_TIP_CAP`, 120). Pasado el tope, la propina de esa mesa queda para el restaurante. El invitado no recibe otras monedas.
-- **Todavía no:** ver al personal contratado ni las burbujas de los clientes en el invitado.
 
 ## Etapa 3: cocinar juntos (protocolo v4)
 
@@ -45,4 +44,10 @@ El anfitrión sigue siendo la autoridad. El invitado no simula nada del salón: 
 - Al empezar un plato (`cookTake`) el anfitrión gasta los ingredientes de su cocina y marca el pedido como ocupado (el personal no lo repite). Si el invitado lo tira o se va, los ingredientes vuelven (`cookCancel`, `dropGuestCooking`).
 - Al terminar (`plate`) el anfitrión recibe el plato en la bandeja con su calidad. Se ignoran platos que el invitado no empezó, y el bonus se limita al precio del plato.
 - El invitado no cobra por cocinar y no suma maestría ni recetario: solo se cansa (energía propia) y se lleva las propinas, con el tope diario.
-- Bebidas: de momento las prepara el anfitrión.
+
+## Ajustes (protocolo v5)
+
+- **Bebidas.** El invitado las prepara con los ingredientes del anfitrión (`drink`): desde la mesa ("Preparar") o la estación de bebidas. El anfitrión gasta los ingredientes y deja la bebida en su bandeja.
+- **Personal.** La foto del salón incluye a los mozos y cocineros contratados (`staff`): el invitado los ve caminar y llevar platos.
+- **Burbujas.** Lo que dicen los clientes en el salón del anfitrión (y las monedas que suben al pagar) viaja en mensajes `say`, y el invitado lo muestra sobre el mismo cliente.
+- **Carteles repetidos.** Cada pedido del invitado se manda una sola vez hasta que el anfitrión contesta; se ignoran respuestas que nadie pidió y el anfitrión descarta pedidos repetidos. Además, el invitado ve el resultado probable al instante (por ejemplo, "Tomar pedido" desaparece en cuanto lo toca), y la foto siguiente del anfitrión lo confirma.

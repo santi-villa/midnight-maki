@@ -5,9 +5,11 @@
  */
 import { game } from '../core/state';
 import { RECIPES_BY_ID } from '../data/recipes';
+import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
+import { employees, runtime as staffRuntime } from '../restaurant/staff';
 import { carryCapacity } from '../restaurant/carry';
 import { playerBusy } from '../restaurant/claims';
-import { GUEST_CLAIM, type FloorSnap, type PartySnap } from '../restaurant/mirror';
+import { GUEST_CLAIM, type FloorSnap, type PartySnap, type StaffSnap } from '../restaurant/mirror';
 import { customerName } from '../restaurant/orders';
 import { claimPlate, collectTipForGuest, guestViews, servingName, stagePlate, staffDeliver, tableIds, tableJobs, takeOrderAt } from '../restaurant/service';
 import type { ActMsg, ResMsg } from './protocol';
@@ -22,7 +24,7 @@ export function resetServe() { ledger = { day: -1, given: 0 }; releaseGuestClaim
 const guestCooking = new Set<number>();
 const refund = (uid: number) => {
   const o = game.save.orders.find((x) => x.uid === uid);
-  const r = o && RECIPES_BY_ID[o.recipe];
+  const r = o && (RECIPES_BY_ID[o.recipe] ?? DRINK_BY_ID[o.recipe]);
   if (r) for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund');
 };
 /** The guest left in the middle of a dish: the ingredients go back to the host. */
@@ -31,10 +33,10 @@ export function dropGuestCooking() {
   guestCooking.clear();
 }
 
-/** An order a friend may start: a food order at a table whose party waits for it, that nobody is cooking. */
+/** An order a friend may start: a dish or a drink at a table whose party waits for it, that nobody is making. */
 const cookableOrders = () => {
   const waiting = new Set(guestViews().filter((v) => v.phase === 'waiting_food').map((v) => v.id));
-  return game.save.orders.filter((o) => o.kind !== 'drink' && o.service && !o.plate && !o.cook && !playerBusy.has(o.uid) && waiting.has(o.service.partyId) && !!RECIPES_BY_ID[o.recipe]);
+  return game.save.orders.filter((o) => o.service && !o.plate && !o.cook && !playerBusy.has(o.uid) && waiting.has(o.service.partyId) && !!(o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe]));
 };
 
 /** Plates the guest was carrying go back to the tray (the guest left, or never finished). */
@@ -74,7 +76,7 @@ export function runAct(msg: ActMsg): ResMsg {
       return done(why ? DELIVER_WHY[why] ?? 'No se pudo entregar.' : `¡Buen provecho, ${customerName(o.customer)}!`);
     }
     case 'cookTake': {
-      const o = cookableOrders().find((x) => x.uid === msg.uid);
+      const o = cookableOrders().find((x) => x.uid === msg.uid && x.kind !== 'drink');
       const r = o && RECIPES_BY_ID[o.recipe];
       if (!o || !r) return done('Ese pedido ya no está disponible.');
       if (!game.consumeIngredients(r.ingredients)) return done('Faltan ingredientes en la cocina de tu amigo.');
@@ -85,6 +87,15 @@ export function runAct(msg: ActMsg): ResMsg {
       if (!msg.uid || !guestCooking.delete(msg.uid)) return done('');
       refund(msg.uid); playerBusy.delete(msg.uid);
       return done('');
+    }
+    case 'drink': {
+      const o = cookableOrders().find((x) => x.uid === msg.uid && x.kind === 'drink');
+      const d = o && DRINK_BY_ID[o.recipe];
+      if (!o || !d || !drinksUnlocked()) return done('Ese pedido ya no está disponible.');
+      if (!game.consumeIngredients(d.ingredients)) return done('Faltan ingredientes en la cocina de tu amigo.');
+      if (!stagePlate(o.uid, 1)) { refund(o.uid); return done('El pedido cambió. Los ingredientes volvieron a la cocina.'); }
+      game.stat('drinksPrepared'); game.stat('drink_' + d.id); game.touch('drink');
+      return done(`${d.name} lista en la bandeja de salida.`);
     }
     case 'plate': {
       const uid = msg.uid ?? -1;
@@ -112,13 +123,20 @@ export function buildFloor(parties: PartySnap[]): FloorSnap {
   const t = game.save.time;
   const cookable = cookableOrders();
   const pantry: Record<string, number> = {};
-  for (const o of cookable) for (const id of Object.keys(RECIPES_BY_ID[o.recipe].ingredients)) pantry[id] = game.countUsable(id);
+  for (const o of cookable) for (const id of Object.keys((o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe]).ingredients)) pantry[id] = game.countUsable(id);
+  const staff: StaffSnap[] = [];
+  for (const e of employees()) {
+    const r = staffRuntime.get(e.id);
+    if (!r) continue;
+    const carried = r.carrying != null ? game.save.orders.find((o) => o.uid === r.carrying) : undefined;
+    staff.push({ id: e.id, look: e.look, x: Math.round(r.x * 100) / 100, y: Math.round(r.y * 100) / 100, dir: r.dir, walk: r.act === 'walk', talk: r.act === 'work' && r.step === 'ordering', ...(carried ? { plate: { ...(carried.kind === 'drink' ? { kind: 'drink' as const } : {}), recipe: carried.recipe } } : {}) });
+  }
   return {
     views: guestViews(),
     parties,
     jobs: tableJobs(),
     orders: game.save.orders.filter((o) => o.plate && o.plate.state !== 'delivered'),
-    cookable, pantry,
+    cookable, pantry, staff,
     tables: tableIds(),
     time: { day: t.day, period: t.period, minutes: Math.round(t.minutes * 10) / 10 },
   };

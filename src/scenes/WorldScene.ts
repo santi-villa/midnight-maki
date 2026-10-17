@@ -1299,7 +1299,16 @@ export class WorldScene extends Phaser.Scene {
   /** Conversational bubbles share one queue. Sleep and meal poses stay on the actor. */
   private sayLine(speaker: string, text: string, seconds: number, exchange?: string, ambient = false): boolean {
     if (ambient && !this.roomForAmbient(speaker)) return false;
-    return this.speech.say({ speaker, text, seconds, exchange }, ambient);
+    const said = this.speech.say({ speaker, text, seconds, exchange }, ambient);
+    if (said && speaker.startsWith('guest:') && !mirror.on) this.coopLink?.say(speaker, text, seconds, exchange);
+    return said;
+  }
+
+  /** A friend's customers speak in my screen too: the host's lines, and the coins floating up when they pay. */
+  coopSay(speaker: string, text: string, seconds: number, exchange?: string, coins?: number) {
+    if (text) this.speech.say({ speaker, text, seconds, exchange }, false);
+    const a = this.speakerActor(speaker);
+    if (coins && coins > 0 && a?.sprite.active) this.floatAt(a.x, a.y - 44, `+${coins}`);
   }
 
   private roomForAmbient(speaker: string): boolean {
@@ -1458,7 +1467,7 @@ export class WorldScene extends Phaser.Scene {
     if (!owner || !a?.sprite.active) return;
     this.sayLine(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, mealComment(meal.customer, meal.quality), 4.5);
     const total = meal.result.coins;
-    if (total > 0) this.floatAt(a.x, a.y - 44, `+${total}`);
+    if (total > 0) { this.floatAt(a.x, a.y - 44, `+${total}`); this.coopLink?.say(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, '', 1, undefined, total); }
   }
 
   /** a small number near a spot of the world (the table), not on the player */
@@ -2238,6 +2247,41 @@ export class WorldScene extends Phaser.Scene {
       if (q.moving && far < 0.02) q.moving = false;
     }
     this.syncGuests();
+    this.syncMirrorStaff(dt);
+  }
+
+  /** The host's hired waiters and cooks, walking where the host sees them. */
+  private syncMirrorStaff(dt: number) {
+    const live = new Set<string>();
+    if (this.zoneId === 'restaurant') {
+      const k = Math.min(1, dt * 8);
+      for (const st of mirror.snap.staff) {
+        live.add(st.id);
+        const tx = st.x * TILE + TILE / 2, ty = st.y * TILE + TILE - 2;
+        let body = this.staffBodies.get(st.id);
+        if (!body) {
+          const actor = new Actor(this, st.id, lookTexture(this, st.look), st.x, st.y);
+          actor.manual = true; actor.x = tx; actor.y = ty;
+          body = { actor, plate: null };
+          this.staffBodies.set(st.id, body);
+        }
+        const a = body.actor;
+        if (Math.hypot(tx - a.x, ty - a.y) > 4 * TILE) { a.x = tx; a.y = ty; } else { a.x += (tx - a.x) * k; a.y += (ty - a.y) * k; }
+        a.moving = st.walk; a.dir = st.dir;
+        const act = st.talk ? 'talk' : 'idle';
+        if (a.act !== act) a.setAct(act);
+        a.sync();
+        const def = st.plate ? (st.plate.kind === 'drink' ? DRINK_BY_ID[st.plate.recipe] : RECIPES_BY_ID[st.plate.recipe]) : null;
+        if (def) {
+          if (!body.plate?.active) body.plate = this.add.image(0, 0, iconTexture(this, def.icon)).setScale(.65);
+          body.plate.setVisible(true).setPosition(a.x + (a.dir === 'left' ? -7 : 7), a.y - 17).setDepth(a.y + 1);
+        } else body.plate?.setVisible(false);
+      }
+    }
+    for (const [id, body] of this.staffBodies) {
+      if (live.has(id)) continue;
+      body.actor.destroy(); body.plate?.destroy(); this.staffBodies.delete(id);
+    }
   }
 
   /** Back in my own restaurant: forget the friend's customers and let mine be restored from my save. */
@@ -2273,7 +2317,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------------ playing together
-  coopLink: { peer: () => { info: { name: string; appearance: import('../core/types').Appearance }; pos: { x: number; y: number; dir: Dir; moving: boolean; zone: string } } | null; send: (p: { x: number; y: number; dir: Dir; moving: boolean; zone: string }) => void; hosting: () => boolean; isDirty: () => boolean; sendFloor: (parties: PartySnap[]) => void } | null = null;
+  coopLink: { peer: () => { info: { name: string; appearance: import('../core/types').Appearance }; pos: { x: number; y: number; dir: Dir; moving: boolean; zone: string } } | null; send: (p: { x: number; y: number; dir: Dir; moving: boolean; zone: string }) => void; hosting: () => boolean; isDirty: () => boolean; say: (who: string, text: string, s: number, ex?: string, c?: number) => void; sendFloor: (parties: PartySnap[]) => void } | null = null;
   private remote: Actor | null = null;
   private remoteKey = '';
   private remoteTag: Phaser.GameObjects.Text | null = null;
