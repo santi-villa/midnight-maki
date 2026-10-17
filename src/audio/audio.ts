@@ -720,8 +720,8 @@ class AudioEngine {
   }
 }
 
-/** Voices were too quiet next to music and effects. */
-const VOICE_BOOST = 2.4;
+/** Voices were too quiet next to music and effects, and the low ones disappeared on small speakers. */
+const VOICE_BOOST = 3.6;
 
 export const audio = new AudioEngine();
 export type { Track };

@@ -107,7 +107,7 @@ export function openWorldMap() {
     return out;
   }
 
-  /** Zoom buttons, ctrl+wheel and pinch resize the map itself, so labels keep their size and the scroll area pans it. */
+  /** Zoom buttons, the mouse wheel and pinch resize the map itself, so labels keep their size and the scroll area pans it. */
   function zoomView(stage: HTMLElement): HTMLElement {
     let k = 1;
     const view = h('div', { class: 'wm-scroll wm-zoomable' }, stage);
@@ -125,7 +125,13 @@ export function openWorldMap() {
     const label = h('span', { class: 'wm-zoom-pct' }, '100%');
     const btn = (t: string, aria: string, fn: () => void) => h('button', { type: 'button', class: 'btn small', 'aria-label': aria, onclick: fn }, t);
     const bar = h('div', { class: 'wm-zoombar' }, btn('−', 'Alejar', () => apply(k / 1.4)), label, btn('+', 'Acercar', () => apply(k * 1.4)), btn('⟲', 'Vista completa', () => { apply(1); view.scrollTo(0, 0); }));
-    view.addEventListener('wheel', (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); const r = view.getBoundingClientRect(); apply(k * (e.deltaY < 0 ? 1.15 : 1 / 1.15), (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height); }, { passive: false });
+    view.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * view.clientHeight : e.deltaY;
+      if (!dy) return;
+      const r = view.getBoundingClientRect();
+      apply(k * Math.exp(-dy * 0.0016), (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    }, { passive: false });
     // drag to pan with the mouse (a finger scrolls natively); a drag never counts as a click on a zone
     let drag: { x: number; y: number; sl: number; st: number; moved: boolean } | null = null;
     view.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button === 0 && k > 1) drag = { x: e.clientX, y: e.clientY, sl: view.scrollLeft, st: view.scrollTop, moved: false }; });
