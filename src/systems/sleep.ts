@@ -89,6 +89,11 @@ export async function sleepNow(opts?: { hours?: number }) {
     const plan = wakePlan(dayMinutes(t0.period, t0.minutes), opts?.hours ?? settings.sleepHours ?? DEFAULT_SLEEP);
     lastNight = { hours: plan.sleptHours, wake: hhmm(plan.wakeMinute) };
     const forced = game.has('slept_exhausted') || game.has('slept_closing');
+    // playing together: the day only passes when both are in bed (see coop/sleepTogether.ts)
+    if (plan.advanceDay && (await import('../coop/sleepTogether')).sleepGateNeeded()) {
+      const { coopSleepGate } = await import('../coop/sleepTogether');
+      if (!(await coopSleepGate(plan.sleptHours, hhmm(plan.wakeMinute), forced))) return;
+    }
     if (plan.advanceDay) {
       const { showDaySummary, snapshotDay } = await import('../ui/daySummary');
       await showDaySummary();

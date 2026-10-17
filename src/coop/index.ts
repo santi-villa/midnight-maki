@@ -210,12 +210,25 @@ export async function joinFriend(code: string) {
   await coop.join(code);
 }
 
-// tell the host who came in and who left
-let hostPeer: string | null = null;
+// signs for who came in and who left, on both sides
+import { sign } from './notice';
+let peerName: string | null = null;
+let wasTogether = false;
 bus.on('coop:changed', () => {
   const st = coop.state();
-  const now = st.role === 'host' && st.phase === 'connected' ? st.peer?.name ?? 'Tu amigo' : null;
-  if (now && !hostPeer) bus.emit('toast', { text: `${now} entró a tu restaurante.` });
-  else if (!now && hostPeer && st.phase === 'waiting') bus.emit('toast', { text: `${hostPeer} salió de tu restaurante.` });
-  hostPeer = now;
+  const together = st.phase === 'connected';
+  const name = st.peer?.name ?? 'Tu amigo';
+  if (together && !wasTogether) {
+    peerName = name;
+    sign(st.role === 'host' ? `${name} entró a tu restaurante.` : `Entraste al restaurante de ${name}.`, { icon: '👋', seconds: 4, key: 'coop-presence' });
+  } else if (!together && wasTogether) {
+    const who = peerName ?? name;
+    const note = (st.note ?? '').replace('Tu amigo', who);
+    // the player's own exit says nothing; anything else is explained
+    if (st.phase !== 'idle') sign(note || `${who} salió.`, { icon: st.role === 'host' ? '🚪' : '🏮', seconds: 7, key: 'coop-presence' });
+    peerName = null;
+  }
+  wasTogether = together;
 });
+
+void import('./sleepTogether');

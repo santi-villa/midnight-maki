@@ -60,3 +60,14 @@ El anfitrión sigue siendo la autoridad. El invitado no simula nada del salón: 
 - **Quién puede entrar.** Quien tenga tu código de amigo, mientras haya lugar (máximo 2). Si no querés visitas, apagá la apertura.
 - **Hay que volver a pegar** `database.rules.json` en Realtime Database → Reglas → Publicar.
 - **Versión.** El menú principal muestra `v0.5.0 · commit · fecha de armado` (`src/core/version.ts`, valores fijados en `vite.config.ts`). Si la fecha cambia después de un deploy, el juego se actualizó.
+
+## Dormir juntos, carteles y el bucle de los "+N" (protocolo v6)
+
+- **Bucle de mensajes repetidos.** Las reglas de los buzones (`toGuest/q`, `toHost/q`) rechazaban que cada lado borrara los mensajes ya leídos (la regla miraba si *todo* el buzón quedaba vacío, y siempre hay un `state`). Firebase deshacía el borrado en el cliente y volvía a entregar el mismo mensaje una y otra vez: de ahí los "+32" y los carteles que no paraban. Ahora cada mensaje tiene su regla (`q/$id`) y además el cliente ignora una clave de mensaje ya procesada. **Hay que volver a pegar `database.rules.json` y publicar.**
+- **Dormir juntos.** El día solo pasa cuando duermen los dos (`coop/sleepTogether.ts`, mensaje `sleep`):
+  - el anfitrión se acuesta con una noche que llega a la mañana y el invitado todavía no: el anfitrión espera ("Esperando a X para dormir"; puede cancelar) y al invitado le aparece un cartel "X quiere dormir. ¿Dormís también?";
+  - el invitado puede pedirlo desde "Jugar juntos" ("Quiero dormir"); el anfitrión ve el cartel y duerme cuando quiere;
+  - cuando duermen los dos, el invitado hace fundido a negro y despierta cuando llega la mañana del anfitrión, con su energía recuperada;
+  - una siesta que no llega a la mañana no necesita a nadie; si el anfitrión cae rendido (sueño forzado), el invitado lo sigue sin esperar;
+  - un invitado no puede usar su cama mientras visita (muestra un aviso).
+- **Carteles.** `coop/notice.ts`: carteles de madera arriba, sin pausar el juego. Avisan cuando alguien entra, y cuando se va o se corta la conexión (los dos lados).

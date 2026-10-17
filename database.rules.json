@@ -15,11 +15,27 @@
         },
         "toGuest": {
           ".read": "auth != null && root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid",
-          ".write": "auth != null && (root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid || (root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid && !newData.exists()))"
+          "q": {
+            "$id": {
+              ".write": "auth != null && (root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid || (root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid && !newData.exists()))"
+            }
+          },
+          "state": {
+            ".write": "auth != null && root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid"
+          },
+          ".write": "auth != null && root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid && !newData.exists()"
         },
         "toHost": {
           ".read": "auth != null && root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid",
-          ".write": "auth != null && (root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid || (root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid && !newData.exists()))"
+          "q": {
+            "$id": {
+              ".write": "auth != null && (root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid || (root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid && !newData.exists()))"
+            }
+          },
+          "state": {
+            ".write": "auth != null && root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid"
+          },
+          ".write": "auth != null && root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid && !newData.exists()"
         },
         "presence": {
           ".read": "auth != null && (root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid || root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid)",

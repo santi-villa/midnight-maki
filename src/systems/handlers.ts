@@ -32,6 +32,8 @@ registerAction('shop', async (id) => {
 });
 
 registerAction('bed', async () => {
+  const { mirror } = await import('../restaurant/mirror');
+  if (mirror.on) { toast('Estás de visita: para dormir usá «Jugar juntos». Amanece cuando duermen los dos.'); return; }
   const c = await new Promise<number>((resolve) => {
     runScene('bed', async () => {
       resolve(await choose(clock.period < 3 ? ['Dormir', 'Descansar un rato (pasar al siguiente momento)', 'Todavía no'] : ['Dormir', 'Todavía no'], 'player', '¿Descansar?'));
