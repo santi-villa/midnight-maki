@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // each player reads and writes only their own saves, and only 3 slots, each under ~900 KB
+    match /users/{uid}/slots/{slot} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && slot in ['0', '1', '2']
+        && request.resource.data.keys().hasOnly(['updatedAt', 'auto', 'manual', 'v', 'at'])
+        && request.resource.data.updatedAt is number
+        && (request.resource.data.auto == null || (request.resource.data.auto is string && request.resource.data.auto.size() < 450000))
+        && (request.resource.data.manual == null || (request.resource.data.manual is string && request.resource.data.manual.size() < 450000));
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

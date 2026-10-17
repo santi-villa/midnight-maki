@@ -209,6 +209,7 @@ export async function showTitle(phaser: Phaser.Game) {
   if (saved) buttons.push(btn('Continuar', 'primary', 6, () => void runTask('flow:continue', doContinue)));
   buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', saved ? 6 : 12, () => void runTask('flow:new-menu', doNew)));
   buttons.push(btn('Cargar partida', '', 5, () => void runTask('flow:load-menu', doLoad)), btn('Opciones', '', 4, () => openSettings(false)), btn('Créditos', '', 3, credits));
+  buttons.push(btn('Cuenta y nube', '', 12, () => void import('./account').then((m) => m.openAccount())));
   const menu = h('div', { class: 'tt-menu', role: 'menu' }, ...buttons, imp);
   const prompt = h('div', { class: 'tt-prompt' }, 'Tocá para comenzar');
 

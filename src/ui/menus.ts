@@ -227,7 +227,7 @@ function calendarView() {
 export function openPauseMenu() { openMenu(true); }
 
 export function openMenu(pause = false) {
-  const ICON: Record<string, string> = { Mochila: 'bag', Personaje: 'pet', Mapa: 'map', Misiones: 'clipboard', Investigación: 'inspect', Amigos: 'heart', Colecciones: 'gift', Recetario: 'maki', Cámara: 'camera', NoriPhone: 'phone', 'Descansar un rato': 'bed', Ajustes: 'gear', Guardar: 'scroll', Cargar: 'door', 'Guardar y salir': 'door' };
+  const ICON: Record<string, string> = { Mochila: 'bag', Personaje: 'pet', Mapa: 'map', Misiones: 'clipboard', Investigación: 'inspect', Amigos: 'heart', Colecciones: 'gift', Recetario: 'maki', Cámara: 'camera', NoriPhone: 'phone', 'Descansar un rato': 'bed', Ajustes: 'gear', Guardar: 'scroll', Cuenta: 'pet', Cargar: 'door', 'Guardar y salir': 'door' };
   const b = (label: string, hint: string, fn: () => void, cls = '') =>
     h('button', { type: 'button', class: 'tile ' + cls, onclick: () => { p.close(); void runTask('ui:menu', fn); } }, skinIconEl(ICON[label] ?? 'menu'), h('span', null, label, h('small', null, hint)));
   const tiles = ([
@@ -244,6 +244,7 @@ export function openMenu(pause = false) {
     b('NoriPhone', 'Tus aplicaciones de Villa Nori', () => openNoriPhone()),
     b('Descansar un rato', clock.period < 3 ? 'Pasar al siguiente momento del día' : 'Es de noche: andá a dormir a tu cama', () => restPeriod()),
     b('Ajustes', 'Sonido, texto y controles', () => openSettings(true)),
+    b('Cuenta', 'Guardado en la nube', () => import('./account').then((m) => m.openAccount())),
     b('Guardar', 'Deja un punto fijo de esta partida', async () => {
       const { syncPlayerPos } = await import('../core/flow');
       const { activeSlot, saveManual } = await import('../persistence/storage');
