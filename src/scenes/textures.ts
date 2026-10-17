@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { cozyObject } from '../art/cozyAssets';
 import { furnitureCanvas } from '../art/furniture';
+import { interiorObject } from '../art/interiors';
 import { drawPlaque, pixTextWidth } from '../art/pixfont';
 import type { ShopPhase } from '../systems/schedule';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
@@ -132,7 +133,7 @@ export function propTexture(scene: Phaser.Scene, key: string, closed = false): s
   const k = 'pr_' + key + (closed ? '_closed' : '');
   if (!scene.textures.exists(k)) {
     const d = PROPS[key];
-    scene.textures.addCanvas(k, cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
+    scene.textures.addCanvas(k, interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
   }
   return k;
 }
