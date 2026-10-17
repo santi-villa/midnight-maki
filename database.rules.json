@@ -4,24 +4,26 @@
       "$code": {
         "meta": {
           ".read": "auth != null",
-          "hostUid": { ".write": "auth != null && (!data.exists() || data.val() === auth.uid || now - root.child('coop/' + $code + '/meta/createdAt').val() > 21600000)", ".validate": "newData.val() === auth.uid" },
-          "createdAt": { ".write": "auth != null && (!data.exists() || root.child('coop/' + $code + '/meta/hostUid').val() === auth.uid)" },
-          "guestUid": { ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || data.val() === auth.uid || root.child('coop/' + $code + '/meta/hostUid').val() === auth.uid)" }
+          ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid || now - data.child('createdAt').val() > 21600000)",
+          "hostUid": { ".validate": "newData.val() === auth.uid || data.val() === newData.val()" },
+          "guestUid": {
+            ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || data.val() === auth.uid || root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid)"
+          }
         },
         "toGuest": {
-          ".read": "auth != null && root.child('coop/' + $code + '/meta/guestUid').val() === auth.uid",
-          ".write": "auth != null && root.child('coop/' + $code + '/meta/hostUid').val() === auth.uid"
+          ".read": "auth != null && root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid",
+          ".write": "auth != null && (root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid || (root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid && !newData.exists()))"
         },
         "toHost": {
-          ".read": "auth != null && root.child('coop/' + $code + '/meta/hostUid').val() === auth.uid",
-          ".write": "auth != null && root.child('coop/' + $code + '/meta/guestUid').val() === auth.uid"
+          ".read": "auth != null && root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid",
+          ".write": "auth != null && (root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid || (root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid && !newData.exists()))"
         },
         "presence": {
-          ".read": "auth != null && (root.child('coop/' + $code + '/meta/hostUid').val() === auth.uid || root.child('coop/' + $code + '/meta/guestUid').val() === auth.uid)",
-          "host": { ".write": "auth != null && root.child('coop/' + $code + '/meta/hostUid').val() === auth.uid" },
-          "guest": { ".write": "auth != null && root.child('coop/' + $code + '/meta/guestUid').val() === auth.uid" }
+          ".read": "auth != null && (root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid || root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid)",
+          "host": { ".write": "auth != null && root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid" },
+          "guest": { ".write": "auth != null && root.child('coop').child($code).child('meta').child('guestUid').val() === auth.uid" }
         },
-        ".write": "auth != null && root.child('coop/' + $code + '/meta/hostUid').val() === auth.uid && !newData.exists()"
+        ".write": "auth != null && root.child('coop').child($code).child('meta').child('hostUid').val() === auth.uid && !newData.exists()"
       }
     }
   }
