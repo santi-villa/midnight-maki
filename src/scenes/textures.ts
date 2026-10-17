@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { cozyObject } from '../art/cozyAssets';
 import { furnitureCanvas } from '../art/furniture';
 import { interiorObject } from '../art/interiors';
+import { farmObject, farmPiece } from '../art/farm';
 import { hasVillageAtlas, villageObject } from '../art/villageAssets';
 import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { drawPlaque, pixTextWidth } from '../art/pixfont';
@@ -135,8 +136,18 @@ export function propTexture(scene: Phaser.Scene, key: string, closed = false): s
   const k = 'pr_' + key + (closed ? '_closed' : '');
   if (!scene.textures.exists(k)) {
     const d = PROPS[key];
-    scene.textures.addCanvas(k, villageObject(key, d.sw, d.sh, d.stage, closed) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
+    scene.textures.addCanvas(k, farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
   }
+  return k;
+}
+
+/** One growth stage of a crop from the farm atlas (key of the texture), or null while the atlas is missing. */
+export function cropTexture(scene: Phaser.Scene, crop: string, stage: number): string | null {
+  const k = `crop_${crop}_${stage}`;
+  if (scene.textures.exists(k)) return k;
+  const c = farmPiece(`${crop}_${stage}`);
+  if (!c) return null;
+  scene.textures.addCanvas(k, c);
   return k;
 }
 

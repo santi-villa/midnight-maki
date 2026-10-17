@@ -360,6 +360,7 @@ function garden(): ZoneDef {
     .prop('lantern_red', 14, 15).prop('lantern_cream', 20, 15).prop('sakura', 6, 14).prop('flowers', 3, 14).prop('flowers_lav', 18, 2)
     .prop('reeds', 21, 5).prop('fence', 2, 6).prop('fence', 3, 6).prop('fence', 4, 6).prop('fence', 6, 6).prop('fence', 7, 6).prop('fence', 8, 6)
     .prop('well', 3, 1)
+    .prop('farm_barrel', 2, 4).prop('farm_crate', 9, 4).prop('farm_hay', 9, 5).prop('farm_flowers', 1, 5).prop('farm_bush', 10, 3).prop('farm_rock', 1, 3)
     .prop('pot_rose', 9, 8)
     .prop('lanternstring', 13, 16)
     .prop('puddle', 7, 11, 'rain');

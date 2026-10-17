@@ -42,6 +42,8 @@ export const ITEMS: ItemDef[] = [
   I('eel', 'Anguila glaseada', 'ingredient', { type: 'fillet', c1: '#8a5a3c', c2: '#c9a24a' }, 9, 6, 'Glaseada con salsa dulce.'),
   I('roe', 'Huevas tobiko', 'ingredient', { type: 'roe', c1: '#f08a4a' }, 7, 5, 'Perlitas naranjas que crujen.'),
   I('scallion', 'Cebolla de verdeo', 'ingredient', { type: 'leaf', c1: '#7fae5f' }, 3, 1, 'Aroma fresco.'),
+  I('tomato', 'Tomate', 'ingredient', { type: 'veg', c1: '#d9483b', c2: '#f08a7a' }, 4, 2, 'Jugoso, de la huerta.'),
+  I('wheat', 'Trigo', 'ingredient', { type: 'grain', c1: '#d9b24a' }, 4, 2, 'Espigas doradas.'),
   I('carrot', 'Zanahoria', 'ingredient', { type: 'veg', c1: '#e8904a', c2: '#f2b77a' }, 3, 1, 'Dulce y crocante.'),
   I('ginger', 'Jengibre', 'ingredient', { type: 'blob', c1: '#f4c6b8' }, 3, 1, 'Encurtido, rosado.'),
   I('umeboshi', 'Umeboshi', 'ingredient', { type: 'round', c1: '#c4505a', c2: '#e07a84' }, 4, 2, 'Ciruela encurtida, muy ácida.'),
@@ -106,6 +108,8 @@ export const ITEMS: ItemDef[] = [
   I('sd_carrot', 'Semillas de zanahoria', 'seed', { type: 'seed', c1: '#e8904a' }, 8, 2, 'Crece en 2 días.'),
   I('sd_chili', 'Semillas de ají', 'seed', { type: 'seed', c1: '#c94a3f' }, 12, 3, 'Crece en 3 días.'),
   I('sd_flower', 'Semillas de flores', 'seed', { type: 'seed', c1: '#e8a0b0' }, 8, 2, 'Flores variadas, 2 días.'),
+  I('sd_tomato', 'Semillas de tomate', 'seed', { type: 'seed', c1: '#d9483b' }, 10, 3, 'Crece en 2 días.'),
+  I('sd_wheat', 'Semillas de trigo', 'seed', { type: 'seed', c1: '#d9b24a' }, 12, 3, 'Crece en 3 días.'),
   I('sd_sakura', 'Brote de sakura', 'seed', { type: 'sprout', c1: '#f4c6cf' }, 20, 5, 'Da pétalos de sakura, 3 días.'),
 
   // ---------------- gifts & special / story objects

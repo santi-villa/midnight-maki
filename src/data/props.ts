@@ -37,6 +37,13 @@ export const PROPS: Record<string, PropDef> = {
   bigrock: P('rock', 2, 1, 32, 18, '#8d8790'),
   stump: P('stump', 1, 1, 16, 12),
   mushroom: P('mushroom', 1, 1, 16, 12, '#b2585e', '', { solid: false }),
+  // Cozy Farm Lite pieces (art/farm.ts)
+  farm_hay: P('crate', 1, 1, 16, 16),
+  farm_crate: P('crate', 1, 1, 16, 16),
+  farm_barrel: P('crate', 1, 1, 16, 16),
+  farm_bush: P('bush', 1, 1, 16, 16, '#46a846', '#46a846'),
+  farm_flowers: P('flowers', 1, 1, 16, 16, '#f47fa0', '#ffffff', { solid: false }),
+  farm_rock: P('rock', 1, 1, 16, 16, '#a59f9a'),
   flowers: P('flowers', 1, 1, 16, 14, '#f47fa0', '#ffffff', { solid: false }),
   flowers_lav: P('flowers', 1, 1, 16, 14, '#a98ae6', '#ffd36a', { solid: false }),
   reeds: P('reeds', 1, 1, 16, 16, '#5db449', '', { solid: false }),

@@ -23,6 +23,7 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
 import { LampMoths } from './lampMoths';
+import { CROP_ART, cropStage } from '../art/farm';
 import { nextDoor, questTarget } from '../world/guide';
 import { employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
 import { NeighborLife } from '../systems/neighbors';
@@ -41,7 +42,7 @@ import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
+import { cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife, type TownResident } from '../systems/townLife';
@@ -749,9 +750,11 @@ export class WorldScene extends Phaser.Scene {
       if (!p.seed) return;
       const info = SEED_INFO[p.seed];
       const ready = p.ready;
+      // crops with their own art grow through four pictures; the others keep the generic sprout and produce icon
+      const art = CROP_ART[p.seed] ? cropTexture(this, CROP_ART[p.seed], cropStage(p.plantedDay / info.days, ready)) : null;
       const spec = ready ? ITEMS_BY_ID[info.yield[0][0]].icon : { type: 'sprout', c1: '#7fae5f' };
-      const img = this.add.image(x * TILE + 8, y * TILE + 14, iconTexture(this, spec)).setOrigin(0.5, 1).setDepth(y * TILE + 14);
-      img.setScale(ready ? 0.9 : 0.5 + 0.4 * Math.min(1, p.plantedDay / info.days));
+      const img = this.add.image(x * TILE + 8, art ? y * TILE + 16 : y * TILE + 14, art ?? iconTexture(this, spec)).setOrigin(0.5, 1).setDepth(y * TILE + 14);
+      if (!art) img.setScale(ready ? 0.9 : 0.5 + 0.4 * Math.min(1, p.plantedDay / info.days));
       this.cropSprites.push(img);
     });
   }
