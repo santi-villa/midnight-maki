@@ -19,6 +19,7 @@ import { clock } from '../systems/time';
 import { toast } from '../ui/dom';
 import { CLUE_BY_ID } from './clues';
 import { playIntroShotOnce } from './introAudio';
+import { recordDecision } from './echoes';
 
 // ------------------------------------------------------------------ helpers
 export function addClue(id: string, silent = false) {
@@ -329,7 +330,7 @@ async function meetRaccoons() {
       const c = await choose(['Me quedo. Vamos a abrir Midnight Maki juntos.', 'No sé cocinar sushi... pero puedo aprender.']);
       if (c === 0) await say('pip', '¡SÍ! ¡Se queda! ¡Se queda!', 'happy');
       else await say('spicy', '¡Para eso estoy yo! Te voy a enseñar todo. Bueno, casi todo. Algunos secretos son secretos.', 'smug');
-      game.save.story.decisions.prologue_stay = c === 0 ? 'decidida' : 'aprender';
+      recordDecision('prologue_stay', c === 0 ? 'decidida' : 'aprender');
       await say('rigg', '{Bienvenido|Bienvenida}, {name}. Tu cuarto está arriba. Spicy te va a enseñar la cocina.', 'happy');
     });
     if (game.save.story.seenScenes.includes('meet')) game.setFlag('intro_done');
@@ -522,7 +523,7 @@ async function pipHeart() {
   await say('pip', '{name}... Rigg me explicó lo de la foto. Que yo era chiquito. Que Akio nos cuidaba.', 'sad');
   await say('pip', 'No me acuerdo de su cara. Pero me acuerdo de una canción. Y de sentirme seguro.');
   const c = await choose(['Ahora también estás seguro. Acá, con nosotros.', 'Tal vez algún día recuerdes más. Te voy a ayudar.']);
-  game.save.story.decisions.pip_heart = c === 0 ? 'hogar' : 'recordar';
+  recordDecision('pip_heart', c === 0 ? 'hogar' : 'recordar');
   if (c === 0) await say('pip', 'Sí. Acá huele a arroz y a vos. Es mi lugar favorito.', 'happy');
   else await say('pip', '¿Me prometés? Bueno, yo también te ayudo a vos. Con lo que sea. Menos con el wasabi.', 'happy');
   await say('pip', 'Esa estrella rosada... guardala vos. Siento que es importante.');
@@ -598,7 +599,7 @@ async function bentoConfront() {
   give('star2');
   await say('narr', 'Bento te entrega una estrella de metal naranja, tibia como pan recién salido del horno.');
   const d = await choose(['Gracias por cuidarla tanto tiempo.', '¿Por qué no lo dijiste antes?']);
-  game.save.story.decisions.bento = d === 0 ? 'gratitud' : 'pregunta';
+  recordDecision('bento', d === 0 ? 'gratitud' : 'pregunta');
   if (d === 0) await say('bento', 'Era lo mínimo. Akio me enseñó a amasar. Le debo mucho.', 'happy');
   else await say('bento', 'Le prometí no contar nada hasta estar seguro. Las promesas con Akio eran serias.', 'sad');
   game.addFriendship('bento', 25);
@@ -616,7 +617,7 @@ async function riggSecret() {
   addClue('clock_time');
   await say('rigg', 'Investigué sola todos estos años porque... no quería que Pip y Spicy se preocuparan. Ni ilusionarlos.', 'sad');
   const c = await choose(['No tenías que cargar con esto solo.', 'Ahora somos un equipo de detectives.']);
-  game.save.story.decisions.rigg = c === 0 ? 'apoyo' : 'equipo';
+  recordDecision('rigg', c === 0 ? 'apoyo' : 'equipo');
   if (c === 0) await say('rigg', 'Ya lo sé. Ahora lo sé. Gracias, {name}.', 'happy');
   else await say('rigg', 'Detectives Nocturnos. Suena bien. No se lo digas a Spicy, va a querer uniformes.', 'smug');
   await say('rigg', 'La llave oxidada abre el portón de la estación, al oeste de la plaza. Vamos.');
@@ -754,6 +755,14 @@ async function finale() {
       await say('narr', 'Afuera, los vecinos se juntan en la playa a mirar el faro. Bento trae pan. Taro trae faroles "a precio de amigo". Momo trae flores.');
       await say('ume', '(desde la playa) ¡El club vuelve a reunirse! ¡Todos los martes en Midnight Maki!', 'happy');
     }
+    // what the player chose along the way comes back one more time
+    const dec = game.save.story.decisions;
+    if (dec.pip_heart === 'hogar') await say('pip', 'Esta vez no tengo miedo de nada. Acá es mi casa.', 'happy');
+    else if (dec.pip_heart === 'recordar') await say('pip', 'Todavía me acuerdo de la canción. Algún día la termino de recordar. Con tu ayuda.', 'happy');
+    if (dec.rigg === 'apoyo') await say('rigg', 'Ya no cargo sola con todo. Gracias por eso, {name}.', 'happy');
+    else if (dec.rigg === 'equipo') await say('rigg', 'Detectives Nocturnos: caso cerrado. Ahora sí pido uniformes yo también.', 'smug');
+    if (dec.lighthouse === 'aventura') await say('spicy', '¡Qué aventura! ¿La repetimos el martes?', 'happy');
+    else if (dec.lighthouse === 'gratitud') await say('spicy', 'De nada, pero la próxima traés tu mantita como Pip.', 'smug');
     // the stars ending needs the three raccoons' special memories (friendship level 4 stories)
     const memories = ['pip_storm', 'spicy_egg', 'rigg_map'].every((k) => game.has('memory_' + k));
     if (memories) {

@@ -17,7 +17,7 @@ import { cook, type CookResult } from './cooking';
 import { chip, emptyState } from '../ui/kit';
 import { kitchenOpen, openKitchenSession, type KitchenHooks, type SessionOrder } from './kitchenSession';
 import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeCollection';
-import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
+import { WANT_TEXT, canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { mirror } from './mirror';
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade, upgradeMissing } from './upgrades';
@@ -189,7 +189,7 @@ export async function enterKitchen(firstUid?: number, freeId?: string) {
   const hooks: KitchenHooks = {
     orders: () => (free ? ([{ uid: FREE_UID, recipe: free, who: 'Cocina libre', reward: freeCookCoins(free, 1), ready: taken.has(FREE_UID) || canCook(free.id), note: 'un cliente sin reserva lo compra' }] as SessionOrder[]) : ([] as SessionOrder[])).concat(game.save.orders
       .filter((o) => o.kind !== 'drink' && RECIPES_BY_ID[o.recipe] && !o.cook && !['plated', 'carried', 'delivered'].includes(plateState(o.uid)))
-      .map((o) => ({ uid: o.uid, recipe: RECIPES_BY_ID[o.recipe], who: customerName(o.customer), reward: o.reward, ready: taken.has(o.uid) || canCook(o.recipe), note: o.service ? tableLabel(o.service.tableId) : o.special === 'odd' ? 'sin remitente' : undefined }))),
+      .map((o) => ({ uid: o.uid, recipe: RECIPES_BY_ID[o.recipe], who: customerName(o.customer), reward: o.reward, ready: taken.has(o.uid) || canCook(o.recipe), note: o.service ? tableLabel(o.service.tableId) + (o.want ? ` · pide ${WANT_TEXT[o.want]}` : '') : o.special === 'odd' ? 'sin remitente' : undefined }))),
     take: (uid) => {
       const p = plan(uid);
       if (!p || taken.has(uid) || p.o?.cook || playerBusy.has(uid) || !game.consumeIngredients(p.r.ingredients)) return false;

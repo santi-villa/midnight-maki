@@ -31,6 +31,7 @@ import { deliveryGoals, nearestGoal, type DeliveryDish } from '../world/delivery
 import { currentQuestTarget } from '../quests/quests';
 import { customerAsk, mealComment } from '../restaurant/orders';
 import { mirror, type PartySnap } from '../restaurant/mirror';
+import { markSeen, pendingMoment } from '../systems/townMoments';
 import { canAcceptGuest, carriedOrders, chooseParty, collectTipAt, deliverTo, exitGuest, guestViews, hostGuest, pumpService, receiveGuest, resetService, seatGuest, spawnGuest, tableJobs, tableLabel, trayOrders, syncRestaurantHours, takeOrderAt, type PaidMeal } from '../restaurant/service';
 import { tipPending, type FurnPiece, type PartyPhase } from '../restaurant/floor';
 import { furnSize } from '../data/furniture';
@@ -48,7 +49,7 @@ import { clampFrameZoom, walkingZoom } from '../ui/frameMath';
 import { layoutSpeech } from '../ui/speechLayout';
 import { SpeechTurns } from '../world/speechTurns';
 import { customerLook } from '../restaurant/customers';
-import { clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
+import { clients, clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
 import { neighborOf } from '../restaurant/townClients';
 import { whatPlace, topicLine, type TalkCtx } from '../dialogue/topics';
 import { homeLayout } from '../art/homes';
@@ -1422,7 +1423,7 @@ export class WorldScene extends Phaser.Scene {
       practicePip();
       const exchange = 'host:' + party.id;
       this.sayLine('pip', party.size > 1 ? `¡Bienvenidos! ¿Mesa para ${party.size}?` : '¡Hola! Bienvenido a Midnight Maki.', 3.5, exchange);
-      this.sayVisitor(party.id, party.size > 1 ? 'Sí, gracias. Venimos a comer juntos.' : '¡Hola! ¿Tenés una mesa libre?');
+      this.sayVisitor(party.id, this.returningLine(party) ?? (party.size > 1 ? 'Sí, gracias. Venimos a comer juntos.' : '¡Hola! ¿Tenés una mesa libre?'));
       return;
     }
     this.hostWait -= dt;
@@ -1438,6 +1439,15 @@ export class WorldScene extends Phaser.Scene {
       this.sayLine('pip', '¡Por acá! Esta es tu mesa.', 4, 'host:' + party.id);
       this.town.duty('pip', { zone: 'restaurant', x: seat.x - 1, y: seat.y, wander: 0, act: 'work' });
     }
+  }
+
+  /** A neighbour who liked a dish says they came back for it. */
+  private returningLine(party: { customerId: string; size: number }): string | null {
+    if (party.size > 1 || !NEIGHBOR_BY_ID[party.customerId]) return null;
+    const reg = clients().regulars[party.customerId];
+    const fav = reg && Object.entries(reg.likes).sort((a, b) => b[1] - a[1])[0];
+    const dish = fav && fav[1] > 0 ? RECIPES_BY_ID[fav[0]]?.name : null;
+    return dish ? `¡Volví por el ${dish}! Me quedé pensando en él.` : null;
   }
 
   /** Restaurant work ends when the door is closing. A long night ends later, after time to explore. */
@@ -2720,6 +2730,11 @@ export class WorldScene extends Phaser.Scene {
       const back = a.act;
       a.setAct('wave');
       this.time.delayedCall(1300, () => a.act === 'wave' && a.setAct(back));
+    }
+    // the village notices what the restaurant has become (see systems/townMoments.ts)
+    if (a.act !== 'sleep' && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 80 && now > (n.barkAt ?? 0) && this.roomForAmbient(a.id)) {
+      const moment = pendingMoment(a.id);
+      if (moment && this.sayLine(a.id, moment.line, 5.5, undefined, true)) { markSeen(moment); n.barkAt = now + 30000; return; }
     }
     // something to say about what they are doing or seeing, for whoever walks by
     if (a.act !== 'sleep' && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 64 && now > (n.barkAt ?? 0) && this.roomForAmbient(a.id)) {
