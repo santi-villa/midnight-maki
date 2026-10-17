@@ -85,8 +85,7 @@ export function mountHud(hd: HudHandlers) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); questEl.click(); }
     },
   });
-  questEl.classList.add('mini');
-  try { if (localStorage.getItem('mm_questmini') === '0') questEl.classList.remove('mini'); } catch { /* ignore */ }
+  try { if (localStorage.getItem('mm_questmini') === '1') questEl.classList.add('mini'); } catch { /* ignore */ }
   questEl.setAttribute('aria-expanded', String(!questEl.classList.contains('mini')));
   suggestEl = h('div', { class: 'hud-suggest' });
   phoneBtn = h('button', {
@@ -102,7 +101,7 @@ export function mountHud(hd: HudHandlers) {
   actionBtns.clear();
   menuOpen = false;
   overflowKey = '';
-  root = h('div', { class: 'passthrough game-hud' }, h('div', { class: 'hud-top' }, statusWrap, buttons), questEl, tagEl, dock, corner);
+  root = h('div', { class: 'passthrough game-hud' }, h('div', { class: 'hud-top' }, statusWrap, buttons, questEl), tagEl, dock, corner);
   uiRoot().append(root);
   refresh();
   refreshSuggestions();

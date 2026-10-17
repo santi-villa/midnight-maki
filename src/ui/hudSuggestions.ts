@@ -1,4 +1,8 @@
-/** Short HUD prompts. Visit and collection stay in the journal and the NoriPhone, not here. */
+/**
+ * Corner prompts used to offer "Preparar sushi" and "Ir a pescar".
+ * Those shortcuts did nothing useful (cooking opened the old board), so the corner is the phone instead.
+ * The input stays so callers and tests keep one place that decides the list is empty.
+ */
 
 export interface HudSuggestionInput {
   introDone: boolean;
@@ -9,9 +13,5 @@ export interface HudSuggestionInput {
 }
 
 export function hudSuggestionLabels(input: HudSuggestionInput): string[] {
-  if (!input.introDone) return [];
-  const out: string[] = [];
-  if (input.pendingOrders) out.push('Preparar sushi');
-  if (input.beachUnlocked && input.period < 3 && !input.atBeach) out.push('Ir a pescar');
-  return out.slice(0, 3);
+  return input.introDone ? [] : [];
 }
