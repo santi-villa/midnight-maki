@@ -60,6 +60,7 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['fence', 2, 33], ['fence', 3, 33], ['fence', 4, 33], ['fence', 10, 33], ['fence', 11, 33],
       ['flowers', 5, 34], ['flowers', 6, 34], ['flowers_lav', 12, 34], ['flowers_lav', 13, 34],
       ['sakura', 8, 34], ['tree', 19, 35],
+      ['village_pine', 8, 29], ['village_pine', 24, 35],
       ['bench', 11, 36], ['pot_cream', 14, 36],
       ['street_lamp_l', 8, 38], ['street_lamp_l', 21, 38], ['street_lamp_l', 32, 38],
       // Harbour: cargo at the fishing houses, clear deck and fishing stations.
@@ -94,6 +95,7 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['crate', 36, 6], ['barrel', 38, 6], ['village_net', 24, 13], ['sack', 44, 6],
       ['lantern_cream', 37, 13], ['lantern_cream', 40, 13],
       ['tree', 30, 2], ['tree', 38, 2], ['pot_rose', 39, 6],
+      ['village_pine', 38, 5],
       ['bush_flower', 30, 4],
       ['reeds', 1, 14], ['reeds', 12, 14], ['reeds', 30, 14], ['reeds', 47, 14],
       ['sign_plaza_up', 17, 2], ['sign_lighthouse', 5, 6], ['puddle', 12, 12, 'rain'],
@@ -133,6 +135,7 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['pot_rose', 20, 19], ['pot_cream', 13, 19],
       ['flowers_lav', 22, 18], ['flowers_lav', 23, 18],
       ['bush_flower', 22, 7], ['bush', 37, 5],
+      ['village_pine', 23, 8],
       ['sakura', 6, 14], ['sakura', 3, 22], ['sakura', 6, 23], ['sakura', 9, 22],
       ['sakura', 18, 23], ['sakura', 21, 22], ['sakura', 4, 24], ['sakura', 8, 24], ['sakura', 17, 24], ['sakura', 22, 24],
       ['flowers', 32, 5], ['flowers_lav', 33, 5], ['flowers', 34, 5],
