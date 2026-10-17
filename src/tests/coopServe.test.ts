@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
-import { GUEST_TIP_CAP, buildFloor, releaseGuestClaims, resetServe, runAct } from '../coop/serve';
+import { GUEST_TIP_CAP, buildFloor, dropGuestCooking, releaseGuestClaims, resetServe, runAct } from '../coop/serve';
+import { playerBusy } from '../restaurant/claims';
 import { isMsg } from '../coop/protocol';
 import type { FurnPiece } from '../restaurant/floor';
 import { mirror, normalizeFloor } from '../restaurant/mirror';
@@ -10,7 +11,7 @@ const FAST = { approach: 1, walk: 1, settle: 1, eat: 1, pay: 1, leave: 1 };
 const piece = (uid: number, kind: string, x: number, y: number, sit = false): FurnPiece => ({ uid, id: kind, kind, x, y, w: kind === 'table' ? 2 : 1, h: 1, sit, rot: sit ? 2 : 0 });
 const room = [piece(1, 'table', 4, 4), piece(2, 'chair', 4, 5, true)];
 let id = 0;
-const act = (a: Parameters<typeof runAct>[0]['a'], arg: { tableId?: string; uid?: number } = {}) => runAct({ t: 'act', id: ++id, a, ...arg });
+const act = (a: Parameters<typeof runAct>[0]['a'], arg: Omit<Parameters<typeof runAct>[0], 't' | 'id' | 'a'> = {}) => runAct({ t: 'act', id: ++id, a, ...arg });
 
 beforeEach(() => {
   game.load(newSave('Salon'));
@@ -68,6 +69,55 @@ describe('shared service: the host carries out what the guest asks', () => {
     const before = game.coins;
     expect(collectTipForGuest('1', 0)).toEqual({ given: 0, kept: 1 });
     expect(game.coins).toBe(before + 1);
+  });
+});
+
+describe('shared kitchen: the guest cooks with the host ingredients', () => {
+  const ordered = () => { act('take', { tableId: '1' }); return game.save.orders[0].uid; };
+  const stock = () => { game.save.inventory = { rice: 3, nori: 3, cucumber: 3, salmon: 3 }; };
+
+  it('lists what can be cooked and what the host has for it', () => {
+    stock(); const uid = ordered();
+    const snap = buildFloor([]);
+    expect(snap.cookable.map((o) => o.uid)).toEqual([uid]);
+    expect(snap.pantry.rice).toBe(3);
+  });
+
+  it('spends the ingredients when the guest starts and puts the finished plate on the host tray', () => {
+    stock(); const uid = ordered();
+    expect(act('cookTake', { uid }).text).toBe('');
+    expect(game.count('rice')).toBe(2);
+    expect(playerBusy.has(uid)).toBe(true);
+    // nobody else can start the same order, and the guest cannot start it twice
+    expect(buildFloor([]).cookable).toEqual([]);
+    expect(act('cookTake', { uid }).text).toMatch(/ya no está/);
+    expect(act('plate', { uid, q: 2, b: 5000, v: 'con sésamo' }).text).toMatch(/Listo/);
+    expect(game.save.orders[0].plate).toMatchObject({ quality: 2, variant: 'con sésamo' });
+    // the bonus is capped to the price of the dish
+    expect(game.save.orders[0].plate!.variantBonus).toBeLessThanOrEqual(30);
+    expect(playerBusy.has(uid)).toBe(false);
+    expect(trayOrders()).toHaveLength(1);
+  });
+
+  it('refuses a plate that was never started, and a start without ingredients', () => {
+    const uid = ordered();
+    game.save.inventory = {};
+    expect(act('cookTake', { uid }).text).toMatch(/Faltan ingredientes/);
+    expect(act('plate', { uid, q: 2 }).text).toMatch(/cambió/);
+    expect(game.save.orders[0].plate).toBeUndefined();
+  });
+
+  it('gives the ingredients back when the guest drops the dish or leaves', () => {
+    stock(); const uid = ordered();
+    act('cookTake', { uid });
+    act('cookCancel', { uid });
+    expect(game.count('rice')).toBe(3);
+    expect(playerBusy.has(uid)).toBe(false);
+    act('cookTake', { uid });
+    expect(game.count('rice')).toBe(2);
+    dropGuestCooking();
+    expect(game.count('rice')).toBe(3);
+    expect(playerBusy.has(uid)).toBe(false);
   });
 });
 

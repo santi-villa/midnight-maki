@@ -10,7 +10,7 @@ import { RECIPES_BY_ID } from '../data/recipes';
 import { ZONES, type DoorDef, type InteractDef, type RoomDef } from '../data/zones';
 import { canCook, customerName } from '../restaurant/orders';
 import { carriedOrder, trayOrders, tableJobs, type TableJob } from '../restaurant/service';
-import { mirror } from '../restaurant/mirror';
+import { hostHasIngredients, mirror } from '../restaurant/mirror';
 import type { GatherSpot } from '../systems/gather';
 
 export const TILE = 16;
@@ -185,8 +185,13 @@ function jobAction(job: TableJob): ContextAction | null {
     };
   }
   if (job.plated) return { id: `tray:${job.tableId}`, label: 'Recoger pedido', detail: `${dish} espera en la bandeja de salida.`, icon: 'serve', intent: mirror.on ? { type: 'tray' } : { type: 'orders' } };
-  // visiting a friend's restaurant: the kitchen is theirs for now
-  if (mirror.on) return null;
+  // visiting a friend's restaurant: cook from their snapshot, or nothing to do when someone is already on it
+  if (mirror.on) {
+    const todo = mirror.snap.cookable.find((o) => o.uid === job.orderUid);
+    const r = todo && RECIPES_BY_ID[todo.recipe];
+    if (!todo || !r || !hostHasIngredients(r.ingredients)) return null;
+    return { id: `cook:${todo.uid}`, label: `Cocinar · ${shortWho(who)}`, detail: `${dish} para ${who}. Se cocina con los ingredientes de tu amigo.`, icon: 'maki', intent: { type: 'cookOrder', uid: todo.uid } };
+  }
   const order = game.save.orders.find(o => o.uid === job.orderUid);
   const ready = !!job.orderUid && order?.kind !== 'drink' && canCook(job.recipe);
   return {

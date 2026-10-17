@@ -1,7 +1,7 @@
 /** What the two players say to each other. The host's game is the authority; the guest asks and the host answers. */
 import type { Appearance, Dir, PlacedFurniture } from '../core/types';
 
-export const COOP_VERSION = 3;
+export const COOP_VERSION = 4;
 export type Role = 'host' | 'guest';
 
 export interface PeerInfo { name: string; appearance: Appearance }
@@ -17,8 +17,10 @@ export interface WorldPack {
 }
 
 /** What the guest can ask the host to do in the dining room. The host checks everything again. */
-export type ActKind = 'take' | 'claim' | 'release' | 'deliver' | 'tip';
-export interface ActMsg { t: 'act'; id: number; a: ActKind; tableId?: string; uid?: number }
+export type ActKind = 'take' | 'claim' | 'release' | 'deliver' | 'tip' | 'cookTake' | 'cookCancel' | 'plate';
+export const ACT_KINDS: ActKind[] = ['take', 'claim', 'release', 'deliver', 'tip', 'cookTake', 'cookCancel', 'plate'];
+/** `plate` reports a finished dish: quality 0-2, the bonus the board gave, and the variant name. */
+export interface ActMsg { t: 'act'; id: number; a: ActKind; tableId?: string; uid?: number; q?: number; b?: number; v?: string }
 /** The host's answer: a line to show, and the tip coins that now belong to the guest. */
 export interface ResMsg { t: 'res'; id: number; text: string; coins?: number }
 
@@ -61,7 +63,7 @@ export function isMsg(m: unknown): m is Msg {
   const t = (m as { t?: unknown }).t;
   if (t === 'hello') { const x = m as { v?: unknown; info?: { name?: unknown } }; return typeof x.v === 'number' && typeof x.info?.name === 'string'; }
   if (t === 'world') return typeof (m as { world?: unknown }).world === 'object' && (m as { world?: unknown }).world !== null;
-  if (t === 'act') { const x = m as { id?: unknown; a?: unknown; tableId?: unknown; uid?: unknown }; return Number.isFinite(x.id) && ['take', 'claim', 'release', 'deliver', 'tip'].includes(String(x.a)) && (x.tableId === undefined || typeof x.tableId === 'string') && (x.uid === undefined || Number.isFinite(x.uid)); }
+  if (t === 'act') { const x = m as { id?: unknown; a?: unknown; tableId?: unknown; uid?: unknown; q?: unknown; b?: unknown; v?: unknown }; return Number.isFinite(x.id) && ACT_KINDS.includes(String(x.a) as ActKind) && (x.tableId === undefined || typeof x.tableId === 'string') && (x.uid === undefined || Number.isFinite(x.uid)) && (x.q === undefined || Number.isFinite(x.q)) && (x.b === undefined || Number.isFinite(x.b)) && (x.v === undefined || typeof x.v === 'string'); }
   if (t === 'res') { const x = m as { id?: unknown; text?: unknown; coins?: unknown }; return Number.isFinite(x.id) && typeof x.text === 'string' && (x.coins === undefined || Number.isFinite(x.coins)); }
   if (t === 'bye') return ['left', 'full', 'closed', 'version'].includes(String((m as { why?: unknown }).why));
   return false;

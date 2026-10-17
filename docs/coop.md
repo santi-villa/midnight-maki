@@ -37,4 +37,12 @@ El anfitrión sigue siendo la autoridad. El invitado no simula nada del salón: 
 - **Pedidos del invitado.** Mensajes `act` (`take`, `claim`, `release`, `deliver`, `tip`) → el anfitrión los ejecuta con las mismas funciones que usa el personal (`takeOrderAt`, `claimPlate`, `staffDeliver`) y contesta `res` con el texto y las monedas. `coop/serve.ts` revisa todo de nuevo contra la partida del anfitrión.
 - **Bandeja.** Un plato que lleva el invitado queda reservado con el nombre `guest`. Si el invitado se va, los platos vuelven a la bandeja.
 - **Propinas.** Solo propinas, con tope por día de juego (`GUEST_TIP_CAP`, 120). Pasado el tope, la propina de esa mesa queda para el restaurante. El invitado no recibe otras monedas.
-- **Todavía no:** cocinar como invitado (etapa 3), ver al personal contratado ni las burbujas de los clientes en el invitado.
+- **Todavía no:** ver al personal contratado ni las burbujas de los clientes en el invitado.
+
+## Etapa 3: cocinar juntos (protocolo v4)
+
+- El invitado cocina con la misma cocina (acto y minijuego) que usa el anfitrión, desde la acción "Cocinar" de la mesa o la tabla de cocina. `coop/guestKitchen.ts` le pone otros ganchos a la sesión de cocina: los platos salen de `cookable` del espejo y los ingredientes que se miran son los del anfitrión (`pantry`).
+- Al empezar un plato (`cookTake`) el anfitrión gasta los ingredientes de su cocina y marca el pedido como ocupado (el personal no lo repite). Si el invitado lo tira o se va, los ingredientes vuelven (`cookCancel`, `dropGuestCooking`).
+- Al terminar (`plate`) el anfitrión recibe el plato en la bandeja con su calidad. Se ignoran platos que el invitado no empezó, y el bonus se limita al precio del plato.
+- El invitado no cobra por cocinar y no suma maestría ni recetario: solo se cansa (energía propia) y se lleva las propinas, con el tope diario.
+- Bebidas: de momento las prepara el anfitrión.

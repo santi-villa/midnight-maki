@@ -36,8 +36,18 @@ test('a guest sees the host customers, takes the order, carries the plate and de
   await b.evaluate((t) => (window as any).mmDebug.service.takeOrderAt(t), tableId);
   await expect.poll(() => a.evaluate(() => (window as any).mmDebug.game.save.orders.length), { timeout: 10_000 }).toBeGreaterThan(0);
   const uid = await a.evaluate(() => (window as any).mmDebug.game.save.orders[0].uid as number);
-  // the host cooks (here: plates) and the guest sees it on the tray
-  await a.evaluate((u) => (window as any).mmDebug.service.stagePlate(u, 2, 0), uid);
+  // the guest starts cooking in the host kitchen: the host's ingredients are spent, and given back when the dish is dropped
+  await a.evaluate(() => { (window as any).mmDebug.game.save.inventory = { rice: 3, nori: 3, cucumber: 3, salmon: 3 }; });
+  await expect.poll(() => b.evaluate(() => (window as any).mmDebug.mirror.snap.pantry.rice ?? 0), { timeout: 10_000 }).toBe(3);
+  await b.evaluate((u) => { void (window as any).mmDebug.kitchen.cookOrder(u); }, uid);
+  await expect(b.locator('.ks')).toBeVisible({ timeout: 10_000 });
+  await expect.poll(() => a.evaluate(() => (window as any).mmDebug.game.count('rice')), { timeout: 10_000 }).toBe(2);
+  await b.locator('.ks .close-x').click();
+  await b.getByRole('button', { name: /Salir|Sí|Dejar|Tirar/ }).first().click({ timeout: 3000 }).catch(() => undefined);
+  await expect.poll(() => a.evaluate(() => (window as any).mmDebug.game.count('rice')), { timeout: 10_000 }).toBe(3);
+  // a finished dish arrives at the host tray with its quality
+  await b.evaluate((u) => { const m = (window as any).mmDebug.mirror; m.ask('cookTake', { uid: u }); setTimeout(() => m.ask('plate', { uid: u, q: 2, b: 0 }), 900); }, uid);
+  await expect.poll(() => a.evaluate((u) => (window as any).mmDebug.service.plateState(u), uid), { timeout: 10_000 }).toBe('plated');
   await expect.poll(() => b.evaluate(() => (window as any).mmDebug.service.trayOrders().length), { timeout: 10_000 }).toBe(1);
   await b.evaluate((u) => (window as any).mmDebug.service.pickupPlate(u), uid);
   await expect.poll(() => b.evaluate(() => (window as any).mmDebug.service.carriedOrders().length), { timeout: 10_000 }).toBe(1);
