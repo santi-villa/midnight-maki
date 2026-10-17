@@ -94,26 +94,40 @@ coop.onWorld((w) => {
 // ------------------------------------------------------------------ shared service
 // guest: what the friend's dining room looks like, and requests the host carries out
 let actId = 0;
-const recent = new Map<string, number>();
-mirror.ask = (a: ActKind, arg: { tableId?: string; uid?: number }) => {
+/** requests sent and not answered yet: the same one is not sent again meanwhile, and an answer nobody asked for is ignored */
+const pending = new Map<number, { key: string; at: number }>();
+mirror.ask = (a: ActKind, arg: { tableId?: string; uid?: number; q?: number; b?: number; v?: string }) => {
   const key = `${a}:${arg.tableId ?? ''}:${arg.uid ?? ''}`;
   const now = Date.now();
-  if (now - (recent.get(key) ?? 0) < 700) return; // a double tap must not ask twice
-  recent.set(key, now);
-  coop.send({ t: 'act', id: ++actId, a, ...arg });
+  for (const [id, p] of pending) if (now - p.at > 6000) pending.delete(id);
+  for (const p of pending.values()) if (p.key === key) return;
+  const id = ++actId;
+  pending.set(id, { key, at: now });
+  coop.send({ t: 'act', id, a, ...arg });
+  mirror.predict(a, arg);
 };
 coop.onFloor((raw) => { const s = normalizeFloor(raw); if (s) mirror.apply(s); });
 coop.on('res', (m) => {
-  const r = m as { text: string; coins?: number };
+  const r = m as { id: number; text: string; coins?: number };
+  if (!pending.delete(r.id)) return;
   if (r.text) bus.emit('toast', { text: r.text });
   if (r.coins && r.coins > 0) game.addCoins(Math.min(r.coins, 500), 'tip');
 });
+// guest: the bubbles of the customers in the host's room
+coop.on('say', (m) => {
+  const x = m as { who: string; text: string; s: number; ex?: string; c?: number };
+  if (coop.state().role === 'guest' && mirror.on) world?.coopSay(x.who, x.text, Math.min(8, Math.max(1, x.s)), x.ex, x.c);
+});
 // host: carry out what the guest asks, then show the result right away
 let floorDirty = false;
+const handled = new Set<number>();
 coop.on('act', (m) => {
   const st = coop.state();
   if (st.role !== 'host' || st.phase !== 'connected') return;
-  coop.send(runAct(m as Parameters<typeof runAct>[0]));
+  const act = m as Parameters<typeof runAct>[0];
+  if (handled.has(act.id)) return; // a request delivered twice is carried out once
+  handled.add(act.id);
+  coop.send(runAct(act));
   floorDirty = true;
 });
 let lastFloor = ''; let lastFloorAt = 0;
@@ -125,6 +139,8 @@ export const coopLink = {
   /** true on the host while a friend is in the restaurant: the scene then reports where the customers stand */
   hosting: () => { const st = coop.state(); return st.role === 'host' && st.phase === 'connected'; },
   isDirty: () => { const d = floorDirty; floorDirty = false; return d; },
+  /** host: a customer's line (or the coins over their head) goes to the guest too */
+  say: (who: string, text: string, s: number, ex?: string, c?: number) => { if (coop.state().role === 'host' && coop.state().phase === 'connected') coop.send({ t: 'say', who, text, s, ...(ex ? { ex } : {}), ...(c ? { c } : {}) }); },
   sendFloor: (parties: PartySnap[]) => {
     const snap = JSON.stringify(buildFloor(parties));
     const now = Date.now();
@@ -140,5 +156,6 @@ bus.on('coop:changed', () => {
   if (wasGuestConnected && !guest) void leaveGuestWorld();
   wasGuestConnected = guest;
   // plates a friend was carrying go back to the tray when they leave
-  if (st.role === 'host' && st.phase !== 'connected') { releaseGuestClaims(); dropGuestCooking(); }
+  if (st.role === 'host' && st.phase !== 'connected') { releaseGuestClaims(); dropGuestCooking(); handled.clear(); }
+  if (st.role === 'guest' && st.phase !== 'connected') pending.clear();
 });

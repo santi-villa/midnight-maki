@@ -188,9 +188,9 @@ function jobAction(job: TableJob): ContextAction | null {
   // visiting a friend's restaurant: cook from their snapshot, or nothing to do when someone is already on it
   if (mirror.on) {
     const todo = mirror.snap.cookable.find((o) => o.uid === job.orderUid);
-    const r = todo && RECIPES_BY_ID[todo.recipe];
-    if (!todo || !r || !hostHasIngredients(r.ingredients)) return null;
-    return { id: `cook:${todo.uid}`, label: `Cocinar · ${shortWho(who)}`, detail: `${dish} para ${who}. Se cocina con los ingredientes de tu amigo.`, icon: 'maki', intent: { type: 'cookOrder', uid: todo.uid } };
+    const made = todo && (todo.kind === 'drink' ? DRINK_BY_ID[todo.recipe] : RECIPES_BY_ID[todo.recipe]);
+    if (!todo || !made || !hostHasIngredients(made.ingredients)) return null;
+    return { id: `cook:${todo.uid}`, label: `${todo.kind === 'drink' ? 'Preparar' : 'Cocinar'} · ${shortWho(who)}`, detail: `${made.name} para ${who}. Se hace con los ingredientes de tu amigo.`, icon: 'maki', intent: { type: 'cookOrder', uid: todo.uid } };
   }
   const order = game.save.orders.find(o => o.uid === job.orderUid);
   const ready = !!job.orderUid && order?.kind !== 'drink' && canCook(job.recipe);
