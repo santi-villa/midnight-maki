@@ -181,6 +181,7 @@ function phoneApps(): PhoneApp[] {
   return [
     { id: 'camera', name: 'Cámara', icon: 'camera', hint: 'Encuadrá la foto y acercá', closePhone: true, run: () => import('./camera').then(m => m.openCamera()) },
     { id: 'photos', name: 'Fotos', icon: 'camera', hint: 'Tus fotos y momentos juntos', run: openPhotoAlbum },
+    { id: 'agenda', name: 'Hoy', icon: 'calendar', hint: 'Qué conviene hacer ahora', run: () => import('./agenda').then(m => m.openAgenda()) },
     { id: 'map', name: 'Mapa', icon: 'map', hint: 'Explorar Villa Nori', run: () => import('./worldmap').then(m => m.openWorldMap()) },
     { id: 'quests', name: 'Misiones', icon: 'clipboard', hint: 'Historia y objetivos', run: () => openJournal(0) },
     { id: 'friends', name: 'Amigos', icon: 'heart', hint: 'Pip, Spicy, Rigg y los vecinos', run: () => openJournal(2) },
