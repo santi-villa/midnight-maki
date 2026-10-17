@@ -3,6 +3,8 @@ import Phaser from 'phaser';
 import { cozyObject } from '../art/cozyAssets';
 import { furnitureCanvas } from '../art/furniture';
 import { interiorObject } from '../art/interiors';
+import { hasVillageAtlas, villageObject } from '../art/villageAssets';
+import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { drawPlaque, pixTextWidth } from '../art/pixfont';
 import type { ShopPhase } from '../systems/schedule';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
@@ -133,7 +135,7 @@ export function propTexture(scene: Phaser.Scene, key: string, closed = false): s
   const k = 'pr_' + key + (closed ? '_closed' : '');
   if (!scene.textures.exists(k)) {
     const d = PROPS[key];
-    scene.textures.addCanvas(k, interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
+    scene.textures.addCanvas(k, villageObject(key, d.sw, d.sh, d.stage, closed) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
   }
   return k;
 }
@@ -191,11 +193,22 @@ export function lightTexture(scene: Phaser.Scene): string {
  * Warm window panes (and, for the restaurant, its door) of a building sprite, as an overlay that is added on top at night.
  * Built once per building size and variant, from the same layout the sprite itself was drawn with.
  */
-export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot: number, door: boolean, home?: 'front' | 'side'): string {
-  const key = `winglow_${W}x${H}_${rot}_${door ? 'd' : 'w'}${home ? '_' + home : ''}`;
+export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot: number, door: boolean, home?: 'front' | 'side', facadeStage?: number): string {
+  const key = `winglow_${W}x${H}_${rot}_${door ? 'd' : 'w'}${home ? '_' + home : ''}_${facadeStage ?? 'legacy'}`;
   if (scene.textures.exists(key)) return key;
   const c = makeCanvas(W, H);
   const g = ctx2d(c);
+  if (facadeStage !== undefined && hasVillageAtlas()) {
+    const L = restaurantFacadeLayout(W, H, facadeStage);
+    // The selected art has timber/curtained entries, not glass doors. Existing lamp pools
+    // light the entrance; an emissive rectangle would paint over Sofi in front of it.
+    if (!door) for (const w of L.windows) {
+      px(g, w.x + 1, w.y + 1, '#ffb855', w.w - 2, w.h - 2);
+      px(g, w.x + Math.floor(w.w / 2), w.y + 1, '#b8661e', 1, w.h - 2);
+    }
+    scene.textures.addCanvas(key, c);
+    return key;
+  }
   if (home) {
     // a house: warm panes, the light through the glass of the door and the lantern beside it
     const L = homeLayout(W, H, rot, home === 'side');
