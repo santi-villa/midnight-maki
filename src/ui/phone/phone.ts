@@ -1,5 +1,5 @@
 /**
- * NoriPhone: a pixel-art phone that peeks out of the bottom edge of the screen and slides up when touched.
+ * NoriPhone: a medium-small pixel phone that peeks from the bottom-right corner and slides up to the centre when touched.
  * This file is the controller + DOM. The body is drawn by caseArt.ts, wallpapers by wallpapers.ts, the data lives in catalog.ts / prefs.ts,
  * and the apps are the game's own screens (registered by ui/menus.ts), so nothing here knows about maps, quests or friends.
  */
@@ -84,27 +84,37 @@ function layout() {
   const Wc = Math.max(40, Math.round(W / pxs));
   const Hc = Math.max(80, Math.round(H / pxs));
   const geo = caseGeometry(m, Wc, Hc);
+  const cssW = Wc * pxs;
   const cssH = Hc * pxs;
-  const peekH = (m.bezel.top + 2) * pxs;
-  // Reserve the real closed-phone hit area for the mobile controls beside it.
-  document.documentElement.style.setProperty('--phone-peek-h', Math.max(28, peekH) + 'px');
+  // Closed: a medium-small phone, top peeking above the bottom-right corner. Open: the same art, centred.
+  const centreY = s.t + (vh - s.t - s.b) / 2;
+  const maxW = Math.min(176, Math.max(128, vw * 0.44));
+  let closedScale = Math.min(0.72, maxW / cssW);
+  let showFrac = 0.4;
+  let visH = cssH * closedScale * showFrac;
+  if (visH > 146) { showFrac = 146 / (cssH * closedScale); visH = cssH * closedScale * showFrac; }
+  if (visH < 108) { showFrac = Math.min(0.55, 108 / (cssH * closedScale)); visH = cssH * closedScale * showFrac; }
+  const tuckBelow = cssH * closedScale - visH;
+  const cx = vw - s.r - 10 - (cssW * closedScale) / 2;
+  const cy = vh - s.b + tuckBelow - (cssH * closedScale) / 2;
+  document.documentElement.style.setProperty('--phone-peek-h', Math.round(visH) + 'px');
   device.classList.add('no-anim');
   const st = device.style;
   st.setProperty('--px', pxs + 'px');
-  st.width = Wc * pxs + 'px';
+  st.width = cssW + 'px';
   st.height = cssH + 'px';
   st.setProperty('--scr-x', geo.sx * pxs + 'px');
   st.setProperty('--scr-y', geo.sy * pxs + 'px');
   st.setProperty('--scr-w', geo.sw * pxs + 'px');
   st.setProperty('--scr-h', geo.sh * pxs + 'px');
   st.setProperty('--scr-r', m.screenRadius * pxs + 'px');
-  st.setProperty('--peek', peekH + 'px');
-  // centred inside the safe area; closed = only the top edge shows above the bottom of the window
-  const centreY = s.t + (vh - s.t - s.b) / 2;
+  st.setProperty('--show-frac', Math.round(showFrac * 100) + '%');
+  st.setProperty('--closed-scale', closedScale.toFixed(3));
+  st.setProperty('--peek-x', Math.round(cx - vw / 2) + 'px');
+  st.setProperty('--peek-y', Math.round(cy - centreY) + 'px');
   st.top = centreY + 'px';
-  st.setProperty('--closed-y', (vh - s.b - peekH) - (centreY - cssH / 2) + 'px');
   drawCase(caseCanvas, m, color, Wc, Hc);
-  peek.style.width = Math.max(120, Math.min(Wc * pxs, 260)) + 'px';
+  peek.style.width = '';
   device.dataset.model = m.id;
   void device.offsetWidth;
   device.classList.remove('no-anim');

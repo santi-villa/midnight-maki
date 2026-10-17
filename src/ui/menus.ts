@@ -287,17 +287,13 @@ function openMap() {
 
 // ------------------------------------------------------------------ suggestions (gentle, ignorable)
 function suggestions(): { label: string; run: () => void }[] {
-  const run: Record<string, () => void> = {
-    'Preparar sushi': () => { void import('../restaurant/kitchen').then((m) => m.openOrders()); },
-    'Ir a pescar': () => toast('La playa está al sur de la plaza.'),
-  };
   return hudSuggestionLabels({
     introDone: game.has('intro_done'),
     pendingOrders: game.save.orders.length > 0,
     beachUnlocked: game.has('unlock_beach'),
     period: game.save.time.period,
     atBeach: world.zoneId === 'beach',
-  }).map((label) => ({ label, run: run[label] }));
+  }).map((label) => ({ label, run: () => toast(label) }));
 }
 
 export function hudHandlers(): HudHandlers {

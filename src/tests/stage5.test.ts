@@ -86,13 +86,13 @@ function hints(over: Partial<HudSuggestionInput> = {}): string[] {
 }
 
 describe('HUD suggestion chips', () => {
-  it('keeps cooking and fishing, and drops visit and collection', () => {
-    expect(hints({ pendingOrders: true })).toEqual(['Preparar sushi']);
-    expect(hints({ beachUnlocked: true, period: 1, atBeach: false })).toEqual(['Ir a pescar']);
+  it('does not offer cooking, fishing, visit or collection shortcuts', () => {
+    expect(hints({ pendingOrders: true })).toEqual([]);
+    expect(hints({ beachUnlocked: true, period: 1, atBeach: false })).toEqual([]);
     expect(hints({ beachUnlocked: true, period: 3 })).toEqual([]);
     expect(hints({ beachUnlocked: true, atBeach: true })).toEqual([]);
     expect(hints({ introDone: false, pendingOrders: true })).toEqual([]);
     const all = hints({ pendingOrders: true, beachUnlocked: true });
-    expect(all.some((label) => label.startsWith('Visitar a') || label.startsWith('Ver colección'))).toBe(false);
+    expect(all.some((label) => label.startsWith('Visitar a') || label.startsWith('Ver colección') || label === 'Preparar sushi' || label === 'Ir a pescar')).toBe(false);
   });
 });
