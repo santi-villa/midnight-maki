@@ -24,6 +24,8 @@ import { openTownMemories } from './townMemories';
 import { chip, emptyState, tabBar } from './kit';
 import { skinIconEl } from './skin';
 import { dayOfSeason, seasonOf, SEASONS, weekday } from '../core/balance';
+import { settings } from '../core/settings';
+import { bindingMap, keyLabel, type GameAction } from '../input/bindings';
 
 function tabs(names: string[], onPick: (i: number) => void, start = 0, icons: string[] = []) {
   const bar = tabBar(names.map((label, i) => ({ label, icon: icons[i] })), onPick, start);
@@ -223,15 +225,16 @@ function calendarView() {
 }
 
 // ------------------------------------------------------------------ main menu
-/** Esc: pause menu. Same tiles as the main menu, with save, load and settings first. */
-export function openPauseMenu() { openMenu(true); }
+/** Esc: the wooden pause board (two columns, section titles, key badges). */
+export function openPauseMenu() { openPauseBoard(); }
 
+/** Phone "Más" list. Escape uses openPauseBoard instead. */
 export function openMenu(pause = false) {
-  const ICON: Record<string, string> = { Mochila: 'bag', Personaje: 'pet', Mapa: 'map', Misiones: 'clipboard', Investigación: 'inspect', Amigos: 'heart', Colecciones: 'gift', Recetario: 'maki', Cámara: 'camera', NoriPhone: 'phone', 'Descansar un rato': 'bed', Ajustes: 'gear', Guardar: 'scroll', Cuenta: 'pet', 'Amigos online': 'heart', 'Jugar juntos': 'maki', Cargar: 'door', 'Guardar y salir': 'door' };
+  if (pause) { openPauseBoard(); return; }
+  const ICON: Record<string, string> = { Mochila: 'bag', Personaje: 'shirt', Mapa: 'map', Misiones: 'clipboard', Investigación: 'inspect', Amigos: 'heart', Colecciones: 'gift', Recetario: 'maki', Cámara: 'camera', NoriPhone: 'phone', 'Descansar un rato': 'bed', Ajustes: 'gear', Guardar: 'disk', Cuenta: 'cloud', 'Amigos online': 'heart', 'Jugar juntos': 'maki', Cargar: 'door', 'Guardar y salir': 'door' };
   const b = (label: string, hint: string, fn: () => void, cls = '') =>
     h('button', { type: 'button', class: 'tile ' + cls, onclick: () => { p.close(); void runTask('ui:menu', fn); } }, skinIconEl(ICON[label] ?? 'menu'), h('span', null, label, h('small', null, hint)));
   const tiles = ([
-
     b('Mochila', 'Tus objetos', () => openBag()),
     b('Personaje', 'Cambiar ropa y apariencia', () => import('./wardrobe').then((m) => m.openWardrobe())),
     b('Mapa', 'Villa Nori', () => openMap()),
@@ -247,29 +250,96 @@ export function openMenu(pause = false) {
     b('Cuenta', 'Guardado en la nube', () => import('./account').then((m) => m.openAccount())),
     b('Amigos online', 'Código, amigos y tarjetas', () => import('./friends').then((m) => m.openFriends())),
     b('Jugar juntos', 'Cociná y serví con un amigo', () => import('./coop').then((m) => m.openCoop())),
-    b('Guardar', 'Deja un punto fijo de esta partida', async () => {
-      const { syncPlayerPos } = await import('../core/flow');
-      const { activeSlot, saveManual } = await import('../persistence/storage');
-      syncPlayerPos();
-      if (await saveManual()) toast(`Partida ${activeSlot() + 1} guardada a mano.`);
-    }),
-    b('Cargar', 'Elegí un automático o un manual', async () => {
-      const { openInGameLoad } = await import('./saves');
-      await openInGameLoad();
-    }),
-    b('Guardar y salir', 'Guarda el automático y vuelve al título', async () => {
-      const { syncPlayerPos } = await import('../core/flow');
-      const { saveGame } = await import('../persistence/storage');
-      syncPlayerPos();
-      if (!(await saveGame('exit'))) return;
-      if (await confirmBox('Partida guardada. ¿Volver a la pantalla de título?', 'Salir', 'Seguir jugando')) location.reload();
-    }),
+    b('Guardar', 'Deja un punto fijo de esta partida', saveManualSlot),
+    b('Cargar', 'Elegí un automático o un manual', loadSlot),
+    b('Guardar y salir', 'Guarda el automático y vuelve al título', saveAndExit),
   ]) as HTMLElement[];
-  const FIRST = ['Guardar', 'Cargar', 'Ajustes'];
-  const names = (el: HTMLElement) => el.querySelector('span')?.firstChild?.textContent ?? '';
-  if (pause) tiles.sort((x, y) => (FIRST.indexOf(names(x)) + 1 || 99) - (FIRST.indexOf(names(y)) + 1 || 99));
   const grid = h('div', { class: 'tiles' }, ...tiles);
-  const p = panel({ title: pause ? 'Pausa' : 'Menú', body: pause ? h('div', { class: 'col' }, h('p', { class: 'hint' }, 'El juego está en pausa. Esc para seguir jugando.'), grid) : grid });
+  const p = panel({ title: 'Menú', body: grid });
+}
+
+/** Wooden pause board from the reference: adventures on top, system underneath, exit across the bottom. */
+function openPauseBoard() {
+  const keys = bindingMap(settings.bindings);
+  const badge = (action: GameAction) => keyLabel(keys[action]);
+  let close = () => {};
+  const go = (fn: () => void) => () => { close(); void runTask('ui:menu', fn); };
+  const item = (label: string, icon: string, fn: () => void, key?: string, wide = false) =>
+    h('button', { type: 'button', class: 'pause-item' + (wide ? ' wide' : ''), onclick: go(fn) }, skinIconEl(icon), h('span', null, label), key ? h('kbd', null, key) : null);
+
+  const adventure = h('div', { class: 'pause-page' },
+    h('p', { class: 'pause-hint' }, 'El juego está en pausa. Esc para seguir jugando.'),
+    h('h3', null, 'Aventuras y Progreso'),
+    h('div', { class: 'pause-grid' },
+      item('Mochila', 'bag', () => openBag(), badge('inventory')),
+      item('Mapa', 'map', () => openMap(), badge('map')),
+      item('Misiones', 'clipboard', () => openJournal(0), badge('journal')),
+      item('Personaje', 'shirt', () => import('./wardrobe').then((m) => m.openWardrobe())),
+      item('Amigos', 'heart', () => openJournal(2)),
+      item('Recetario', 'maki', () => openJournal(4)),
+      item('NoriPhone', 'phone', () => openNoriPhone(), 'Tab'),
+      item('Colecciones', 'gift', () => openJournal(3)),
+      item('Investigación', 'inspect', () => openJournal(1)),
+      item('Cámara', 'camera', () => import('./camera').then((m) => m.takePhoto())),
+    ),
+    h('h3', null, 'Opciones de Sistema'),
+    h('div', { class: 'pause-grid' },
+      item('Guardar', 'disk', saveManualSlot),
+      item('Cargar', 'door', loadSlot),
+      item('Ajustes', 'gear', () => openSettings(true)),
+      item('Cuenta', 'cloud', () => import('./account').then((m) => m.openAccount())),
+    ),
+    h('button', { type: 'button', class: 'pause-exit', onclick: go(saveAndExit) }, 'Guardar y salir'),
+  );
+  const friends = h('div', { class: 'pause-page' },
+    h('h3', null, 'Amigos'),
+    h('div', { class: 'pause-grid' },
+      item('Amigos', 'heart', () => openJournal(2)),
+      item('Amigos online', 'heart', () => import('./friends').then((m) => m.openFriends())),
+      item('Jugar juntos', 'maki', () => import('./coop').then((m) => m.openCoop()), undefined, true),
+    ),
+  );
+  const system = h('div', { class: 'pause-page' },
+    h('h3', null, 'Sistema'),
+    h('div', { class: 'pause-grid' },
+      item('Ajustes', 'gear', () => openSettings(true)),
+      item('Descansar un rato', 'bed', () => restPeriod(), undefined, true),
+    ),
+  );
+  const pages = [adventure, friends, system];
+  const host = h('div', { class: 'pause-pages' });
+  const show = (i: number) => host.replaceChildren(pages[i]);
+  show(0);
+  const bar = tabBar([
+    { label: 'Pausa', icon: 'menu' },
+    { label: 'Amigos', icon: 'heart' },
+    { label: 'Ajustes', icon: 'gear' },
+  ], show, 0);
+  bar.classList.add('pause-tabs');
+  const p = panel({ title: 'Pausa', body: host });
+  close = p.close;
+  p.root.classList.add('pause-sheet');
+  p.root.querySelector('.panel-head')?.prepend(bar);
+}
+
+async function saveManualSlot() {
+  const { syncPlayerPos } = await import('../core/flow');
+  const { activeSlot, saveManual } = await import('../persistence/storage');
+  syncPlayerPos();
+  if (await saveManual()) toast(`Partida ${activeSlot() + 1} guardada a mano.`);
+}
+
+async function loadSlot() {
+  const { openInGameLoad } = await import('./saves');
+  await openInGameLoad();
+}
+
+async function saveAndExit() {
+  const { syncPlayerPos } = await import('../core/flow');
+  const { saveGame } = await import('../persistence/storage');
+  syncPlayerPos();
+  if (!(await saveGame('exit'))) return;
+  if (await confirmBox('Partida guardada. ¿Volver a la pantalla de título?', 'Salir', 'Seguir jugando')) location.reload();
 }
 
 function restPeriod() {
