@@ -67,7 +67,7 @@ export const cloud = {
         state = { ...state, configured: true };
         const last = Number(localStorage.getItem(SYNC_KEY));
         if (Number.isFinite(last) && last > 0) state.lastSync = last;
-        await provider.init((user) => { patch({ user, ready: true, error: null }); if (user) void cloud.sync(resolver).then((sum) => onSynced?.(sum, true)).catch(() => undefined); });
+        await provider.init((user) => { patch({ user, ready: true, error: null }); if (user) { void cloud.sync(resolver).then((sum) => onSynced?.(sum, true)).catch(() => undefined); void publishCard(); } });
         setSaveObserver((slot) => cloud.queuePush(slot));
         patch({ ready: true });
       } catch (err) {
@@ -94,7 +94,7 @@ export const cloud = {
   queuePush(slot: number) {
     if (!provider || !state.user) return;
     window.clearTimeout(timers.get(slot));
-    timers.set(slot, window.setTimeout(() => { void cloud.pushSlot(slot).catch(() => undefined); }, 8000));
+    timers.set(slot, window.setTimeout(() => { void cloud.pushSlot(slot).catch(() => undefined); void publishCard(); }, 8000));
   },
 
   async pushSlot(slot: number) {
@@ -155,6 +155,9 @@ export const cloud = {
     return sum;
   },
 };
+
+/** Keep the public restaurant card fresh. Its own failures never matter to the save. */
+function publishCard() { return import('./social').then((m) => m.social.publishProfile()).catch(() => undefined); }
 
 function need(): CloudProvider {
   if (!provider) throw new CloudError('La nube todavía no está disponible.');

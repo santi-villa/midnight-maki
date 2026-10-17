@@ -12,6 +12,33 @@ service cloud.firestore {
         && (request.resource.data.manual == null || (request.resource.data.manual is string && request.resource.data.manual.size() < 450000));
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
+    // public restaurant card: any signed-in player can read it, only its owner writes it
+    match /profiles/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'restaurant', 'level', 'reputation', 'served', 'recipes', 'appearance', 'code', 'updatedAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 24
+        && request.resource.data.restaurant is string && request.resource.data.restaurant.size() <= 32
+        && request.resource.data.code is string && request.resource.data.code.size() == 6;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+    // friend code -> uid. Created once, never reassigned to someone else
+    match /codes/{code} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid && code.size() == 6;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+    match /users/{uid}/friends/{friendId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // postcards: anyone signed in can leave one in a friend's inbox under their own id (so one per sender); only the owner reads or clears them
+    match /users/{uid}/inbox/{from} {
+      allow create, update: if request.auth != null && request.auth.uid == from
+        && request.resource.data.keys().hasOnly(['fromName', 'card', 'at'])
+        && request.resource.data.card in ['hello', 'delicious', 'thanks', 'luck', 'rest', 'proud', 'fish', 'miss']
+        && request.resource.data.fromName is string && request.resource.data.fromName.size() <= 24;
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }

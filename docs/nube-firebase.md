@@ -25,3 +25,18 @@ Código: `src/cloud/decide.ts` (reglas puras, con tests), `src/cloud/cloud.ts` (
 - **Android/iOS (Capacitor):** el popup de Google no anda en la app nativa. Hace falta el plugin `@capacitor-firebase/authentication` y la huella SHA-1 en Firebase. Se hace cuando se publique en tiendas.
 - Política de privacidad (qué se guarda: correo, nombre y partidas) y texto de borrado de cuenta, para las tiendas.
 - Pruebas contra un proyecto Firebase real: lo armado se probó solo hasta donde se puede sin credenciales.
+
+## Amigos online (primera parte)
+- **Tarjeta del restaurante:** nombre, restaurante, nivel, platos servidos, recetas y apariencia. Se publica sola al entrar con tu cuenta y cada vez que la partida se sube. Es lo único público.
+- **Código de amigo:** 6 caracteres (sin 0/O/1/I/L). Quien lo escribe te agrega a su lista. Es de un solo sentido: no hay solicitudes que aprobar y se puede quitar a alguien cuando se quiera.
+- **Tarjetas:** 8 mensajes fijos. Nadie puede escribirle texto libre a otro jugador. Cada amigo deja como mucho una tarjeta en tu buzón (la nueva reemplaza a la vieja), lo que frena el spam.
+- Pantalla: Esc → Pausa → «Amigos online», o Cuenta → «Amigos online».
+- **Hay que volver a publicar `firestore.rules`** (cambió: perfiles, códigos, amigos y buzón).
+
+Código: `src/cloud/social.ts`, `src/cloud/friendCode.ts` (con tests), `src/ui/friends.ts`.
+
+### Cuidado con los nombres
+El nombre del jugador y del restaurante los escribe cada persona y los ven sus amigos. Hoy se limitan en largo (24 y 32) pero no se filtran. Antes de publicar en tiendas conviene sumar un filtro de palabras y un botón «Reportar».
+
+### Siguiente
+Visitar el restaurante de un amigo (verlo decorado, solo lectura), ranking entre amigos y regalos. Cada cosa necesita su propia regla de seguridad y moderación.

@@ -85,7 +85,8 @@ export function openAccount() {
     body.append(
       h('div', { class: 'card col' }, h('b', null, u.name), h('div', { class: 'hint' }, u.email || (u.via === 'google' ? 'Cuenta de Google' : '')),
         h('div', null, st.syncing ? 'Sincronizando…' : st.lastSync ? `Sincronizada ${ago(Date.now(), st.lastSync)}` : 'Todavía sin sincronizar')),
-      h('button', { class: 'btn primary', disabled: st.syncing, onclick: () => void guard(async () => summarize(await cloud.sync(resolveConflict), false)) }, 'Sincronizar ahora'),
+      h('button', { class: 'btn primary big', onclick: () => { p.close(); void import('./friends').then((m) => m.openFriends()); } }, 'Amigos online'),
+      h('button', { class: 'btn', disabled: st.syncing, onclick: () => void guard(async () => summarize(await cloud.sync(resolveConflict), false)) }, 'Sincronizar ahora'),
       h('button', { class: 'btn', onclick: () => void guard(async () => { await cloud.signOut(); toast('Saliste de tu cuenta. Tu partida sigue en este dispositivo.'); }) }, 'Cerrar sesión'),
       h('button', { class: 'btn danger', onclick: () => void guard(async () => {
         if (!(await confirmBox('Se borra tu cuenta y las partidas guardadas en la nube. Las partidas de este dispositivo no se tocan. ¿Seguro?', 'Borrar cuenta', 'Cancelar'))) return;
