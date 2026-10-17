@@ -173,7 +173,7 @@ export function setCoopOpenPref(on: boolean) {
   userClosed = !on;
   retryAt = 0;
   const st = coop.state();
-  if (!on && st.role === 'host' && (st.phase === 'waiting' || st.phase === 'connected')) void coop.leave();
+  if (!on && st.role === 'host' && (st.phase === 'opening' || st.phase === 'waiting' || st.phase === 'connected')) void coop.leave();
   else if (on) void autoOpen();
 }
 
