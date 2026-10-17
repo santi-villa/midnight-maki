@@ -7,6 +7,7 @@ import { PROPS } from '../data/props';
 import { ZONES } from '../data/zones';
 import { buildZone } from '../world/zoneRuntime';
 import { safeArrival } from '../world/zoneTransition';
+import { gatherSpots } from '../systems/gather';
 
 const FLAGS = ['unlock_forest', 'unlock_beach', 'unlock_garden', 'unlock_station', 'market_open', 'unlock_lighthouse_view'];
 const LEGACY_HOUSES = ['house_plaza_1_27', 'house_plaza_18_27', 'house_plaza_24_27', 'house_plaza_30_27',
@@ -43,6 +44,40 @@ describe('complete outdoor layout', () => {
       const b = buildZone(id);
       for (const d of b.def.doors.filter(d => d.to.startsWith('house_') || d.to.startsWith('shop_') || d.to === 'restaurant' || d.to === 'library')) {
         expect(b.grid.isSolid(d.x, d.y + 1), `${id} ${d.to} threshold`).toBe(false);
+      }
+    }
+  });
+
+  it('connects every doorway by streets without requiring a detour across lawns', () => {
+    for (const flag of FLAGS) game.save.flags[flag] = true;
+    for (const id of Object.keys(STREET_PLANS)) {
+      const b = buildZone(id), streets = b.grid.clone();
+      for (let y = 0; y < b.def.h; y++) for (let x = 0; x < b.def.w; x++) {
+        if (!'pcb'.includes(b.def.ground[y][x])) streets.setSolid(x, y, true);
+      }
+      const doors = b.def.doors.filter(d => d.walk), start = doors[0];
+      for (const d of doors) {
+        expect(streets.isSolid(d.x, d.y), `${id} ${d.to} threshold`).toBe(false);
+        expect(streets.path(start.x, start.y, d.x, d.y, 20000), `${id} ${d.to} street access`).not.toBeNull();
+      }
+    }
+  });
+
+  it('keeps scenery and gathering off every street, before and after restoration', () => {
+    const structural = new Set(['building', 'townhouse', 'sidehouse', 'fountain', 'shrine', 'stall', 'mill',
+      'torii', 'stonestairs', 'waterfall', 'pier', 'village_bank', 'lighthouse']);
+    for (const restored of [false, true]) {
+      for (const flag of FLAGS) game.save.flags[flag] = true;
+      game.save.flags.weather = 'rain';
+      if (restored) for (const p of PROJECTS) for (let i = 1; i <= p.phases.length; i++) game.save.flags[`proj_${p.id}_${i}`] = true;
+      for (const id of Object.keys(STREET_PLANS)) {
+        const b = buildZone(id);
+        for (const p of b.props.filter(p => !structural.has(p.def.kind) && !p.key.startsWith('block_'))) {
+          for (let y = p.y; y < p.y + p.def.h; y++) for (let x = p.x; x < p.x + p.def.w; x++) {
+            expect('pcb'.includes(b.def.ground[y]?.[x] ?? '?'), `${id} ${p.key} ${x},${y}`).toBe(false);
+          }
+        }
+        for (const g of [...b.def.gather, ...gatherSpots(id)]) expect('pcb'.includes(b.def.ground[g.y][g.x]), `${id} gather ${g.x},${g.y}`).toBe(false);
       }
     }
   });
