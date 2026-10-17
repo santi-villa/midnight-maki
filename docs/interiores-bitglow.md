@@ -1,6 +1,6 @@
 # Colección de interiores
 
-Se incorporan 173 muebles y adornos de los paquetes Bitglow Bathroom (19), Bedroom (20) y Living Room & Kitchen (21), disponibles en `ASSETS DESCARGADOS/ORGANIZADO/biblioteca/02_interiores`. Amplían el catálogo existente: no se sustituyen sus IDs, precios, compras o muebles colocados.
+Se incorporan 178 muebles y adornos de los paquetes Bitglow Bathroom (19), Bedroom (20) y Living Room & Kitchen (21), disponibles en `ASSETS DESCARGADOS/ORGANIZADO/biblioteca/02_interiores`. Amplían el catálogo existente y sustituyen el aspecto de las piezas antiguas equivalentes. No cambian sus IDs, precios, compras, ubicaciones ni colisiones.
 
 ## Uso en el juego
 
@@ -15,10 +15,11 @@ Las camas conservan la acción de dormir de la habitación del jugador. Las alfo
 
 - `scripts/build-interior-assets.py`: selección explícita de recortes completos y regeneración, requiere Pillow como la herramienta existente de iconos.
 - `src/assets/interiors/catalog.json`: identificadores estables, nombres, categorías, precios, huellas y procedencia de cada recorte/orientación.
-- `src/assets/interiors/atlas.png`: 197 recortes a resolución original en una textura 1024×512 (2 MiB de píxeles RGBA; unos 53 KiB de PNG).
+- `src/assets/interiors/atlas.png`: 208 recortes a resolución original en una textura 1024×512 (2 MiB de píxeles RGBA; unos 56 KiB de PNG).
 - `src/assets/interiors/Bitglow-license.txt`: licencia adjunta a los paquetes originales.
 - `src/data/interiorFurniture.ts`: integración con el catálogo y las tiendas existentes.
-- `src/art/interiors.ts`: representación a tamaño nativo con pivote en la base.
+- `src/art/interiorReplacements.ts`: equivalencias visuales de 36 muebles existentes y cuatro elementos fijos de cocina/biblioteca.
+- `src/art/interiors.ts`: representación a tamaño nativo de los objetos nuevos y ajuste proporcional de los antiguos, con pivote en la base.
 - `src/art/furniture.ts`: representación compartida por el mundo, tienda, editor y premios. Conserva el dibujo procedural como fallback si falla la carga.
 - `src/scenes/BootScene.ts`: carga el atlas antes del mundo utilizando el progreso real del cargador de Phaser.
 
@@ -32,6 +33,12 @@ python3 scripts/build-interior-assets.py
 
 Mantener los IDs `interior_*` una vez publicados, ya que las partidas los guardan. Las dimensiones visuales y la huella de colisión son independientes. Si se cambia una huella, revisar las ubicaciones guardadas y la accesibilidad antes de publicar.
 
+## Sustitución de los modelos anteriores
+
+Las camas, futones, roperos, bibliotecas, escritorios, mesas, sillas, lámparas, alfombras y adornos incluidos en el mapa de equivalencias usan ahora el atlas de Bitglow incluso si ya estaban colocados en una partida anterior. El renderizador compartido aplica el cambio en el mundo, la tienda y el editor. Las mesas de roble y nogal incluyen también su vista lateral nativa al girarlas.
+
+No se reemplazan los objetos personales/narrativos sin equivalente, como los peluches de los mapaches. El contenido del guardado permanece igual: no hace falta recomprar ni recolocar muebles. La altura visual de los roperos aumenta para mostrar su silueta completa; su huella lógica de 2×1 sigue igual.
+
 ## Cooperativo
 
 Los IDs nuevos viajan con la decoración del anfitrión mediante el protocolo existente. Ambos jugadores deben cargar esta versión para ver los muebles nuevos. El invitado no compra ni cambia la decoración del anfitrión; al salir recupera la suya y el bloqueo de guardado durante la visita continúa vigente.
@@ -39,3 +46,5 @@ Los IDs nuevos viajan con la decoración del anfitrión mediante el protocolo ex
 ## Verificación
 
 Ver `docs/art/interiores/` para el catálogo y capturas de compra, decoración y visita cooperativa. La comprobación de navegador usa emulación de PC y móvil y el transporte local de dos pestañas; no demuestra conexión entre teléfonos ni la configuración del Firebase desplegado.
+
+La revisión de sustituciones y caminos está documentada en [caminos y modelos](caminos-y-modelos.md), con capturas actuales de los IDs antiguos.
