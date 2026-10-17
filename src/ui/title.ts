@@ -8,6 +8,7 @@ import { lowFx } from '../core/perf';
 import { settings, updateSettings } from '../core/settings';
 import { continueTarget, hasSave, importSaveFile, installSave, saveFromCode, setActiveSlot, takeResumeOnce } from '../persistence/storage';
 import { openCreator } from './creator';
+import { versionLabel } from '../core/version';
 import { confirmBox, h, hideBoot, panel, toast, uiRoot } from './dom';
 import { loadChoiceList, resumeSnapshot, slotChoiceList, slotTitle } from './saves';
 import { openSettings } from './settingsPanel';
@@ -241,7 +242,7 @@ export async function showTitle(phaser: Phaser.Game) {
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', layout);
 
-  root.append(h('div', { class: 'tt-bg' }, back, frame), logo, prompt, menu);
+  root.append(h('div', { class: 'tt-bg' }, back, frame), logo, prompt, menu, h('div', { class: 'tt-version', 'aria-label': 'Versión del juego' }, versionLabel()));
   refreshCalm();
   layout();
   uiRoot().append(root);

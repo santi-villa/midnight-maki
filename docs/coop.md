@@ -51,3 +51,12 @@ El anfitrión sigue siendo la autoridad. El invitado no simula nada del salón: 
 - **Personal.** La foto del salón incluye a los mozos y cocineros contratados (`staff`): el invitado los ve caminar y llevar platos.
 - **Burbujas.** Lo que dicen los clientes en el salón del anfitrión (y las monedas que suben al pagar) viaja en mensajes `say`, y el invitado lo muestra sobre el mismo cliente.
 - **Carteles repetidos.** Cada pedido del invitado se manda una sola vez hasta que el anfitrión contesta; se ignoran respuestas que nadie pidió y el anfitrión descarta pedidos repetidos. Además, el invitado ve el resultado probable al instante (por ejemplo, "Tomar pedido" desaparece en cuanto lo toca), y la foto siguiente del anfitrión lo confirma.
+
+## Sala fija con el código de amigo (protocolo v5, reglas nuevas)
+
+- **La sala es de tu cuenta.** En Realtime Database la sala se llama como el uid del anfitrión (`coop/{uid}`); las reglas solo dejan crearla a su dueño. El invitado escribe (o toca) el código de amigo del anfitrión y el juego lo traduce a uid con `codes/{código}` de Firestore.
+- **Abierta por defecto.** Con la cuenta iniciada y una partida cargada, el restaurante se abre solo a amigos (se puede apagar en Jugar juntos; se guarda en `mm_coop_open`). Cuando el invitado sale, la sala queda esperando al siguiente en vez de cerrarse. Cerrarla a mano la deja cerrada hasta que la abras de nuevo o recargues.
+- **Quién ve que estás abierto.** `presence/host` y `presence/guest` los puede leer cualquier jugador con sesión; en Amigos online cada amigo muestra "Abierto", "Con visita" o "Sin conexión", y "Unirme" se habilita cuando está abierto.
+- **Quién puede entrar.** Quien tenga tu código de amigo, mientras haya lugar (máximo 2). Si no querés visitas, apagá la apertura.
+- **Hay que volver a pegar** `database.rules.json` en Realtime Database → Reglas → Publicar.
+- **Versión.** El menú principal muestra `v0.5.0 · commit · fecha de armado` (`src/core/version.ts`, valores fijados en `vite.config.ts`). Si la fecha cambia después de un deploy, el juego se actualizó.

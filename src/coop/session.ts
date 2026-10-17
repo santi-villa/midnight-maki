@@ -50,6 +50,7 @@ export class CoopSession {
   private handlers = new Map<string, ((m: unknown) => void)[]>();
   private worldHook: ((w: WorldPack) => void) | null = null;
   private floorHook: ((v: unknown) => void) | null = null;
+  private keepOpen = false;
   constructor(private deps: CoopDeps) {}
 
   state(): CoopState { return this.st; }
@@ -65,11 +66,16 @@ export class CoopSession {
   onFloor(fn: (v: unknown) => void) { this.floorHook = fn; }
   sendPos(p: PosState) { if (this.st.phase === 'connected') this.t?.state('pos', p); }
 
-  async host(): Promise<string> {
+  /**
+   * Open the restaurant. With a `fixed` code (the player's friend code) the room stays open: when the guest leaves it waits for the
+   * next one instead of closing. Without it, a random code is made for this one visit.
+   */
+  async host(fixed?: string): Promise<string> {
     if (this.st.phase !== 'idle' && this.st.phase !== 'closed') throw new CoopError('Ya estás en una sala.');
+    this.keepOpen = !!fixed;
     this.set({ phase: 'opening', role: 'host', note: null, peer: null, peerPos: null, world: null });
-    for (let i = 0; i < 5; i++) {
-      const code = generateCode();
+    for (let i = 0; i < (fixed ? 1 : 5); i++) {
+      const code = fixed ?? generateCode();
       try {
         const t = await withTimeout(this.deps.openTransport('host', code), OPEN_TIMEOUT_MS);
         this.attach(t, code);
@@ -110,11 +116,13 @@ export class CoopSession {
     });
     t.onPeer((present) => {
       if (present) { this.lastHeard = this.now(); if (t.role === 'guest') t.send({ t: 'hello', v: COOP_VERSION, info: this.deps.me() }); }
-      else if (this.st.phase === 'connected') this.end('Tu amigo se desconectó.');
+      else if (this.st.phase === 'connected') this.guestGone('Tu amigo se desconectó.');
     });
     this.beat = window.setInterval(() => {
       t.state('hb', this.now());
-      if ((this.st.phase === 'connected' || this.st.phase === 'waiting') && this.st.peer && this.now() - this.lastHeard > SILENCE_MS) this.end('Se perdió la conexión con tu amigo.');
+      // a hello can get lost while the host is still getting ready: ask again until the restaurant arrives
+      if (t.role === 'guest' && this.st.phase === 'opening' && !this.st.world) t.send({ t: 'hello', v: COOP_VERSION, info: this.deps.me() });
+      if ((this.st.phase === 'connected' || this.st.phase === 'waiting') && this.st.peer && this.now() - this.lastHeard > SILENCE_MS) this.guestGone('Se perdió la conexión con tu amigo.');
     }, HEARTBEAT_MS);
     void code;
   }
@@ -138,9 +146,19 @@ export class CoopSession {
       this.set({ world, phase: 'connected' });
       this.worldHook?.(world);
     } else if (raw.t === 'bye') {
+      if (t.role === 'host' && this.keepOpen && raw.why === 'left') { this.guestGone('Tu amigo salió.'); return; }
       this.end(raw.why === 'full' ? 'La sala está completa.' : raw.why === 'version' ? 'Tu amigo tiene otra versión del juego.' : t.role === 'guest' ? 'Tu amigo cerró el restaurante.' : 'Tu amigo salió.');
     }
     this.handlers.get(raw.t)?.forEach((f) => f(raw));
+  }
+
+  /** The other side went away. A host with a fixed room goes back to waiting; anyone else is done. */
+  private guestGone(note: string) {
+    const t = this.t;
+    if (!t || t.role !== 'host' || !this.keepOpen) { this.end(note); return; }
+    this.lastHeard = this.now();
+    this.set({ phase: 'waiting', peer: null, peerPos: null, note });
+    void t.resetGuest?.();
   }
 
   private end(note: string) {

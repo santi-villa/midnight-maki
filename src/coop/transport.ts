@@ -11,6 +11,8 @@ export interface CoopTransport {
   onState(fn: (key: string, value: unknown) => void): void;
   /** the other side connected / disconnected */
   onPeer(fn: (present: boolean) => void): void;
+  /** host only: the guest left, get ready for the next one (the room stays open) */
+  resetGuest?(): Promise<void>;
   close(): Promise<void>;
 }
 

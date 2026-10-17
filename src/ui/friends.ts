@@ -6,23 +6,40 @@ import { social, type Postcard, type Profile } from '../cloud/social';
 import { previewCanvas } from './creator';
 import { confirmBox, h, panel, toast } from './dom';
 import { skinIconEl } from './skin';
+import type { RoomState } from '../coop/firebaseTransport';
 
 export function openFriends() {
   if (!cloud.status().user) { void import('./account').then((m) => m.openAccount()); return; }
   const body = h('div', { class: 'col friends' });
-  panel({ title: 'Amigos online', body, wide: true });
+  let stopWatching: (() => void) | null = null;
+  const pan = panel({ title: 'Amigos online', body, wide: true, onClose: () => { stopWatching?.(); stopWatching = null; } });
+  /** each friend's "open / busy" light and join button, refreshed live */
+  const lights = new Map<string, { dot: HTMLElement; join: HTMLButtonElement }>();
+  const showRoom = (uid: string, state: RoomState) => {
+    const l = lights.get(uid); if (!l) return;
+    l.dot.textContent = state === 'open' ? '● Abierto' : state === 'busy' ? '● Con visita' : '○ Sin conexión';
+    l.dot.style.color = state === 'open' ? '#5d8a3a' : state === 'busy' ? '#b8862e' : '#8a7f78';
+    l.join.disabled = state !== 'open';
+  };
+  const join = async (p: Profile) => {
+    try { const { joinFriend } = await import('../coop'); await joinFriend(p.code); pan.close(); toast(`Entrando al restaurante de ${p.name}…`); } catch (e) { fail(e); }
+  };
   const fail = (e: unknown) => toast(e instanceof Error ? e.message : 'No se pudo. Probá de nuevo.');
 
   const card = (p: Profile) => {
     const art = previewCanvas(p.appearance, ['down'], 3);
     art.className = 'friend-art';
+    const dot = h('div', { class: 'hint' }, '○ Sin conexión');
+    const joinBtn = h('button', { class: 'btn small primary', disabled: true, onclick: () => void join(p) }, 'Unirme') as HTMLButtonElement;
+    lights.set(p.uid, { dot, join: joinBtn });
     return h('div', { class: 'card friend' },
       art,
       h('div', { class: 'col grow' },
-        h('b', null, p.restaurant), h('div', null, p.name),
+        h('b', null, p.restaurant), h('div', null, p.name), dot,
         h('div', { class: 'hint' }, `Nivel ${p.level} · ${p.served.toLocaleString('es-AR')} servidos · ${p.recipes} recetas`)),
       h('div', { class: 'col' },
-        h('button', { class: 'btn small primary', onclick: () => void pickCard(p) }, 'Mandar tarjeta'),
+        joinBtn,
+        h('button', { class: 'btn small', onclick: () => void pickCard(p) }, 'Mandar tarjeta'),
         h('button', { class: 'btn small', onclick: () => void remove(p) }, 'Quitar')));
   };
 
@@ -40,6 +57,7 @@ export function openFriends() {
   };
 
   const render = async () => {
+    stopWatching?.(); stopWatching = null; lights.clear();
     body.replaceChildren(h('p', { class: 'hint' }, 'Cargando…'));
     try {
       const [code, friends, inbox] = await Promise.all([social.myCode(), social.friends(), social.inbox()]);
@@ -65,6 +83,11 @@ export function openFriends() {
         friends.length ? null : h('p', { class: 'hint' }, 'Todavía no agregaste a nadie. Escribí el código de un amigo arriba.'),
         ...friends.map(card),
       ].filter(Boolean) as Node[]);
+      // who has their restaurant open right now (only when the real-time database is set up)
+      void import('../coop/firebaseTransport').then((m) => {
+        if (!m.databaseConfigured() || !body.isConnected || !friends.length) return;
+        stopWatching = m.watchRooms(friends.map((f) => f.uid), showRoom);
+      }).catch(() => undefined);
     } catch (e) {
       body.replaceChildren(h('p', { class: 'account-error', role: 'alert' }, e instanceof Error ? e.message : 'No se pudo cargar.'), h('button', { class: 'btn', onclick: () => void render() }, 'Reintentar'));
     }

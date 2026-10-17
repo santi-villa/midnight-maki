@@ -6,6 +6,7 @@ import { ZONES } from '../data/zones';
 import { world } from '../scenes/WorldScene';
 import { setSaveBlocked } from '../persistence/storage';
 import { cloud } from '../cloud/cloud';
+import { social } from '../cloud/social';
 import { mirror, normalizeFloor, type PartySnap } from '../restaurant/mirror';
 import { buildFloor, dropGuestCooking, releaseGuestClaims, runAct } from './serve';
 import { CoopError } from './errors';
@@ -158,4 +159,63 @@ bus.on('coop:changed', () => {
   // plates a friend was carrying go back to the tray when they leave
   if (st.role === 'host' && st.phase !== 'connected') { releaseGuestClaims(); dropGuestCooking(); handled.clear(); }
   if (st.role === 'guest' && st.phase !== 'connected') pending.clear();
+});
+
+// ------------------------------------------------------------------ the restaurant stays open to friends
+const PREF = 'mm_coop_open';
+/** Open to friends by default: anyone with your friend code can come in while you are online. Turn it off any time. */
+export function coopOpenPref(): boolean { try { return localStorage.getItem(PREF) !== '0'; } catch { return true; } }
+let userClosed = false;
+let retryAt = 0;
+
+export function setCoopOpenPref(on: boolean) {
+  try { localStorage.setItem(PREF, on ? '1' : '0'); } catch { /* the choice lasts until the page closes */ }
+  userClosed = !on;
+  retryAt = 0;
+  const st = coop.state();
+  if (!on && st.role === 'host' && (st.phase === 'waiting' || st.phase === 'connected')) void coop.leave();
+  else if (on) void autoOpen();
+}
+
+/** The host closes the room by hand: it stays closed until they open it again or reload the game. */
+export async function leaveCoop() {
+  if (coop.state().role === 'host') userClosed = true;
+  await coop.leave();
+}
+/** Open (again) the room that belongs to this account, if the player wants it. */
+export async function openMyRoom() { userClosed = false; retryAt = 0; await autoOpen(true); }
+
+async function autoOpen(manual = false) {
+  const st = coop.state();
+  if (st.phase !== 'idle' && st.phase !== 'closed') return;
+  if (!manual && (!coopOpenPref() || userClosed || Date.now() < retryAt)) return;
+  if (!game.loaded || !world?.player || !cloud.status().user) return;
+  if (new URLSearchParams(location.search).has('coop-local')) return;
+  retryAt = Date.now() + 60_000;
+  try {
+    const { databaseConfigured } = await import('./firebaseTransport');
+    if (!databaseConfigured()) return;
+    const code = await social.myCode();
+    if (coop.state().phase === 'idle' || coop.state().phase === 'closed') await coop.host(code);
+  } catch (e) { if (manual) throw e; }
+}
+setInterval(() => { void autoOpen(); }, 5000);
+
+/** Join a friend's restaurant. My own open room (with nobody in it) is closed first. */
+export async function joinFriend(code: string) {
+  const st = coop.state();
+  if (st.role === 'host' && st.phase === 'connected') throw new CoopError('Tenés a un amigo en tu restaurante. Cerrá tu sala primero.');
+  if (st.role === 'host' && st.phase === 'waiting') await coop.leave();
+  if (coop.state().phase === 'closed') await coop.leave();
+  await coop.join(code);
+}
+
+// tell the host who came in and who left
+let hostPeer: string | null = null;
+bus.on('coop:changed', () => {
+  const st = coop.state();
+  const now = st.role === 'host' && st.phase === 'connected' ? st.peer?.name ?? 'Tu amigo' : null;
+  if (now && !hostPeer) bus.emit('toast', { text: `${now} entró a tu restaurante.` });
+  else if (!now && hostPeer && st.phase === 'waiting') bus.emit('toast', { text: `${hostPeer} salió de tu restaurante.` });
+  hostPeer = now;
 });
