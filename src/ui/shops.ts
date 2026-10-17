@@ -46,7 +46,7 @@ export const SHOPS: Record<string, ShopDef> = {
     tabs: [
       { name: 'Ingredientes', list: () => items(['rice', 'nori', 'salmon', 'tuna', 'cucumber', 'avocado', 'egg', 'shrimp', 'crab', 'cream', 'sesame', 'wasabi', 'chili', 'tempura', 'mango', 'eel', 'roe', 'scallion', 'carrot', 'ginger', 'umeboshi', 'tea_leaves', 'ramune_bottle', 'milk', 'berry']) },
       { name: 'Paquetes y cajas', list: () => packEntries() },
-      { name: 'Semillas', list: () => items(['sd_scallion', 'sd_cucumber', 'sd_carrot', 'sd_chili', 'sd_flower', ...(game.has('unlock_garden') ? ['sd_sakura'] : [])]) },
+      { name: 'Semillas', list: () => items(['sd_scallion', 'sd_cucumber', 'sd_carrot', 'sd_tomato', 'sd_wheat', 'sd_chili', 'sd_flower', ...(game.has('unlock_garden') ? ['sd_sakura'] : [])]) },
       { name: 'Muebles', list: () => furn('taro') },
       { name: 'Pisos y paredes', list: styles },
       { name: 'Regalos', list: () => items(['g_candy', 'g_tea', 'g_blanket', 'g_book', 'g_hotsauce']) },

@@ -1,0 +1,27 @@
+{
+ "pack": "Cozy Farm Lite",
+ "files": [
+  "crops/1x/carrot-stages.png",
+  "crops/1x/tomato-stages.png",
+  "crops/1x/wheat-stages.png",
+  "props/1x/barrel.png",
+  "props/1x/bush.png",
+  "props/1x/crate.png",
+  "props/1x/flowers.png",
+  "props/1x/hay-bale.png",
+  "props/1x/rock.png",
+  "trees/1x/oak.png"
+ ],
+ "sha256": {
+  "crops/1x/carrot-stages.png": "88f881b54985b41a1698cb629bbddf120f1c11f304cbef0932f46a413571f617",
+  "crops/1x/tomato-stages.png": "e743ac05a24f8942ea580a983c1e03da4fd7961cfc9d06ba86b8ebff345cf4fa",
+  "crops/1x/wheat-stages.png": "652ac689a093611be90c73142c39392616bcd52f75727dee76ae5380e6f23ad9",
+  "props/1x/barrel.png": "0baa59aa4a5873c27ea7d6fa2dd16614277bae48036bb3fb744d2ab996b75837",
+  "props/1x/bush.png": "083ab79db6ee41dcbf5b7355fdc53a863d1f9293e48b6c12caca7f04671f4c3e",
+  "props/1x/crate.png": "71b89f6990ac2c3f0d33a37c0aa42841e4f9eca7b4ad533620be1e8e278b54cd",
+  "props/1x/flowers.png": "03d6d9d3801fa87303ec0524aa8f127d1d6bc6074670116d8f182684b19afbc3",
+  "props/1x/hay-bale.png": "a00e7da54924d4a4a4a471d84c6296ca79d6089de641fb435e37755ed94f4b6f",
+  "props/1x/rock.png": "bf7e463dcfa7f1cba8a334b3378a9cf2f679018028412c66f2ea1f9d21a4a1de",
+  "trees/1x/oak.png": "fe2acdafe17e2542fb49428ac2bbbbc5f7e49e1b8ed2d805d8264616ebc7ea5c"
+ }
+}
