@@ -33,7 +33,7 @@ registerAction('shop', async (id) => {
 registerAction('bed', async () => {
   const c = await new Promise<number>((resolve) => {
     runScene('bed', async () => {
-      resolve(await choose(clock.period < 3 ? ['Dormir hasta mañana', 'Descansar un rato (pasar al siguiente momento)', 'Todavía no'] : ['Dormir hasta mañana', 'Todavía no'], 'player', '¿Descansar?'));
+      resolve(await choose(clock.period < 3 ? ['Dormir', 'Descansar un rato (pasar al siguiente momento)', 'Todavía no'] : ['Dormir', 'Todavía no'], 'player', '¿Descansar?'));
     });
   });
   const opts = clock.period < 3 ? ['sleep', 'rest', 'no'] : ['sleep', 'no'];

@@ -73,8 +73,11 @@ export function openSettings(inGame: boolean) {
       choice('Tamaño de texto', [[0.9, 'Chico'], [1, 'Normal'], [1.15, 'Grande'], [1.3, 'Enorme']], () => settings.textScale, (v) => updateSettings({ textScale: v })),
       choice('Velocidad del texto', [[25, 'Lenta'], [45, 'Normal'], [90, 'Rápida'], [0, 'Instantánea']], () => settings.textSpeed, (v) => updateSettings({ textSpeed: v }))),
     section('Juego', 'gear',
-      choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Difícil (con reloj)']], () => settings.cookMode, (v) => updateSettings({ cookMode: v })),
-      choice('Horas de sueño', [['6', '6 h'], ['7', '7 h'], ['8', '8 h'], ['9', '9 h'], ['10', '10 h']], () => String(settings.sleepHours ?? 8), (v) => updateSettings({ sleepHours: Number(v) })),
+      choice('Cocina', [['relaxed', 'Relajado'], ['normal', 'Normal'], ['challenge', 'Difícil (con reloj)']], () => settings.cookMode, (v) => {
+        updateSettings({ cookMode: v });
+        if (game.loaded) game.setFlag('play_difficulty', v);
+      }),
+      sleepHoursSetting(),
       choice('Cómo cocinar', [['act', 'En el restaurante'], ['board', 'Tablero de gestos (clásico)']], () => settings.cookStyle ?? 'act', (v) => updateSettings({ cookStyle: v })),
       toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),
       toggle('Joystick virtual', 'joystick', 'Aparece al usar el dedo, además de tocar el suelo para caminar.'),
@@ -104,6 +107,20 @@ export function openSettings(inGame: boolean) {
       : null,
   );
   panel({ title: 'Ajustes', body });
+}
+
+function sleepHoursSetting() {
+  const saved = Math.max(4, Math.min(10, Math.round(settings.sleepHours ?? 8)));
+  const val = h('span', { class: 'val' }, `${saved} h`);
+  const input = h('input', {
+    type: 'range', min: '4', max: '10', step: '1', value: String(saved), 'aria-label': 'Horas de sueño',
+    oninput: (e: Event) => {
+      const v = Math.max(4, Math.min(10, Math.round(Number((e.target as HTMLInputElement).value))));
+      updateSettings({ sleepHours: v });
+      val.textContent = `${v} h`;
+    },
+  });
+  return setting('Horas de sueño', 'Cuántas horas propone la cama. Podés cambiarlas antes de dormir.', h('div', { class: 'row', style: { gap: '4px', flexWrap: 'nowrap' } }, input, val), false);
 }
 
 function controlsSection() {

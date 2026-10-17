@@ -5,7 +5,7 @@ import type { SaveData } from '../core/types';
 import { bus } from '../core/events';
 import { runTask } from '../core/errors';
 import { lowFx } from '../core/perf';
-import { settings } from '../core/settings';
+import { settings, updateSettings } from '../core/settings';
 import { continueTarget, hasSave, importSaveFile, installSave, saveFromCode, setActiveSlot, takeResumeOnce } from '../persistence/storage';
 import { openCreator } from './creator';
 import { confirmBox, h, hideBoot, panel, toast, uiRoot } from './dom';
@@ -70,7 +70,8 @@ export async function showTitle(phaser: Phaser.Game) {
         title: 'Tu personaje',
         askNames: true,
         confirmLabel: 'Comenzar',
-        onDone: (a, name, rest) => {
+        onDone: (a, name, rest, difficulty) => {
+          if (difficulty) updateSettings({ cookMode: difficulty });
           close();
           void runTask('flow:new', () => startNewGame(a, name, rest, slot));
         },
@@ -201,16 +202,14 @@ export async function showTitle(phaser: Phaser.Game) {
   const logo = brandLogo('title-logo mm-logo tt-logo-fallback');
 
   // ---- menu, revealed after the first tap
-  const btn = (label: string, cls: string, span: number, fn: () => void) => {
-    const b = h('button', { class: 'btn tt-btn ' + cls, style: { gridColumn: 'span ' + span }, onclick: fn }, label) as HTMLButtonElement;
-    return b;
-  };
+  const btn = (label: string, cls: string, fn: () => void) =>
+    h('button', { type: 'button', class: 'btn tt-btn ' + cls, onclick: fn }, label) as HTMLButtonElement;
   const buttons: HTMLButtonElement[] = [];
-  if (saved) buttons.push(btn('Continuar', 'primary', 6, () => void runTask('flow:continue', doContinue)));
-  buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', saved ? 6 : 12, () => void runTask('flow:new-menu', doNew)));
-  buttons.push(btn('Cargar partida', '', 5, () => void runTask('flow:load-menu', doLoad)), btn('Opciones', '', 4, () => openSettings(false)), btn('Créditos', '', 3, credits));
-  buttons.push(btn('Cuenta y nube', '', 12, () => void import('./account').then((m) => m.openAccount())));
-  const menu = h('div', { class: 'tt-menu', role: 'menu' }, ...buttons, imp);
+  if (saved) buttons.push(btn('Continuar', 'primary', () => void runTask('flow:continue', doContinue)));
+  buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', () => void runTask('flow:new-menu', doNew)));
+  buttons.push(btn('Cargar partida', '', () => void runTask('flow:load-menu', doLoad)), btn('Opciones', '', () => openSettings(false)), btn('Créditos', '', credits));
+  buttons.push(btn('Cuenta y nube', '', () => void import('./account').then((m) => m.openAccount())));
+  const menu = h('div', { class: 'tt-menu', role: 'menu' }, h('div', { class: 'tt-mark', 'aria-hidden': 'true' }, 'Menú'), ...buttons, imp);
   const prompt = h('div', { class: 'tt-prompt' }, 'Tocá para comenzar');
 
   let revealed = false;
