@@ -14,6 +14,11 @@ const ACTIVE_KEY = 'mm_active_slot';
 const RESUME_KEY = 'mm_resume_once';
 
 export const SLOT_COUNT = 3;
+
+/** Something outside (the cloud) wants to know when a slot was written. Kept as a plain callback so storage imports nothing from it. */
+let saveObserver: ((slot: number) => void) | null = null;
+export function setSaveObserver(fn: ((slot: number) => void) | null) { saveObserver = fn; }
+const told = (slot: number) => { try { saveObserver?.(slot); } catch { /* sync is never allowed to break a save */ } };
 export type SaveKind = 'auto' | 'manual' | 'latest';
 export type SavePart = 'auto' | 'backup' | 'manual';
 
@@ -310,6 +315,7 @@ export async function saveGame(reason = 'auto'): Promise<boolean> {
       await rotateBackup(slot);
       await idbPut(slotKey(slot, 'auto'), snapshot);
       if (game.save === source && game.revision === revision) game.dirty = false;
+      told(slot);
       return true;
     } catch (err) {
       reportError('save:write:' + reason, err, SAVE_NOTICE);
@@ -334,6 +340,7 @@ export async function saveManual(): Promise<boolean> {
       await idbPut(slotKey(slot, 'auto'), snapshot);
       await idbPut(slotKey(slot, 'manual'), snapshot);
       if (game.save === source && game.revision === revision) game.dirty = false;
+      told(slot);
       return true;
     } catch (err) {
       reportError('save:manual', err, SAVE_NOTICE);
@@ -558,5 +565,31 @@ export function storeSettings(s: Settings) {
     localStorage.setItem('mm_settings', JSON.stringify(s));
   } catch {
     /* ignore quota errors */
+  }
+}
+
+
+// ------------------------------------------------------------------ cloud helpers
+/** What a slot holds right now, for the cloud: its newest automatic save and its manual checkpoint. */
+export async function slotForCloud(slot: number): Promise<{ auto: SaveData | null; manual: SaveData | null }> {
+  const n = normalizeSlot(slot);
+  return { auto: await loadGame(n, 'auto'), manual: await loadGame(n, 'manual') };
+}
+
+/** Write what came down from the cloud into a slot (validated). Does not touch the other slots. */
+export async function applyCloudSlot(slot: number, remote: { auto: unknown | null; manual: unknown | null }): Promise<boolean> {
+  const n = normalizeSlot(slot);
+  try {
+    const auto = remote.auto ? validateSave(structuredClone(remote.auto)) : null;
+    const manual = remote.manual ? validateSave(structuredClone(remote.manual)) : null;
+    if (!auto && !manual) return false;
+    return await enqueue(async () => {
+      if (auto) { const prev = await readFirst(autoKeys(n)); if (prev && !sameMoment(prev, auto)) await idbPut(slotKey(n, 'backup'), prev); await idbPut(slotKey(n, 'auto'), auto); }
+      if (manual) await idbPut(slotKey(n, 'manual'), manual);
+      return true;
+    });
+  } catch (err) {
+    reportError('save:cloud-apply', err, 'La partida de la nube no se pudo leer.');
+    return false;
   }
 }
