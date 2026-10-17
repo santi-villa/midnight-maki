@@ -12,6 +12,7 @@ import { recordLibraryRead } from '../restaurant/projects';
 import { projectsSection, openProjectAmenity } from '../ui/projects';
 import { world } from '../scenes/WorldScene';
 import { confirmBox, h, panel, toast } from '../ui/dom';
+import { tabBar } from '../ui/kit';
 import { bestRod, commitRodPlan, planRodPurchase, ROD_BY_ID, type RodWallet } from './rods';
 import { errandsSection } from '../ui/errands';
 import { registerAction } from './actions';
@@ -128,12 +129,12 @@ registerAction('note', (key) => {
 
 registerAction('board', () => {
   const ids = boardQuests();
-  const body = h('div', { class: 'col' });
-  body.append(h('p', { class: 'hint' }, 'Pedidos de los vecinos. Aceptá solo los que tengas ganas: ninguno vence.'));
-  if (!ids.length) body.append(h('p', { class: 'muted' }, 'No hay pedidos nuevos por ahora. Volvé otro día.'));
+  const orders = h('div', { class: 'col board-orders' });
+  orders.append(h('p', { class: 'hint' }, 'Pedidos de los vecinos. Aceptá solo los que tengas ganas: ninguno vence.'));
+  if (!ids.length) orders.append(h('p', { class: 'muted' }, 'No hay pedidos nuevos por ahora. Volvé otro día.'));
   for (const id of ids) {
     const q = questDef(id)!;
-    body.append(
+    orders.append(
       h('div', { class: 'card col', style: { gap: '4px' } },
         h('b', null, q.title),
         h('div', { class: 'hint' }, `De: ${q.giver ? q.giver.charAt(0).toUpperCase() + q.giver.slice(1) : '—'} · ${q.desc}`),
@@ -145,9 +146,21 @@ registerAction('board', () => {
     const p = world.player;
     return p ? await world.enterZone(world.zoneId, p.tx, p.ty, p.dir, false) : false;
   });
-  body.prepend(projects);
-  body.prepend(errandsSection(projects.refresh));
-  panel({ title: 'Cartelera de Villa Nori', body });
+  const errands = errandsSection(projects.refresh);
+  const pages = [errands, projects, orders];
+  const host = h('div', { class: 'board-pages' });
+  const show = (i: number) => host.replaceChildren(pages[i]);
+  show(0);
+  panel({
+    title: 'Cartelera de Villa Nori',
+    wide: true,
+    tabs: tabBar([
+      { label: 'Encargos', icon: 'clipboard' },
+      { label: 'Proyectos', icon: 'act' },
+      { label: 'Pedidos', icon: 'scroll' },
+    ], show),
+    body: host,
+  });
 });
 
 registerAction('project', (id) => {

@@ -16,7 +16,7 @@ import { doneness } from '../restaurant/grill';
 import { world } from '../scenes/WorldScene';
 import { h } from '../ui/dom';
 import type { CookHost, CookResult } from './board';
-import { holdCurve, holdScore, holdSeconds, rollTwist, holdTolerance, itemsScore, planBeats, pulsePeriod, pulseScore, tapPeriod, type Beat, type CookModeName, type Station, type Verdict } from './beats';
+import { holdCurve, holdScore, holdSeconds, rollTwist, holdTolerance, itemsScore, planBeats, pulseGrace, pulsePeriod, pulseScore, tapPeriod, type Beat, type CookModeName, type Station, type Verdict } from './beats';
 
 const STEP_NAMES: Record<CookStep['t'], string> = {
   nori: 'Alga', rice: 'Arroz', place: 'Relleno', slice: 'Cortar', roll: 'Enrollar', cut: 'Porciones',
@@ -187,7 +187,8 @@ export class KitchenAct {
     const lead = 0.5;
     const hits: number[] = [];
     { let at = this.t + lead; for (let i = 0; i < pulses; i++) { at += period * tw.gaps[i]; hits.push(at); } }
-    const target = h('div', { class: 'act-target' }, h('span', null, b.kind === 'tap' ? '¡Ahora!' : 'Tocá'));
+    const cap = h('span', null, 'Esperá');
+    const target = h('div', { class: 'act-target' }, cap);
     const ring = h('div', { class: 'act-ring' + (tw.speed > 1.45 ? ' fast' : '') });
     const dots = h('div', { class: 'act-dots' }, ...hits.map(() => h('i')));
     const verdict = h('div', { class: 'act-verdict' });
@@ -222,12 +223,17 @@ export class KitchenAct {
     };
     pad.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
     this.onKey = (down) => { if (down) press(); };
+    const grace = period * pulseGrace(this.mode);
     this.tick = () => {
       if (k >= pulses) return;
       const left = hits[k] - this.t;
       const s = 1 + Math.max(0, Math.min(1, left / (period * 0.95))) * 1.5;
       ring.style.transform = `scale(${s.toFixed(3)})`;
       ring.style.opacity = left > period * 1.1 ? '0' : '1';
+      const hot = left <= grace && left >= -grace * 0.45;
+      ring.classList.toggle('hot', hot);
+      target.classList.toggle('hot', hot);
+      cap.textContent = left > grace ? 'Esperá' : left >= -grace * 0.2 ? '¡Ahora!' : 'Tarde';
       if (this.t > hits[k] + period * 0.45) { press(); /* too late: counts as a miss */ }
     };
   }
@@ -241,8 +247,9 @@ export class KitchenAct {
     const tol = holdTolerance(this.mode);
     const band = h('u', { class: 'act-band', style: { left: `${(target - tol) * 100}%`, width: `${tol * 200}%` } });
     const mark = h('u', { class: 'act-mark', style: { left: `${target * 100}%` } });
-    const bar = h('div', { class: 'act-hold', role: 'img', 'aria-label': 'Barra: soltá en la marca dorada' }, band, fill, mark);
-    const pad = h('button', { type: 'button', class: 'act-pad hold', 'aria-label': b.title }, h('div', { class: 'act-target' }, h('span', null, 'Mantené')));
+    const bar = h('div', { class: 'act-hold', role: 'img', 'aria-label': 'Barra: soltá en la marca dorada' }, band, fill, mark, h('span', { class: 'act-hold-label' }, 'Soltá'));
+    const cap = h('span', null, 'Mantené');
+    const pad = h('button', { type: 'button', class: 'act-pad hold', 'aria-label': b.title }, h('div', { class: 'act-target' }, cap));
     const verdict = h('div', { class: 'act-verdict' });
     this.stage.replaceChildren(pad, bar, verdict);
     if (tw.label) verdict.textContent = tw.label;
@@ -253,7 +260,7 @@ export class KitchenAct {
       const v = Math.min(1.2, holdCurve(tw.curve, (this.t - t0) / secs));
       const r = holdScore(Math.min(1, v), target, this.mode);
       verdict.textContent = VERDICT[r.verdict]; verdict.dataset.v = r.verdict;
-      pad.classList.remove('on');
+      pad.classList.remove('on', 'ready');
       this.effect(r.verdict, pad);
       if (this.stageOn()) { world.cookSpark(r.verdict); world.cookPose(false); }
       audio.sfxPlay(r.verdict === 'miss' ? 'tap' : this.sfxFor(b));
@@ -267,7 +274,12 @@ export class KitchenAct {
     this.tick = () => {
       if (!down) return;
       const v = holdCurve(tw.curve, (this.t - t0) / secs);
-      fill.style.width = `${Math.min(1, v) * 100}%`;
+      const shown = Math.min(1, v);
+      fill.style.width = `${shown * 100}%`;
+      const zone = shown >= target - tol && shown <= target + tol;
+      bar.classList.toggle('in-zone', zone);
+      pad.classList.toggle('ready', zone);
+      cap.textContent = zone ? '¡Soltá!' : 'Seguí';
       if (v >= 1.15) release(); // held far too long
     };
   }
@@ -283,7 +295,9 @@ export class KitchenAct {
     let wrong = 0, placed = 0;
     const left = (id: string) => need.filter((x) => x === id).length;
     const row = h('div', { class: 'act-items' });
+    const plate = h('div', { class: 'act-plate', 'aria-label': 'Ingredientes ya puestos' });
     const verdict = h('div', { class: 'act-verdict' });
+    const syncPlate = () => plate.replaceChildren(...Array.from({ length: total }, (_, i) => h('i', { class: i < placed ? 'on' : '' })));
     const paint = () => {
       row.replaceChildren(...ids.map((id) => {
         const n = left(id), sprite = cookingIngredient(id);
@@ -306,6 +320,7 @@ export class KitchenAct {
       audio.sfxPlay(this.sfxFor(b));
       if (this.stageOn()) { const it = ITEMS_BY_ID[id]; world.cookPop(it?.icon ?? null); world.cookSpark('good'); }
       verdict.textContent = `${placed}/${total}`;
+      syncPlate();
       if (tw.shuffle) ids.sort(() => Math.random() - 0.5);
       paint();
       if (!need.length) {
@@ -315,7 +330,8 @@ export class KitchenAct {
       }
     };
     paint();
-    this.stage.replaceChildren(row, verdict);
+    syncPlate();
+    this.stage.replaceChildren(h('div', { class: 'act-plate-label' }, 'En el plato'), plate, row, verdict);
   }
 
   // ------------------------------------------------------------------ waiting for the stove and the rice pot
@@ -365,7 +381,8 @@ export class KitchenAct {
     audio.sfxPlay(judged.quality === 2 ? 'success' : 'sparkle');
     if (this.stageOn()) { world.cookPose(false); world.cookPop(this.r.icon); world.cookSpark(judged.quality === 2 ? 'perfect' : 'good'); }
     this.say(judged.label); this.renderSteps();
-    this.stage.replaceChildren(h('div', { class: 'act-final', 'data-q': String(judged.quality) }, h('b', null, judged.label), h('div', { class: 'hint' }, this.r.name)));
+    const stars = '★★★'.slice(0, judged.quality + 1);
+    this.stage.replaceChildren(h('div', { class: 'act-final', 'data-q': String(judged.quality) }, h('b', null, judged.label), h('div', { class: 'act-stars', 'aria-hidden': 'true' }, stars), h('div', { class: 'hint' }, this.r.name), h('div', { class: 'act-next' }, 'Tocá para seguir')));
     let closed = false;
     const leave = () => {
       if (closed) return; closed = true;
@@ -375,7 +392,7 @@ export class KitchenAct {
     const shown = performance.now();
     this.finishNow = () => { if (performance.now() - shown > 500) leave(); };
     this.stage.addEventListener('pointerdown', () => this.finishNow?.());
-    this.revealTimer = window.setTimeout(leave, 1200);
+    this.revealTimer = window.setTimeout(leave, 1700);
   }
 
   private cleanup() {
