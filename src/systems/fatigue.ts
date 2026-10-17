@@ -4,6 +4,7 @@
  */
 import { bus } from '../core/events';
 import { game } from '../core/state';
+import { displayedMinutesPerPeriodMinute } from './daytime';
 
 export const MAX_ENERGY = 100;
 /** below this she is too tired to cook */
@@ -18,8 +19,21 @@ export const SLEEP_GAIN_PER_HOUR = 14;
 export const MIN_SLEEP = 4;
 export const MAX_SLEEP = 10;
 export const DEFAULT_SLEEP = 8;
-/** the day always begins at 06:00; sleeping longer than the night allows means waking later */
-const MORNING = 24 * 60 + 6 * 60;
+/** 06:00 of the morning after the night you went to bed, counted from midnight of that night. */
+const DAWN = 24 * 60 + 6 * 60;
+
+export interface WakePlan {
+  /** Continuous minute from midnight of the day you went to bed. After midnight it keeps counting. */
+  wakeMinute: number;
+  sleptHours: number;
+  /** Minutes after 06:00 when the wake is that morning or later. 0 while it is still night. */
+  lateMinutes: number;
+  /** True when the wake is at 06:00 or later, so the calendar rolls forward. */
+  advanceDay: boolean;
+  period: number;
+  /** Stored period-minutes for `period`, the same unit as `save.time.minutes`. */
+  minutes: number;
+}
 
 export function drainFor(gameMinutes: number, dayMinute: number): number {
   if (!(gameMinutes > 0)) return 0;
@@ -30,12 +44,43 @@ export function energyAfterSleep(before: number, hours: number): number {
   return Math.max(0, Math.min(MAX_ENERGY, before + Math.max(0, hours) * SLEEP_GAIN_PER_HOUR));
 }
 
-/** Waking plan for going to bed at `bedMinute` (minutes since the day started at 00:00; after midnight keeps counting) and sleeping `hours`. */
-export function wakePlan(bedMinute: number, hours: number): { wakeMinute: number; sleptHours: number; lateMinutes: number } {
+/**
+ * Waking plan for going to bed at `bedMinute` (minutes since midnight; after midnight keeps counting)
+ * and sleeping `hours`. The clock moves by those hours. It no longer waits until 06:00.
+ */
+export function wakePlan(bedMinute: number, hours: number): WakePlan {
   const h = Math.max(MIN_SLEEP, Math.min(MAX_SLEEP, Math.round(hours)));
-  const bed = bedMinute < 6 * 60 ? bedMinute + 24 * 60 : bedMinute; // a nap before dawn counts as the same night
-  const wake = Math.max(MORNING, bed + h * 60);
-  return { wakeMinute: wake, sleptHours: (wake - bed) / 60, lateMinutes: Math.min(wake - MORNING, 4 * 60) };
+  const bed = bedMinute < 6 * 60 ? bedMinute + 24 * 60 : bedMinute;
+  const wake = bed + h * 60;
+  const advanceDay = wake >= DAWN;
+  const placed = clockFromMinute(advanceDay ? wake - 24 * 60 : wake);
+  return {
+    wakeMinute: wake,
+    sleptHours: h,
+    lateMinutes: advanceDay ? wake - DAWN : 0,
+    advanceDay,
+    period: placed.period,
+    minutes: placed.minutes,
+  };
+}
+
+/** Map a clock minute (00:00–05:59 counts as the tail of the night) onto the four-period clock. */
+function clockFromMinute(minute: number): { period: number; minutes: number } {
+  let m = minute;
+  if (m >= DAWN) return { period: 0, minutes: 0 };
+  if (m < 6 * 60) m += 24 * 60;
+  const bands: [number, number, number][] = [
+    [0, 6 * 60, 12 * 60],
+    [1, 12 * 60, 18 * 60],
+    [2, 18 * 60, 21 * 60],
+    [3, 21 * 60, DAWN],
+  ];
+  for (const [period, start, end] of bands) {
+    if (m >= start && m < end) {
+      return { period, minutes: (m - start) / displayedMinutesPerPeriodMinute(period) };
+    }
+  }
+  return { period: 0, minutes: 0 };
 }
 
 export function hhmm(minuteOfDay: number): string {
