@@ -21,6 +21,7 @@
     "@capacitor/core": "^6.2.0",
     "@capacitor/status-bar": "^6.0.2",
     "@fontsource/pixelify-sans": "^5.1.0",
+    "firebase": "^10.14.1",
     "phaser": "^3.88.2"
   },
   "devDependencies": {
