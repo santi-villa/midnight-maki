@@ -6,8 +6,10 @@ import { ZONES } from '../data/zones';
 import { world } from '../scenes/WorldScene';
 import { setSaveBlocked } from '../persistence/storage';
 import { cloud } from '../cloud/cloud';
+import { mirror, normalizeFloor, type PartySnap } from '../restaurant/mirror';
+import { buildFloor, releaseGuestClaims, runAct } from './serve';
 import { CoopError } from './errors';
-import type { PeerInfo, PosState, Role, WorldPack } from './protocol';
+import type { ActKind, PeerInfo, PosState, Role, WorldPack } from './protocol';
 import { CoopSession } from './session';
 import { createBroadcastTransport, type CoopTransport } from './transport';
 
@@ -60,6 +62,7 @@ async function enterGuestWorld(w: WorldPack) {
     at: { zone: world.zoneId, x: world.player.tx, y: world.player.ty, dir: world.player.dir },
   };
   setSaveBlocked(true);
+  mirror.start();
   s.decor = w.decor; s.roomStyle = w.roomStyle;
   s.restaurant.level = w.restaurant.level; s.restaurant.upgrades = [...w.restaurant.upgrades]; s.restaurant.reputation = w.restaurant.reputation;
   s.time.day = w.time.day; s.time.period = w.time.period; s.time.minutes = w.time.minutes;
@@ -70,6 +73,7 @@ async function enterGuestWorld(w: WorldPack) {
 async function leaveGuestWorld() {
   if (!stash) return;
   const st = stash; stash = null;
+  mirror.stop();
   const s = game.save;
   s.decor = st.decor; s.roomStyle = st.roomStyle;
   s.restaurant.level = st.restaurant.level; s.restaurant.upgrades = st.restaurant.upgrades; s.restaurant.reputation = st.restaurant.reputation;
@@ -87,10 +91,47 @@ coop.onWorld((w) => {
   });
 });
 
+// ------------------------------------------------------------------ shared service
+// guest: what the friend's dining room looks like, and requests the host carries out
+let actId = 0;
+const recent = new Map<string, number>();
+mirror.ask = (a: ActKind, arg: { tableId?: string; uid?: number }) => {
+  const key = `${a}:${arg.tableId ?? ''}:${arg.uid ?? ''}`;
+  const now = Date.now();
+  if (now - (recent.get(key) ?? 0) < 700) return; // a double tap must not ask twice
+  recent.set(key, now);
+  coop.send({ t: 'act', id: ++actId, a, ...arg });
+};
+coop.onFloor((raw) => { const s = normalizeFloor(raw); if (s) mirror.apply(s); });
+coop.on('res', (m) => {
+  const r = m as { text: string; coins?: number };
+  if (r.text) bus.emit('toast', { text: r.text });
+  if (r.coins && r.coins > 0) game.addCoins(Math.min(r.coins, 500), 'tip');
+});
+// host: carry out what the guest asks, then show the result right away
+let floorDirty = false;
+coop.on('act', (m) => {
+  const st = coop.state();
+  if (st.role !== 'host' || st.phase !== 'connected') return;
+  coop.send(runAct(m as Parameters<typeof runAct>[0]));
+  floorDirty = true;
+});
+let lastFloor = ''; let lastFloorAt = 0;
+
 /** What the world scene needs: where the friend is, and a way to tell the friend where we are. */
 export const coopLink = {
   peer: () => { const st = coop.state(); return st.phase === 'connected' && st.peer && st.peerPos ? { info: st.peer, pos: st.peerPos } : null; },
   send: (p: PosState) => coop.sendPos(p),
+  /** true on the host while a friend is in the restaurant: the scene then reports where the customers stand */
+  hosting: () => { const st = coop.state(); return st.role === 'host' && st.phase === 'connected'; },
+  isDirty: () => { const d = floorDirty; floorDirty = false; return d; },
+  sendFloor: (parties: PartySnap[]) => {
+    const snap = JSON.stringify(buildFloor(parties));
+    const now = Date.now();
+    if (snap === lastFloor && now - lastFloorAt < 2000) return;
+    lastFloor = snap; lastFloorAt = now;
+    coop.sendFloor(JSON.parse(snap));
+  },
 };
 let wasGuestConnected = false;
 bus.on('coop:changed', () => {
@@ -98,4 +139,6 @@ bus.on('coop:changed', () => {
   const guest = st.role === 'guest' && st.phase === 'connected';
   if (wasGuestConnected && !guest) void leaveGuestWorld();
   wasGuestConnected = guest;
+  // plates a friend was carrying go back to the tray when they leave
+  if (st.role === 'host' && st.phase !== 'connected') releaseGuestClaims();
 });
