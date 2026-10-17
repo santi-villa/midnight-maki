@@ -1499,3 +1499,6 @@ b, strong, h1, h2, h3, .panel-title, .card > b:first-child, .hud-quest b, .tab.a
   .pause-item .skin-icon { width: 20px; height: 20px; }
   .pause-item kbd { font-size: .65em; padding: 0 3px; }
 }
+
+/* build label in a corner of the title screen: small, quiet, enough to tell whether the game updated */
+.tt-version { position: absolute; left: calc(10px + var(--safe-l, 0px)); bottom: calc(6px + var(--safe-b, 0px)); z-index: 5; font: 600 11px/1 'Pixelify Sans', sans-serif; color: rgba(255, 244, 220, .72); text-shadow: 0 1px 2px rgba(30, 20, 15, .85); letter-spacing: .03em; pointer-events: none; user-select: none; }
