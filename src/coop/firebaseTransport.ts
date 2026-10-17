@@ -11,8 +11,20 @@ function db(): Database { return getDatabase(getApp(), import.meta.env.VITE_FIRE
 
 const ROOM_TTL = 6 * 3600_000;
 
+function friendly(e: unknown): CoopError {
+  if (e instanceof CoopError) return e;
+  const msg = String((e as { message?: string })?.message ?? e);
+  if (/permission[_ ]denied/i.test(msg)) return new CoopError('La base en tiempo real no te deja entrar: pegá database.rules.json en Realtime Database → Reglas y tocá Publicar.');
+  if (/url|database/i.test(msg)) return new CoopError('La URL de la base en tiempo real no es válida. Revisá VITE_FIREBASE_DATABASE_URL en .env.local.');
+  return new CoopError('No se pudo abrir la sala. Probá de nuevo.');
+}
+
 /** Host: claim a free room code. Guest: take the empty seat of an existing room. */
 export async function openFirebaseTransport(role: Role, code: string): Promise<CoopTransport> {
+  try { return await open(role, code); } catch (e) { throw friendly(e); }
+}
+
+async function open(role: Role, code: string): Promise<CoopTransport> {
   const uid = firebaseUid();
   if (!uid) throw new CoopError('Primero ingresá a tu cuenta.');
   const d = db();
