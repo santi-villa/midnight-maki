@@ -8,6 +8,8 @@ import { confirmBox, h, panel, toast } from './dom';
 
 let open: { close: () => void; render: () => void } | null = null;
 let mode: 'in' | 'up' = 'in';
+/** what she typed survives a redraw (an error message appears, the mode switches) */
+const typed = { email: '', pass: '', name: '' };
 
 const when = (t: number) => (t ? new Date(t).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 const nice = (s: SaveData) => `${s.player.restaurantName || s.player.name} · día ${s.time.day} · ${s.coins.toLocaleString('es-AR')} monedas`;
@@ -68,6 +70,11 @@ export function openAccount() {
       const email = h('input', { type: 'email', autocomplete: 'email', placeholder: 'Tu correo', 'aria-label': 'Correo' }) as HTMLInputElement;
       const pass = h('input', { type: 'password', autocomplete: mode === 'in' ? 'current-password' : 'new-password', placeholder: 'Contraseña', 'aria-label': 'Contraseña' }) as HTMLInputElement;
       const name = h('input', { type: 'text', autocomplete: 'nickname', placeholder: 'Tu nombre (opcional)', 'aria-label': 'Nombre' }) as HTMLInputElement;
+      email.value = typed.email; pass.value = typed.pass; name.value = typed.name;
+      email.addEventListener('input', () => { typed.email = email.value; });
+      pass.addEventListener('input', () => { typed.pass = pass.value; });
+      name.addEventListener('input', () => { typed.name = name.value; });
+      pass.addEventListener('keydown', (e) => { if (e.key === 'Enter') void go(); });
       const go = () => guard(() => mode === 'in' ? cloud.signInEmail(email.value, pass.value) : cloud.signUpEmail(email.value, pass.value, name.value));
       body.append(...[
         h('p', null, h('b', null, 'Guardá tu partida en la nube'), h('br'), 'Entrá con tu cuenta y seguí jugando en cualquier dispositivo.'),
