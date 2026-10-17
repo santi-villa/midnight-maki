@@ -141,7 +141,10 @@ export function openOrders() {
 /** Cook one order. Food opens the kitchen with that dish started; drinks and one-tap dishes keep their short flow. */
 const cooking = new Set<number>();
 export async function cookOrder(uid: number, quick = false) {
-  if (mirror.on) return (await import('../coop/guestKitchen')).enterGuestKitchen(uid);
+  if (mirror.on) {
+    if (mirror.snap.cookable.some((o) => o.uid === uid && o.kind === 'drink')) { await prepareDrink(uid); return; }
+    return (await import('../coop/guestKitchen')).enterGuestKitchen(uid);
+  }
   if (cooking.has(uid) || kitchenOpen()) return;
   cooking.add(uid);
   try {

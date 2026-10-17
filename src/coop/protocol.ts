@@ -1,7 +1,7 @@
 /** What the two players say to each other. The host's game is the authority; the guest asks and the host answers. */
 import type { Appearance, Dir, PlacedFurniture } from '../core/types';
 
-export const COOP_VERSION = 4;
+export const COOP_VERSION = 5;
 export type Role = 'host' | 'guest';
 
 export interface PeerInfo { name: string; appearance: Appearance }
@@ -17,18 +17,22 @@ export interface WorldPack {
 }
 
 /** What the guest can ask the host to do in the dining room. The host checks everything again. */
-export type ActKind = 'take' | 'claim' | 'release' | 'deliver' | 'tip' | 'cookTake' | 'cookCancel' | 'plate';
-export const ACT_KINDS: ActKind[] = ['take', 'claim', 'release', 'deliver', 'tip', 'cookTake', 'cookCancel', 'plate'];
+export type ActKind = 'take' | 'claim' | 'release' | 'deliver' | 'tip' | 'cookTake' | 'cookCancel' | 'plate' | 'drink';
+export const ACT_KINDS: ActKind[] = ['take', 'claim', 'release', 'deliver', 'tip', 'cookTake', 'cookCancel', 'plate', 'drink'];
 /** `plate` reports a finished dish: quality 0-2, the bonus the board gave, and the variant name. */
 export interface ActMsg { t: 'act'; id: number; a: ActKind; tableId?: string; uid?: number; q?: number; b?: number; v?: string }
 /** The host's answer: a line to show, and the tip coins that now belong to the guest. */
 export interface ResMsg { t: 'res'; id: number; text: string; coins?: number }
+
+/** A line a customer says in the host's room (and the coins that float up when they pay), so the guest sees the same bubbles. */
+export interface SayMsg { t: 'say'; who: string; text: string; s: number; ex?: string; c?: number }
 
 export type Msg =
   | { t: 'hello'; v: number; info: PeerInfo }
   | { t: 'world'; world: WorldPack }
   | ActMsg
   | ResMsg
+  | SayMsg
   | { t: 'bye'; why: 'left' | 'full' | 'closed' | 'version' };
 
 export type StateKey = 'pos' | 'hb' | 'floor';
@@ -65,6 +69,7 @@ export function isMsg(m: unknown): m is Msg {
   if (t === 'world') return typeof (m as { world?: unknown }).world === 'object' && (m as { world?: unknown }).world !== null;
   if (t === 'act') { const x = m as { id?: unknown; a?: unknown; tableId?: unknown; uid?: unknown; q?: unknown; b?: unknown; v?: unknown }; return Number.isFinite(x.id) && ACT_KINDS.includes(String(x.a) as ActKind) && (x.tableId === undefined || typeof x.tableId === 'string') && (x.uid === undefined || Number.isFinite(x.uid)) && (x.q === undefined || Number.isFinite(x.q)) && (x.b === undefined || Number.isFinite(x.b)) && (x.v === undefined || typeof x.v === 'string'); }
   if (t === 'res') { const x = m as { id?: unknown; text?: unknown; coins?: unknown }; return Number.isFinite(x.id) && typeof x.text === 'string' && (x.coins === undefined || Number.isFinite(x.coins)); }
+  if (t === 'say') { const x = m as { who?: unknown; text?: unknown; s?: unknown; ex?: unknown; c?: unknown }; return typeof x.who === 'string' && x.who.startsWith('guest:') && typeof x.text === 'string' && x.text.length <= 200 && Number.isFinite(x.s) && (x.ex === undefined || typeof x.ex === 'string') && (x.c === undefined || Number.isFinite(x.c)); }
   if (t === 'bye') return ['left', 'full', 'closed', 'version'].includes(String((m as { why?: unknown }).why));
   return false;
 }

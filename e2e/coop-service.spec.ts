@@ -32,6 +32,11 @@ test('a guest sees the host customers, takes the order, carries the plate and de
   await expect.poll(() => b.evaluate(() => (window as any).mmDebug.world.guests.size), { timeout: 15_000 }).toBeGreaterThan(0);
   if (process.env.SHOTS) { await a.screenshot({ path: process.env.SHOTS + '/coop2-host.png' }); await b.screenshot({ path: process.env.SHOTS + '/coop2-guest.png' }); }
 
+  // the host's customers speak: the guest sees the same bubble
+  const guestKey = await a.evaluate(() => [...(window as any).mmDebug.world.guests.keys()][0] as string);
+  await a.evaluate((k) => (window as any).mmDebug.world.sayLine('guest:' + k, 'Hola desde el salón', 4), guestKey);
+  await expect.poll(() => b.evaluate((k) => (window as any).mmDebug.world.guests.get(k)?.actor.bubble?.text ?? '', guestKey), { timeout: 10_000 }).toContain('Hola desde el salón');
+
   // the guest takes the order: it is written in the host game
   await b.evaluate((t) => (window as any).mmDebug.service.takeOrderAt(t), tableId);
   await expect.poll(() => a.evaluate(() => (window as any).mmDebug.game.save.orders.length), { timeout: 10_000 }).toBeGreaterThan(0);

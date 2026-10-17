@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
 import { GUEST_TIP_CAP, buildFloor, dropGuestCooking, releaseGuestClaims, resetServe, runAct } from '../coop/serve';
 import { playerBusy } from '../restaurant/claims';
+import { candidates, hire, resetStaffRuntime, tickStaff, type StaffEnv } from '../restaurant/staff';
 import { isMsg } from '../coop/protocol';
 import type { FurnPiece } from '../restaurant/floor';
 import { mirror, normalizeFloor } from '../restaurant/mirror';
@@ -118,6 +119,73 @@ describe('shared kitchen: the guest cooks with the host ingredients', () => {
     dropGuestCooking();
     expect(game.count('rice')).toBe(3);
     expect(playerBusy.has(uid)).toBe(false);
+  });
+});
+
+describe('shared drinks, staff and bubbles', () => {
+  it('lets the guest make a drink from the host ingredients', () => {
+    game.save.restaurant.level = 2; game.save.inventory = { tea_leaves: 2 };
+    act('take', { tableId: '1' });
+    const drink = game.save.orders.find((o) => o.kind === 'drink')!;
+    expect(drink).toBeTruthy();
+    expect(buildFloor([]).cookable.some((o) => o.uid === drink.uid)).toBe(true);
+    expect(buildFloor([]).pantry.tea_leaves).toBe(2);
+    expect(act('cookTake', { uid: drink.uid }).text).toMatch(/ya no está/); // a drink is not a dish
+    expect(act('drink', { uid: drink.uid }).text).toMatch(/lista en la bandeja/);
+    expect(game.count('tea_leaves')).toBe(1);
+    expect(drink.plate?.quality).toBe(1);
+    expect(act('drink', { uid: drink.uid }).text).toMatch(/ya no está/);
+  });
+
+  it('refuses a drink without ingredients and reports staff in the snapshot', () => {
+    game.save.restaurant.level = 2; game.save.inventory = {};
+    act('take', { tableId: '1' });
+    const drink = game.save.orders.find((o) => o.kind === 'drink')!;
+    expect(act('drink', { uid: drink.uid }).text).toMatch(/Faltan ingredientes/);
+    expect(buildFloor([]).staff).toEqual([]);
+  });
+
+  it('shows the hired staff where the host sees them', () => {
+    game.save.restaurant.level = 4; game.save.coins = 1000;
+    expect(hire(candidates('waiter')[0])).toBeNull();
+    resetStaffRuntime();
+    const env: StaffEnv = {
+      home: () => ({ x: 1, y: 1 }), tray: () => ({ x: 6, y: 5 }), stove: () => ({ x: 5, y: 3 }), pantry: () => ({ x: 2, y: 3 }),
+      tableSpots: () => [{ x: 4, y: 3 }], path: () => [],
+      crew: { where: () => null, move: () => undefined, working: () => true },
+    };
+    tickStaff(0.25, env);
+    const staff = buildFloor([]).staff;
+    expect(staff).toHaveLength(1);
+    expect(staff[0]).toMatchObject({ walk: expect.any(Boolean), dir: expect.any(String) });
+    expect(staff[0].look).toBeTruthy();
+    // survives the wire
+    expect(normalizeFloor(JSON.parse(JSON.stringify(buildFloor([]))))!.staff).toHaveLength(1);
+  });
+
+  it('accepts only well-formed lines for customers', () => {
+    expect(isMsg({ t: 'say', who: 'guest:v1:0', text: 'Hola', s: 4 })).toBe(true);
+    expect(isMsg({ t: 'say', who: 'guest:v1:0', text: '', s: 1, c: 12 })).toBe(true);
+    expect(isMsg({ t: 'say', who: 'pip', text: 'Hola', s: 4 })).toBe(false);
+    expect(isMsg({ t: 'say', who: 'guest:v1:0', text: 'x'.repeat(300), s: 4 })).toBe(false);
+  });
+});
+
+describe('the guest sees the result of a request at once', () => {
+  it('predicts take, claim, deliver and tip until the host confirms', () => {
+    act('take', { tableId: '1' });
+    const uid = game.save.orders[0].uid;
+    stagePlate(uid, 2);
+    const wire = normalizeFloor(JSON.parse(JSON.stringify(buildFloor([]))))!;
+    mirror.start(); mirror.apply(wire);
+    mirror.predict('claim', { uid });
+    expect(carriedOrders()).toHaveLength(1);
+    mirror.predict('deliver', { tableId: '1' });
+    expect(carriedOrders()).toHaveLength(0);
+    expect(tableJobs()[0].plated).toBe(false);
+    mirror.predict('take', { tableId: '1' });
+    expect(tableJobs()[0].phase).toBe('waiting_food');
+    mirror.stop();
   });
 });
 
