@@ -1,7 +1,7 @@
 /** What the two players say to each other. The host's game is the authority; the guest asks and the host answers. */
 import type { Appearance, Dir, PlacedFurniture } from '../core/types';
 
-export const COOP_VERSION = 1;
+export const COOP_VERSION = 2;
 export type Role = 'host' | 'guest';
 
 export interface PeerInfo { name: string; appearance: Appearance }
@@ -22,6 +22,31 @@ export type Msg =
   | { t: 'bye'; why: 'left' | 'full' | 'closed' | 'version' };
 
 export type StateKey = 'pos' | 'hb';
+
+/**
+ * Realtime Database drops empty arrays and objects and turns some arrays into objects, so anything that crosses it is sent as one
+ * JSON string. This also repairs a world pack that still arrives mangled: the guest must never end up with a missing decor or menu.
+ */
+const asArray = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : v && typeof v === 'object' ? (Object.values(v) as T[]) : []);
+const asObject = <T>(v: unknown): Record<string, T> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, T>) : {});
+
+export function normalizeWorld(raw: Partial<WorldPack> | null | undefined): WorldPack {
+  const w = (raw ?? {}) as Partial<WorldPack>;
+  const decor: Record<string, PlacedFurniture[]> = {};
+  for (const [room, list] of Object.entries(asObject<unknown>(w.decor))) decor[room] = asArray<PlacedFurniture>(list);
+  const r = (w.restaurant ?? {}) as Partial<WorldPack['restaurant']>;
+  const t = (w.time ?? {}) as Partial<WorldPack['time']>;
+  return {
+    decor,
+    roomStyle: asObject<{ floor: string; wall: string }>(w.roomStyle),
+    restaurant: { level: Number(r.level) || 1, upgrades: asArray<string>(r.upgrades), reputation: Number(r.reputation) || 0 },
+    time: { day: Number(t.day) || 1, period: Number(t.period) || 0, minutes: Number(t.minutes) || 0 },
+    restaurantName: typeof w.restaurantName === 'string' ? w.restaurantName : 'Midnight Maki',
+  };
+}
+
+export const pack = (v: unknown): string => JSON.stringify(v);
+export function unpack(s: unknown): unknown { try { return typeof s === 'string' ? JSON.parse(s) : s; } catch { return null; } }
 
 export function isMsg(m: unknown): m is Msg {
   if (!m || typeof m !== 'object') return false;

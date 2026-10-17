@@ -1,4 +1,6 @@
 /** The game's single coop session, wired to the real game state and transport. */
+import { bus } from '../core/events';
+import { reportError } from '../core/errors';
 import { game } from '../core/state';
 import { ZONES } from '../data/zones';
 import { world } from '../scenes/WorldScene';
@@ -10,6 +12,7 @@ import { CoopSession } from './session';
 import { createBroadcastTransport, type CoopTransport } from './transport';
 
 async function openTransport(role: Role, code: string): Promise<CoopTransport> {
+  if (!game.loaded || !world?.player) throw new CoopError('Primero cargá una partida: jugar juntos se abre desde adentro del juego.');
   // `?coop-local` links two tabs of the same browser: for trying it out and for the automatic tests
   if (new URLSearchParams(location.search).has('coop-local')) return createBroadcastTransport(role, code);
   const { databaseConfigured, openFirebaseTransport } = await import('./firebaseTransport');
@@ -75,7 +78,14 @@ async function leaveGuestWorld() {
   await world.enterZone(st.at.zone, st.at.x, st.at.y, st.at.dir, true, true);
 }
 
-coop.onWorld((w) => { void enterGuestWorld(w); });
+coop.onWorld((w) => {
+  enterGuestWorld(w).catch(async (err) => {
+    reportError('coop:enter', err, false);
+    await leaveGuestWorld().catch(() => undefined);
+    await coop.leave();
+    bus.emit('toast', { text: 'No se pudo entrar al restaurante de tu amigo. Probá de nuevo.' });
+  });
+});
 
 /** What the world scene needs: where the friend is, and a way to tell the friend where we are. */
 export const coopLink = {
@@ -83,9 +93,9 @@ export const coopLink = {
   send: (p: PosState) => coop.sendPos(p),
 };
 let wasGuestConnected = false;
-import('../core/events').then(({ bus }) => bus.on('coop:changed', () => {
+bus.on('coop:changed', () => {
   const st = coop.state();
   const guest = st.role === 'guest' && st.phase === 'connected';
   if (wasGuestConnected && !guest) void leaveGuestWorld();
   wasGuestConnected = guest;
-}));
+});

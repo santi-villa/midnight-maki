@@ -18,7 +18,7 @@ test('a guest enters the host restaurant and both see each other walk', async ({
   await b.goto('/?debug&coop-local');
   await b.locator('.tt').click();
   await b.getByRole('button', { name: 'Continuar' }).click();
-  await expect.poll(() => b.evaluate(() => (window as any).mmDebug?.world?.zoneId ?? null), { timeout: 30_000 }).not.toBeNull();
+  await expect.poll(() => b.evaluate(() => !!(window as any).mmDebug?.world?.player && (window as any).mmDebug.game.loaded), { timeout: 30_000 }).toBe(true);
 
   const code = await a.evaluate(() => (window as any).mmDebug.coop.host());
   await b.evaluate((c) => (window as any).mmDebug.coop.join(c), code);
