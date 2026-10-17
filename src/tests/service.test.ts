@@ -186,3 +186,22 @@ describe('serve-orders arrow', () => {
     expect(questTarget()).toEqual({ zone: 'restaurant', tableId: '1' });
   });
 });
+
+describe('special requests and sloppy dishes', () => {
+  it('pay extra when the request is met, and a sloppy dish keeps the agreed price but earns less reputation and no tip', async () => {
+    const { serveOrder, wantMet } = await import('../restaurant/orders');
+    game.save.orders.push({ uid: 501, recipe: 'kappa', customer: 'c_tourist', reward: 20, want: 'perfect' }, { uid: 502, recipe: 'kappa', customer: 'c_tourist', reward: 20 }, { uid: 503, recipe: 'kappa', customer: 'c_tourist', reward: 20 });
+    expect(wantMet({ want: 'perfect' }, 1)).toBe(false);
+    const rep0 = game.save.restaurant.reputation;
+    const perfect = serveOrder(501, 2, 0, { rng: () => 0.99 })!;
+    const plain = serveOrder(502, 2, 0, { rng: () => 0.99 })!;
+    expect(perfect.coins - plain.coins).toBe(8);               // +40% of the reward
+    expect(wantMet({ want: 'fast', plate: { onTime: true } }, 0)).toBe(true);
+    const sloppy = serveOrder(503, 0, 0, { rng: () => 0.99 })!;
+    expect(sloppy.coins).toBe(20);
+    expect(sloppy.tip).toBe(0);
+    game.save.restaurant.reputation = rep0;
+    game.save.orders.push({ uid: 504, recipe: 'kappa', customer: 'c_tourist', reward: 20 });
+    expect(serveOrder(504, 0, 0, { rng: () => 0.99 })!.rep).toBe(1);
+  });
+});

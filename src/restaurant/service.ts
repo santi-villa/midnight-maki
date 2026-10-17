@@ -37,6 +37,7 @@ import {
   orderForCustomer,
   serveOrder,
   tipBonus,
+  WANT_TEXT,
   type ServeResult,
 } from './orders';
 
@@ -517,7 +518,9 @@ export function takeOrderAt(tableId: string): string {
     if (!food) return [];
     const drink = drinksUnlocked() && rng() < .45 ? DRINKS[Math.min(DRINKS.length - 1, Math.floor(rng() * DRINKS.length))] : null;
     const service = { partyId: party.id, memberId: m.id, tableId, seatId: party.seatIds[index], day: game.save.time.day };
-    const list: Omit<Order, 'uid'>[] = [{ ...food, service }];
+    // from level 3 some customers ask for something extra: a perfect dish, or fast service
+    const want = game.save.restaurant.level >= 3 && rng() >= 0.85 ? (rng() < 0.5 ? 'perfect' as const : 'fast' as const) : undefined;
+    const list: Omit<Order, 'uid'>[] = [{ ...food, service, ...(want ? { want } : {}) }];
     if (drink) list.push({ kind: 'drink', recipe: drink.id, customer: m.customerId, reward: drink.price, service });
     return list;
   });
@@ -531,7 +534,9 @@ export function takeOrderAt(tableId: string): string {
     if (!salon!.linkOrder(party.id, order.uid, draft.service!.memberId, draft.kind ?? 'food')) throw new Error('Cannot link member order');
   }
   persist();
-  return party.size > 1 ? `Anotaste los pedidos de ${party.size} personas. Cada plato tiene su destinatario.` : `${customerName(party.customerId)} pidió ${servingName(drafts[0] as Order)}. Preparalo en la cocina.`;
+  const asks = drafts.find((d) => d.want);
+  const ask = asks?.want ? ` Pide que sea ${WANT_TEXT[asks.want]}${asks.want === 'fast' ? ': servilo antes de que se impaciente' : ''}.` : '';
+  return (party.size > 1 ? `Anotaste los pedidos de ${party.size} personas. Cada plato tiene su destinatario.` : `${customerName(party.customerId)} pidió ${servingName(drafts[0] as Order)}. Preparalo en la cocina.`) + ask;
 }
 
 /** Remember a finished dish until the player carries it to the table. */
@@ -575,10 +580,13 @@ export function staffDeliver(uid: number, empId: string): string | null {
   if (!order?.plate || order.plate.claim !== empId || !order.service) return 'claim';
   const party = salon?.party(order.service.partyId);
   if (!party || party.phase !== 'waiting_food') return 'table';
+  order.plate.onTime = patientEnough(party);
   if (!salon!.deliver(party.id, order.plate.quality, order.plate.variantBonus, order.uid)) return 'done';
   order.plate.state = 'delivered'; delete order.plate.claim; persist(); game.touch('delivery');
   return null;
 }
+/** Served while the table still had most of its patience. */
+const patientEnough = (party: { patience: number; maxPatience: number }) => party.patience >= party.maxPatience * 0.6;
 export function returnPlate(uid?: number): string {
   if (mirror.on) { const o = uid === undefined ? mirror.carried()[0] : mirror.carried().find((x) => x.uid === uid); if (!o) return 'No llevás ese pedido.'; mirror.ask?.('release', { uid: o.uid }); return ''; }
   const order = uid === undefined ? carriedOrder() : carriedOrders().find(o => o.uid === uid); if (!order?.plate) return 'No llevás ese pedido.';
@@ -590,6 +598,7 @@ export function deliverTo(tableId: string): string {
   if (!order?.plate || !order.service) return carriedOrders().length ? 'Ese pedido es para otra mesa. Seguí el marcador.' : 'Recogé primero el pedido en la bandeja de salida.';
   const party = salon?.party(order.service.partyId);
   if (!party || party.phase !== 'waiting_food') return 'Esa mesa no está esperando este pedido.';
+  order.plate.onTime = patientEnough(party);
   if (!salon!.deliver(party.id, order.plate.quality, order.plate.variantBonus, order.uid)) return 'Ese pedido ya se entregó.';
   order.plate.state = 'delivered'; persist(); game.touch('delivery');
   return `¡Buen provecho, ${customerName(order.customer)}!`;
