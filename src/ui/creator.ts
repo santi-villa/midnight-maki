@@ -36,7 +36,6 @@ interface CreatorOpts {
   title: string;
   initial?: Appearance;
   name?: string;
-  restaurant?: string;
   askNames: boolean;
   ownedClothes?: string[]; // when editing later, only owned items
   confirmLabel: string;
@@ -53,7 +52,6 @@ export function openCreator(o: CreatorOpts) {
   const defaultName = () => HERO_DEFAULTS[gender() === 'm' ? 'm' : 'f'].name;
   let name = o.name ?? defaultName();
   let nameTouched = !!o.name && o.name !== 'Sofi' && o.name !== 'Santiago';
-  let rest = o.restaurant ?? 'Midnight Maki';
   let done = false;
 
   // ---------------------------------------------------------------- big animated preview (turns and walks)
@@ -147,7 +145,6 @@ export function openCreator(o: CreatorOpts) {
     tiles(() => clothesFor(slot).map((id) => ({ key: id, label: id ? CLOTHES_BY_ID[id]?.name ?? id : 'Nada', current: a[slot] === id, apply: (x: Appearance) => { x[slot] = id; } })), slot === 'head' || slot === 'face' ? 'head' : 'full');
 
   const nameInput = h('input', { type: 'text', value: name, maxlength: '14', 'aria-label': 'Nombre', oninput: (e: Event) => { name = (e.target as HTMLInputElement).value; nameTouched = true; } }) as HTMLInputElement;
-  const restInput = h('input', { type: 'text', value: rest, maxlength: '20', 'aria-label': 'Nombre del restaurante', oninput: (e: Event) => (rest = (e.target as HTMLInputElement).value) });
 
   /** switch between the two heroes: starts again from that hero's own look (and name, unless the player typed one) */
   const pickHero = (g: 'm' | 'f') => {
@@ -196,7 +193,7 @@ export function openCreator(o: CreatorOpts) {
       section('Bolso', clothTiles('bag')),
     )],
   );
-  if (o.askNames) pages.push(['Nombre', () => h('div', null, section('Tu nombre', nameInput), section('Nombre del restaurante', restInput), h('p', { class: 'hint' }, 'Podés cambiar tu ropa y tu look más adelante desde el ropero de tu habitación.'))]);
+  if (o.askNames) pages.push(['Nombre', () => h('div', null, section('Tu nombre', nameInput), h('p', { class: 'hint' }, 'Podés cambiar tu ropa y tu look más adelante desde el ropero de tu habitación. El nombre del restaurante se elige al hablar con los mapaches.'))]);
 
   const DIFFICULTIES: { id: Settings['cookMode']; label: string; hint: string }[] = [
     { id: 'relaxed', label: 'Relajado', hint: 'Cocina sin reloj, pesca más fácil y clientes con más paciencia.' },
@@ -277,9 +274,8 @@ export function openCreator(o: CreatorOpts) {
         onclick: () => {
           done = true;
           const nm = name.trim().slice(0, 14) || defaultName();
-          const rs = rest.trim().slice(0, 20) || 'Midnight Maki';
           p.close();
-          o.onDone(a, nm, rs, o.askNames ? difficulty : undefined);
+          o.onDone(a, nm, 'Midnight Maki', o.askNames ? difficulty : undefined);
         },
       }, o.confirmLabel),
     ],

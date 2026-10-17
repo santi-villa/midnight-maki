@@ -8,7 +8,7 @@ import { rng } from '../art/pixel';
 import type { Dir } from '../core/types';
 import { NEIGHBORS, type Like, type Neighbor } from '../data/neighbors';
 import { ZONES } from '../data/zones';
-import { FOREST, FOUNTAIN, GARDEN, MARKET, SHORE, STROLL, allBenches, byDoor, homeActivity, shopSpot, tileOpen, type Place } from './neighborSpots';
+import { FOREST, FOUNTAIN, GARDEN, MARKET, SHORE, STROLL, allBenches, byDoor, homeActivity, shoreSpots, shopSpot, tileOpen, type Place } from './neighborSpots';
 
 export interface PlanContext {
   day: number;
@@ -30,7 +30,7 @@ const BASE: Record<number, Record<Activity, number>> = {
   0: { home: 0.12, work: 0.45, free: 0.18, stroll: 0.12, chat: 0, errand: 0.13 },
   1: { home: 0.08, work: 0.28, free: 0.26, stroll: 0.16, chat: 0.08, errand: 0.14 },
   2: { home: 0.15, work: 0, free: 0.32, stroll: 0.15, chat: 0.25, errand: 0.13 },
-  3: { home: 0.8, work: 0, free: 0.2, stroll: 0, chat: 0, errand: 0 },
+  3: { home: 0.78, work: 0, free: 0.14, stroll: 0, chat: 0.08, errand: 0 },
 };
 /** the businesses a neighbour can pop into (interior zones with a street door) */
 const ERRAND_ZONES = ['shop_taro', 'shop_yuki', 'shop_bento', 'library'];
@@ -164,7 +164,9 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
       if (spot) { out.set(n.id, claim({ ...spot, act: spot.zone === 'library' ? 'read' : 'look', kind: 'errand' }, n.id)); continue; }
     }
     let pool: Place[] = [];
-    if (act === 'free') {
+    if (ctx.period === 3 && (act === 'free' || act === 'stroll')) {
+      pool = nightHangouts(ctx);
+    } else if (act === 'free') {
       // adventurers lean on the far places, the rest on their favourites
       const likes = n.traits.includes('adventurous') ? [...n.likes, 'sea', 'forest', 'garden'] as Like[] : n.likes;
       for (const l of likes) pool.push(...spotsFor(l, ctx, n));
@@ -177,7 +179,9 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
   // chatters pair up at different spots, facing each other, instead of crowding one fountain
   if (chatters.length) {
     const meet = rng(ctx.day * 977 + slot * 31);
-    const anchors = [...FOUNTAIN, ...allBenches().filter((b) => b.zone === 'plaza'), ...STROLL.filter((p) => p.zone === 'plaza')];
+    const anchors = ctx.period === 3
+      ? nightHangouts(ctx)
+      : [...FOUNTAIN, ...allBenches().filter((b) => b.zone === 'plaza'), ...STROLL.filter((p) => p.zone === 'plaza')];
     const parked: { x: number; y: number }[] = [];
     const pickAnchor = (): Place | null => {
       if (!anchors.length) return null;
@@ -243,6 +247,18 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
     else out.set(n.id, { ...a, dir: faceToward(a, spot) });
   }
   return out;
+}
+
+/** Where someone who is still out after dark sits: the plaza, the beach, or a stream. */
+function nightHangouts(ctx: PlanContext): Place[] {
+  const sit = (spots: Place[]): Place[] => spots.map((p) => ({ ...p, act: 'sit' as const }));
+  const spots = [
+    ...sit(allBenches().filter((p) => p.zone === 'plaza')),
+    ...(ctx.open.has('beach') ? sit(SHORE) : []),
+    ...(ctx.open.has('garden') ? sit(shoreSpots('garden')) : []),
+    ...(ctx.open.has('forest') ? sit(shoreSpots('forest')) : []),
+  ];
+  return spots.length ? spots : STROLL.filter((p) => p.zone === 'plaza');
 }
 
 function faceToward(from: { x: number; y: number }, to: { x: number; y: number }): Dir {

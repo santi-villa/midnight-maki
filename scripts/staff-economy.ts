@@ -4,7 +4,7 @@ import { ITEMS_BY_ID } from '../src/data/items';
 import { COOK_SECONDS, hireCost, trainCost, wageOf } from '../src/restaurant/staff';
 import { demandFactor } from '../src/restaurant/townClients';
 
-const OPEN_SECONDS = 15 * 60;            // 08:00-23:00 at one displayed minute per real second
+const OPEN_SECONDS = 14 * 60;            // 08:00-22:00 at one displayed minute per real second
 const GAP = 30;                           // mean seconds between arrivals before demand
 const PARTY = 0.5 * 1 + 0.3 * 2 + 0.15 * 3 + 0.05 * 4;
 const cost = (r: (typeof RECIPES)[number]) => Object.entries(r.ingredients).reduce((n, [id, q]) => n + (ITEMS_BY_ID[id]?.buy ?? 0) * q, 0);

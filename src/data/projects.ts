@@ -81,7 +81,7 @@ export const PROJECTS: ProjectDef[] = [
     intro: 'Un pequeño espacio para cuidar libros y compartir lecturas con Kumo.',
     phases: [
       { name: 'Carrito de libros', desc: 'Un carrito y un rincón más cuidado para los libros.', coins: 180, items: { wood: 3 }, level: 2, activity: { counter: 'photos', goal: 2, text: 'Guardar 2 fotos', hint: 'Comenzá la colaboración y usá la cámara del menú.' }, benefit: 'Mejora visible en la biblioteca y encanto para el restaurante.', thanks: 'El carrito de libros ya está en su lugar.' },
-      { name: 'Club de lectura', desc: 'Un rincón de lectura compartida, con una maceta nueva.', coins: 220, items: { wood: 2, g_candy: 1 }, level: 3, activity: { counter: 'libraryReads', goal: 2, text: 'Leer 2 veces en la biblioteca', hint: 'Leé mientras la biblioteca atiende, de 08:00 a 23:00.' }, benefit: 'Leer suma 3 puntos de amistad con Kumo una vez por día; se respetan los horarios.', thanks: 'El club de lectura está listo para recibir visitas.' },
+      { name: 'Club de lectura', desc: 'Un rincón de lectura compartida, con una maceta nueva.', coins: 220, items: { wood: 2, g_candy: 1 }, level: 3, activity: { counter: 'libraryReads', goal: 2, text: 'Leer 2 veces en la biblioteca', hint: 'Leé mientras la biblioteca atiende, de 08:00 a 22:00.' }, benefit: 'Leer suma 3 puntos de amistad con Kumo una vez por día; se respetan los horarios.', thanks: 'El club de lectura está listo para recibir visitas.' },
     ],
   },
 ];

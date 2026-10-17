@@ -107,7 +107,7 @@ test('visitors walk from the station, Pip hosts them, and they return outside af
   expect(errors).toEqual([]);
 });
 
-test('Bento keeps working at dusk and leaves through the bakery door at 23:00', async ({ page }) => {
+test('Bento keeps working at dusk and leaves through the bakery door at 20:00', async ({ page }) => {
   await boot(page, false);
   await page.evaluate(async () => {
     const w = (window as any).mmDebug.world;
@@ -118,13 +118,13 @@ test('Bento keeps working at dusk and leaves through the bakery door at 23:00', 
   expect(await page.evaluate(() => (window as any).mmDebug.world.town.residents.get('bento').stop.zone)).toBe('shop_bento');
   await page.evaluate(() => {
     const w = (window as any).mmDebug.world, t = (window as any).mmDebug.game.save.time;
-    t.period = 3; t.minutes = 60; w.spawnNpcs(true);
+    t.period = 2; t.minutes = 60; w.spawnNpcs(true);
     for (let i = 0; i < 240 && w.town.residents.get('bento').trip.position.zone !== 'plaza'; i++) w.update(0, 50);
   });
   const pos = await page.evaluate(() => (window as any).mmDebug.world.town.residents.get('bento').trip.position);
   expect(pos).toEqual({ zone: 'plaza', x: 5, y: 19 });
   await step(page, 1);
-  expect(await page.evaluate(() => (window as any).mmDebug.world.town.residents.get('bento').visible)).toBe(false);
+  expect(await page.evaluate(() => (window as any).mmDebug.world.town.residents.get('bento').visible)).toBe(true);
 });
 
 test('neighbors take turns in a contextual conversation, and pause freezes it', async ({ page }) => {

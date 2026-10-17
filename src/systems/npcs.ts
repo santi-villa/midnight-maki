@@ -3,7 +3,7 @@ import { game } from '../core/state';
 import { CHARACTERS, type CharacterDef, type RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
 import { raccoonRoutine } from '../data/raccoons';
-import { applyBeat, businessPhase, SHOP_PLACES, FESTIVAL_SPOT, phaseOf, restaurantPhase, shopInteractionText, shopPlace, shopStatus, type ShopStatus } from './schedule';
+import { applyBeat, SHOP_PLACES, FESTIVAL_SPOT, phaseOf, placePhase, restaurantPhase, shopInteractionText, shopPlace, shopStatus, type ShopStatus } from './schedule';
 import { benchSpots } from './neighborSpots';
 
 function minutesNow(): number {
@@ -49,7 +49,7 @@ export function stopFor(id: string, period: number): RoutineStop | null {
   // during the prologue tutorial the raccoons stay at the restaurant so they're always reachable
   if (c.raccoon && !game.save.quests.done.includes('prologue') && game.save.time.day < 2) return { zone: 'restaurant', ...introSpot(id) };
   const shop = SHOP_PLACES.find(place => place.keeper === id);
-  if (shop?.counter && businessPhase(period, minutesNow()) === 'open') {
+  if (shop?.counter && placePhase(shop, period, minutesNow()) === 'open') {
     return { zone: shop.zone, ...shop.counter, wander: 0 };
   }
   const fest = (period === 1 || period === 2) && game.flag('festival_today') ? FESTIVAL_SPOT[c.id] : undefined;
@@ -70,8 +70,12 @@ export function stopFor(id: string, period: number): RoutineStop | null {
     if (c.id === 'nami' || c.id === 'kiki') return beat(c, period, spot);
     return null;
   }
-  // villagers who "sleep" in town are indoors (not visible). Raccoons sleep in their rooms.
-  if (spot.act === 'sleep' && !c.raccoon) return null;
+  // A house sleeper is visible in their own room. A town "sleep" still means they are indoors and hidden.
+  if (spot.act === 'sleep' && !c.raccoon && !spot.zone.startsWith('house_')) return null;
+  // Night company stays seated or talking. The usual beats would walk them off at the end of the period.
+  if (period === 3 && (spot.act === 'sit' || spot.act === 'talk' || (spot.act === 'sleep' && spot.zone.startsWith('house_')))) {
+    return { ...spot, wander: 0 };
+  }
   return beat(c, period, spot);
 }
 

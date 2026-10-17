@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
-import { lampPoolTint, lightState, type LightState } from './lightmath';
+import { coversLitPane, lampPoolTint, lightState, type Box, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
@@ -54,8 +54,11 @@ import { SpeechTurns } from '../world/speechTurns';
 import { customerLook } from '../restaurant/customers';
 import { clients, clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
 import { neighborOf } from '../restaurant/townClients';
-import { whatPlace, topicLine, type TalkCtx } from '../dialogue/topics';
+import { whatPlace, topicLine, type TalkCtx, type Topic } from '../dialogue/topics';
+import { inDialogue } from '../dialogue/dialogue';
+import { APPROACH_CHANCE, APPROACH_WAIT } from '../systems/approach';
 import { homeLayout } from '../art/homes';
+import { windowGlowRects, type GlowRect } from '../art/windowGlow';
 import { microFor } from '../systems/npcMicro';
 import { bridgeRails } from '../world/bridge';
 import { bridgeRailCanvas } from '../art/bridges';
@@ -75,7 +78,7 @@ interface NpcState { out?: boolean; actor: Actor; anchor: [number, number]; wand
 /** kind: lamp (default, follows lamp level), spill = light from windows / doors, window = interior window light, ambient = soft room fill */
 interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window' | 'ambient'; facade?: boolean }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
-interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; seed: number }
+interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
 interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
@@ -153,6 +156,8 @@ export class WorldScene extends Phaser.Scene {
   /** story hook: may unlock a door when the player tries it (returns true if now open) */
   lockHook: (to: string) => boolean = () => false;
   private quirkT = 20;
+  private approachT = 90;
+  private approaching: string | null = null;
   private blockKey = '';
   private stepT = 0;
   private transitioning = false;
@@ -393,6 +398,7 @@ export class WorldScene extends Phaser.Scene {
         return false;
       }
     }
+    if (id !== this.zoneId && this.approaching) this.cancelApproach(this.approaching);
     this.transitioning = true;
     const previous = this.zone;
     const position = this.player ? { zone: this.zoneId, x: this.player.tx, y: this.player.ty, dir: this.player.dir } : null;
@@ -576,7 +582,7 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.anim === 'sway' && !lowFx() && !settings.reduceMotion) {
         this.tweens.add({ targets: img, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
-      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 84 : p.def.kind === 'stall' ? 70 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: 0.55 });
+      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 104 : p.def.kind === 'stall' ? 78 : 68, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 0.72 : 0.58 });
       this.objs.push(img);
       if (!onWall && !p.def.ground) {
         this.addShadow(p.def.kind, px, py, p.def.sw, p.def.w);
@@ -585,15 +591,15 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.kind === 'building') {
         // warm light spilling from the windows and door onto the street at night
         const fac = p.def.variant === 0; // the restaurant follows its opening hours
-        for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 22, flicker: false, color: 0xffb867, glow: 0.35, kind: 'spill', facade: fac });
-        this.lamps.push({ x: px, y: py - 10, r: 34, flicker: true, color: 0xff9f5a, glow: 0.5, kind: 'spill', facade: fac });
+        for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 28, flicker: false, color: 0xffd27a, glow: 0.42, kind: 'spill', facade: fac });
+        this.lamps.push({ x: px, y: py - 10, r: 40, flicker: true, color: 0xffc14a, glow: 0.58, kind: 'spill', facade: fac });
         if (fac) {
           // Lanterns follow the selected facade; fall back to the legacy art if its atlas failed.
           const top = py - p.def.sh;
           const left = px - p.def.sw / 2;
           const lamps = hasVillageAtlas() ? restaurantFacadeLayout(p.def.sw, p.def.sh, p.def.stage ?? 0).lanterns
             : [44, 68].map(x => ({ x, y: p.def.sh - 24 }));
-          for (const l of lamps) this.lamps.push({ x: left + l.x, y: top + l.y + (hasVillageAtlas() ? 4 : 0), r: 26, flicker: true, color: 0xff7a3a, glow: 0.6, facade: true });
+          for (const l of lamps) this.lamps.push({ x: left + l.x, y: top + l.y + (hasVillageAtlas() ? 4 : 0), r: 32, flicker: true, color: 0xffb040, glow: 0.68, facade: true });
         }
         const shop = fac ? 'restaurant' : SHOP_OF_VARIANT[p.def.variant ?? -1];
         const facadeStage = fac && hasVillageAtlas() ? p.def.stage ?? 0 : undefined;
@@ -606,8 +612,8 @@ export class WorldScene extends Phaser.Scene {
         const side = p.def.kind === 'sidehouse';
         const hl = homeLayout(p.def.sw, p.def.sh, p.def.variant ?? 0, side);
         const left = px - p.def.sw / 2, top = py - p.def.sh;
-        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, r: 24, flicker: false, color: 0xffb867, glow: 0.3, kind: 'spill', facade: false });
-        this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 26, flicker: true, color: 0xffaa55, glow: 0.45, kind: 'spill', facade: false });
+        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, r: 30, flicker: false, color: 0xffd27a, glow: 0.4, kind: 'spill', facade: false });
+        this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 34, flicker: true, color: 0xffd56a, glow: 0.62, kind: 'spill', facade: false });
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front');
       }
       if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - p.def.sh + 6);
@@ -622,10 +628,10 @@ export class WorldScene extends Phaser.Scene {
     }
     this.placeFurnitureSprites();
     // windows glow at night
-    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 30, flicker: false, color: 0xffd08a, glow: 0.3, kind: 'window' });
+    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 34, flicker: false, color: 0xffe2a8, glow: 0.38, kind: 'window' });
     if (!def.outdoor) {
       // interiors: warm ambient light spots so night isn't too dark
-      for (let y = 3; y < def.h; y += 5) for (let x = 3; x < def.w; x += 6) this.lamps.push({ x: x * TILE, y: y * TILE, r: 56, flicker: false, color: 0xffc27a, glow: 0.12, kind: 'ambient' });
+      for (let y = 3; y < def.h; y += 5) for (let x = 3; x < def.w; x += 6) this.lamps.push({ x: x * TILE, y: y * TILE, r: 60, flicker: false, color: 0xffe0a0, glow: 0.16, kind: 'ambient' });
     }
     this.addAtmosphere();
     this.placeGather();
@@ -1787,7 +1793,7 @@ export class WorldScene extends Phaser.Scene {
     if (game.flag('festival_today') && this.zone.def.outdoor && this.zoneId === 'plaza') track = 'festival';
     audio.play(track);
     const rain = game.flag('weather') === 'rain';
-    audio.ambience(rain && this.zone.def.outdoor ? 'rain' : this.zoneId === 'beach' ? 'waves' : clock.isNight() && this.zone.def.outdoor ? 'night' : rain ? 'rain' : 'none');
+    audio.ambience(rain && this.zone.def.outdoor ? 'rain' : clock.isNight() && this.zone.def.outdoor ? 'night' : this.zoneId === 'beach' ? 'waves' : rain ? 'rain' : 'none');
   }
 
   // ------------------------------------------------------------------ ambient fx
@@ -1853,19 +1859,32 @@ export class WorldScene extends Phaser.Scene {
       cs.setDepth(149000);
       this.ambient.push(cs);
     }
-    if (night && ['forest', 'garden', 'plaza', 'market'].includes(this.zoneId)) {
-      const ff = dotTexture(this, 'firefly', '#f4f0a0', 1, 1);
+    if (night && !rain && ['forest', 'garden', 'plaza', 'market', 'beach'].includes(this.zoneId)) {
+      const ff = dotTexture(this, 'firefly', '#ffe9a0', 1, 1);
       const em = this.add.particles(0, 0, ff, {
         x: { min: 0, max: W },
         y: { min: 0, max: H },
-        speedX: { min: -6, max: 6 },
-        speedY: { min: -6, max: 6 },
-        lifespan: 4000,
-        frequency: 260,
+        speedX: { min: -8, max: 8 },
+        speedY: { min: -5, max: 5 },
+        lifespan: 5200,
+        frequency: 110,
         alpha: { start: 0, end: 1, ease: 'Sine.easeInOut', yoyo: true } as any,
       });
       em.setDepth(210000);
       this.ambient.push(em);
+      const mote = dotTexture(this, 'nightmote', '#fff6c8', 2, 2);
+      const bits = this.add.particles(0, 0, mote, {
+        x: { min: 0, max: W },
+        y: { min: 0, max: H },
+        speedX: { min: -4, max: 4 },
+        speedY: { min: -3, max: 3 },
+        lifespan: 3600,
+        frequency: 240,
+        scale: { start: 1, end: 0.4 },
+        alpha: { start: 0, end: 0.85, ease: 'Sine.easeInOut', yoyo: true } as any,
+      });
+      bits.setDepth(210000);
+      this.ambient.push(bits);
     }
     const season = seasonOf(game.save.time.day);
     if (season === 3 && !rain) {
@@ -2488,6 +2507,7 @@ export class WorldScene extends Phaser.Scene {
     this.flushNpcWait();
     this.dust(dt);
     this.quirks(dt);
+    this.maybeApproach(dt);
     this.updateGuide(dt);
     this.syncLife(dt);
     this.refreshContext();
@@ -3225,11 +3245,22 @@ export class WorldScene extends Phaser.Scene {
     this.objs.push(sh);
   }
 
-  /** A warm overlay of lit windows (and the restaurant doorway) on top of a building sprite. Shown by updateWindowGlow. */
+  /** A warm overlay of lit windows on top of a building sprite. One image per pane, so a passer-by covers only the glass they walk across. */
   private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean, shop?: string, home?: 'front' | 'side', facadeStage?: number) {
-    const img = this.add.image(src.x, src.y, windowGlowTexture(this, W, H, rot, door, home, facadeStage)).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
-    this.objs.push(img);
-    this.windowGlows.push({ img, src, facade, door, phase: Math.random() * 6, shop, home: !!home, seed: (Math.round(src.x) * 7 + Math.round(src.y) * 13) % 10 });
+    const useFacade = facadeStage !== undefined && hasVillageAtlas();
+    const rects = useFacade
+      ? (door ? [] : restaurantFacadeLayout(W, H, facadeStage).windows.map((w) => ({ x: w.x + 1, y: w.y + 1, w: Math.max(1, w.w - 2), h: Math.max(1, w.h - 2) })))
+      : windowGlowRects(W, H, rot, door, home);
+    if (!rects.length) return;
+    const key = windowGlowTexture(this, W, H, rot, door, home, facadeStage);
+    const phase = Math.random() * 6;
+    const seed = (Math.round(src.x) * 7 + Math.round(src.y) * 13) % 10;
+    for (const rect of rects) {
+      const img = this.add.image(src.x, src.y, key).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
+      img.setCrop(rect.x, rect.y, rect.w, rect.h);
+      this.objs.push(img);
+      this.windowGlows.push({ img, src, rect, facade, door, phase, shop, home: !!home, seed });
+    }
   }
 
   /** Window light level of a facade (0..1): the restaurant follows its hours, everything else follows the evening. */
@@ -3256,7 +3287,7 @@ export class WorldScene extends Phaser.Scene {
     return base * f * (door && ph !== 'open' ? 0.4 : 1);
   }
 
-  private updateWindowGlow(time: number) {
+  private updateWindowGlow(time: number, actors: Actor[]) {
     const lo = lowFx();
     for (const w of this.windowGlows) {
       if (!w.img.active) continue;
@@ -3265,6 +3296,68 @@ export class WorldScene extends Phaser.Scene {
       const breath = lo ? 1 : 1 + 0.04 * Math.sin(time * 0.9 + w.phase);
       const a = Math.min(0.85, lvl * 0.7 * breath) * w.src.alpha;
       w.img.setVisible(a > 0.02).setAlpha(a).setPosition(w.src.x, w.src.y);
+      // Above the night tint the pane stays warm. Drop only a covered pane onto the facade so the person draws over it.
+      const covered = this.coverDepth(actors, this.paneBox(w.img, w.rect), w.src.y);
+      w.img.setDepth(covered == null ? 200001 : Math.min(w.src.depth + 0.2, covered));
+    }
+  }
+
+  /** People who can walk across a lit window. Sleeping in a bed uses a cropped sprite, so that box would be wrong. */
+  private glowActors(): Actor[] {
+    const actors: Actor[] = [];
+    const add = (a: Actor | undefined) => {
+      if (!a?.sprite.active || !a.sprite.visible) return;
+      if (a.bed && a.act === 'sleep') return;
+      actors.push(a);
+    };
+    add(this.player);
+    for (const n of this.npcs.values()) add(n.actor);
+    for (const e of this.extras.values()) add(e);
+    for (const b of this.staffBodies.values()) add(b.actor);
+    for (const b of this.neighborBodies.values()) add(b.actor);
+    for (const g of this.guests.values()) add(g.actor);
+    return actors;
+  }
+
+  /** Narrower than a padded frame, so standing in one window does not put out the next. */
+  private actorBody(a: Actor): Box {
+    const s = a.sprite;
+    const top = s.y - s.displayHeight + a.pad;
+    return { l: s.x - 9, r: s.x + 9, t: top, b: s.y };
+  }
+
+  /** World box of one cropped pane. Crop keeps the full-frame origin, so the glass stays where it was painted. */
+  private paneBox(img: Phaser.GameObjects.Image, rect: GlowRect): Box {
+    const frame = img.frame;
+    const left = img.x - frame.realWidth / 2 + rect.x;
+    const top = img.y - frame.realHeight + rect.y;
+    return { l: left, r: left + rect.w, t: top, b: top + rect.h };
+  }
+
+  /** Depth just behind the furthest-back person covering this light, or null when the light stays above the night tint. */
+  private coverDepth(actors: Actor[], box: Box, baseY: number): number | null {
+    let depth: number | null = null;
+    for (const a of actors) {
+      if (!coversLitPane(a.y, this.actorBody(a), box, baseY)) continue;
+      const d = a.sprite.depth - 0.1;
+      if (depth == null || d < depth) depth = d;
+    }
+    return depth;
+  }
+
+  /** Soft window and doorway blooms sit on the same layer as the panes. Tuck one behind a person standing in it. */
+  private updateGlowDepths(actors: Actor[]) {
+    for (const g of this.glowPool) {
+      if (!g.visible) continue;
+      const kind = g.getData('glowKind') as string | undefined;
+      if (kind !== 'spill' && kind !== 'window') {
+        g.setDepth(200001);
+        continue;
+      }
+      const hw = g.displayWidth / 2;
+      const hh = g.displayHeight / 2;
+      const covered = this.coverDepth(actors, { l: g.x - hw, r: g.x + hw, t: g.y - hh, b: g.y + hh }, g.y);
+      g.setDepth(covered == null ? 200001 : covered);
     }
   }
 
@@ -3313,13 +3406,17 @@ export class WorldScene extends Phaser.Scene {
     this.updateShadows();
     const lo = lowFx();
     const time = performance.now() / 1000;
-    this.updateWindowGlow(time);
+    const actors = this.glowActors();
+    this.updateWindowGlow(time, actors);
     // natural variation steps ~12 times a second (none in battery / reduced-motion mode): the layer is not redrawn in between
     const step = lo ? 0 : Math.floor(time * 12);
     const px = Math.floor(this.player.x);
     const py = Math.floor(this.player.y);
     const key = `${this.zoneId}|${Math.floor(view.x)}|${Math.floor(view.y)}|${rt.width}|${ls.tint}|${ls.lamp.toFixed(2)}|${ls.windows.toFixed(2)}|${ls.vig.toFixed(2)}|${step}|${px}|${py}|${this.lamps.length}|${lo ? 1 : 0}|${this.restaurantLevelKey()}`;
-    if (key === this.lightKey) return;
+    if (key === this.lightKey) {
+      this.updateGlowDepths(actors);
+      return;
+    }
     this.lightKey = key;
     this.lightRedraws++;
     const needW = Math.ceil(view.width) + 8;
@@ -3338,12 +3435,12 @@ export class WorldScene extends Phaser.Scene {
     };
     const lit = visible.map((l) => ({ l, k: this.lampLevel(l, ls) })).filter((e) => e.k > 0.02);
     // Once the street is dark, a full erase shows the daytime tiles. Paint a dim warm colour instead.
-    const dim = lampPoolTint(ls.tint, 0xffc070, 1) != null;
+    const dim = lampPoolTint(ls.tint, 0xffd27a, 1) != null;
     if (lit.length) {
       for (const { l, k } of lit) {
         const scale = (l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64;
         if (dim) {
-          const col = lampPoolTint(ls.tint, l.color ?? 0xffc070, k)!;
+          const col = lampPoolTint(ls.tint, l.color ?? 0xffd27a, k)!;
           this.lightStamp.setScale(scale).setTint(col).setAlpha(1);
           rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
         } else {
@@ -3353,7 +3450,7 @@ export class WorldScene extends Phaser.Scene {
       }
       if (!dim) {
         for (const { l, k } of lit) {
-          this.lightStamp.setScale((l.r * 1.7 * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
+          this.lightStamp.setScale((l.r * 1.85 * ls.halo) / 64).setTint(l.color ?? 0xffd27a).setAlpha(0.62 * k * (ls.halo > 1 ? 0.85 : 1));
           rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
         }
       }
@@ -3388,15 +3485,17 @@ export class WorldScene extends Phaser.Scene {
         }
         const f = flick(l);
         const spill = l.kind === 'spill';
+        g.setData('glowKind', l.kind ?? '');
         g.setVisible(true)
           .setPosition(l.x, l.y)
-          .setTint(l.color ?? 0xffc070)
-          .setScale(spill ? 0.9 : (l.r * 1.5 * ls.halo) / 64, spill ? 0.45 : (l.r * 1.5 * ls.halo) / 64)
-          .setAlpha(Math.min(0.7, (l.glow ?? 0.4) * k * f * 0.9));
+          .setTint(l.color ?? 0xffd27a)
+          .setScale(spill ? 1.05 : (l.r * 1.85 * ls.halo) / 64, spill ? 0.55 : (l.r * 1.85 * ls.halo) / 64)
+          .setAlpha(Math.min(spill ? 0.6 : 0.88, (l.glow ?? 0.5) * k * f * (spill ? 0.9 : 1.2)));
         i++;
       }
     }
     for (; i < this.glowPool.length; i++) this.glowPool[i].setVisible(false);
+    this.updateGlowDepths(actors);
   }
 
   /** How lit a given light is right now (0..1): lamps follow dusk and night, windows follow the evening, the restaurant facade follows its hours. */
@@ -3520,6 +3619,89 @@ export class WorldScene extends Phaser.Scene {
       dishes.push({ tableId: o.service!.tableId, x: f.f.x * TILE + (size.w * TILE) / 2, y: f.f.y * TILE, table: tableLabel(o.service!.tableId), dish: def?.name ?? 'pedido' });
     }
     return deliveryGoals(dishes);
+  }
+
+  /** Very rarely, someone free nearby walks over and says one existing line. */
+  private maybeApproach(dt: number) {
+    if (this.approaching || !this.canAct() || !game.has('intro_done') || inDialogue() || !this.speech.idle()) return;
+    this.approachT -= dt;
+    if (this.approachT > 0) return;
+    this.approachT = APPROACH_WAIT;
+    if (Math.random() >= APPROACH_CHANCE) return;
+    const n = this.approachCandidate();
+    if (!n) return;
+    const tile = this.besidePlayer(n);
+    if (!tile) return;
+    const id = n.actor.id;
+    n.social = true;
+    n.out = false;
+    n.actor.setAct('idle');
+    this.approaching = id;
+    const zone = this.zoneId;
+    const arrived = n.actor.walkTo(this.zone.grid, tile[0], tile[1], () => {
+      if (this.approaching === id && this.zoneId === zone) void this.finishApproach(id);
+    });
+    if (!arrived) { this.cancelApproach(id); return; }
+    this.time.delayedCall(14000, () => {
+      const cur = this.npcs.get(id);
+      if (this.approaching === id && cur?.actor.path.length) {
+        cur.actor.stop();
+        this.cancelApproach(id);
+      }
+    });
+  }
+
+  private approachCandidate(): NpcState | null {
+    const busy = new Set(['sleep', 'stars', 'cook', 'work', 'fish']);
+    const open: NpcState[] = [];
+    for (const [id, n] of this.npcs) {
+      if (n.social || n.traveling || n.leaving || !n.actor.sprite.visible) continue;
+      if (id === 'pip' && this.hostId) continue;
+      if (CHAR_BY_ID[id]?.raccoon && restaurantPhase(game.save.time.period, game.save.time.minutes) === 'open') continue;
+      const pinned = game.flag('at_' + id);
+      if (typeof pinned === 'string' && pinned) continue;
+      if (busy.has(n.actor.act) || busy.has(n.act ?? '')) continue;
+      const d = Math.hypot(n.actor.x - this.player.x, n.actor.y - this.player.y);
+      if (d < 48 || d > 300) continue;
+      open.push(n);
+    }
+    return open.length ? open[Math.floor(Math.random() * open.length)] : null;
+  }
+
+  private besidePlayer(n: NpcState): [number, number] | null {
+    const spots: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [-1, 1]];
+    for (const [dx, dy] of spots) {
+      const x = this.player.tx + dx;
+      const y = this.player.ty + dy;
+      if (this.zone.grid.isSolid(x, y) || this.feetBlocked(x, y, n.actor.id, true)) continue;
+      const steps = this.zone.grid.path(n.actor.tx, n.actor.ty, x, y)?.length ?? 99;
+      if (steps > 16) continue;
+      return [x, y];
+    }
+    return null;
+  }
+
+  private async finishApproach(id: string) {
+    const n = this.npcs.get(id);
+    if (!n?.actor.sprite.active || !this.canAct() || inDialogue()) { this.cancelApproach(id); return; }
+    n.actor.faceTowards(this.player.x, this.player.y);
+    this.player.faceTowards(n.actor.x, n.actor.y);
+    const topics: Topic[] = ['how', 'town', 'news'];
+    const line = topicLine(topics[Math.floor(Math.random() * topics.length)], this.npcTalkCtx(n));
+    try {
+      const { runScene, say } = await import('../dialogue/dialogue');
+      await runScene('talk_visit_' + id, async () => { await say(id, line.t, line.e ?? 'neutral'); });
+    } finally {
+      this.cancelApproach(id);
+    }
+  }
+
+  private cancelApproach(id: string) {
+    if (this.approaching === id) this.approaching = null;
+    const n = this.npcs.get(id);
+    if (!n) return;
+    n.social = false;
+    n.t = 6;
   }
 
   private quirks(dt: number) {

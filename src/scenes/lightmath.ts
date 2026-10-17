@@ -55,6 +55,17 @@ export function tintLum(c: number): number {
  * Multiply colour under a lamp. Null means the street is already bright, so a soft erase is enough.
  * A full erase at night uncovers the daytime tiles, so the pool stays dimmer than daylight and never darker than the street.
  */
+export interface Box { l: number; r: number; t: number; b: number }
+
+/**
+ * A lit pane should slip behind someone standing in front of the wall and overlapping that pane.
+ * Feet above the wall are on the roof side: the pane stays up, or the whole window would dim.
+ */
+export function coversLitPane(feetY: number, body: Box, pane: Box, baseY: number): boolean {
+  if (feetY < baseY - 2) return false;
+  return body.r > pane.l && body.l < pane.r && body.b > pane.t && body.t < pane.b;
+}
+
 export function lampPoolTint(ambient: number, lampColor: number, strength: number, cap = 150): number | null {
   if (tintLum(ambient) > 200) return null;
   const k = Math.max(0, Math.min(1, strength));

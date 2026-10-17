@@ -80,10 +80,11 @@ test('a closed shop keeps its door shut and still refuses trade', async ({ page 
     await expect(page.locator('.toast').filter({ hasText: 'La puerta está cerrada' }).last()).toBeVisible();
     await page.evaluate(async (id) => (await import('/src/ui/shops.ts')).openShop(id), id);
     await expect(page.locator('.panel')).toHaveCount(0);
-    await expect(page.locator('.toast').filter({ hasText: 'Horario: 08:00–23:00' }).last()).toBeVisible();
+    const hours = id === 'taro' ? '08:00–22:00' : '08:00–20:00';
+    await expect(page.locator('.toast').filter({ hasText: `Horario: ${hours}` }).last()).toBeVisible();
     await at(page, 0, 30);
     await page.evaluate(async (id) => (await import('/src/ui/shops.ts')).openShop(id), id);
-    await expect(page.locator('.panel')).toContainText('Horario: 08:00–23:00');
+    await expect(page.locator('.panel')).toContainText(`Horario: ${hours}`);
     await expect(page.locator('.panel .slot button').first()).toBeEnabled();
     await page.keyboard.press('Escape');
   }
