@@ -18,6 +18,7 @@ import { chip, emptyState } from '../ui/kit';
 import { kitchenOpen, openKitchenSession, type KitchenHooks, type SessionOrder } from './kitchenSession';
 import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeCollection';
 import { canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
+import { mirror } from './mirror';
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade, upgradeMissing } from './upgrades';
 
@@ -50,6 +51,7 @@ function ingList(r: { ingredients: Record<string, number> }) {
 
 // ------------------------------------------------------------------ order board
 export function openOrders() {
+  if (mirror.on) { toast('Estás de visita: los pedidos los maneja tu amigo. Cociná desde la mesa o la cocina.'); return; }
   refreshOrders(false);
   const body = h('div', { class: 'col' });
   let had = game.save.orders.length > 0;
@@ -139,6 +141,7 @@ export function openOrders() {
 /** Cook one order. Food opens the kitchen with that dish started; drinks and one-tap dishes keep their short flow. */
 const cooking = new Set<number>();
 export async function cookOrder(uid: number, quick = false) {
+  if (mirror.on) return (await import('../coop/guestKitchen')).enterGuestKitchen(uid);
   if (cooking.has(uid) || kitchenOpen()) return;
   cooking.add(uid);
   try {
@@ -169,6 +172,7 @@ function hardModeExtras(r: RecipeDef, res: CookResult) {
 
 const FREE_UID = -1;
 export async function enterKitchen(firstUid?: number, freeId?: string) {
+  if (mirror.on) return (await import('../coop/guestKitchen')).enterGuestKitchen(firstUid);
   if (kitchenOpen()) return;
   if (tooTiredToCook()) { toast('Estás muy cansada para cocinar. Dormí o descansá un rato en tu cama.'); return; }
   refreshOrders(false);
@@ -185,7 +189,7 @@ export async function enterKitchen(firstUid?: number, freeId?: string) {
       .map((o) => ({ uid: o.uid, recipe: RECIPES_BY_ID[o.recipe], who: customerName(o.customer), reward: o.reward, ready: taken.has(o.uid) || canCook(o.recipe), note: o.service ? tableLabel(o.service.tableId) : o.special === 'odd' ? 'sin remitente' : undefined }))),
     take: (uid) => {
       const p = plan(uid);
-      if (!p || taken.has(uid) || p.o?.cook || !game.consumeIngredients(p.r.ingredients)) return false;
+      if (!p || taken.has(uid) || p.o?.cook || playerBusy.has(uid) || !game.consumeIngredients(p.r.ingredients)) return false;
       taken.add(uid);
       playerBusy.add(uid);
       return true;
@@ -383,6 +387,7 @@ function showPlate(r: RecipeDef, quality: number, variant?: string): Promise<voi
 
 // ------------------------------------------------------------------ kitchen station
 export function openKitchen() {
+  if (mirror.on) { void import('../coop/guestKitchen').then((m) => m.enterGuestKitchen()); return; }
   const body = h('div', { class: 'col' });
   const pending = game.save.orders.filter((o) => canCook(o.recipe));
   add(body,

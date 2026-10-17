@@ -4,17 +4,38 @@
  * The only coins that ever go to the guest are tips, and only up to a daily cap.
  */
 import { game } from '../core/state';
+import { RECIPES_BY_ID } from '../data/recipes';
 import { carryCapacity } from '../restaurant/carry';
+import { playerBusy } from '../restaurant/claims';
 import { GUEST_CLAIM, type FloorSnap, type PartySnap } from '../restaurant/mirror';
 import { customerName } from '../restaurant/orders';
-import { claimPlate, collectTipForGuest, guestViews, servingName, staffDeliver, tableIds, tableJobs, takeOrderAt } from '../restaurant/service';
+import { claimPlate, collectTipForGuest, guestViews, servingName, stagePlate, staffDeliver, tableIds, tableJobs, takeOrderAt } from '../restaurant/service';
 import type { ActMsg, ResMsg } from './protocol';
 
 /** Most tip coins a visiting friend can take home per game day. */
 export const GUEST_TIP_CAP = 120;
 let ledger = { day: -1, given: 0 };
 
-export function resetServe() { ledger = { day: -1, given: 0 }; releaseGuestClaims(); }
+export function resetServe() { ledger = { day: -1, given: 0 }; releaseGuestClaims(); dropGuestCooking(); }
+
+/** Dishes the guest started: the host's ingredients are already spent, and the crew must not start the same order. */
+const guestCooking = new Set<number>();
+const refund = (uid: number) => {
+  const o = game.save.orders.find((x) => x.uid === uid);
+  const r = o && RECIPES_BY_ID[o.recipe];
+  if (r) for (const [id, q] of Object.entries(r.ingredients)) game.addItem(id, q, 'refund');
+};
+/** The guest left in the middle of a dish: the ingredients go back to the host. */
+export function dropGuestCooking() {
+  for (const uid of guestCooking) { refund(uid); playerBusy.delete(uid); }
+  guestCooking.clear();
+}
+
+/** An order a friend may start: a food order at a table whose party waits for it, that nobody is cooking. */
+const cookableOrders = () => {
+  const waiting = new Set(guestViews().filter((v) => v.phase === 'waiting_food').map((v) => v.id));
+  return game.save.orders.filter((o) => o.kind !== 'drink' && o.service && !o.plate && !o.cook && !playerBusy.has(o.uid) && waiting.has(o.service.partyId) && !!RECIPES_BY_ID[o.recipe]);
+};
 
 /** Plates the guest was carrying go back to the tray (the guest left, or never finished). */
 export function releaseGuestClaims() {
@@ -52,6 +73,30 @@ export function runAct(msg: ActMsg): ResMsg {
       const why = staffDeliver(o.uid, GUEST_CLAIM);
       return done(why ? DELIVER_WHY[why] ?? 'No se pudo entregar.' : `¡Buen provecho, ${customerName(o.customer)}!`);
     }
+    case 'cookTake': {
+      const o = cookableOrders().find((x) => x.uid === msg.uid);
+      const r = o && RECIPES_BY_ID[o.recipe];
+      if (!o || !r) return done('Ese pedido ya no está disponible.');
+      if (!game.consumeIngredients(r.ingredients)) return done('Faltan ingredientes en la cocina de tu amigo.');
+      guestCooking.add(o.uid); playerBusy.add(o.uid);
+      return done('');
+    }
+    case 'cookCancel': {
+      if (!msg.uid || !guestCooking.delete(msg.uid)) return done('');
+      refund(msg.uid); playerBusy.delete(msg.uid);
+      return done('');
+    }
+    case 'plate': {
+      const uid = msg.uid ?? -1;
+      const o = game.save.orders.find((x) => x.uid === uid);
+      const r = o && RECIPES_BY_ID[o.recipe];
+      if (!o || !r || !guestCooking.has(uid)) return done('El pedido cambió. No se pudo dejar el plato.');
+      const q = msg.q === 0 || msg.q === 1 || msg.q === 2 ? msg.q : 0;
+      const bonus = Math.max(0, Math.min(Number(msg.b) || 0, r.price));
+      guestCooking.delete(uid); playerBusy.delete(uid);
+      if (!stagePlate(uid, q, bonus, typeof msg.v === 'string' ? msg.v.slice(0, 40) : undefined)) { refund(uid); return done('El pedido cambió. Los ingredientes volvieron a la cocina.'); }
+      return done(`Listo. Recogé ${r.name} en la bandeja de salida.`);
+    }
     case 'tip': {
       const day = game.save.time.day;
       if (ledger.day !== day) ledger = { day, given: 0 };
@@ -65,11 +110,15 @@ export function runAct(msg: ActMsg): ResMsg {
 
 export function buildFloor(parties: PartySnap[]): FloorSnap {
   const t = game.save.time;
+  const cookable = cookableOrders();
+  const pantry: Record<string, number> = {};
+  for (const o of cookable) for (const id of Object.keys(RECIPES_BY_ID[o.recipe].ingredients)) pantry[id] = game.countUsable(id);
   return {
     views: guestViews(),
     parties,
     jobs: tableJobs(),
     orders: game.save.orders.filter((o) => o.plate && o.plate.state !== 'delivered'),
+    cookable, pantry,
     tables: tableIds(),
     time: { day: t.day, period: t.period, minutes: Math.round(t.minutes * 10) / 10 },
   };
