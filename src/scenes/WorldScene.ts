@@ -53,6 +53,8 @@ import { neighborOf } from '../restaurant/townClients';
 import { whatPlace, topicLine, type TalkCtx } from '../dialogue/topics';
 import { homeLayout } from '../art/homes';
 import { microFor } from '../systems/npcMicro';
+import { bridgeRails } from '../world/bridge';
+import { bridgeRailCanvas } from '../art/bridges';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
@@ -600,6 +602,14 @@ export class WorldScene extends Phaser.Scene {
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front');
       }
       if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - p.def.sh + 6);
+    }
+    // The deck is continuous terrain; railings follow its actual shoreline, including the L-shaped join.
+    for (const rail of bridgeRails(def.ground)) {
+      const key = `bridge_rail_${rail.axis}_${rail.length}`;
+      if (!this.textures.exists(key)) this.textures.addCanvas(key, bridgeRailCanvas(rail.axis, rail.length));
+      const image = this.add.image(rail.x * TILE - 2, rail.y * TILE - 9, key).setOrigin(0, 0);
+      image.setDepth((rail.y + (rail.axis === 'v' ? 1 : 0)) * TILE + 0.5);
+      this.objs.push(image);
     }
     this.placeFurnitureSprites();
     // windows glow at night

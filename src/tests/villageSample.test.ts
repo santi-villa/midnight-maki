@@ -7,6 +7,7 @@ import { game, newSave } from '../core/state';
 import { buildZone } from '../world/zoneRuntime';
 import { HOUSES, houseDoorTile, housePropId } from '../data/houses';
 import { homeLayout } from '../art/homes';
+import { bridgeRails } from '../world/bridge';
 
 describe('village sample keeps the saved village playable', () => {
   it('aligns every imported genkan with the saved house entrance and keeps window light off the timber door', () => {
@@ -49,6 +50,21 @@ describe('village sample keeps the saved village playable', () => {
       expect(b.grid.path(5, 7, x, y, 20000)).not.toBeNull();
     }
     expect(count).toBeGreaterThan(0);
+  });
+  it('joins railings at both pier bends while leaving its landings and interior passage open', () => {
+    const ground = ZONES.plaza.ground, edges = new Set<string>();
+    for (const rail of bridgeRails(ground)) for (let i = 0; i < rail.length; i++) {
+      const x = rail.x + (rail.axis === 'h' ? i : 0), y = rail.y + (rail.axis === 'v' ? i : 0);
+      edges.add(`${rail.axis}:${x},${y}`);
+      const sides = rail.axis === 'h' ? [ground[y - 1]?.[x], ground[y]?.[x]] : [ground[y]?.[x - 1], ground[y]?.[x]];
+      expect(sides).toContain('b');
+      expect(sides.some(tile => tile === 'w' || tile === 'd')).toBe(true);
+    }
+    // The actual L has a convex turn at 36,39 and a concave turn at 37,40.
+    expect(edges.has('h:35,39') && edges.has('v:36,38')).toBe(true);
+    expect(edges.has('h:37,40') && edges.has('v:37,40')).toBe(true);
+    expect(edges.has('h:36,39') || edges.has('v:36,39')).toBe(false);
+    expect(edges.has('v:30,39') || edges.has('v:30,40')).toBe(false);
   });
   it('keeps river banks on land and free of collisions, without opening story exits', () => {
     game.load(newSave()); const b = buildZone('plaza');
