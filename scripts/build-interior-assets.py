@@ -41,6 +41,8 @@ for row in range(2):
         add(f'bed_white_{row}_{width}', f'Cama {label} blanca · modelo {row + 1}',
             'bedroom', 'bed', 300 if width == 32 else 420,
             'beds', (x, 24 + row * 80, width, 56), h=3, style='minimal')
+add('futon_rose', 'Futón de tela terracota', 'bedroom', 'futon', 200, 'beds', (16, 38, 32, 40), h=2, walkable=True, style='japanese')
+add('futon_blue', 'Futón de tela celeste', 'bedroom', 'futon', 200, 'beds', (16, 198, 32, 40), h=2, walkable=True, style='japanese')
 for row, color in enumerate(['nogal', 'madera', 'blanco']):
     for opened, x, width in [(False, 16, 48), (True, 80, 64)]:
         add(f'wardrobe_{row}_{int(opened)}', f'Ropero {color}' + (' abierto' if opened else ''),
@@ -89,9 +91,15 @@ for row, color in enumerate(['crema', 'gris']):
             'special', 'stove', 280, 'living', rect, **({'light': '#f4b070'} if model % 2 else {}))
 for label, x, basey, round_table, color in [('oak', 16, 160, False, 'roble'), ('walnut', 288, 160, False, 'nogal'),
                                           ('white_round', 16, 208, True, 'blanca'), ('brown_round', 224, 208, True, 'marrón')]:
-    add(f'table_{label}', f'Mesa {"redonda " if round_table else "de "}{color}', 'restaurant',
+    table = add(f'table_{label}', f'Mesa {"redonda " if round_table else "de "}{color}', 'restaurant',
         'roundtable' if round_table else 'table', 120 if round_table else 180, 'living',
         (x, basey, 32 if round_table else 48, 32), h=2)
+    if not round_table:
+        side = [80 if label == 'oak' else 352, 144, 32, 48]
+        front = table['frames'][0].copy()
+        table['frames'] += [dict(sheet=SHEETS['living'], rect=side), front, dict(sheet=SHEETS['living'], rect=side)]
+        table['rotatable'] = True
+        table['sh'] = 48
 for name, x, y in [('oak', 128, 144), ('walnut', 416, 144), ('white', 64, 208), ('brown', 272, 208)]:
     chair = add(f'chair_{name}', 'Silla ' + {'oak': 'roble', 'walnut': 'nogal', 'white': 'blanca', 'brown': 'marrón'}[name],
                 'restaurant', 'chair', 65, 'living', (x, y, 16, 32), rotatable=True, sit=True)
@@ -137,6 +145,8 @@ for row, color in enumerate(['miel', 'nogal', 'blanco']):
         'shelves', (336, 32 + y, 48, 32), likes=['rigg'])
     add(f'wall_cabinet_{row}', f'Alacena {color}', 'wall', 'shelf', 140,
         'shelves', (528, 32 + y, 48, 32), wall=True)
+    add(f'writing_desk_{row}', f'Escritorio {color}', 'bedroom', 'desk', 240,
+        'shelves', (624, 32 + y, 48, 32), likes=['rigg'])
 
 # Kitchen: appliances and independently usable modules, not entire sample rooms.
 for row, color in enumerate(['crema', 'oliva', 'blanco']):
