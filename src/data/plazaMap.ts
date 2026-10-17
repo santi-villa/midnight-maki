@@ -182,10 +182,12 @@ export function plaza(): ZoneDef {
     { id: 'blk_market2', x: EAST.market.x + 1, y: 1, label: 'Soga del torii', action: 'blocked:market', cond: '!market_open' },
     // places
     { id: 'shrine', x: EAST.shrine.x + 1, y: EAST.shrine.y + 1, label: 'Santuario', action: 'note:shrine' },
-    { id: 'river_fish1', x: 40, y: 25, label: 'Pescar', action: 'fish:lake' },
-    { id: 'river_fish2', x: 53, y: 25, label: 'Pescar', action: 'fish:lake' },
+    // the bridge by the mill, the peninsula channel, both harbour piers, and the cherry pond
+    { id: 'river_fish1', x: 40, y: 11, label: 'Pescar', action: 'fish:lake' },
+    { id: 'river_fish2', x: 48, y: 19, label: 'Pescar', action: 'fish:lake' },
     { id: 'pier_fish1', x: 35, y: 40, label: 'Pescar', action: 'fish:sea' },
-    { id: 'pier_fish2', x: 36, y: 40, label: 'Pescar', action: 'fish:sea' },
+    { id: 'pier_fish2', x: 35, y: 36, label: 'Pescar', action: 'fish:sea' },
+    { id: 'grove_fish', x: 67, y: 26, label: 'Pescar', action: 'fish:lake' },
   ];
   return zone(b, {
     id: 'plaza', name: 'Villa Nori', music: 'town', outdoor: true,
