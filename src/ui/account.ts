@@ -1,8 +1,7 @@
-/** "Tu cuenta": sign in with Google or e-mail, see how the cloud save is doing, and decide what happens when two versions meet. */
-import { cloud, setCloudUi, type ConflictChoice, type ConflictInfo, type SyncSummary } from '../cloud/cloud';
+/** "Tu cuenta": sign in with Google or e-mail and see how the cloud save is doing. A conflict keeps the cloud copy. */
+import { cloud, setCloudUi, type ConflictChoice, type SyncSummary } from '../cloud/cloud';
 import { ago } from '../cloud/decide';
 import { bus } from '../core/events';
-import type { SaveData } from '../core/types';
 import { markResumeOnce } from '../persistence/storage';
 import { confirmBox, h, panel, toast } from './dom';
 
@@ -11,29 +10,13 @@ let mode: 'in' | 'up' = 'in';
 /** what she typed survives a redraw (an error message appears, the mode switches) */
 const typed = { email: '', pass: '', name: '' };
 
-const when = (t: number) => (t ? new Date(t).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
-const nice = (s: SaveData) => `${s.player.restaurantName || s.player.name} · día ${s.time.day} · ${s.coins.toLocaleString('es-AR')} monedas`;
-
 function reloadWith(text: string) {
   void confirmBox(text, 'Reiniciar ahora', 'Después').then((yes) => { if (yes) { markResumeOnce(); location.reload(); } });
 }
 
-function resolveConflict(c: ConflictInfo): Promise<ConflictChoice> {
-  return new Promise((resolve) => {
-    let done = false;
-    const pick = (v: ConflictChoice) => { if (done) return; done = true; p.close(); resolve(v); };
-    const side = (title: string, s: SaveData, choice: ConflictChoice, label: string) => h('div', { class: 'card col' },
-      h('b', null, title), h('div', null, nice(s)), h('div', { class: 'hint' }, `Guardada: ${when(s.updatedAt)}`),
-      h('button', { class: 'btn primary', onclick: () => pick(choice) }, label));
-    const p = panel({
-      title: `Partida ${c.slot + 1}: dos versiones`,
-      closable: false,
-      body: [h('p', null, 'Esta partida cambió en este dispositivo y en la nube. Elegí cuál conservar: la otra se reemplaza.'),
-        side('En este dispositivo', c.local, 'local', 'Quedarme con esta'),
-        side('En la nube', c.remote, 'remote', 'Traer la de la nube')],
-      foot: [h('button', { class: 'btn', onclick: () => pick('skip') }, 'Decidir después')],
-    });
-  });
+/** Both sides changed since the last sync. The cloud copy wins; the device copy is replaced. */
+function resolveConflict(): Promise<ConflictChoice> {
+  return Promise.resolve('remote');
 }
 
 function summarize(s: SyncSummary, auto: boolean) {
@@ -99,7 +82,7 @@ export function openAccount() {
         if (!(await confirmBox('Se borra tu cuenta y las partidas guardadas en la nube. Las partidas de este dispositivo no se tocan. ¿Seguro?', 'Borrar cuenta', 'Cancelar'))) return;
         await cloud.deleteAccount(); toast('Cuenta borrada.');
       }) }, 'Borrar mi cuenta y datos de la nube'),
-      h('p', { class: 'hint' }, 'La partida se sube sola unos segundos después de cada guardado. Si dos dispositivos cambian la misma partida, el juego te pregunta cuál conservar.'));
+      h('p', { class: 'hint' }, 'La partida se sube sola unos segundos después de cada guardado. Si también cambió en la nube, se usa la de la nube.'));
   };
   open = { close: p.close, render };
   render();
