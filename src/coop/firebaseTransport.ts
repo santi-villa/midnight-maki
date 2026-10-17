@@ -3,6 +3,7 @@ import { getApp } from 'firebase/app';
 import { get, getDatabase, onChildAdded, onDisconnect, onValue, push, ref, remove, runTransaction, set, type Database } from 'firebase/database';
 import { doc, getDoc } from 'firebase/firestore';
 import { firebaseDb, firebaseUid } from '../cloud/firebase';
+import { reportError } from '../core/errors';
 import { CoopError } from './errors';
 import { pack, unpack, type Role } from './protocol';
 import type { CoopTransport } from './transport';
@@ -76,8 +77,23 @@ async function open(role: Role, code: string): Promise<CoopTransport> {
   const mine = `${base}/${role === 'host' ? 'toHost' : 'toGuest'}`;   // what I read
   const theirs = `${base}/${role === 'host' ? 'toGuest' : 'toHost'}`; // what I write
   const myPresence = ref(d, `${base}/presence/${role}`);
-  await set(myPresence, true);
-  void onDisconnect(myPresence).remove();
+  // Register cleanup before publishing presence. A failed registration must reject
+  // the open request, rather than leave a ghost player or an unhandled rejection.
+  const disconnected = onDisconnect(myPresence);
+  try {
+    await disconnected.remove();
+    await set(myPresence, true);
+  } catch (err) {
+    // A failed join must release the seat it reserved before publishing presence.
+    // Do not erase a seat another account may already have taken.
+    if (role === 'guest') {
+      try { await runTransaction(ref(d, `${base}/meta/guestUid`), (cur) => cur === uid ? null : undefined); }
+      catch (cleanupError) { reportError('coop:seat-cleanup', cleanupError, false); }
+    }
+    try { await disconnected.cancel(); }
+    catch (cleanupError) { reportError('coop:presence-cleanup', cleanupError, false); }
+    throw err;
+  }
 
   const handlers = { msg: [] as ((m: unknown) => void)[], state: [] as ((k: string, v: unknown) => void)[], peer: [] as ((p: boolean) => void)[] };
   const offs: (() => void)[] = [];

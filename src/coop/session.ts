@@ -4,6 +4,7 @@
  */
 import { generateCode, normalizeCode } from '../cloud/friendCode';
 import { bus } from '../core/events';
+import { reportError } from '../core/errors';
 import { CoopError } from './errors';
 import { COOP_VERSION, isMsg, isPos, normalizeWorld, type Msg, type PeerInfo, type PosState, type Role, type WorldPack } from './protocol';
 import type { CoopTransport } from './transport';
@@ -51,6 +52,7 @@ export class CoopSession {
   private worldHook: ((w: WorldPack) => void) | null = null;
   private floorHook: ((v: unknown) => void) | null = null;
   private keepOpen = false;
+  private attempt = 0;
   constructor(private deps: CoopDeps) {}
 
   state(): CoopState { return this.st; }
@@ -66,22 +68,42 @@ export class CoopSession {
   onFloor(fn: (v: unknown) => void) { this.floorHook = fn; }
   sendPos(p: PosState) { if (this.st.phase === 'connected') this.t?.state('pos', p); }
 
+  private dispose(t: CoopTransport) {
+    void t.close().catch((err) => reportError('coop:close', err, false));
+  }
+
+  /** A timed-out/cancelled SDK request may still resolve later; it must never attach to a new visit. */
+  private async open(role: Role, code: string, attempt: number): Promise<CoopTransport> {
+    let expired = false;
+    const pending = this.deps.openTransport(role, code).then((t) => {
+      if (expired || this.attempt !== attempt) {
+        this.dispose(t);
+        throw new CoopError('Conexión cancelada.');
+      }
+      return t;
+    });
+    try { return await withTimeout(pending, OPEN_TIMEOUT_MS); }
+    catch (err) { expired = true; throw err; }
+  }
+
   /**
    * Open the restaurant. With a `fixed` code (the player's friend code) the room stays open: when the guest leaves it waits for the
    * next one instead of closing. Without it, a random code is made for this one visit.
    */
   async host(fixed?: string): Promise<string> {
     if (this.st.phase !== 'idle' && this.st.phase !== 'closed') throw new CoopError('Ya estás en una sala.');
+    const attempt = ++this.attempt;
     this.keepOpen = !!fixed;
     this.set({ phase: 'opening', role: 'host', note: null, peer: null, peerPos: null, world: null });
     for (let i = 0; i < (fixed ? 1 : 5); i++) {
       const code = fixed ?? generateCode();
       try {
-        const t = await withTimeout(this.deps.openTransport('host', code), OPEN_TIMEOUT_MS);
-        this.attach(t, code);
+        const t = await this.open('host', code, attempt);
+        this.attach(t, code, attempt);
         this.set({ phase: 'waiting', code });
         return code;
       } catch (e) {
+        if (this.attempt !== attempt) throw e;
         if (e instanceof CoopError && e.message === 'retry') continue;
         this.set({ phase: 'closed', note: e instanceof CoopError ? e.message : 'No se pudo abrir la sala. Probá de nuevo.' });
         throw e;
@@ -95,30 +117,44 @@ export class CoopSession {
     if (this.st.phase !== 'idle' && this.st.phase !== 'closed') throw new CoopError('Ya estás en una sala.');
     const code = normalizeCode(input);
     if (!code) throw new CoopError('Ese código no parece válido: son 6 letras y números.');
+    const attempt = ++this.attempt;
     this.set({ phase: 'opening', role: 'guest', code, note: null, peer: null, peerPos: null, world: null });
     try {
-      const t = await withTimeout(this.deps.openTransport('guest', code), OPEN_TIMEOUT_MS);
-      this.attach(t, code);
+      const t = await this.open('guest', code, attempt);
+      this.attach(t, code, attempt);
     } catch (e) {
+      if (this.attempt !== attempt) throw e;
       this.set({ phase: 'closed', note: e instanceof CoopError ? e.message : 'No se pudo entrar a la sala. Probá de nuevo.' });
       throw e;
     }
   }
 
-  private attach(t: CoopTransport, code: string) {
+  private attach(t: CoopTransport, code: string, attempt: number) {
+    if (this.attempt !== attempt) {
+      this.dispose(t);
+      throw new CoopError('Conexión cancelada.');
+    }
     this.t = t;
     this.lastHeard = this.now();
-    t.onMessage((raw) => this.receive(raw));
+    const openedAt = this.now();
+    t.onMessage((raw) => { if (this.t === t) this.receive(raw); });
     t.onState((key, v) => {
+      if (this.t !== t) return;
       this.lastHeard = this.now();
       if (key === 'pos' && isPos(v)) this.set({ peerPos: v });
       else if (key === 'floor' && this.t?.role === 'guest') this.floorHook?.(v);
     });
     t.onPeer((present) => {
+      if (this.t !== t) return;
       if (present) { this.lastHeard = this.now(); if (t.role === 'guest') t.send({ t: 'hello', v: COOP_VERSION, info: this.deps.me() }); }
       else if (this.st.phase === 'connected') this.guestGone('Tu amigo se desconectó.');
     });
     this.beat = window.setInterval(() => {
+      if (this.t !== t) return;
+      if (t.role === 'guest' && this.st.phase === 'opening' && this.now() - openedAt >= OPEN_TIMEOUT_MS) {
+        this.end('Tu amigo no respondió a tiempo. Revisen la conexión e intentá entrar de nuevo.');
+        return;
+      }
       t.state('hb', this.now());
       // a hello can get lost while the host is still getting ready: ask again until the restaurant arrives
       if (t.role === 'guest' && this.st.phase === 'opening' && !this.st.world) t.send({ t: 'hello', v: COOP_VERSION, info: this.deps.me() });
@@ -162,20 +198,24 @@ export class CoopSession {
   }
 
   private end(note: string) {
+    ++this.attempt;
     window.clearInterval(this.beat);
-    this.set({ phase: 'closed', note, peerPos: null });
     const t = this.t; this.t = null;
-    void t?.close();
+    this.set({ phase: 'closed', note, peerPos: null });
+    if (t) this.dispose(t);
   }
 
   /** The player leaves on purpose. */
   async leave() {
+    const attempt = ++this.attempt;
+    window.clearInterval(this.beat);
     const t = this.t;
     if (!t) { this.set({ phase: 'idle', role: null, code: null, peer: null, peerPos: null, world: null, note: null }); return; }
-    window.clearInterval(this.beat);
     t.send({ t: 'bye', why: 'left' });
     this.t = null;
-    await t.close();
-    this.set({ phase: 'idle', role: null, code: null, peer: null, peerPos: null, world: null, note: null });
+    try { await t.close(); }
+    finally {
+      if (this.attempt === attempt) this.set({ phase: 'idle', role: null, code: null, peer: null, peerPos: null, world: null, note: null });
+    }
   }
 }
