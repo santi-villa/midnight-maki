@@ -3,7 +3,8 @@ import { softVolume } from './shade';
 import { PAL } from './palette';
 import { ctx2d, ellipse, makeCanvas, outline, px, shade, type Ctx } from './pixel';
 
-export interface IconSpec { type: string; c1?: string; c2?: string; c3?: string; }
+import { iconArtCanvas } from './iconArt';
+export interface IconSpec { type: string; c1?: string; c2?: string; c3?: string; /** name of a hand-made icon (art/iconArt.ts); the drawn icon is the fallback */ art?: string }
 
 type F = (c: Ctx, c1: string, c2: string, c3: string) => void;
 const W = PAL.white;
@@ -313,9 +314,11 @@ const T: Record<string, F> = {
 const cache = new Map<string, HTMLCanvasElement>();
 
 export function iconCanvas(spec: IconSpec): HTMLCanvasElement {
-  const key = `${spec.type}|${spec.c1}|${spec.c2}|${spec.c3}`;
+  const art = spec.art ? iconArtCanvas(spec.art) : null;
+  const key = `${spec.type}|${spec.c1}|${spec.c2}|${spec.c3}|${art ? spec.art : ''}`;
   let c = cache.get(key);
   if (c) return c;
+  if (art) { cache.set(key, art); return art; }
   c = makeCanvas(16, 16);
   const ctx = ctx2d(c);
   const fn = T[spec.type] ?? T.gift;
