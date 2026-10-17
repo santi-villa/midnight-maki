@@ -57,6 +57,26 @@ describe('shared restaurant session', () => {
     expect(g.state().note).toMatch(/cerró|desconect/);
   });
 
+  it('keeps a fixed room open for the next guest when the first one leaves', async () => {
+    const { h, g } = pair();
+    const code = await h.host('ABC234');
+    expect(code).toBe('ABC234');
+    await g.join(code);
+    await flush(); await flush(); await flush();
+    expect(h.state().phase).toBe('connected');
+    await g.leave();
+    await flush();
+    expect(h.state().phase).toBe('waiting');
+    expect(h.state().peer).toBeNull();
+    expect(h.state().note).toMatch(/salió/);
+    // a room with a random code is over when the guest leaves
+    const second = pair();
+    const c2 = await second.h.host(); await second.g.join(c2);
+    await flush(); await flush(); await flush();
+    await second.g.leave(); await flush();
+    expect(second.h.state().phase).toBe('closed');
+  });
+
   it('refuses a bad code', async () => {
     const { g } = pair();
     await expect(g.join('abc')).rejects.toThrow(/código/);

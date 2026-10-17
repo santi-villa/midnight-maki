@@ -1,7 +1,8 @@
 /** Firebase Realtime Database transport. Needs VITE_FIREBASE_DATABASE_URL and the rules in database.rules.json. */
 import { getApp } from 'firebase/app';
 import { get, getDatabase, onChildAdded, onDisconnect, onValue, push, ref, remove, runTransaction, set, type Database } from 'firebase/database';
-import { firebaseUid } from '../cloud/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { firebaseDb, firebaseUid } from '../cloud/firebase';
 import { CoopError } from './errors';
 import { pack, unpack, type Role } from './protocol';
 import type { CoopTransport } from './transport';
@@ -19,7 +20,32 @@ function friendly(e: unknown): CoopError {
   return new CoopError('No se pudo abrir la sala. Probá de nuevo.');
 }
 
-/** Host: claim a free room code. Guest: take the empty seat of an existing room. */
+/**
+ * A room is named after its host's account, so a friend's code always leads to the same place and nobody else can open it.
+ * The guest types (or taps) the host's friend code and it is looked up here.
+ */
+async function roomOwner(code: string): Promise<string> {
+  const hit = await getDoc(doc(firebaseDb(), 'codes', code));
+  if (!hit.exists()) throw new CoopError('No encontré a nadie con ese código.');
+  return String(hit.data().uid);
+}
+
+export type RoomState = 'closed' | 'open' | 'busy';
+
+/** Which of these players have their restaurant open to visitors right now. Calls back on every change; returns the unsubscribe. */
+export function watchRooms(uids: string[], cb: (uid: string, state: RoomState) => void): () => void {
+  const d = db();
+  const offs: (() => void)[] = [];
+  for (const u of uids) {
+    let host = false, guest = false;
+    const emit = () => cb(u, !host ? 'closed' : guest ? 'busy' : 'open');
+    offs.push(onValue(ref(d, `coop/${u}/presence/host`), (s) => { host = s.exists(); emit(); }, () => cb(u, 'closed')));
+    offs.push(onValue(ref(d, `coop/${u}/presence/guest`), (s) => { guest = s.exists(); emit(); }, () => undefined));
+  }
+  return () => offs.forEach((o) => o());
+}
+
+/** Host: open the room that belongs to this account. Guest: take the empty seat of the host's room. */
 export async function openFirebaseTransport(role: Role, code: string): Promise<CoopTransport> {
   try { return await open(role, code); } catch (e) { throw friendly(e); }
 }
@@ -28,7 +54,8 @@ async function open(role: Role, code: string): Promise<CoopTransport> {
   const uid = firebaseUid();
   if (!uid) throw new CoopError('Primero ingresá a tu cuenta.');
   const d = db();
-  const base = `coop/${code}`;
+  const owner = role === 'host' ? uid : await roomOwner(code);
+  const base = `coop/${owner}`;
   if (role === 'host') {
     const claimed = await runTransaction(ref(d, `${base}/meta`), (cur) => {
       if (cur && cur.hostUid !== uid && Date.now() - Number(cur.createdAt || 0) < ROOM_TTL) return undefined;
@@ -38,8 +65,10 @@ async function open(role: Role, code: string): Promise<CoopTransport> {
     await remove(ref(d, `${base}/toGuest`)); await remove(ref(d, `${base}/toHost`));
   } else {
     const meta = await get(ref(d, `${base}/meta`));
-    if (!meta.exists()) throw new CoopError('No encontré esa sala. Revisá el código.');
+    if (!meta.exists()) throw new CoopError('Tu amigo no tiene el restaurante abierto ahora.');
     if (meta.val().hostUid === uid) throw new CoopError('Esa sala es tuya: pedile el código a tu amigo.');
+    const host = await get(ref(d, `${base}/presence/host`));
+    if (!host.exists()) throw new CoopError('Tu amigo no tiene el restaurante abierto ahora.');
     const seat = await runTransaction(ref(d, `${base}/meta/guestUid`), (cur) => (cur == null || cur === uid ? uid : undefined));
     if (!seat.committed) throw new CoopError('Esa sala ya está completa (máximo 2 personas).');
   }
@@ -67,6 +96,12 @@ async function open(role: Role, code: string): Promise<CoopTransport> {
     onMessage(fn) { handlers.msg.push(fn); },
     onState(fn) { handlers.state.push(fn); },
     onPeer(fn) { handlers.peer.push(fn); if (present) fn(true); },
+    /** host: the guest is gone: empty the seat and the mailboxes so the next one starts clean */
+    async resetGuest() {
+      if (role !== 'host') return;
+      await Promise.all([remove(ref(d, `${base}/toGuest`)), remove(ref(d, `${base}/toHost`)), remove(ref(d, `${base}/meta/guestUid`))]).catch(() => undefined);
+      for (const k of Object.keys(seen)) delete seen[k];
+    },
     async close() {
       offs.forEach((o) => o());
       await remove(myPresence).catch(() => undefined);
