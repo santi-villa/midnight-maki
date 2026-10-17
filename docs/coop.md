@@ -18,7 +18,7 @@ Estado: **etapa 1 hecha** (conexión, sala por código, ver el restaurante del a
 
 ## Puesta en marcha con Firebase (una vez)
 1. Firebase console → **Realtime Database** → Crear base de datos (modo bloqueado) → elegí región.
-2. Pestaña **Reglas**: pegá el contenido de `database.rules.json` y publicá.
+2. Pestaña **Reglas**: pegá el contenido de `database.rules.json` y publicá. (Si ya habías pegado una versión anterior, **volvé a pegar esta**: la primera tenía un error y daba «no te deja entrar».)
 3. Copiá la URL de la base a `.env.local` como `VITE_FIREBASE_DATABASE_URL` (ver `.env.example`) y reiniciá.
 4. Hace falta tener cuenta iniciada (Authentication) para abrir o unirse a una sala.
 
