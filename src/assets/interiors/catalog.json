@@ -1,0 +1,5566 @@
+{
+  "author": "Bitglow",
+  "packs": [
+    19,
+    20,
+    21
+  ],
+  "width": 1024,
+  "height": 512,
+  "pieces": [
+    {
+      "id": "interior_bed_terracota_0",
+      "name": "Cama individual terracota",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            16,
+            24,
+            32,
+            56
+          ],
+          "atlas": {
+            "x": 1,
+            "y": 1,
+            "w": 32,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_terracota_1",
+      "name": "Cama doble terracota",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 400,
+      "style": "cozy",
+      "w": 3,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            64,
+            24,
+            48,
+            56
+          ],
+          "atlas": {
+            "x": 35,
+            "y": 1,
+            "w": 48,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_oliva_0",
+      "name": "Cama individual oliva",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            16,
+            104,
+            32,
+            56
+          ],
+          "atlas": {
+            "x": 85,
+            "y": 1,
+            "w": 32,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_oliva_1",
+      "name": "Cama doble oliva",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 400,
+      "style": "cozy",
+      "w": 3,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            64,
+            104,
+            48,
+            56
+          ],
+          "atlas": {
+            "x": 119,
+            "y": 1,
+            "w": 48,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_celeste_0",
+      "name": "Cama individual celeste",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            16,
+            184,
+            32,
+            56
+          ],
+          "atlas": {
+            "x": 169,
+            "y": 1,
+            "w": 32,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_celeste_1",
+      "name": "Cama doble celeste",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 400,
+      "style": "cozy",
+      "w": 3,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            64,
+            184,
+            48,
+            56
+          ],
+          "atlas": {
+            "x": 203,
+            "y": 1,
+            "w": 48,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_white_0_32",
+      "name": "Cama individual blanca · modelo 1",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 300,
+      "style": "minimal",
+      "w": 2,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            128,
+            24,
+            32,
+            56
+          ],
+          "atlas": {
+            "x": 253,
+            "y": 1,
+            "w": 32,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_white_0_48",
+      "name": "Cama doble blanca · modelo 1",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 420,
+      "style": "minimal",
+      "w": 3,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            176,
+            24,
+            48,
+            56
+          ],
+          "atlas": {
+            "x": 287,
+            "y": 1,
+            "w": 48,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_white_1_32",
+      "name": "Cama individual blanca · modelo 2",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 300,
+      "style": "minimal",
+      "w": 2,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            128,
+            104,
+            32,
+            56
+          ],
+          "atlas": {
+            "x": 337,
+            "y": 1,
+            "w": 32,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_white_1_48",
+      "name": "Cama doble blanca · modelo 2",
+      "cat": "bedroom",
+      "kind": "bed",
+      "price": 420,
+      "style": "minimal",
+      "w": 3,
+      "h": 3,
+      "sh": 56,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            176,
+            104,
+            48,
+            56
+          ],
+          "atlas": {
+            "x": 371,
+            "y": 1,
+            "w": 48,
+            "h": 56
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_futon_rose",
+      "name": "Futón de tela terracota",
+      "cat": "bedroom",
+      "kind": "futon",
+      "price": 200,
+      "style": "japanese",
+      "w": 2,
+      "h": 2,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            16,
+            38,
+            32,
+            40
+          ],
+          "atlas": {
+            "x": 421,
+            "y": 1,
+            "w": 32,
+            "h": 40
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_futon_blue",
+      "name": "Futón de tela celeste",
+      "cat": "bedroom",
+      "kind": "futon",
+      "price": 200,
+      "style": "japanese",
+      "w": 2,
+      "h": 2,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/beds_BR.png",
+          "rect": [
+            16,
+            198,
+            32,
+            40
+          ],
+          "atlas": {
+            "x": 455,
+            "y": 1,
+            "w": 32,
+            "h": 40
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_wardrobe_0_0",
+      "name": "Ropero nogal",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 320,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            16,
+            32,
+            48,
+            64
+          ],
+          "atlas": {
+            "x": 489,
+            "y": 1,
+            "w": 48,
+            "h": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_wardrobe_0_1",
+      "name": "Ropero nogal abierto",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 320,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 66,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            80,
+            32,
+            64,
+            66
+          ],
+          "atlas": {
+            "x": 539,
+            "y": 1,
+            "w": 64,
+            "h": 66
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_0_0_0",
+      "name": "Cómoda nogal · modelo 1",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            208,
+            24,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 605,
+            "y": 1,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_0_0_1",
+      "name": "Cómoda nogal · modelo 2",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            208,
+            72,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 655,
+            "y": 1,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_0_1_0",
+      "name": "Cómoda nogal · modelo 3",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            272,
+            24,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 705,
+            "y": 1,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_0_1_1",
+      "name": "Cómoda nogal · modelo 4",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            272,
+            72,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 755,
+            "y": 1,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_0_0",
+      "name": "Mesita de luz nogal · modelo 1",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            20,
+            16,
+            20
+          ],
+          "atlas": {
+            "x": 805,
+            "y": 1,
+            "w": 16,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_0_1",
+      "name": "Mesita de luz nogal · modelo 2",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            177,
+            20,
+            14,
+            20
+          ],
+          "atlas": {
+            "x": 823,
+            "y": 1,
+            "w": 14,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_0_2",
+      "name": "Mesita de luz nogal · modelo 3",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            52,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 839,
+            "y": 1,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_0_3",
+      "name": "Mesita de luz nogal · modelo 4",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            84,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 873,
+            "y": 1,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_vanity_0",
+      "name": "Tocador nogal",
+      "cat": "bedroom",
+      "kind": "desk",
+      "price": 220,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 44,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            16,
+            304,
+            32,
+            44
+          ],
+          "atlas": {
+            "x": 907,
+            "y": 1,
+            "w": 32,
+            "h": 44
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_wardrobe_1_0",
+      "name": "Ropero madera",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 320,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            16,
+            112,
+            48,
+            64
+          ],
+          "atlas": {
+            "x": 941,
+            "y": 1,
+            "w": 48,
+            "h": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_wardrobe_1_1",
+      "name": "Ropero madera abierto",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 320,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 66,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            80,
+            112,
+            64,
+            66
+          ],
+          "atlas": {
+            "x": 1,
+            "y": 69,
+            "w": 64,
+            "h": 66
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_1_0_0",
+      "name": "Cómoda madera · modelo 1",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            208,
+            120,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 67,
+            "y": 69,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_1_0_1",
+      "name": "Cómoda madera · modelo 2",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            208,
+            168,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 117,
+            "y": 69,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_1_1_0",
+      "name": "Cómoda madera · modelo 3",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            272,
+            120,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 167,
+            "y": 69,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_1_1_1",
+      "name": "Cómoda madera · modelo 4",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            272,
+            168,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 217,
+            "y": 69,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_1_0",
+      "name": "Mesita de luz madera · modelo 1",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            116,
+            16,
+            20
+          ],
+          "atlas": {
+            "x": 267,
+            "y": 69,
+            "w": 16,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_1_1",
+      "name": "Mesita de luz madera · modelo 2",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            177,
+            116,
+            14,
+            20
+          ],
+          "atlas": {
+            "x": 285,
+            "y": 69,
+            "w": 14,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_1_2",
+      "name": "Mesita de luz madera · modelo 3",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            148,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 301,
+            "y": 69,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_1_3",
+      "name": "Mesita de luz madera · modelo 4",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            180,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 335,
+            "y": 69,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_vanity_1",
+      "name": "Tocador madera",
+      "cat": "bedroom",
+      "kind": "desk",
+      "price": 220,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 44,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            64,
+            304,
+            32,
+            44
+          ],
+          "atlas": {
+            "x": 369,
+            "y": 69,
+            "w": 32,
+            "h": 44
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_wardrobe_2_0",
+      "name": "Ropero blanco",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 320,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            16,
+            192,
+            48,
+            64
+          ],
+          "atlas": {
+            "x": 403,
+            "y": 69,
+            "w": 48,
+            "h": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_wardrobe_2_1",
+      "name": "Ropero blanco abierto",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 320,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 66,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            80,
+            192,
+            64,
+            66
+          ],
+          "atlas": {
+            "x": 453,
+            "y": 69,
+            "w": 64,
+            "h": 66
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_2_0_0",
+      "name": "Cómoda blanco · modelo 1",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            208,
+            216,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 519,
+            "y": 69,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_2_0_1",
+      "name": "Cómoda blanco · modelo 2",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            208,
+            264,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 569,
+            "y": 69,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_2_1_0",
+      "name": "Cómoda blanco · modelo 3",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            272,
+            216,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 619,
+            "y": 69,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_dresser_2_1_1",
+      "name": "Cómoda blanco · modelo 4",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 160,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 40,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            272,
+            264,
+            48,
+            40
+          ],
+          "atlas": {
+            "x": 669,
+            "y": 69,
+            "w": 48,
+            "h": 40
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_2_0",
+      "name": "Mesita de luz blanco · modelo 1",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            212,
+            16,
+            20
+          ],
+          "atlas": {
+            "x": 719,
+            "y": 69,
+            "w": 16,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_2_1",
+      "name": "Mesita de luz blanco · modelo 2",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            177,
+            212,
+            14,
+            20
+          ],
+          "atlas": {
+            "x": 737,
+            "y": 69,
+            "w": 14,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_2_2",
+      "name": "Mesita de luz blanco · modelo 3",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            244,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 753,
+            "y": 69,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_nightstand_2_3",
+      "name": "Mesita de luz blanco · modelo 4",
+      "cat": "bedroom",
+      "kind": "chest",
+      "price": 70,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            160,
+            276,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 787,
+            "y": 69,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_vanity_2",
+      "name": "Tocador blanco",
+      "cat": "bedroom",
+      "kind": "desk",
+      "price": 220,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 44,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            112,
+            304,
+            32,
+            44
+          ],
+          "atlas": {
+            "x": 821,
+            "y": 69,
+            "w": 32,
+            "h": 44
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_bench",
+      "name": "Banquito al pie de cama",
+      "cat": "bedroom",
+      "kind": "bench",
+      "price": 80,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "20/wardrobes_BR.png",
+          "rect": [
+            24,
+            280,
+            32,
+            16
+          ],
+          "atlas": {
+            "x": 855,
+            "y": 69,
+            "w": 32,
+            "h": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bed_rug_oval",
+      "name": "Alfombra ovalada crema",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 120,
+      "style": "cozy",
+      "w": 4,
+      "h": 3,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            16,
+            128,
+            64,
+            48
+          ],
+          "atlas": {
+            "x": 889,
+            "y": 69,
+            "w": 64,
+            "h": 48
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bed_rug_blue",
+      "name": "Alfombra azul tejida",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 140,
+      "style": "cozy",
+      "w": 5,
+      "h": 3,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            94,
+            128,
+            68,
+            48
+          ],
+          "atlas": {
+            "x": 955,
+            "y": 69,
+            "w": 68,
+            "h": 48
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bed_landscape",
+      "name": "Cuadro del amanecer",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 100,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 26,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            132,
+            19,
+            40,
+            26
+          ],
+          "atlas": {
+            "x": 1,
+            "y": 137,
+            "w": 40,
+            "h": 26
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_bed_clock",
+      "name": "Reloj pequeño de pared",
+      "cat": "wall",
+      "kind": "clock",
+      "price": 65,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            98,
+            29,
+            12,
+            12
+          ],
+          "atlas": {
+            "x": 43,
+            "y": 137,
+            "w": 12,
+            "h": 12
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_bed_lamp_0",
+      "name": "Velador crema",
+      "cat": "light",
+      "kind": "tablelamp",
+      "price": 65,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 19,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            98,
+            53,
+            12,
+            19
+          ],
+          "atlas": {
+            "x": 57,
+            "y": 137,
+            "w": 12,
+            "h": 19
+          }
+        }
+      ],
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_bed_lamp_1",
+      "name": "Velador rosa",
+      "cat": "light",
+      "kind": "tablelamp",
+      "price": 65,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 19,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            114,
+            53,
+            12,
+            19
+          ],
+          "atlas": {
+            "x": 71,
+            "y": 137,
+            "w": 12,
+            "h": 19
+          }
+        }
+      ],
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_bed_lamp_2",
+      "name": "Velador pequeño",
+      "cat": "light",
+      "kind": "tablelamp",
+      "price": 65,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            131,
+            57,
+            10,
+            15
+          ],
+          "atlas": {
+            "x": 85,
+            "y": 137,
+            "w": 10,
+            "h": 15
+          }
+        }
+      ],
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_bed_candles",
+      "name": "Velas del dormitorio",
+      "cat": "light",
+      "kind": "candles",
+      "price": 50,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 17,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            145,
+            55,
+            16,
+            17
+          ],
+          "atlas": {
+            "x": 97,
+            "y": 137,
+            "w": 16,
+            "h": 17
+          }
+        }
+      ],
+      "light": "#f4c070"
+    },
+    {
+      "id": "interior_bed_fairy_lights",
+      "name": "Guirnalda cálida",
+      "cat": "wall",
+      "kind": "garland",
+      "price": 95,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 28,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            96,
+            80,
+            44,
+            28
+          ],
+          "atlas": {
+            "x": 115,
+            "y": 137,
+            "w": 44,
+            "h": 28
+          }
+        }
+      ],
+      "wall": true,
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_bed_mirror_0",
+      "name": "Espejo ovalado dorado",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 85,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            142,
+            80,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 161,
+            "y": 137,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_bed_mirror_1",
+      "name": "Espejo ovalado blanco",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 85,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "20/decorations_BR.png",
+          "rect": [
+            160,
+            80,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 179,
+            "y": 137,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_sofa_0",
+      "name": "Sofá crema",
+      "cat": "bedroom",
+      "kind": "bench",
+      "price": 260,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            16,
+            32,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 197,
+            "y": 137,
+            "w": 48,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            192,
+            16,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 247,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            80,
+            32,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 281,
+            "y": 137,
+            "w": 48,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            144,
+            16,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 331,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ],
+      "rotatable": true
+    },
+    {
+      "id": "interior_armchair_0",
+      "name": "Sillón crema",
+      "cat": "bedroom",
+      "kind": "bench",
+      "price": 170,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 33,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            240,
+            32,
+            32,
+            32
+          ],
+          "atlas": {
+            "x": 365,
+            "y": 137,
+            "w": 32,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            384,
+            32,
+            32,
+            33
+          ],
+          "atlas": {
+            "x": 399,
+            "y": 137,
+            "w": 32,
+            "h": 33
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            288,
+            32,
+            32,
+            32
+          ],
+          "atlas": {
+            "x": 433,
+            "y": 137,
+            "w": 32,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            336,
+            32,
+            32,
+            33
+          ],
+          "atlas": {
+            "x": 467,
+            "y": 137,
+            "w": 32,
+            "h": 33
+          }
+        }
+      ],
+      "rotatable": true
+    },
+    {
+      "id": "interior_fireplace_0_0",
+      "name": "Chimenea crema · 1",
+      "cat": "special",
+      "kind": "stove",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            432,
+            16,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 501,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_fireplace_0_1",
+      "name": "Chimenea crema encendida · 1",
+      "cat": "special",
+      "kind": "stove",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            480,
+            16,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 535,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ],
+      "light": "#f4b070"
+    },
+    {
+      "id": "interior_fireplace_0_2",
+      "name": "Chimenea crema · 2",
+      "cat": "special",
+      "kind": "stove",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            528,
+            16,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 569,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_fireplace_0_3",
+      "name": "Chimenea crema encendida · 2",
+      "cat": "special",
+      "kind": "stove",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            576,
+            16,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 603,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ],
+      "light": "#f4b070"
+    },
+    {
+      "id": "interior_sofa_1",
+      "name": "Sofá gris",
+      "cat": "bedroom",
+      "kind": "bench",
+      "price": 260,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            16,
+            96,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 637,
+            "y": 137,
+            "w": 48,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            192,
+            80,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 687,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            80,
+            96,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 721,
+            "y": 137,
+            "w": 48,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            144,
+            80,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 771,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ],
+      "rotatable": true
+    },
+    {
+      "id": "interior_armchair_1",
+      "name": "Sillón gris",
+      "cat": "bedroom",
+      "kind": "bench",
+      "price": 170,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 33,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            240,
+            96,
+            32,
+            32
+          ],
+          "atlas": {
+            "x": 805,
+            "y": 137,
+            "w": 32,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            384,
+            96,
+            32,
+            33
+          ],
+          "atlas": {
+            "x": 839,
+            "y": 137,
+            "w": 32,
+            "h": 33
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            288,
+            96,
+            32,
+            32
+          ],
+          "atlas": {
+            "x": 873,
+            "y": 137,
+            "w": 32,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            336,
+            96,
+            32,
+            33
+          ],
+          "atlas": {
+            "x": 907,
+            "y": 137,
+            "w": 32,
+            "h": 33
+          }
+        }
+      ],
+      "rotatable": true
+    },
+    {
+      "id": "interior_fireplace_1_0",
+      "name": "Chimenea gris · 1",
+      "cat": "special",
+      "kind": "stove",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            432,
+            80,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 941,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_fireplace_1_1",
+      "name": "Chimenea gris encendida · 1",
+      "cat": "special",
+      "kind": "stove",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            480,
+            80,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 975,
+            "y": 137,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ],
+      "light": "#f4b070"
+    },
+    {
+      "id": "interior_fireplace_1_2",
+      "name": "Chimenea gris · 2",
+      "cat": "special",
+      "kind": "stove",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            528,
+            80,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 1,
+            "y": 187,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_fireplace_1_3",
+      "name": "Chimenea gris encendida · 2",
+      "cat": "special",
+      "kind": "stove",
+      "price": 280,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            576,
+            80,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 35,
+            "y": 187,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ],
+      "light": "#f4b070"
+    },
+    {
+      "id": "interior_table_oak",
+      "name": "Mesa de roble",
+      "cat": "restaurant",
+      "kind": "table",
+      "price": 180,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            16,
+            160,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 69,
+            "y": 187,
+            "w": 48,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            80,
+            144,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 119,
+            "y": 187,
+            "w": 32,
+            "h": 48
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            16,
+            160,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 153,
+            "y": 187,
+            "w": 48,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            80,
+            144,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 203,
+            "y": 187,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ],
+      "rotatable": true
+    },
+    {
+      "id": "interior_table_walnut",
+      "name": "Mesa de nogal",
+      "cat": "restaurant",
+      "kind": "table",
+      "price": 180,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            288,
+            160,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 237,
+            "y": 187,
+            "w": 48,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            352,
+            144,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 287,
+            "y": 187,
+            "w": 32,
+            "h": 48
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            288,
+            160,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 321,
+            "y": 187,
+            "w": 48,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            352,
+            144,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 371,
+            "y": 187,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ],
+      "rotatable": true
+    },
+    {
+      "id": "interior_table_white_round",
+      "name": "Mesa redonda blanca",
+      "cat": "restaurant",
+      "kind": "roundtable",
+      "price": 120,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            16,
+            208,
+            32,
+            32
+          ],
+          "atlas": {
+            "x": 405,
+            "y": 187,
+            "w": 32,
+            "h": 32
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_table_brown_round",
+      "name": "Mesa redonda marrón",
+      "cat": "restaurant",
+      "kind": "roundtable",
+      "price": 120,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            224,
+            208,
+            32,
+            32
+          ],
+          "atlas": {
+            "x": 439,
+            "y": 187,
+            "w": 32,
+            "h": 32
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_chair_oak",
+      "name": "Silla roble",
+      "cat": "restaurant",
+      "kind": "chair",
+      "price": 65,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            128,
+            144,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 473,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            200,
+            144,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 491,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            152,
+            144,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 509,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            176,
+            144,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 527,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ],
+      "rotatable": true,
+      "sit": true
+    },
+    {
+      "id": "interior_chair_walnut",
+      "name": "Silla nogal",
+      "cat": "restaurant",
+      "kind": "chair",
+      "price": 65,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            416,
+            144,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 545,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            488,
+            144,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 563,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            440,
+            144,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 581,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            464,
+            144,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 599,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ],
+      "rotatable": true,
+      "sit": true
+    },
+    {
+      "id": "interior_chair_white",
+      "name": "Silla blanca",
+      "cat": "restaurant",
+      "kind": "chair",
+      "price": 65,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            64,
+            208,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 617,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            136,
+            208,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 635,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            88,
+            208,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 653,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            112,
+            208,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 671,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ],
+      "rotatable": true,
+      "sit": true
+    },
+    {
+      "id": "interior_chair_brown",
+      "name": "Silla marrón",
+      "cat": "restaurant",
+      "kind": "chair",
+      "price": 65,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            272,
+            208,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 689,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            344,
+            208,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 707,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            296,
+            208,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 725,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        },
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            320,
+            208,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 743,
+            "y": 187,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ],
+      "rotatable": true,
+      "sit": true
+    },
+    {
+      "id": "interior_living_rug_0",
+      "name": "Alfombra de salón · diseño 1",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 90,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            16,
+            256,
+            64,
+            32
+          ],
+          "atlas": {
+            "x": 761,
+            "y": 187,
+            "w": 64,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_1",
+      "name": "Alfombra de salón · diseño 2",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 105,
+      "style": "cozy",
+      "w": 2,
+      "h": 4,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            96,
+            256,
+            32,
+            64
+          ],
+          "atlas": {
+            "x": 827,
+            "y": 187,
+            "w": 32,
+            "h": 64
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_2",
+      "name": "Alfombra de salón · diseño 3",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 120,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            144,
+            256,
+            64,
+            32
+          ],
+          "atlas": {
+            "x": 861,
+            "y": 187,
+            "w": 64,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_3",
+      "name": "Alfombra de salón · diseño 4",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 135,
+      "style": "cozy",
+      "w": 2,
+      "h": 4,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            224,
+            256,
+            32,
+            64
+          ],
+          "atlas": {
+            "x": 927,
+            "y": 187,
+            "w": 32,
+            "h": 64
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_4",
+      "name": "Alfombra de salón · diseño 5",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 90,
+      "style": "cozy",
+      "w": 1,
+      "h": 4,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            272,
+            256,
+            16,
+            64
+          ],
+          "atlas": {
+            "x": 961,
+            "y": 187,
+            "w": 16,
+            "h": 64
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_5",
+      "name": "Alfombra de salón · diseño 6",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 105,
+      "style": "cozy",
+      "w": 1,
+      "h": 4,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            304,
+            256,
+            16,
+            64
+          ],
+          "atlas": {
+            "x": 979,
+            "y": 187,
+            "w": 16,
+            "h": 64
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_6",
+      "name": "Alfombra de salón · diseño 7",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 120,
+      "style": "cozy",
+      "w": 4,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            336,
+            256,
+            64,
+            16
+          ],
+          "atlas": {
+            "x": 1,
+            "y": 253,
+            "w": 64,
+            "h": 16
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_7",
+      "name": "Alfombra de salón · diseño 8",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 135,
+      "style": "cozy",
+      "w": 4,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            336,
+            288,
+            64,
+            16
+          ],
+          "atlas": {
+            "x": 67,
+            "y": 253,
+            "w": 64,
+            "h": 16
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_8",
+      "name": "Alfombra de salón · diseño 9",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 90,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            416,
+            256,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 133,
+            "y": 253,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_9",
+      "name": "Alfombra de salón · diseño 10",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 105,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            464,
+            288,
+            32,
+            32
+          ],
+          "atlas": {
+            "x": 183,
+            "y": 253,
+            "w": 32,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_10",
+      "name": "Alfombra de salón · diseño 11",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 120,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            416,
+            320,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 217,
+            "y": 253,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_11",
+      "name": "Alfombra de salón · diseño 12",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 135,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            464,
+            352,
+            32,
+            32
+          ],
+          "atlas": {
+            "x": 267,
+            "y": 253,
+            "w": 32,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_12",
+      "name": "Alfombra de salón · diseño 13",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 90,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            16,
+            336,
+            64,
+            32
+          ],
+          "atlas": {
+            "x": 301,
+            "y": 253,
+            "w": 64,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_13",
+      "name": "Alfombra de salón · diseño 14",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 105,
+      "style": "cozy",
+      "w": 2,
+      "h": 4,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            96,
+            336,
+            32,
+            64
+          ],
+          "atlas": {
+            "x": 367,
+            "y": 253,
+            "w": 32,
+            "h": 64
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_14",
+      "name": "Alfombra de salón · diseño 15",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 120,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            144,
+            336,
+            64,
+            32
+          ],
+          "atlas": {
+            "x": 401,
+            "y": 253,
+            "w": 64,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_living_rug_15",
+      "name": "Alfombra de salón · diseño 16",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 135,
+      "style": "cozy",
+      "w": 2,
+      "h": 4,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            224,
+            336,
+            32,
+            64
+          ],
+          "atlas": {
+            "x": 467,
+            "y": 253,
+            "w": 32,
+            "h": 64
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_wall_shelf_0",
+      "name": "Estante blanco",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 90,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            312,
+            350,
+            32,
+            6
+          ],
+          "atlas": {
+            "x": 501,
+            "y": 253,
+            "w": 32,
+            "h": 6
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_wall_shelf_1",
+      "name": "Pantalla de pared",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 90,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            358,
+            342,
+            36,
+            20
+          ],
+          "atlas": {
+            "x": 535,
+            "y": 253,
+            "w": 36,
+            "h": 20
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_wall_shelf_2",
+      "name": "Estante negro",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 90,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            312,
+            382,
+            32,
+            6
+          ],
+          "atlas": {
+            "x": 573,
+            "y": 253,
+            "w": 32,
+            "h": 6
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_wall_shelf_3",
+      "name": "Pantalla azul",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 90,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "21/livingroom_LRK.png",
+          "rect": [
+            358,
+            374,
+            36,
+            20
+          ],
+          "atlas": {
+            "x": 607,
+            "y": 253,
+            "w": 36,
+            "h": 20
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_floor_lamp_0",
+      "name": "Lámpara trípode",
+      "cat": "light",
+      "kind": "floorlamp",
+      "price": 130,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            16,
+            15,
+            16,
+            48
+          ],
+          "atlas": {
+            "x": 645,
+            "y": 253,
+            "w": 16,
+            "h": 48
+          }
+        }
+      ],
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_floor_lamp_1",
+      "name": "Lámpara de pie crema",
+      "cat": "light",
+      "kind": "floorlamp",
+      "price": 130,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            48,
+            15,
+            16,
+            48
+          ],
+          "atlas": {
+            "x": 663,
+            "y": 253,
+            "w": 16,
+            "h": 48
+          }
+        }
+      ],
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_floor_lamp_2",
+      "name": "Lámpara de pie redonda",
+      "cat": "light",
+      "kind": "floorlamp",
+      "price": 130,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            80,
+            15,
+            16,
+            48
+          ],
+          "atlas": {
+            "x": 681,
+            "y": 253,
+            "w": 16,
+            "h": 48
+          }
+        }
+      ],
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_table_lamp_0",
+      "name": "Lámpara de mesa redonda",
+      "cat": "light",
+      "kind": "tablelamp",
+      "price": 75,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 25,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            120,
+            22,
+            16,
+            25
+          ],
+          "atlas": {
+            "x": 699,
+            "y": 253,
+            "w": 16,
+            "h": 25
+          }
+        }
+      ],
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_table_lamp_1",
+      "name": "Lámpara de mesa crema",
+      "cat": "light",
+      "kind": "tablelamp",
+      "price": 75,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 25,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            152,
+            22,
+            16,
+            25
+          ],
+          "atlas": {
+            "x": 717,
+            "y": 253,
+            "w": 16,
+            "h": 25
+          }
+        }
+      ],
+      "light": "#f4d68c"
+    },
+    {
+      "id": "interior_plant_0",
+      "name": "Monstera de interior",
+      "cat": "plant",
+      "kind": "plant",
+      "price": 60,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            16,
+            80,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 735,
+            "y": 253,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_plant_1",
+      "name": "Maceta de hojas finas",
+      "cat": "plant",
+      "kind": "plant",
+      "price": 80,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            48,
+            80,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 753,
+            "y": 253,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_plant_2",
+      "name": "Arbusto redondo",
+      "cat": "plant",
+      "kind": "plant",
+      "price": 100,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            80,
+            80,
+            16,
+            32
+          ],
+          "atlas": {
+            "x": 771,
+            "y": 253,
+            "w": 16,
+            "h": 32
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_plant_3",
+      "name": "Jarrón con flores",
+      "cat": "plant",
+      "kind": "vase",
+      "price": 60,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            16,
+            128,
+            16,
+            16
+          ],
+          "atlas": {
+            "x": 789,
+            "y": 253,
+            "w": 16,
+            "h": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_plant_4",
+      "name": "Jarrón alto crema",
+      "cat": "plant",
+      "kind": "vase",
+      "price": 80,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 24,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            48,
+            120,
+            16,
+            24
+          ],
+          "atlas": {
+            "x": 807,
+            "y": 253,
+            "w": 16,
+            "h": 24
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_plant_5",
+      "name": "Jarrón fino",
+      "cat": "plant",
+      "kind": "vase",
+      "price": 100,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 24,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            64,
+            120,
+            16,
+            24
+          ],
+          "atlas": {
+            "x": 825,
+            "y": 253,
+            "w": 16,
+            "h": 24
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_plant_6",
+      "name": "Florero pequeño",
+      "cat": "plant",
+      "kind": "vase",
+      "price": 60,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 24,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            80,
+            120,
+            16,
+            24
+          ],
+          "atlas": {
+            "x": 843,
+            "y": 253,
+            "w": 16,
+            "h": 24
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_wall_art_warm",
+      "name": "Cuadro de casitas",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 100,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            112,
+            64,
+            32,
+            16
+          ],
+          "atlas": {
+            "x": 861,
+            "y": 253,
+            "w": 32,
+            "h": 16
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_wall_art_blue",
+      "name": "Cuadro azul",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 100,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            112,
+            96,
+            32,
+            16
+          ],
+          "atlas": {
+            "x": 895,
+            "y": 253,
+            "w": 32,
+            "h": 16
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_grandfather_clock",
+      "name": "Reloj de péndulo",
+      "cat": "bedroom",
+      "kind": "clock",
+      "price": 200,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            160,
+            64,
+            16,
+            48
+          ],
+          "atlas": {
+            "x": 929,
+            "y": 253,
+            "w": 16,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_wall_clock",
+      "name": "Reloj de salón",
+      "cat": "wall",
+      "kind": "clock",
+      "price": 70,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "21/decorations_LRK.png",
+          "rect": [
+            160,
+            128,
+            16,
+            16
+          ],
+          "atlas": {
+            "x": 947,
+            "y": 253,
+            "w": 16,
+            "h": 16
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_bookcase_0_0",
+      "name": "Biblioteca miel · modelo 1",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            16,
+            16,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 965,
+            "y": 253,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_bookcase_0_1",
+      "name": "Biblioteca miel · modelo 2",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            80,
+            16,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 1,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_bookcase_0_2",
+      "name": "Biblioteca miel · modelo 3",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            208,
+            16,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 51,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_cabinet_0_0",
+      "name": "Aparador miel · modelo 1",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            16,
+            80,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 101,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_cabinet_0_1",
+      "name": "Aparador miel · modelo 2",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            80,
+            80,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 151,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_cabinet_0_2",
+      "name": "Aparador miel · modelo 3",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            208,
+            80,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 201,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_low_shelf_0",
+      "name": "Biblioteca baja miel",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 150,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            336,
+            32,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 251,
+            "y": 319,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_wall_cabinet_0",
+      "name": "Alacena miel",
+      "cat": "wall",
+      "kind": "shelf",
+      "price": 140,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            528,
+            32,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 301,
+            "y": 319,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_writing_desk_0",
+      "name": "Escritorio miel",
+      "cat": "bedroom",
+      "kind": "desk",
+      "price": 240,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            624,
+            32,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 351,
+            "y": 319,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_bookcase_1_0",
+      "name": "Biblioteca nogal · modelo 1",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            16,
+            144,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 401,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_bookcase_1_1",
+      "name": "Biblioteca nogal · modelo 2",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            80,
+            144,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 451,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_bookcase_1_2",
+      "name": "Biblioteca nogal · modelo 3",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            208,
+            144,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 501,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_cabinet_1_0",
+      "name": "Aparador nogal · modelo 1",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            16,
+            208,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 551,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_cabinet_1_1",
+      "name": "Aparador nogal · modelo 2",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            80,
+            208,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 601,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_cabinet_1_2",
+      "name": "Aparador nogal · modelo 3",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            208,
+            208,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 651,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_low_shelf_1",
+      "name": "Biblioteca baja nogal",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 150,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            336,
+            160,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 701,
+            "y": 319,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_wall_cabinet_1",
+      "name": "Alacena nogal",
+      "cat": "wall",
+      "kind": "shelf",
+      "price": 140,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            528,
+            160,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 751,
+            "y": 319,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_writing_desk_1",
+      "name": "Escritorio nogal",
+      "cat": "bedroom",
+      "kind": "desk",
+      "price": 240,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            624,
+            160,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 801,
+            "y": 319,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_bookcase_2_0",
+      "name": "Biblioteca blanco · modelo 1",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            16,
+            272,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 851,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_bookcase_2_1",
+      "name": "Biblioteca blanco · modelo 2",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            80,
+            272,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 901,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_bookcase_2_2",
+      "name": "Biblioteca blanco · modelo 3",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 220,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            208,
+            272,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 951,
+            "y": 319,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_cabinet_2_0",
+      "name": "Aparador blanco · modelo 1",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            16,
+            336,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 1,
+            "y": 369,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_cabinet_2_1",
+      "name": "Aparador blanco · modelo 2",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            80,
+            336,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 51,
+            "y": 369,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_cabinet_2_2",
+      "name": "Aparador blanco · modelo 3",
+      "cat": "bedroom",
+      "kind": "wardrobe",
+      "price": 200,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            208,
+            336,
+            48,
+            48
+          ],
+          "atlas": {
+            "x": 101,
+            "y": 369,
+            "w": 48,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_low_shelf_2",
+      "name": "Biblioteca baja blanco",
+      "cat": "bedroom",
+      "kind": "shelf",
+      "price": 150,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            336,
+            288,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 151,
+            "y": 369,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_wall_cabinet_2",
+      "name": "Alacena blanco",
+      "cat": "wall",
+      "kind": "shelf",
+      "price": 140,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            528,
+            288,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 201,
+            "y": 369,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_writing_desk_2",
+      "name": "Escritorio blanco",
+      "cat": "bedroom",
+      "kind": "desk",
+      "price": 240,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "21/cabinets_LRK.png",
+          "rect": [
+            624,
+            288,
+            48,
+            32
+          ],
+          "atlas": {
+            "x": 251,
+            "y": 369,
+            "w": 48,
+            "h": 32
+          }
+        }
+      ],
+      "likes": [
+        "rigg"
+      ]
+    },
+    {
+      "id": "interior_kitchen_sink_0",
+      "name": "Mueble con pileta crema",
+      "cat": "kitchen",
+      "kind": "sink",
+      "price": 180,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            48,
+            16,
+            64,
+            48
+          ],
+          "atlas": {
+            "x": 301,
+            "y": 369,
+            "w": 64,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_kitchen_counter_0",
+      "name": "Mesada crema",
+      "cat": "kitchen",
+      "kind": "wardrobe",
+      "price": 120,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            48,
+            80,
+            64,
+            48
+          ],
+          "atlas": {
+            "x": 367,
+            "y": 369,
+            "w": 64,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_oven_0_0",
+      "name": "Horno crema",
+      "cat": "kitchen",
+      "kind": "stove",
+      "price": 210,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            192,
+            80,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 433,
+            "y": 369,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_oven_0_1",
+      "name": "Horno crema encendido",
+      "cat": "kitchen",
+      "kind": "stove",
+      "price": 210,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            240,
+            80,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 467,
+            "y": 369,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_fridge_0",
+      "name": "Heladera crema",
+      "cat": "kitchen",
+      "kind": "fridge",
+      "price": 260,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            352,
+            16,
+            32,
+            64
+          ],
+          "atlas": {
+            "x": 501,
+            "y": 369,
+            "w": 32,
+            "h": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_kitchen_sink_1",
+      "name": "Mueble con pileta oliva",
+      "cat": "kitchen",
+      "kind": "sink",
+      "price": 180,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            48,
+            144,
+            64,
+            48
+          ],
+          "atlas": {
+            "x": 535,
+            "y": 369,
+            "w": 64,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_kitchen_counter_1",
+      "name": "Mesada oliva",
+      "cat": "kitchen",
+      "kind": "wardrobe",
+      "price": 120,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            48,
+            208,
+            64,
+            48
+          ],
+          "atlas": {
+            "x": 601,
+            "y": 369,
+            "w": 64,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_oven_1_0",
+      "name": "Horno oliva",
+      "cat": "kitchen",
+      "kind": "stove",
+      "price": 210,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            192,
+            208,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 667,
+            "y": 369,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_oven_1_1",
+      "name": "Horno oliva encendido",
+      "cat": "kitchen",
+      "kind": "stove",
+      "price": 210,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            240,
+            208,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 701,
+            "y": 369,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_fridge_1",
+      "name": "Heladera oliva",
+      "cat": "kitchen",
+      "kind": "fridge",
+      "price": 260,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            352,
+            144,
+            32,
+            64
+          ],
+          "atlas": {
+            "x": 735,
+            "y": 369,
+            "w": 32,
+            "h": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_kitchen_sink_2",
+      "name": "Mueble con pileta blanco",
+      "cat": "kitchen",
+      "kind": "sink",
+      "price": 180,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            48,
+            272,
+            64,
+            48
+          ],
+          "atlas": {
+            "x": 769,
+            "y": 369,
+            "w": 64,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_kitchen_counter_2",
+      "name": "Mesada blanco",
+      "cat": "kitchen",
+      "kind": "wardrobe",
+      "price": 120,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            48,
+            336,
+            64,
+            48
+          ],
+          "atlas": {
+            "x": 835,
+            "y": 369,
+            "w": 64,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_oven_2_0",
+      "name": "Horno blanco",
+      "cat": "kitchen",
+      "kind": "stove",
+      "price": 210,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            192,
+            336,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 901,
+            "y": 369,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_oven_2_1",
+      "name": "Horno blanco encendido",
+      "cat": "kitchen",
+      "kind": "stove",
+      "price": 210,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            240,
+            336,
+            32,
+            48
+          ],
+          "atlas": {
+            "x": 935,
+            "y": 369,
+            "w": 32,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_fridge_2",
+      "name": "Heladera blanco",
+      "cat": "kitchen",
+      "kind": "fridge",
+      "price": 260,
+      "style": "cozy",
+      "w": 3,
+      "h": 2,
+      "sh": 64,
+      "frames": [
+        {
+          "sheet": "21/kitchen_LRK.png",
+          "rect": [
+            352,
+            272,
+            48,
+            64
+          ],
+          "atlas": {
+            "x": 969,
+            "y": 369,
+            "w": 48,
+            "h": 64
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bathtub_0",
+      "name": "Bañera vacía",
+      "cat": "bath",
+      "kind": "sink",
+      "price": 240,
+      "style": "cozy",
+      "w": 5,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "19/fixtures_BA.png",
+          "rect": [
+            14,
+            16,
+            66,
+            32
+          ],
+          "atlas": {
+            "x": 1,
+            "y": 435,
+            "w": 66,
+            "h": 32
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_washbasin_0",
+      "name": "Lavamanos blanco",
+      "cat": "bath",
+      "kind": "sink",
+      "price": 110,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 24,
+      "frames": [
+        {
+          "sheet": "19/fixtures_BA.png",
+          "rect": [
+            104,
+            13,
+            34,
+            24
+          ],
+          "atlas": {
+            "x": 69,
+            "y": 435,
+            "w": 34,
+            "h": 24
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bathtub_1",
+      "name": "Bañera con agua",
+      "cat": "bath",
+      "kind": "sink",
+      "price": 240,
+      "style": "cozy",
+      "w": 5,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "19/fixtures_BA.png",
+          "rect": [
+            14,
+            64,
+            66,
+            32
+          ],
+          "atlas": {
+            "x": 105,
+            "y": 435,
+            "w": 66,
+            "h": 32
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_washbasin_1",
+      "name": "Lavamanos azul",
+      "cat": "bath",
+      "kind": "sink",
+      "price": 110,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 24,
+      "frames": [
+        {
+          "sheet": "19/fixtures_BA.png",
+          "rect": [
+            104,
+            61,
+            34,
+            24
+          ],
+          "atlas": {
+            "x": 173,
+            "y": 435,
+            "w": 34,
+            "h": 24
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_toilet",
+      "name": "Inodoro blanco",
+      "cat": "bath",
+      "kind": "stool",
+      "price": 120,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 44,
+      "frames": [
+        {
+          "sheet": "19/fixtures_BA.png",
+          "rect": [
+            164,
+            16,
+            24,
+            44
+          ],
+          "atlas": {
+            "x": 209,
+            "y": 435,
+            "w": 24,
+            "h": 44
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bath_drawer_0",
+      "name": "Mueble de baño madera",
+      "cat": "bath",
+      "kind": "chest",
+      "price": 95,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "19/cabinets_BA.png",
+          "rect": [
+            16,
+            12,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 235,
+            "y": 435,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bath_cabinet_0",
+      "name": "Armario de baño madera",
+      "cat": "bath",
+      "kind": "wardrobe",
+      "price": 140,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "19/cabinets_BA.png",
+          "rect": [
+            64,
+            16,
+            16,
+            48
+          ],
+          "atlas": {
+            "x": 269,
+            "y": 435,
+            "w": 16,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bath_drawer_1",
+      "name": "Mueble de baño nogal",
+      "cat": "bath",
+      "kind": "chest",
+      "price": 95,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "19/cabinets_BA.png",
+          "rect": [
+            16,
+            44,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 287,
+            "y": 435,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bath_cabinet_1",
+      "name": "Armario de baño nogal",
+      "cat": "bath",
+      "kind": "wardrobe",
+      "price": 140,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "19/cabinets_BA.png",
+          "rect": [
+            96,
+            16,
+            16,
+            48
+          ],
+          "atlas": {
+            "x": 321,
+            "y": 435,
+            "w": 16,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bath_drawer_2",
+      "name": "Mueble de baño blanco",
+      "cat": "bath",
+      "kind": "chest",
+      "price": 95,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 20,
+      "frames": [
+        {
+          "sheet": "19/cabinets_BA.png",
+          "rect": [
+            16,
+            76,
+            32,
+            20
+          ],
+          "atlas": {
+            "x": 339,
+            "y": 435,
+            "w": 32,
+            "h": 20
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bath_cabinet_2",
+      "name": "Armario de baño blanco",
+      "cat": "bath",
+      "kind": "wardrobe",
+      "price": 140,
+      "style": "cozy",
+      "w": 1,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "19/cabinets_BA.png",
+          "rect": [
+            128,
+            16,
+            16,
+            48
+          ],
+          "atlas": {
+            "x": 373,
+            "y": 435,
+            "w": 16,
+            "h": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "interior_bath_mat_0",
+      "name": "Alfombra de baño · diseño 1",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            16,
+            32,
+            32,
+            16
+          ],
+          "atlas": {
+            "x": 391,
+            "y": 435,
+            "w": 32,
+            "h": 16
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_mat_1",
+      "name": "Alfombra de baño · diseño 2",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            64,
+            24,
+            32,
+            24
+          ],
+          "atlas": {
+            "x": 425,
+            "y": 435,
+            "w": 32,
+            "h": 24
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_mat_2",
+      "name": "Alfombra de baño · diseño 3",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            16,
+            64,
+            64,
+            32
+          ],
+          "atlas": {
+            "x": 459,
+            "y": 435,
+            "w": 64,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_mat_3",
+      "name": "Alfombra de baño · diseño 4",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            112,
+            32,
+            32,
+            16
+          ],
+          "atlas": {
+            "x": 525,
+            "y": 435,
+            "w": 32,
+            "h": 16
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_mat_4",
+      "name": "Alfombra de baño · diseño 5",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            160,
+            24,
+            32,
+            24
+          ],
+          "atlas": {
+            "x": 559,
+            "y": 435,
+            "w": 32,
+            "h": 24
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_mat_5",
+      "name": "Alfombra de baño · diseño 6",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            112,
+            64,
+            64,
+            32
+          ],
+          "atlas": {
+            "x": 593,
+            "y": 435,
+            "w": 64,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_mat_6",
+      "name": "Alfombra de baño · diseño 7",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 2,
+      "h": 1,
+      "sh": 16,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            208,
+            32,
+            32,
+            16
+          ],
+          "atlas": {
+            "x": 659,
+            "y": 435,
+            "w": 32,
+            "h": 16
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_mat_7",
+      "name": "Alfombra de baño · diseño 8",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 2,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            256,
+            24,
+            32,
+            24
+          ],
+          "atlas": {
+            "x": 693,
+            "y": 435,
+            "w": 32,
+            "h": 24
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_mat_8",
+      "name": "Alfombra de baño · diseño 9",
+      "cat": "rug",
+      "kind": "rug",
+      "price": 55,
+      "style": "cozy",
+      "w": 4,
+      "h": 2,
+      "sh": 32,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            208,
+            64,
+            64,
+            32
+          ],
+          "atlas": {
+            "x": 727,
+            "y": 435,
+            "w": 64,
+            "h": 32
+          }
+        }
+      ],
+      "walkable": true
+    },
+    {
+      "id": "interior_bath_curtain_0",
+      "name": "Cortina crema",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 80,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            24,
+            112,
+            40,
+            48
+          ],
+          "atlas": {
+            "x": 793,
+            "y": 435,
+            "w": 40,
+            "h": 48
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_bath_curtain_1",
+      "name": "Cortina rosa",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 80,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            72,
+            112,
+            40,
+            48
+          ],
+          "atlas": {
+            "x": 835,
+            "y": 435,
+            "w": 40,
+            "h": 48
+          }
+        }
+      ],
+      "wall": true
+    },
+    {
+      "id": "interior_bath_curtain_2",
+      "name": "Cortina celeste",
+      "cat": "wall",
+      "kind": "painting",
+      "price": 80,
+      "style": "cozy",
+      "w": 3,
+      "h": 1,
+      "sh": 48,
+      "frames": [
+        {
+          "sheet": "19/textiles_BA.png",
+          "rect": [
+            120,
+            112,
+            40,
+            48
+          ],
+          "atlas": {
+            "x": 877,
+            "y": 435,
+            "w": 40,
+            "h": 48
+          }
+        }
+      ],
+      "wall": true
+    }
+  ]
+}

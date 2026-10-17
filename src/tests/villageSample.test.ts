@@ -7,8 +7,30 @@ import { game, newSave } from '../core/state';
 import { buildZone } from '../world/zoneRuntime';
 import { HOUSES, houseDoorTile, housePropId } from '../data/houses';
 import { homeLayout } from '../art/homes';
+import { bridgeRails } from '../world/bridge';
+import { restaurantFacadeLayout } from '../art/restaurantFacade';
 
 describe('village sample keeps the saved village playable', () => {
+  it('uses the three selected facades in order and retains the third for the final stage', () => {
+    expect([0, 1, 2, 3].map(stage => restaurantFacadeLayout(112, 112, stage).frame))
+      .toEqual(['restaurant_1', 'restaurant_2', 'restaurant_3', 'restaurant_3']);
+  });
+  it('keeps the selected facade doors on the saved threshold and every light within its sprite', () => {
+    const placed = ZONES.plaza.props.find(p => p.id === 'bld_restaurant_s0')!;
+    const door = ZONES.plaza.doors.find(d => d.to === 'restaurant')!;
+    for (const stage of [0, 1, 2, 3]) {
+      const L = restaurantFacadeLayout(112, 112, stage);
+      expect(Math.abs(placed.x * 16 + L.door.x + L.door.w / 2 - (door.x * 16 + 8))).toBeLessThanOrEqual(0.5);
+      expect((placed.y + 3) * 16 - 112 + L.door.y + L.door.h).toBe(door.y * 16 + 14);
+      expect(L.x).toBeGreaterThanOrEqual(0); expect(L.y).toBeGreaterThanOrEqual(0);
+      expect(L.x + L.w).toBeLessThanOrEqual(112); expect(L.y + L.h).toBeLessThanOrEqual(112);
+      for (const w of L.windows) {
+        expect(w.x).toBeGreaterThanOrEqual(L.x); expect(w.y).toBeGreaterThanOrEqual(L.y);
+        expect(w.x + w.w).toBeLessThanOrEqual(L.x + L.w); expect(w.y + w.h).toBeLessThanOrEqual(L.y + L.h);
+        expect(w.x + w.w <= L.door.x || w.x >= L.door.x + L.door.w || w.y + w.h <= L.door.y).toBe(true);
+      }
+    }
+  });
   it('aligns every imported genkan with the saved house entrance and keeps window light off the timber door', () => {
     for (const house of HOUSES) {
       const prop = PROPS[housePropId(house)];
@@ -40,14 +62,30 @@ describe('village sample keeps the saved village playable', () => {
       expect(ZONES[id].doors.find(d => d.to === 'plaza')).toMatchObject({ tx: x, ty: y + 1 });
     }
   });
-  it('lays decks only on existing bridge tiles and keeps every deck tile reachable from the village', () => {
+  it('keeps every connected bridge tile reachable without straight overlays crossing the pier bend', () => {
     game.load(newSave()); const b = buildZone('plaza');
-    const decks = b.props.filter(p => p.def.kind === 'village_deck');
-    expect(decks.length).toBeGreaterThan(0);
-    for (const p of decks) for (let y = p.y; y < p.y + p.def.h; y++) for (let x = p.x; x < p.x + p.def.w; x++) {
-      expect(b.def.ground[y][x]).toBe('b');
+    expect(b.props.some(p => p.def.kind === 'village_deck')).toBe(false);
+    let count = 0;
+    for (let y = 0; y < b.def.h; y++) for (let x = 0; x < b.def.w; x++) if (b.def.ground[y][x] === 'b') {
+      count++;
       expect(b.grid.path(5, 7, x, y, 20000)).not.toBeNull();
     }
+    expect(count).toBeGreaterThan(0);
+  });
+  it('joins railings at both pier bends while leaving its landings and interior passage open', () => {
+    const ground = ZONES.plaza.ground, edges = new Set<string>();
+    for (const rail of bridgeRails(ground)) for (let i = 0; i < rail.length; i++) {
+      const x = rail.x + (rail.axis === 'h' ? i : 0), y = rail.y + (rail.axis === 'v' ? i : 0);
+      edges.add(`${rail.axis}:${x},${y}`);
+      const sides = rail.axis === 'h' ? [ground[y - 1]?.[x], ground[y]?.[x]] : [ground[y]?.[x - 1], ground[y]?.[x]];
+      expect(sides).toContain('b');
+      expect(sides.some(tile => tile === 'w' || tile === 'd')).toBe(true);
+    }
+    // The actual L has a convex turn at 36,39 and a concave turn at 37,40.
+    expect(edges.has('h:35,39') && edges.has('v:36,38')).toBe(true);
+    expect(edges.has('h:37,40') && edges.has('v:37,40')).toBe(true);
+    expect(edges.has('h:36,39') || edges.has('v:36,39')).toBe(false);
+    expect(edges.has('v:30,39') || edges.has('v:30,40')).toBe(false);
   });
   it('keeps river banks on land and free of collisions, without opening story exits', () => {
     game.load(newSave()); const b = buildZone('plaza');

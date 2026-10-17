@@ -91,7 +91,7 @@ export const PROJECTS_BY_ID: Record<string, ProjectDef> = Object.fromEntries(PRO
 /** Props each finished phase adds to its zone: [propId, x, y]. */
 export const PROJECT_PROPS: Record<string, [string, number, number, number?][][]> = {
   plaza_garden: [
-    [['flowers', 4, 9], ['flowers', 6, 9], ['flowers', 28, 9], ['flowers', 30, 9]],
+    [['flowers', 4, 9], ['flowers', 6, 9], ['flowers', 28, 9], ['flowers', 33, 8]],
     [['bench', 6, 10], ['bench', 32, 17]],
     [['project_teatable', 27, 9, 4]],
     [['project_teagames', 27, 9]],
@@ -106,7 +106,7 @@ export const PROJECT_PROPS: Record<string, [string, number, number, number?][][]
     [['boat', 10, 14]],
     [['lantern_red', 17, 13], ['lantern_red', 22, 13]],
     [['sack', 17, 9]],
-    [['bench', 12, 13], ['flowers', 14, 8]],
+    [['bench', 12, 13], ['flowers', 12, 8]],
   ],
   forest_clearing: [
     [['bench', 10, 10], ['lantern_cream', 8, 10]],
@@ -135,8 +135,8 @@ export const PROJECT_AMENITIES: ProjectAmenity[] = [
   { id: 'seed_bank', project: 'garden_lanterns', phase: 3, zone: 'garden', x: 7, y: 9, title: 'Banco de semillas', items: { sd_flower: 1, sd_cucumber: 1 } },
 ];
 export const PROJECT_GATHER = [
-  { project: 'beach_corner', phase: 4, zone: 'beach', x: 14, y: 8, pool: ['sh_scallop', 'sh_spiral'] },
-  { project: 'beach_corner', phase: 4, zone: 'beach', x: 18, y: 10, pool: ['sh_scallop', 'sh_blue'] },
+  { project: 'beach_corner', phase: 4, zone: 'beach', x: 12, y: 8, pool: ['sh_scallop', 'sh_spiral'] },
+  { project: 'beach_corner', phase: 4, zone: 'beach', x: 18, y: 9, pool: ['sh_scallop', 'sh_blue'] },
   { project: 'forest_clearing', phase: 4, zone: 'forest', x: 11, y: 7, pool: ['wood', 'berry'] },
   { project: 'forest_clearing', phase: 4, zone: 'forest', x: 15, y: 8, pool: ['fl_bell', 'berry'] },
 ];

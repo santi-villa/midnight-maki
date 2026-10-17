@@ -1,0 +1,12 @@
+{
+  "author": "VectoRaith",
+  "archive": "vectoraith_tileset_buildings_japanese_traditional_DEMO.zip",
+  "source": "vectoraith_tileset_16x16_terrains_temperate_autotile_rpgmaker.png",
+  "crop": [
+    160,
+    96,
+    32,
+    48
+  ],
+  "sha256": "bbb4b7def7dd05b7b8e44ed8bec844699c3100abb95df4ecf92c90946d94dbdf"
+}

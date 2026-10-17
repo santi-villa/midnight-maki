@@ -226,5 +226,53 @@
     ],
     "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
     "author": "VectoRaith"
+  },
+  {
+    "frame": "villagePine",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      80,
+      64,
+      96,
+      96
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "villageMailbox",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      80,
+      48,
+      96,
+      64
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "villageNotice",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      64,
+      16,
+      80,
+      32
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
+  },
+  {
+    "frame": "villageWoodbox",
+    "source": "vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png",
+    "crop": [
+      80,
+      32,
+      96,
+      48
+    ],
+    "sha256": "6cd74a6370dbf353882c444d772e71bb346ef305c08587ae0ce481fa65530dba",
+    "author": "VectoRaith"
   }
 ]

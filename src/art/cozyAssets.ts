@@ -46,6 +46,8 @@ export function cozyObject(id: string, w: number, h: number, rot: number): HTMLC
       plant_monstera: 'monstera', plant_fern: 'planter', bonsai: 'roundShrub',
       lamp_cream: 'floorLamp', vase_tulips: 'flowerVase', clock: 'clock',
       stonelantern: 'stoneLantern', pot_cream: 'topiary', pot_rose: 'flowerVase',
+      bush: 'roundShrub', bush_flower: 'roundShrub', village_pine: 'villagePine',
+      mailbox: 'villageMailbox', menuboard: 'villageNotice', crate: 'villageWoodbox',
     };
     if (!decor[id]) return null;
     name = decor[id];

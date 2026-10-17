@@ -29,6 +29,7 @@ export const PROPS: Record<string, PropDef> = {
   tree_autumn: P('tree', 1, 1, 44, 56, '#d08a4f', '', { anim: 'sway' }),
   sakura: P('sakura', 1, 1, 44, 56, '', '', { anim: 'sway' }),
   pine: P('pine', 1, 1, 32, 50, '#46a846'),
+  village_pine: P('pine', 1, 1, 16, 32, '#46a846'),
   bush: P('bush', 1, 1, 18, 15, '#46a846', '#46a846'),
   bush_berry: P('bush', 1, 1, 18, 15, '#46a846', '#e0424f'),
   bush_flower: P('bush', 1, 1, 18, 15, '#46a846', '#f7f0f4'),
@@ -80,6 +81,8 @@ export const PROPS: Record<string, PropDef> = {
   stall_night: P('stall', 3, 1, 48, 48, '#3b4470', '#b7a8d6', { light: '#ffc070' }),
   stall_gold: P('stall', 3, 1, 48, 48, '#f2c66d', '#b2585e', { light: '#ffc070' }),
   boat: P('boat', 2, 1, 32, 32, '#a8734d'),
+  boat_rope: P('boat', 2, 1, 32, 32, '#a8734d'),
+  village_fish_crate: P('crate', 1, 1, 16, 16),
   torii: P('torii', 3, 1, 48, 42, '', '', { solid: false }),
   /** wide gates: the pillars stand on the ground beside the path, not on it */
   torii_w4: P('torii', 4, 1, 64, 42, '', '', { solid: false }),

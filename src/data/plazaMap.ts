@@ -182,10 +182,12 @@ export function plaza(): ZoneDef {
     { id: 'blk_market2', x: EAST.market.x + 1, y: 1, label: 'Soga del torii', action: 'blocked:market', cond: '!market_open' },
     // places
     { id: 'shrine', x: EAST.shrine.x + 1, y: EAST.shrine.y + 1, label: 'Santuario', action: 'note:shrine' },
-    { id: 'river_fish1', x: 40, y: 25, label: 'Pescar', action: 'fish:lake' },
-    { id: 'river_fish2', x: 53, y: 25, label: 'Pescar', action: 'fish:lake' },
+    // the bridge by the mill, the peninsula channel, both harbour piers, and the cherry pond
+    { id: 'river_fish1', x: 40, y: 11, label: 'Pescar', action: 'fish:lake' },
+    { id: 'river_fish2', x: 48, y: 19, label: 'Pescar', action: 'fish:lake' },
     { id: 'pier_fish1', x: 35, y: 40, label: 'Pescar', action: 'fish:sea' },
-    { id: 'pier_fish2', x: 36, y: 40, label: 'Pescar', action: 'fish:sea' },
+    { id: 'pier_fish2', x: 35, y: 36, label: 'Pescar', action: 'fish:sea' },
+    { id: 'grove_fish', x: 67, y: 26, label: 'Pescar', action: 'fish:lake' },
   ];
   return zone(b, {
     id: 'plaza', name: 'Villa Nori', music: 'town', outdoor: true,
@@ -196,11 +198,11 @@ export function plaza(): ZoneDef {
       { x: 3, y: 10, pool: ['fl_daisy', 'fl_tulip'] },
       { x: 28, y: 9, pool: ['fl_daisy', 'fl_sun'] },
       { x: 20, y: 23, pool: ['berry', 'fl_bell'] },
-      { x: 7, y: 20, pool: ['wood', 'stone', 'fl_daisy'] },
+      { x: 6, y: 23, pool: ['wood', 'stone', 'fl_daisy'] },
       { x: 44, y: 20, pool: ['fl_tulip', 'sakura'] },
       { x: 57, y: 1, pool: ['sakura', 'fl_daisy'] },
       { x: 10, y: 33, pool: ['fl_daisy', 'fl_bell'] },
-      { x: 28, y: 35, pool: ['berry', 'wood'] },
+      { x: 27, y: 35, pool: ['berry', 'wood'] },
       { x: 55, y: 36, pool: ['sh_scallop', 'st_seaglass'] },
       { x: 34, y: 14, pool: ['fl_bell', 'fl_daisy'] },
     ],

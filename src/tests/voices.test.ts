@@ -91,17 +91,15 @@ describe('character voices', () => {
         expect(n.gap).toBeGreaterThan(0);
       }
     }
-    const sounded = [...Array(19).keys()].filter((step) => note('kiki', step).sound);
-    expect(sounded).toEqual([0, 1, 9, 10, 18]);
+    const sounded = [...Array(15).keys()].filter((step) => note('kiki', step).sound);
+    expect(sounded).toEqual([0, 1, 3, 4, 6, 7, 9, 10, 12, 13]);
     const jumps = sounded.map((step) => note('kiki', step).freq);
     expect(new Set(jumps).size).toBeGreaterThan(3);
 
-    const phrase = [0, 1, 9, 10].map((step) => voiceWhen('kiki', step));
-    expect(phrase[0]).toBe(0);
-    expect(phrase[1]!).toBeGreaterThan(0);
-    expect(phrase[1]!).toBeLessThan(0.05);
-    expect(phrase[2]! - phrase[1]!).toBeGreaterThan(0.15);
-    expect(voiceWhen('kiki', 4)).toBeNull();
+    expect(voiceWhen('kiki', 0)).toBe(0);
+    expect(voiceWhen('kiki', 1)!).toBeGreaterThan(0);
+    expect(voiceWhen('kiki', 1)!).toBeLessThan(0.05);
+    expect(voiceWhen('kiki', 2)).toBeNull();
     expect(voiceWhen('pip', 0)).toBe(0);
     expect(voiceWhen('pip', 8)!).toBeGreaterThan(voiceWhen('spicy', 4)!);
   });

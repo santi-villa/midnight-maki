@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
 import { ZONES } from '../data/zones';
 import { HOUSES, houseDoorTile } from '../data/houses';
-import { buildZone } from '../world/zoneRuntime';
+import { buildZone, type PropInstance } from '../world/zoneRuntime';
 
 const OUTDOOR = Object.values(ZONES).filter((z) => z.outdoor).map((z) => z.id);
 const HOUSE_ZONES = Object.keys(ZONES).filter((id) => id.startsWith('house_'));
@@ -73,16 +73,16 @@ describe('outdoor zones', () => {
     for (const f of FLAGS) game.save.flags[f] = true;
     for (const id of OUTDOOR) {
       const built = buildZone(id);
-      const seen = new Map<string, string>();
+      const seen = new Map<string, PropInstance>();
       for (const p of built.props) {
         if (!p.def.solid) continue;
         for (let j = 0; j < p.def.h; j++) for (let i = 0; i < p.def.w; i++) {
           const key = `${p.x + i},${p.y + j}`;
           const other = seen.get(key);
-          if (other && !(['boat'].includes(p.key) || ['boat'].includes(other))) expect.soft(other, `${id} ${key} ${p.key}`).toBeUndefined();
-          seen.set(key, p.key);
+          if (other && p.def.kind !== 'boat' && other.def.kind !== 'boat') expect.soft(other.key, `${id} ${key} ${p.key}`).toBeUndefined();
+          seen.set(key, p);
           const ch = built.def.ground[p.y + j]?.[p.x + i];
-          if (ch === 'w' || ch === 'd') expect.soft(['boat'], `${id} ${key} ${p.key} on water`).toContain(p.key);
+          if (ch === 'w' || ch === 'd') expect.soft(p.def.kind, `${id} ${key} ${p.key} on water`).toBe('boat');
         }
       }
     }
