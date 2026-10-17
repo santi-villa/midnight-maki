@@ -17,6 +17,7 @@ import { drawCustomer } from './customers';
 import type { Order } from '../core/types';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { queueHasRoom } from './waiting';
+import { mirror } from './mirror';
 import { RESTAURANT_HOURS, restaurantPhase } from '../systems/schedule';
 import {
   createService,
@@ -138,12 +139,13 @@ function persist() {
 
 export const servingName = (order: Order) => order.kind === 'drink' ? DRINK_BY_ID[order.recipe]?.name ?? 'Bebida' : RECIPES_BY_ID[order.recipe]?.name ?? 'Plato';
 export function tableLabel(id: string | null | undefined): string {
+  if (mirror.on) { const i = id ? mirror.snap.tables.indexOf(id) : -1; return i >= 0 ? `Mesa ${i + 1}` : 'Mostrador'; }
   session(); const index = salon?.tableList().findIndex(t => t.id === id) ?? -1;
   return index >= 0 ? `Mesa ${index + 1}` : 'Mostrador';
 }
-export function carriedOrders(): Order[] { return game.save.orders.filter(o => o.plate?.state === 'carried'); }
+export function carriedOrders(): Order[] { if (mirror.on) return mirror.carried(); return game.save.orders.filter(o => o.plate?.state === 'carried'); }
 export function carriedOrder(tableId?: string): Order | null { return carriedOrders().find(o => tableId === undefined || o.service?.tableId === tableId) ?? null; }
-export function trayOrders(): Order[] { return game.save.orders.filter(o => o.plate && !['carried', 'delivered'].includes(o.plate.state ?? 'ready')); }
+export function trayOrders(): Order[] { if (mirror.on) return mirror.tray(); return game.save.orders.filter(o => o.plate && !['carried', 'delivered'].includes(o.plate.state ?? 'ready')); }
 
 /** Draw up to four distinct faces, bounded by a real table's seats. */
 export function chooseParty(pieces: FurnPiece[]): string[] {
@@ -339,6 +341,7 @@ function summaryLines(): string[] {
 }
 
 export function guestViews(): GuestView[] {
+  if (mirror.on) return mirror.snap.views;
   session();
   if (!salon) return [];
   return salon.parties().map((party) => ({
@@ -358,6 +361,7 @@ export function guestViews(): GuestView[] {
  * seated and ready to order, their table; while dishes wait to be cooked or carried, the counter.
  */
 export function serviceGuide(): { tableId: string } | 'counter' | null {
+  if (mirror.on) { const take = mirror.snap.jobs.find((j) => j.phase === 'waiting_order'); return take ? { tableId: take.tableId } : mirror.snap.orders.length ? 'counter' : null; }
   session();
   if (!salon || !game.has('intro_done')) return null;
   const take = tableJobs().find((j) => j.phase === 'waiting_order');
@@ -369,6 +373,7 @@ export function serviceGuide(): { tableId: string } | 'counter' | null {
 }
 
 export function tableJobs(): TableJob[] {
+  if (mirror.on) return mirror.snap.jobs;
   session();
   if (!salon || !game.has('intro_done')) return [];
   const jobs: TableJob[] = [];
@@ -396,11 +401,15 @@ export function tableJobs(): TableJob[] {
 
 /** Saved states distinguish kitchen work, ready dishes, transport and completed deliveries. */
 export function plateState(uid: number): 'none' | 'cooking' | 'plated' | 'carried' | 'delivered' {
+  if (mirror.on) { const o = mirror.snap.orders.find((x) => x.uid === uid); return o?.plate ? (o.plate.state === 'carried' || o.plate.state === 'delivered' ? o.plate.state : 'plated') : 'none'; }
   session();
   const order = game.save.orders.find(o => o.uid === uid);
   if (order?.plate) return order.plate.state === 'carried' || order.plate.state === 'delivered' ? order.plate.state : 'plated';
   return salon?.parties().some(p => p.members.some(m => m.items.some(i => i.orderUid === uid))) ? 'cooking' : 'none';
 }
+
+/** Ids of the dining tables in a stable order: "Mesa 2" must mean the same table for both players. */
+export function tableIds(): string[] { session(); return salon?.tableList().map((t) => t.id) ?? []; }
 
 export function serviceAudit(): string[] {
   return salon?.audit() ?? [];
@@ -498,6 +507,7 @@ function payParty(partyId: string): PaidMeal[] {
 
 /** Write a real order for the party at this table. */
 export function takeOrderAt(tableId: string): string {
+  if (mirror.on) { mirror.ask?.('take', { tableId }); return ''; }
   session();
   const table = salon?.table(tableId);
   const party = table?.partyId ? salon?.party(table.partyId) : null;
@@ -538,6 +548,10 @@ export function stagePlate(uid: number, quality: 0 | 1 | 2, variantBonus = 0, va
 }
 
 export function pickupPlate(uid: number): string {
+  if (mirror.on) {
+    if (mirror.carried().length >= carryCapacity(game.save)) return 'La bandeja está llena. Entregá un pedido o dejalo en la bandeja de salida.';
+    mirror.ask?.('claim', { uid }); return '';
+  }
   if (game.save.orders.find(o => o.uid === uid)?.plate?.claim) return 'Alguien del personal ya lo está llevando.';
   if (carriedOrders().length >= carryCapacity(game.save)) return 'La bandeja está llena. Entregá un pedido o dejalo en la bandeja de salida.';
   const order = game.save.orders.find(o => o.uid === uid);
@@ -566,10 +580,12 @@ export function staffDeliver(uid: number, empId: string): string | null {
   return null;
 }
 export function returnPlate(uid?: number): string {
+  if (mirror.on) { const o = uid === undefined ? mirror.carried()[0] : mirror.carried().find((x) => x.uid === uid); if (!o) return 'No llevás ese pedido.'; mirror.ask?.('release', { uid: o.uid }); return ''; }
   const order = uid === undefined ? carriedOrder() : carriedOrders().find(o => o.uid === uid); if (!order?.plate) return 'No llevás ese pedido.';
   order.plate.state = 'ready'; persist(); game.touch('tray'); return 'Dejaste el pedido en la bandeja.';
 }
 export function deliverTo(tableId: string): string {
+  if (mirror.on) { mirror.ask?.('deliver', { tableId }); return ''; }
   const order = carriedOrder(tableId);
   if (!order?.plate || !order.service) return carriedOrders().length ? 'Ese pedido es para otra mesa. Seguí el marcador.' : 'Recogé primero el pedido en la bandeja de salida.';
   const party = salon?.party(order.service.partyId);
@@ -580,10 +596,26 @@ export function deliverTo(tableId: string): string {
 }
 
 export function collectTipAt(tableId: string): string {
+  if (mirror.on) { mirror.ask?.('tip', { tableId }); return ''; }
   if (!salon) return 'No hay propina en esta mesa.';
   const tip = salon.collectTip(tableId);
   if (tip.amount <= 0) return 'No hay propina en esta mesa.';
   if (shift && shift.day === game.save.time.day) shift.tips += tip.amount;
   game.addCoins(tip.amount, 'tip'); persist();
   return `Recogiste ${tip.amount} de propina.`;
+}
+
+/**
+ * The host's side of a guest collecting a tip: the guest gets up to `room` coins, any excess stays with the host (daily cap).
+ * Returns what the guest got and what the host kept. Nothing happens when the table holds no tip.
+ */
+export function collectTipForGuest(tableId: string, room: number): { given: number; kept: number } {
+  if (!salon) return { given: 0, kept: 0 };
+  const tip = salon.collectTip(tableId);
+  if (tip.amount <= 0) return { given: 0, kept: 0 };
+  const given = Math.max(0, Math.min(tip.amount, Math.floor(room)));
+  const kept = tip.amount - given;
+  if (kept > 0) { if (shift && shift.day === game.save.time.day) shift.tips += kept; game.addCoins(kept, 'tip'); }
+  persist();
+  return { given, kept };
 }

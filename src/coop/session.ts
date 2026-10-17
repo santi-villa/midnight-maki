@@ -49,6 +49,7 @@ export class CoopSession {
   private lastHeard = 0;
   private handlers = new Map<string, ((m: unknown) => void)[]>();
   private worldHook: ((w: WorldPack) => void) | null = null;
+  private floorHook: ((v: unknown) => void) | null = null;
   constructor(private deps: CoopDeps) {}
 
   state(): CoopState { return this.st; }
@@ -59,6 +60,9 @@ export class CoopSession {
   on(type: string, fn: (m: unknown) => void) { const l = this.handlers.get(type) ?? []; l.push(fn); this.handlers.set(type, l); }
   onWorld(fn: (w: WorldPack) => void) { this.worldHook = fn; }
   send(msg: Msg | { t: string; [k: string]: unknown }) { this.t?.send(msg as Msg); }
+  /** The host's dining room, as the guest should see it. Latest value wins. */
+  sendFloor(v: unknown) { if (this.st.phase === 'connected') this.t?.state('floor', v); }
+  onFloor(fn: (v: unknown) => void) { this.floorHook = fn; }
   sendPos(p: PosState) { if (this.st.phase === 'connected') this.t?.state('pos', p); }
 
   async host(): Promise<string> {
@@ -102,6 +106,7 @@ export class CoopSession {
     t.onState((key, v) => {
       this.lastHeard = this.now();
       if (key === 'pos' && isPos(v)) this.set({ peerPos: v });
+      else if (key === 'floor' && this.t?.role === 'guest') this.floorHook?.(v);
     });
     t.onPeer((present) => {
       if (present) { this.lastHeard = this.now(); if (t.role === 'guest') t.send({ t: 'hello', v: COOP_VERSION, info: this.deps.me() }); }
