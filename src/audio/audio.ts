@@ -92,6 +92,7 @@ const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
  * Scenes without a file keep the generated music.
  */
 const MUSIC_FILES = import.meta.glob('../music/*.{mp3,ogg,m4a,wav,webm,opus}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const NIGHT_FILES = import.meta.glob('./*night-ambience*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const SONG_MATCH: Partial<Record<Track, RegExp>> = { title: /menu|title|principal/i, intro: /intro/i, kitchen: /^(?!.*(hard|dificil|difícil)).*(kitchen|cocina)/i, kitchen_hard: /(kitchen|cocina).*(hard|dificil|difícil)/i };
 
 /** Opus and Ogg first: Chromium plays them. AAC in m4a stays as the next try. */
@@ -123,6 +124,7 @@ class AudioEngine {
   private rng = Math.random;
   private ambSrc: AudioBufferSourceNode | null = null;
   private ambKind = '';
+  private nightBed: { el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode } | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private pendingTrack: Track = 'none';
   private lastSfx: Record<string, number> = {};
@@ -211,6 +213,7 @@ class AudioEngine {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') void runTask('audio:resume', () => this.ctx!.resume(), false);
       this.tryCustom();
+      this.tryNightBed();
       return;
     }
     try {
@@ -257,6 +260,7 @@ class AudioEngine {
       if (!this.ctx) return;
       if (document.hidden) {
         this.custom?.el.pause();
+        this.nightBed?.el.pause();
         void runTask('audio:suspend', () => this.ctx!.suspend(), false);
       } else this.unlock();
     });
@@ -514,6 +518,41 @@ class AudioEngine {
     s.stop(t + 0.08);
   }
 
+  /** Wind and crickets, quieter than the generated bed. Falls back to soft noise if the file cannot play. */
+  private startNightBed(): boolean {
+    const url = Object.values(NIGHT_FILES)[0];
+    const c = this.ctx;
+    if (!c || !url || typeof Audio === 'undefined') return false;
+    if (this.nightBed) { this.tryNightBed(); return true; }
+    const el = new Audio();
+    el.src = url;
+    el.loop = true;
+    el.preload = 'auto';
+    const node = c.createMediaElementSource(el);
+    const gain = c.createGain();
+    gain.gain.value = 0.1;
+    node.connect(gain).connect(this.amb);
+    this.nightBed = { el, node, gain };
+    this.tryNightBed();
+    return true;
+  }
+
+  private tryNightBed() {
+    const bed = this.nightBed;
+    if (!bed || !bed.el.paused || document.hidden) return;
+    void bed.el.play().catch(() => { /* the next gesture retries */ });
+  }
+
+  private stopNightBed() {
+    const bed = this.nightBed;
+    if (!bed) return;
+    this.nightBed = null;
+    bed.el.pause();
+    bed.el.removeAttribute('src');
+    bed.node.disconnect();
+    bed.gain.disconnect();
+  }
+
   /** looping ambience bed: 'rain' | 'waves' | 'night' | 'none' */
   ambience(kind: string) {
     if (!this.ctx || kind === this.ambKind) return;
@@ -526,7 +565,9 @@ class AudioEngine {
       }
       this.ambSrc = null;
     }
+    if (kind !== 'night') this.stopNightBed();
     if (kind === 'none') return;
+    if (kind === 'night' && this.startNightBed()) return;
     const c = this.ctx;
     const s = c.createBufferSource();
     s.buffer = this.noise();
@@ -550,8 +591,8 @@ class AudioEngine {
       lfo.start();
     } else {
       f.type = 'lowpass';
-      f.frequency.value = 300;
-      g.gain.value = 0.25;
+      f.frequency.value = 280;
+      g.gain.value = 0.1;
     }
     s.connect(f).connect(g).connect(this.amb);
     s.start();

@@ -1,5 +1,5 @@
 /**
- * Visual-novel dialogue runner. Scenes are written as async functions using `say` and `choose`,
+ * Visual-novel dialogue runner. Scenes are written as async functions using `say`, `choose` and `askText`,
  * which keeps narrative content in data files (story/*) and the engine here.
  */
 import { fillText } from './gender';
@@ -220,6 +220,68 @@ export function choose(options: string[], who = 'player', prompt?: string, opts?
     const dlg = h('div', { class: 'dlg has-portrait' }, info.name && who !== 'player' ? h('div', { class: 'name' }, info.name) : null, portrait, h('div', { class: 'body' }, prompt ? h('div', { class: 'text', style: { minHeight: '0' } }, fmt(prompt)) : null, list));
     root.append(dlg);
     buttons()[0]?.focus({ preventScroll: true });
+  });
+}
+
+/**
+ * One short written answer inside the dialogue box. Enter or the button confirms.
+ * A blank answer keeps `fallback`. Clicks outside the box do not confirm, and the
+ * prompt is never skipped: naming is the player's line.
+ */
+export function askText(who: string, prompt: string, fallback: string, max = 20): Promise<string> {
+  skipping = false;
+  const root = ensureBox();
+  root.innerHTML = '';
+  if (catcher) catcher.onpointerup = null;
+  const info = speakerInfo(who, 'happy');
+  const clean = (raw: string) => raw.trim().replace(/\s+/g, ' ').slice(0, max) || fallback;
+  if (hasVoice(info.vkey)) audio.speakLine(info.vkey);
+  else if (info.vkey) audio.voice(info.voice);
+  return new Promise((resolve) => {
+    let closed = false;
+    const input = h('input', {
+      type: 'text',
+      value: fallback,
+      maxlength: String(max),
+      'aria-label': prompt,
+      autocomplete: 'off',
+      enterkeyhint: 'done',
+    }) as HTMLInputElement;
+    const finish = () => {
+      if (closed) return;
+      closed = true;
+      const value = clean(input.value);
+      history.push({ who: info.name, text: fmt(prompt) });
+      history.push({ who: '→', text: value });
+      if (history.length > 200) history.splice(0, history.length - 200);
+      window.removeEventListener('keydown', key);
+      audio.sfxPlay('tap');
+      root.innerHTML = '';
+      if (catcher) catcher.onpointerup = null;
+      resolve(value);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      finish();
+    };
+    window.addEventListener('keydown', key);
+    const portrait = h('img', { class: 'portrait', src: info.src, alt: info.name || 'Narración' });
+    const dlg = h('div', { class: 'dlg has-portrait', role: 'dialog' },
+      info.name ? h('div', { class: 'name' }, info.name) : null,
+      portrait,
+      h('div', { class: 'body' },
+        h('div', { class: 'text', style: { minHeight: '0' } }, fmt(prompt)),
+        h('div', { class: 'choices' },
+          input,
+          h('button', { type: 'button', onclick: (e: Event) => { e.stopPropagation(); finish(); } }, 'Así se llama'),
+        ),
+      ),
+    );
+    root.append(dlg);
+    input.focus({ preventScroll: true });
+    input.select();
   });
 }
 

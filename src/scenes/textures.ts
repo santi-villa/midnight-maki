@@ -14,6 +14,7 @@ import { heroSheet, isHeroLook } from '../art/heroRender';
 import { buildingLayout } from '../art/nature';
 import { villageShopLayout } from '../art/village';
 import { homeLayout } from '../art/homes';
+import { windowGlowRects } from '../art/windowGlow';
 import { buildCustomerSheet } from '../art/customerSheet';
 import type { CustomerId } from '../art/customers';
 import { FOLK_SPECS } from '../data/folkSpecs';
@@ -211,43 +212,48 @@ export function windowGlowTexture(scene: Phaser.Scene, W: number, H: number, rot
   const g = ctx2d(c);
   if (facadeStage !== undefined && hasVillageAtlas()) {
     const L = restaurantFacadeLayout(W, H, facadeStage);
-    // The selected art has timber/curtained entries, not glass doors. Existing lamp pools
-    // light the entrance; an emissive rectangle would paint over Sofi in front of it.
+    // The selected art has timber entries, not glass doors. Lamp pools light the entrance.
     if (!door) for (const w of L.windows) {
-      px(g, w.x + 1, w.y + 1, '#ffb855', w.w - 2, w.h - 2);
+      px(g, w.x + 1, w.y + 1, '#ffc44a', w.w - 2, w.h - 2);
+      px(g, w.x + 1, w.y + 1, '#fff3c0', Math.floor((w.w - 2) / 2), 3);
       px(g, w.x + Math.floor(w.w / 2), w.y + 1, '#b8661e', 1, w.h - 2);
     }
     scene.textures.addCanvas(key, c);
     return key;
   }
+  const panes = windowGlowRects(W, H, rot, door, home);
   if (home) {
     // a house: warm panes, the light through the glass of the door and the lantern beside it
     const L = homeLayout(W, H, rot, home === 'side');
     for (const w of L.windows) {
-      px(g, w.x, w.y, '#ffb855', w.w, w.h);
-      px(g, w.x, w.y, '#ffe2a0', Math.floor(w.w / 2), 3);
+      px(g, w.x, w.y, '#ffc44a', w.w, w.h);
+      px(g, w.x, w.y, '#fff3c0', Math.floor(w.w / 2), 3);
       if (L.trade === 1) { for (let i = 4; i < w.w; i += 4) px(g, w.x + i, w.y, '#b8661e', 1, w.h); for (let j = 4; j < w.h; j += 5) px(g, w.x, w.y + j, '#b8661e', w.w, 1); }
       else { px(g, w.x + Math.floor(w.w / 2), w.y, '#b8661e', 1, w.h); px(g, w.x, w.y + Math.floor(w.h / 2), '#cf7a26', w.w, 1); }
     }
     // The imported genkan is solid timber; only its windows and lantern emit light.
-    const lx = L.right ? L.door.x - 9 : L.door.x + L.door.w + 9;
-    px(g, lx - 1, L.door.y - 2, '#ffe9b0', 3, 6);
+    const lantern = panes[panes.length - 1];
+    px(g, lantern.x, lantern.y, '#fff1b4', lantern.w, lantern.h);
     scene.textures.addCanvas(key, c);
     return key;
   }
-  const L = rot >= 20 && rot <= 23 ? villageShopLayout(W, H, rot) : buildingLayout(W, H);
   if (door) {
     // the noren doorway: an orange wash with a brighter slit
-    px(g, L.dx + 1, L.doorY + 2, '#ff9a48', L.doorW - 2, L.doorH - 3);
-    px(g, L.dx + 3, L.doorY + 3, '#ffc27a', L.doorW - 6, L.doorH - 7);
+    const r = panes[0];
+    px(g, r.x, r.y, '#ffb040', r.w, r.h);
+    px(g, r.x + 2, r.y + 1, '#ffe08a', r.w - 4, r.h - 4);
   } else {
+    const L = rot >= 20 && rot <= 23 ? villageShopLayout(W, H, rot) : buildingLayout(W, H);
     for (const w of L.windows) {
-      px(g, w.x + 1, w.y + 1, '#ffb855', w.w - 2, w.h - 2);
-      px(g, w.x + 1, w.y + 1, '#ffe2a0', Math.floor((w.w - 2) / 2), 3);
+      px(g, w.x + 1, w.y + 1, '#ffc44a', w.w - 2, w.h - 2);
+      px(g, w.x + 1, w.y + 1, '#fff3c0', Math.floor((w.w - 2) / 2), 3);
       px(g, w.x + Math.floor(w.w / 2), w.y + 1, '#b8661e', 1, w.h - 2); // mullion stays dark
       px(g, w.x + 1, w.y + Math.floor(w.h / 2), '#cf7a26', w.w - 2, 1);
     }
-    if (rot === 2 || rot === 3) px(g, Math.round(L.attic.x) - 1, Math.round(L.attic.y) - 1, '#ffd88a', 2, 2);
+    if (rot === 2 || rot === 3) {
+      const attic = panes[panes.length - 1];
+      px(g, attic.x, attic.y, '#ffe7a4', attic.w, attic.h);
+    }
   }
   scene.textures.addCanvas(key, c);
   return key;

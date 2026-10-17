@@ -17,12 +17,12 @@ beforeEach(() => {
 
 describe('restaurant missions at closing', () => {
   it('sends a restaurant objective to bed only while the door is closing', () => {
-    expect(bedtimeReason(3, 62, counter, () => null)).toBe('closing');
-    expect(bedtimeReason(3, 62, salon, () => 'plaza')).toBe('closing');
-    expect(bedtimeReason(3, 62, { kind: 'npc', npc: 'spicy' }, () => 'restaurant')).toBe('closing');
-    expect(bedtimeReason(3, 62, home, () => null)).toBeNull();
-    expect(bedtimeReason(3, 62, { kind: 'npc', npc: 'pip' }, () => 'home')).toBeNull();
-    expect(bedtimeReason(3, 62, { kind: 'location', zone: 'plaza' }, () => null)).toBeNull();
+    expect(bedtimeReason(3, 32, counter, () => null)).toBe('closing');
+    expect(bedtimeReason(3, 32, salon, () => 'plaza')).toBe('closing');
+    expect(bedtimeReason(3, 32, { kind: 'npc', npc: 'spicy' }, () => 'restaurant')).toBe('closing');
+    expect(bedtimeReason(3, 32, home, () => null)).toBeNull();
+    expect(bedtimeReason(3, 32, { kind: 'npc', npc: 'pip' }, () => 'home')).toBeNull();
+    expect(bedtimeReason(3, 32, { kind: 'location', zone: 'plaza' }, () => null)).toBeNull();
     expect(bedtimeReason(3, 70, counter, () => null)).toBeNull();
     expect(bedtimeReason(2, 62, counter, () => null)).toBeNull();
   });
