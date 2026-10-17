@@ -1,3 +1,5 @@
+import { INTERIOR_FURNITURE } from './interiorFurniture';
+
 export type FurnCat =
   | 'bedroom' | 'kitchen' | 'restaurant' | 'garden' | 'bath' | 'light' | 'plant' | 'wall' | 'rug' | 'small' | 'special';
 
@@ -20,6 +22,7 @@ export interface FurnitureDef {
   rotatable?: boolean;
   walkable?: boolean;
   wall?: boolean;    // goes on the wall face row
+  wallOffsetY?: number; // pixels hanging below the wall mount; collision footprint stays on the wall
   light?: string;    // emits light at night
   sit?: boolean;
   charm: number;     // restaurant ambience score
@@ -143,5 +146,7 @@ export const FURNITURE: FurnitureDef[] = [
   F('errand_furin', 'Furin del vecindario', 'wall', 'japanese', 0, 'windchime', '#8db7c4', '#f2c66d', 1, 1, 16, { wall: true, shop: 'reward' }),
   F('errand_bonsai', 'Bonsái de los vecinos', 'plant', 'japanese', 0, 'bonsai', '#6f9e5a', '#c9a24a', 1, 1, 18, { shop: 'reward' }),
 ];
+
+FURNITURE.push(...INTERIOR_FURNITURE);
 
 export const FURN_BY_ID: Record<string, FurnitureDef> = Object.fromEntries(FURNITURE.map((f) => [f.id, f]));

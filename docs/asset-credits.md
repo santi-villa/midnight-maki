@@ -24,6 +24,10 @@ Mesas y sillas conservan las huellas lógicas y orientaciones de los IDs existen
 
 ## Selección restante de las descargas
 
+### Ampliación del catálogo interior
+
+Se añaden 173 muebles y adornos de los paquetes Bitglow Bedroom (20), Bathroom (19) y Living Room & Kitchen (21). Se conservan los píxeles originales y las orientaciones completas, con un atlas propio de 1024×512. La licencia original acompaña el atlas en `src/assets/interiors/Bitglow-license.txt`; `catalog.json` registra lámina y rectángulo de origen de cada pieza. La selección es reproducible mediante `scripts/build-interior-assets.py`. Véase `docs/interiores-bitglow.md` para integración, guardados y alcance.
+
 - **Interiores y muebles:** se priorizó Bitglow por coherencia y permiso comercial adjunto. Cosy Cabin, Cozy Interior, Pixel Lands y Super Retro World quedan como alternativas de estilo, no se mezclan todos en el mismo salón.
 - **Exterior:** se conservaron bancos, carteles, macetas, flores, casas comerciales y objetos de cada zona; se armonizan sus materiales y se añaden tejas de la demo sin cambiar la navegación.
 - **Sprout Lands, Cozy Lands, Farming Pack Free Tier y otros recursos no comerciales:** no se incorporan a esta publicación.

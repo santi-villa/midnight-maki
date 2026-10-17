@@ -1,5 +1,5 @@
 /** Optional notice-board errands, with visible rewards and persistent weekly keepsakes. */
-import { drawObject } from '../art/objects';
+import { furnitureCanvas } from '../art/furniture';
 import { iconElement } from '../art/icons';
 import { audio } from '../audio/audio';
 import { game } from '../core/state';
@@ -11,7 +11,7 @@ import { h, toast } from './dom';
 
 function furniturePicture(id: string): HTMLCanvasElement {
   const f = FURN_BY_ID[id];
-  const c = drawObject(f.kind, f.w * 16, f.sh, f.c1, f.c2 || f.c1, f.variant ?? 0);
+  const c = furnitureCanvas(f.id);
   c.classList.add('errand-furniture');
   return c;
 }
