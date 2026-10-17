@@ -22,6 +22,7 @@ import { businessPhase, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSig
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { lowFx, sampleFrame } from '../core/perf';
+import { LampMoths } from './lampMoths';
 import { nextDoor, questTarget } from '../world/guide';
 import { employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
 import { NeighborLife } from '../systems/neighbors';
@@ -1783,6 +1784,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------------ ambient fx
+  private moths: LampMoths | null = null;
   setupAmbient() {
     for (const e of this.ambient) e.destroy();
     this.ambient = [];
@@ -1791,8 +1793,12 @@ export class WorldScene extends Phaser.Scene {
     if (this.zone?.def.outdoor && this.waterTiles.length) this.waterFx = new WaterFx(this, this.zone.def.ground, this.lamps, lowFx());
     this.weather?.destroy();
     this.weather = null;
+    this.moths?.destroy();
+    this.moths = null;
     if (!this.zone || lowFx()) return;
     const def = this.zone.def;
+    // moths around the street lamps on dry evenings and nights
+    if (def.outdoor && game.flag('weather') !== 'rain' && clock.period >= 2 && !settings.reduceMotion) this.moths = new LampMoths(this, this.lamps);
     const W = def.w * TILE;
     const H = def.h * TILE;
     const rain = game.flag('weather') === 'rain';
@@ -2462,6 +2468,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateNeighbors(dt);
     for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);
+    this.moths?.update(dt, this.cameras.main.worldView);
     this.updateBugs(dt);
     this.updateWater(dt);
     this.waterFx?.update(dt, this.waterEnv());
