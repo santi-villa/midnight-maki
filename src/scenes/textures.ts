@@ -76,6 +76,19 @@ export function lookTexture(scene: Phaser.Scene, a: import('../core/types').Appe
   return key;
 }
 
+/** Any player's look, hero or classic, for the friend who is in the room with us. */
+export function appearanceTexture(scene: Phaser.Scene, a: import('../core/types').Appearance): string {
+  if (!isHeroLook(a)) return lookTexture(scene, a);
+  const key = 'rm_' + hashStr(JSON.stringify(a));
+  if (!scene.textures.exists(key)) {
+    const { canvas, fw, fh } = heroSheet(a);
+    const tex = scene.textures.addCanvas(key, canvas)!;
+    for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
+    tex.customData = { pad: FOLK_PAD };
+  }
+  return key;
+}
+
 export function hasLookTexture(scene: Phaser.Scene, a: import('../core/types').Appearance): boolean {
   return scene.textures.exists(lookKey(a));
 }

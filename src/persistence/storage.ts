@@ -16,6 +16,11 @@ const RESUME_KEY = 'mm_resume_once';
 export const SLOT_COUNT = 3;
 
 /** Something outside (the cloud) wants to know when a slot was written. Kept as a plain callback so storage imports nothing from it. */
+/** While she visits a friend's restaurant her runtime save holds borrowed data: nothing may be written until it is put back. */
+let saveBlocked = false;
+export function setSaveBlocked(v: boolean) { saveBlocked = v; }
+export const saveIsBlocked = () => saveBlocked;
+
 let saveObserver: ((slot: number) => void) | null = null;
 export function setSaveObserver(fn: ((slot: number) => void) | null) { saveObserver = fn; }
 const told = (slot: number) => { try { saveObserver?.(slot); } catch { /* sync is never allowed to break a save */ } };
@@ -304,6 +309,7 @@ async function rotateBackup(slot: number): Promise<void> {
 /** Capture at the call, then serialize writes. Only a completed transaction counts as saved. */
 export async function saveGame(reason = 'auto'): Promise<boolean> {
   if (!game.loaded) return false;
+  if (saveBlocked) return true; // nothing to write now; the real save is untouched and comes back after the visit
   const source = game.save;
   const revision = game.revision;
   const slot = activeSlot();
@@ -330,6 +336,7 @@ export async function saveGame(reason = 'auto'): Promise<boolean> {
  */
 export async function saveManual(): Promise<boolean> {
   if (!game.loaded) return false;
+  if (saveBlocked) { reportError('save:manual-blocked', new Error('coop'), 'No se puede guardar mientras visitás el restaurante de un amigo.'); return false; }
   const source = game.save;
   const revision = game.revision;
   const slot = activeSlot();
