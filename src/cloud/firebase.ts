@@ -30,10 +30,17 @@ const MESSAGES: Record<string, string> = {
   'auth/popup-closed-by-user': 'Cerraste la ventana de Google antes de terminar.',
   'auth/cancelled-popup-request': 'Cerraste la ventana de Google antes de terminar.',
   'auth/requires-recent-login': 'Por seguridad, volvé a ingresar y repetí la acción.',
+  'auth/operation-not-allowed': 'El ingreso con correo no está activado en Firebase: Authentication → Método de acceso → Correo electrónico/contraseña.',
+  'auth/unauthorized-domain': 'Este sitio no está en los dominios autorizados de Firebase (Authentication → Configuración).',
+  'auth/invalid-api-key': 'La clave de Firebase del archivo .env.local no es válida.',
+  'auth/configuration-not-found': 'Falta activar Authentication en tu proyecto de Firebase.',
+  'auth/missing-email': 'Escribí tu correo.',
+  'auth/user-disabled': 'Esa cuenta está deshabilitada.',
 };
 function friendly(err: unknown): CloudError {
   const code = (err as { code?: string })?.code ?? '';
-  return new CloudError(MESSAGES[code] ?? 'No se pudo completar. Probá de nuevo en un momento.');
+  console.warn('[cloud]', code || err);
+  return new CloudError(MESSAGES[code] ?? `No se pudo completar${code ? ` (${code})` : ''}. Probá de nuevo en un momento.`);
 }
 
 // saves are text: gzip + base64 keeps each slot far below the 1 MB document limit
