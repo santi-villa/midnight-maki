@@ -13,7 +13,7 @@ const DECOR = new Set(['lamppost', 'stonelantern', 'lantern_red', 'lantern_cream
   'crate', 'barrel', 'sack', 'flowers', 'flowers_lav', 'bush', 'bush_flower', 'bush_berry',
   'pot_rose', 'pot_cream', 'bicycle', 'bicycle_rose', 'vending_blue', 'vending_red',
   'lanternstring', 'reeds', 'puddle', 'fence', 'boat', 'sign', 'menuboard', 'library_books',
-  'village_net', 'village_bank_w', 'village_bank_e']);
+  'village_net', 'village_bank_w', 'village_bank_e', 'boat_rope', 'village_fish_crate']);
 const TREES = new Set(['tree', 'tree_dark', 'pine', 'sakura']);
 
 export const STREET_PLANS: Record<string, StreetPlan> = {
@@ -71,7 +71,7 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['tree', 34, 25], ['tree', 33, 34], ['tree', 56, 33],
       ['bush_flower', 11, 4], ['bush_flower', 20, 4],
       ['lantern_cream', 35, 34], ['lantern_cream', 38, 34],
-      ['boat', 34, 42], ['boat', 39, 38],
+      ['boat_rope', 34, 42], ['boat', 39, 38],
       ['puddle', 12, 18, 'rain'], ['puddle', 20, 17, 'rain'], ['puddle', 17, 18, 'rain'],
       ['sign_forest', 17, 3], ['sign_station', 2, 10], ['sign_riverside', 34, 10],
       ['sign_harbor', 17, 26], ['sign_beach', 19, 41],
@@ -83,16 +83,16 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
     props: [
       // Fish/conch market and Nami's work space. The sand remains a broad public walk.
       ['street_lamp_l', 12, 4], ['street_lamp_r', 17, 4], ['street_lamp_l', 4, 9], ['street_lamp_r', 12, 9],
-      ['crate', 4, 7], ['barrel', 12, 7], ['village_net', 6, 6],
+      ['village_fish_crate', 4, 7], ['barrel', 12, 7], ['village_net', 6, 6],
       ['deco_fishrack', 34, 6], // drying fish by the fishmonger's cabin
       ['vending_red', 23, 6], ['bicycle', 20, 6], ['pot_cream', 29, 5],
       ['bench', 25, 8], ['pot_rose', 28, 8],
       ['crate', 22, 12], ['barrel', 18, 12], ['lantern_cream', 17, 12], ['lantern_cream', 21, 12],
-      ['boat', 23, 14], ['boat', 31, 14], ['boat', 44, 14],
+      ['boat_rope', 23, 14], ['boat', 31, 14], ['boat_rope', 44, 14],
       ['village_beach_pier', 19, 12], ['village_beach_pier', 38, 12],
       // Cove homes: work gear beside walls, seats overlooking the water, clear pier mouths.
       ['street_lamp_l', 29, 8], ['street_lamp_r', 46, 7], ['street_lamp_r', 37, 6],
-      ['crate', 36, 6], ['barrel', 38, 6], ['village_net', 24, 13], ['sack', 44, 6],
+      ['village_fish_crate', 36, 6], ['barrel', 38, 6], ['village_net', 24, 13], ['sack', 44, 6],
       ['lantern_cream', 37, 13], ['lantern_cream', 40, 13],
       ['tree', 30, 2], ['tree', 38, 2], ['pot_rose', 39, 6],
       ['village_pine', 38, 5],

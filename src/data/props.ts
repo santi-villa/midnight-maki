@@ -81,6 +81,8 @@ export const PROPS: Record<string, PropDef> = {
   stall_night: P('stall', 3, 1, 48, 48, '#3b4470', '#b7a8d6', { light: '#ffc070' }),
   stall_gold: P('stall', 3, 1, 48, 48, '#f2c66d', '#b2585e', { light: '#ffc070' }),
   boat: P('boat', 2, 1, 32, 32, '#a8734d'),
+  boat_rope: P('boat', 2, 1, 32, 32, '#a8734d'),
+  village_fish_crate: P('crate', 1, 1, 16, 16),
   torii: P('torii', 3, 1, 48, 42, '', '', { solid: false }),
   /** wide gates: the pillars stand on the ground beside the path, not on it */
   torii_w4: P('torii', 4, 1, 64, 42, '', '', { solid: false }),
