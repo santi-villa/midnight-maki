@@ -286,6 +286,63 @@ export function hideBoot() {
 }
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+const START_TIPS = [
+  'Encendiendo los faroles del muelle…',
+  'Pip busca la llave del restaurante…',
+  'El arroz ya está en el fuego…',
+  'Rigg dobla el mapa de Villa Nori…',
+  'Spicy deja el wasabi a un lado…',
+];
+const START_LANTERN = '<svg viewBox="0 0 16 24" shape-rendering="crispEdges" aria-hidden="true"><path fill="#3b2930" d="M7 0h2v4H7zM4 4h8v2H4zM2 6h12v14H2zM4 20h8v2H4zM7 22h2v2H7z"/><path fill="#b8524f" d="M4 5h8v2H4zM3 7h10v12H3zM4 19h8v2H4z"/><path fill="#f2c66d" d="M5 7h6v12H5zM4 9h8v8H4z"/><path fill="#f9df9b" d="M7 8h2v10H7z"/><path fill="#a8714a" d="M3 10h10v1H3zM3 15h10v1H3z"/></svg>';
+
+/** Wood card shown while a playthrough is starting. Real sheet progress, then a short fade. */
+export function openStartLoad(): { set: (done: number, total: number, text?: string) => void; close: () => Promise<void> } {
+  if (typeof document === 'undefined') return { set() {}, async close() {} };
+  const fill = h('i');
+  const label = h('div', { class: 'start-load-label' }, 'Preparando Villa Nori…');
+  const count = h('div', { class: 'start-load-count' }, '');
+  const tip = h('div', { class: 'start-load-tip' }, START_TIPS[0]);
+  const root = h('div', { class: 'start-load', role: 'status', 'aria-live': 'polite', 'aria-busy': 'true' },
+    h('div', { class: 'start-load-card' },
+      h('div', { class: 'start-load-lantern', 'aria-hidden': 'true', html: START_LANTERN }),
+      h('div', { class: 'start-load-title' }, 'Mapaches y Sushi'),
+      label,
+      h('div', { class: 'start-load-bar', 'aria-hidden': 'true' }, fill),
+      count,
+      tip,
+    ),
+  );
+  document.body.append(root);
+  const shown = performance.now();
+  let tipIndex = 0;
+  const timer = reducedMotion() ? 0 : window.setInterval(() => {
+    tipIndex = (tipIndex + 1) % START_TIPS.length;
+    tip.textContent = START_TIPS[tipIndex];
+  }, 1600);
+  let closed = false;
+  return {
+    set(done, total, text) {
+      const ratio = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+      fill.style.width = `${Math.round(ratio * 100)}%`;
+      if (text) label.textContent = text;
+      count.textContent = total > 0 ? `${Math.min(done, total)} / ${total}` : '';
+    },
+    async close() {
+      if (closed) return;
+      closed = true;
+      window.clearInterval(timer);
+      fill.style.width = '100%';
+      const hold = reducedMotion() ? 0 : Math.max(0, 280 - (performance.now() - shown));
+      if (hold) await sleep(hold);
+      root.setAttribute('aria-busy', 'false');
+      const ms = reducedMotion() ? 0 : 380;
+      root.style.transitionDuration = `${ms}ms`;
+      await waitTransition(root, 'opacity', ms, () => root.classList.add('out'));
+      root.remove();
+    },
+  };
+}
+
 export function coinText(n: number) {
   return `${n.toLocaleString('es-AR')} ●`;
 }
