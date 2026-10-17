@@ -55,6 +55,8 @@ import { homeLayout } from '../art/homes';
 import { microFor } from '../systems/npcMicro';
 import { bridgeRails } from '../world/bridge';
 import { bridgeRailCanvas } from '../art/bridges';
+import { hasVillageAtlas } from '../art/villageAssets';
+import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
@@ -582,14 +584,17 @@ export class WorldScene extends Phaser.Scene {
         for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 22, flicker: false, color: 0xffb867, glow: 0.35, kind: 'spill', facade: fac });
         this.lamps.push({ x: px, y: py - 10, r: 34, flicker: true, color: 0xff9f5a, glow: 0.5, kind: 'spill', facade: fac });
         if (fac) {
-          // the two red lanterns beside the restaurant door
+          // Lanterns follow the selected facade; fall back to the legacy art if its atlas failed.
           const top = py - p.def.sh;
           const left = px - p.def.sw / 2;
-          for (const lx of [44, 68]) this.lamps.push({ x: left + lx, y: top + p.def.sh - 24, r: 26, flicker: true, color: 0xff7a3a, glow: 0.6, facade: true });
+          const lamps = hasVillageAtlas() ? restaurantFacadeLayout(p.def.sw, p.def.sh, p.def.stage ?? 0).lanterns
+            : [44, 68].map(x => ({ x, y: p.def.sh - 24 }));
+          for (const l of lamps) this.lamps.push({ x: left + l.x, y: top + l.y + (hasVillageAtlas() ? 4 : 0), r: 26, flicker: true, color: 0xff7a3a, glow: 0.6, facade: true });
         }
         const shop = fac ? 'restaurant' : SHOP_OF_VARIANT[p.def.variant ?? -1];
-        this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac, shop);
-        if (fac) this.addWindowGlow(img, p.def.sw, p.def.sh, 0, true, true, shop);
+        const facadeStage = fac && hasVillageAtlas() ? p.def.stage ?? 0 : undefined;
+        this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac, shop, undefined, facadeStage);
+        if (fac) this.addWindowGlow(img, p.def.sw, p.def.sh, 0, true, true, shop, undefined, facadeStage);
         if (shop) this.shopFacades.push({ img, propId: p.key, shop, closed: false });
       }
       if ((p.def.kind === 'townhouse' || p.def.kind === 'sidehouse') && (p.def.variant ?? 0) < 8) {
@@ -3191,8 +3196,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** A warm overlay of lit windows (and the restaurant doorway) on top of a building sprite. Shown by updateWindowGlow. */
-  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean, shop?: string, home?: 'front' | 'side') {
-    const img = this.add.image(src.x, src.y, windowGlowTexture(this, W, H, rot, door, home)).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
+  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean, shop?: string, home?: 'front' | 'side', facadeStage?: number) {
+    const img = this.add.image(src.x, src.y, windowGlowTexture(this, W, H, rot, door, home, facadeStage)).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
     this.objs.push(img);
     this.windowGlows.push({ img, src, facade, door, phase: Math.random() * 6, shop, home: !!home, seed: (Math.round(src.x) * 7 + Math.round(src.y) * 13) % 10 });
   }
