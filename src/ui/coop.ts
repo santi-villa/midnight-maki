@@ -41,7 +41,8 @@ export async function openCoop() {
         ...joinBox(),
       ].filter(Boolean) as Node[]);
     } else if (st.phase === 'opening') {
-      body.append(h('p', null, 'Abriendo…'));
+      body.append(h('p', null, st.role === 'guest' ? 'Conectando con tu amigo…' : 'Abriendo…'),
+        h('button', { class: 'btn', onclick: () => { void leaveCoop().catch(fail); } }, 'Cancelar conexión'));
     } else if (st.phase === 'waiting') {
       body.append(...[
         h('p', null, h('b', null, 'Tu restaurante está abierto a amigos')),

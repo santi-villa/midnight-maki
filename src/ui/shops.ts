@@ -1,12 +1,13 @@
 /** Shops: buy ingredients, seeds, furniture, clothes, floor & wall styles; sell collectibles. */
 import { iconElement } from '../art/icons';
-import { drawObject } from '../art/objects';
+import { furnitureCanvas } from '../art/furniture';
 import { FLOOR_STYLES, WALL_STYLES } from '../art/tiles';
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
 import { game } from '../core/state';
 import { CLOTHES, CLOTHES_BY_ID } from '../data/clothes';
 import { FURNITURE, FURN_BY_ID } from '../data/furniture';
+import { DECOR_CATS, DECOR_CAT_LABEL } from '../decoration/decorView';
 import { ITEMS_BY_ID, PACKS, type ItemCat } from '../data/items';
 import { runScene, say } from '../dialogue/dialogue';
 import { shopGate } from '../systems/npcs';
@@ -112,7 +113,7 @@ function entryInfo(e: Entry): { name: string; icon: HTMLElement; desc: string; o
   }
   if (e.kind === 'furn') {
     const f = FURN_BY_ID[e.id];
-    const c = drawObject(f.kind, f.w * 16, f.sh, f.c1, f.c2 || f.c1, f.variant ?? 0);
+    const c = furnitureCanvas(f.id);
     c.style.cssText = `width:${Math.min(56, f.w * 28)}px;image-rendering:pixelated`;
     const placed = Object.values(game.save.decor).flat().filter((p) => p.id === e.id).length;
     return { name: f.name, icon: c, desc: `${f.w}×${f.h} · estilo ${f.style}`, owned: (game.save.furnitureOwned[e.id] ?? 0) + placed };
@@ -181,6 +182,7 @@ export async function openShop(id: string) {
   const coins = h('span', { class: 'chip gold' });
   const tabNames = [...s.tabs.map((t) => t.name), ...(s.sell ? ['Vender'] : [])];
   let current = 0;
+  let furnitureCategory = 'all';
   let serviceKey = '';
   // fitting room: tap clothes to try them on before buying
   const tryLook = { ...game.save.player.appearance };
@@ -217,7 +219,22 @@ export async function openShop(id: string) {
     if (current >= s.tabs.length) return renderSell();
     const tab = s.tabs[current];
     if (tab.name === 'Caña' || tab.name === 'Cañas') return renderRods(tab.name === 'Caña' ? ['rod_basic'] : ['rod_basic', 'rod_better', 'rod_advanced']);
-    const list = tab.list();
+    let list = tab.list();
+    if (list.length && list.every((e) => e.kind === 'furn')) {
+      const available = new Set(list.map((e) => FURN_BY_ID[e.id].cat));
+      const filter = h('select', { 'aria-label': 'Tipo de mueble', onchange: (event: Event) => {
+        furnitureCategory = (event.target as HTMLSelectElement).value;
+        render();
+        body.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true });
+      } },
+        h('option', { value: 'all' }, 'Todos los muebles'),
+        ...DECOR_CATS.filter((cat) => available.has(cat)).map((cat) => h('option', { value: cat }, DECOR_CAT_LABEL[cat])),
+      ) as HTMLSelectElement;
+      if (furnitureCategory !== 'all' && !available.has(furnitureCategory as typeof FURNITURE[number]['cat'])) furnitureCategory = 'all';
+      filter.value = furnitureCategory;
+      body.append(h('label', { class: 'col' }, 'Tipo de mueble', filter));
+      if (furnitureCategory !== 'all') list = list.filter((e) => FURN_BY_ID[e.id].cat === furnitureCategory);
+    }
     if (list.some((e) => e.kind === 'cloth')) body.append(fitting);
     const grid = h('div', { class: 'grid items', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' } });
     if (!list.length) grid.append(h('p', { class: 'muted' }, '¡Ya tenés todo de acá!'));

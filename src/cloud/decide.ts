@@ -11,7 +11,7 @@ export type SyncAction = 'none' | 'push' | 'pull' | 'conflict';
 
 /**
  * `local` and `remote` are the updatedAt of the newest snapshot on each side (null = nothing there).
- * Never overwrites a side that changed on its own since the last sync: that is a conflict the player decides.
+ * Both sides changed since the last sync: that is a conflict. The cloud copy is the one that stays.
  */
 export function decideSync(local: number | null, remote: number | null, marks: SyncMarks): SyncAction {
   if (local == null && remote == null) return 'none';
