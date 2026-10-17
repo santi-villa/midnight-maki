@@ -12,6 +12,7 @@ import { HOUSES } from '../data/houses';
 import { housePieces } from '../data/houseInterior';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
+import { bridgeMask } from './bridge';
 import { settleStoredGifts } from './furnGift';
 
 export interface PropInstance { key: string; def: PropDef; x: number; y: number; }
@@ -101,7 +102,7 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case 'h': return TILE_INDEX.shore;
     case 'w': return TILE_INDEX[`wtc${waterDepthAt(def.ground, x, y)}${waterVariant(x, y)}_0`];
     case 'd': return TILE_INDEX[`wtcd${waterVariant(x, y)}_0`];
-    case 'b': return TILE_INDEX.bridge;
+    case 'b': return TILE_INDEX['bridge_' + bridgeMask(def.ground, x, y)];
     case 'r': return TILE_INDEX.bed_rose;
     case 'y': return TILE_INDEX.bed_gold;
     case 'l': return TILE_INDEX.bed_lav;

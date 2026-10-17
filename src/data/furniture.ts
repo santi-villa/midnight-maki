@@ -1,3 +1,5 @@
+import { INTERIOR_FURNITURE } from './interiorFurniture';
+
 export type FurnCat =
   | 'bedroom' | 'kitchen' | 'restaurant' | 'garden' | 'bath' | 'light' | 'plant' | 'wall' | 'rug' | 'small' | 'special';
 
@@ -20,6 +22,7 @@ export interface FurnitureDef {
   rotatable?: boolean;
   walkable?: boolean;
   wall?: boolean;    // goes on the wall face row
+  wallOffsetY?: number; // pixels hanging below the wall mount; collision footprint stays on the wall
   light?: string;    // emits light at night
   sit?: boolean;
   charm: number;     // restaurant ambience score
@@ -68,8 +71,8 @@ export const FURNITURE: FurnitureDef[] = [
   F('shelf_books', 'Biblioteca', 'bedroom', 'cozy', 220, 'shelf', '#8a5a3c', '#3b4470', 2, 1, 30, { likes: ['rigg'] }),
   F('shelf_kitchen', 'Estante de cocina', 'kitchen', 'natural', 180, 'shelf', '#a8734d', '#f6ecd6', 2, 1, 30, { likes: ['spicy'] }),
   F('shelf_dark', 'Biblioteca antigua', 'bedroom', 'dark', 380, 'shelf', '#4e3428', '#b2585e', 2, 1, 30, { likes: ['rigg'] }),
-  F('wardrobe_wood', 'Ropero', 'bedroom', 'natural', 300, 'wardrobe', '#a8734d', '', 2, 1, 30),
-  F('wardrobe_white', 'Ropero blanco', 'bedroom', 'minimal', 300, 'wardrobe', '#efe8da', '', 2, 1, 30, { shop: 'sumi' }),
+  F('wardrobe_wood', 'Ropero', 'bedroom', 'natural', 300, 'wardrobe', '#a8734d', '', 2, 1, 44),
+  F('wardrobe_white', 'Ropero blanco', 'bedroom', 'minimal', 300, 'wardrobe', '#efe8da', '', 2, 1, 44, { shop: 'sumi' }),
   F('desk_wood', 'Escritorio', 'bedroom', 'natural', 240, 'desk', '#a8734d', '#3b4470', 2, 1, 26, { likes: ['rigg'] }),
   F('desk_dark', 'Escritorio de nogal', 'bedroom', 'dark', 340, 'desk', '#5e3f30', '#b7a8d6', 2, 1, 26),
   F('chest_wood', 'Baúl', 'bedroom', 'cottage', 120, 'chest', '#8a5a3c', '', 1, 1, 14),
@@ -143,5 +146,7 @@ export const FURNITURE: FurnitureDef[] = [
   F('errand_furin', 'Furin del vecindario', 'wall', 'japanese', 0, 'windchime', '#8db7c4', '#f2c66d', 1, 1, 16, { wall: true, shop: 'reward' }),
   F('errand_bonsai', 'Bonsái de los vecinos', 'plant', 'japanese', 0, 'bonsai', '#6f9e5a', '#c9a24a', 1, 1, 18, { shop: 'reward' }),
 ];
+
+FURNITURE.push(...INTERIOR_FURNITURE);
 
 export const FURN_BY_ID: Record<string, FurnitureDef> = Object.fromEntries(FURNITURE.map((f) => [f.id, f]));

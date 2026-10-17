@@ -239,9 +239,12 @@ export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
           const pace = dashing > 0 ? 4.2 : (1 + d * 0.55) * (relaxed ? 0.75 : 1);
           fishY += (fishTarget - fishY) * Math.min(1, dt * pace);
           fishX = W / 2 - 8 + Math.sin(t / 380) * 6 + (dashing > 0 ? Math.sin(t / 30) * 2 : 0);
-          // the zone: hold to rise, let go to sink
-          zoneV += (holding ? -300 : 230) * dt * tune.control;
-          zoneV *= 0.9;
+          // Hold rises, release sinks. Drag is per second: a per-frame factor froze the zone on fast screens.
+          const push = (holding ? -980 : 760) * tune.control;
+          zoneV = (zoneV + push * dt) * Math.exp(-2.8 * dt);
+          const cap = 220 * tune.control;
+          if (zoneV > cap) zoneV = cap;
+          else if (zoneV < -cap) zoneV = -cap;
           zoneY = Math.max(SURFACE, Math.min(H - zoneH, zoneY + zoneV * dt));
           if (zoneY === SURFACE || zoneY === H - zoneH) zoneV = 0;
           const inside = fishY > zoneY && fishY < zoneY + zoneH;

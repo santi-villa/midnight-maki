@@ -4,7 +4,7 @@
  * The sheet only browses. A chosen piece is dragged on the room, or nudged with the arrow keys.
  */
 import Phaser from 'phaser';
-import { drawObject } from '../art/objects';
+import { furnitureCanvas } from '../art/furniture';
 import { FLOOR_STYLES, WALL_STYLES } from '../art/tiles';
 import { audio } from '../audio/audio';
 import { bus } from '../core/events';
@@ -296,7 +296,7 @@ class DecorEditor {
   }
 
   private card(f: FurnitureDef, n: number, onClick: () => void) {
-    const c = drawObject(f.kind, f.w * 16, f.sh, f.c1, f.c2 || f.c1, f.variant ?? 0);
+    const c = furnitureCanvas(f.id);
     c.className = 'decor-art';
     return h('button', { type: 'button', class: 'btn decor-card', onclick: onClick }, n ? h('span', { class: 'q' }, String(n)) : null, c, h('span', { class: 'decor-name' }, f.name));
   }
@@ -368,7 +368,7 @@ class DecorEditor {
     if (!g || !this.ghostImg) return;
     const f = FURN_BY_ID[g.id];
     const size = furnSize(f, g.rot);
-    this.ghostImg.setPosition(g.x * TILE + (size.w * TILE) / 2, (g.y + size.h) * TILE);
+    this.ghostImg.setPosition(g.x * TILE + (size.w * TILE) / 2, (g.y + size.h) * TILE + (f.wallOffsetY ?? 0));
     const why = this.blockReason(g);
     this.ghostImg.setTint(why ? 0xf0a0a0 : 0xc8f0c0);
     this.setStatus(why ?? 'Tocá o arrastrá en el cuarto para moverlo. Cuando termines, tocá Listo.', why ? 'bad' : 'ok');
