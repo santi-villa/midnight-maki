@@ -1,5 +1,5 @@
 /** Firebase backend: Google and e-mail sign-in, one Firestore document per slot. Loaded only when the app has a Firebase config. */
-import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getApp, initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   GoogleAuthProvider, browserLocalPersistence, createUserWithEmailAndPassword, deleteUser, getAuth, getRedirectResult, onAuthStateChanged,
   reauthenticateWithPopup, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, updateProfile, type Auth, type User,
@@ -120,3 +120,7 @@ export function createFirebaseProvider(config: FirebaseConfig): CloudProvider {
   };
 }
 
+
+/** For the social features: the same Firestore and signed-in user the provider uses. */
+export function firebaseDb(): Firestore { return getFirestore(getApp()); }
+export function firebaseUid(): string | null { return getAuth(getApp()).currentUser?.uid ?? null; }
