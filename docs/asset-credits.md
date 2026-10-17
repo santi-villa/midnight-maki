@@ -14,7 +14,13 @@ Se utiliza un recorte nativo de césped y un material de tejado, con adaptación
 
 La página oficial permite usar el arte en juegos comerciales y gratuitos y modificarlo; conserva la propiedad del autor y restringe la distribución del recurso suelto y su uso para entrenamiento de IA, NFT y actividades similares. Revisado el 16 de octubre de 2026. Este atlas contiene solo piezas utilizadas como recursos de Midnight Maki.
 
-La demo aporta además una conífera pequeña, buzón rojo, cartel cubierto y caja de madera, incorporados mediante `scripts/build-exterior-details.py`. Los arbustos exteriores reutilizan su recorte nativo de arbusto florido. No se añaden barcos ni las fachadas de las tres referencias elegidas: esas piezas no están en el ZIP de demostración disponible.
+La demo aporta además una conífera pequeña, buzón rojo, cartel cubierto y caja de madera, incorporados mediante `scripts/build-exterior-details.py`. Los arbustos exteriores reutilizan su recorte nativo de arbusto florido. Una entrega posterior incorpora barcos y las tres fachadas elegidas a partir de la lámina completa aportada por el usuario, descrita abajo; no se atribuyen esas piezas al ZIP de demostración.
+
+### Lámina completa aportada por el usuario
+
+El PNG de 1013×1181 recibido en `Imagen de ChatGPT 17 oct 2026, 01_34_44.zip` se conserva en `art-source/village/lamina-aportada.png`. `scripts/build-village-assets.py` recorta 18 piezas de esa imagen de VectoRaith: las tres fachadas elegidas para Midnight Maki, botes, arbustos, faroles, guirnalda, recipientes y accesorios pesqueros y tres fachadas pequeñas para puestos de mercado. Su atlas de 512×256 ocupa unos 45 KiB de PNG; la lámina completa no entra en la carga del juego. `src/assets/village/catalog.json` registra el hash, origen de cada recorte y geometría de las fachadas. Se mantiene la mención de VectoRaith en los créditos del juego.
+
+Esta lámina tiene interpolación y transparencia parcial: no se presenta como una exportación nativa de 16 px. Se limpia el fondo tenue y se ajustan los recortes con proporción uniforme, sin añadir suavizado. Véase [fachadas elegidas y puentes](fachadas-elegidas-y-puentes.md).
 
 ## Bitglow
 
