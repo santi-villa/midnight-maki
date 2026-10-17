@@ -25,6 +25,15 @@ export interface CoopState {
 export const SILENCE_MS = 9000;
 const HEARTBEAT_MS = 2000;
 
+/** A pipe that never answers (wrong database URL, no internet) must end in a message, not an endless "Abriendo…". */
+export const OPEN_TIMEOUT_MS = 12000;
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => reject(new CoopError('No se pudo conectar con la base en tiempo real. Revisá tu conexión, la URL en .env.local y que las reglas estén publicadas.')), ms);
+    p.then((v) => { clearTimeout(id); resolve(v); }, (e) => { clearTimeout(id); reject(e); });
+  });
+}
+
 export interface CoopDeps {
   openTransport: (role: Role, code: string) => Promise<CoopTransport>;
   /** the host's restaurant, taken when the guest arrives */
@@ -58,7 +67,7 @@ export class CoopSession {
     for (let i = 0; i < 5; i++) {
       const code = generateCode();
       try {
-        const t = await this.deps.openTransport('host', code);
+        const t = await withTimeout(this.deps.openTransport('host', code), OPEN_TIMEOUT_MS);
         this.attach(t, code);
         this.set({ phase: 'waiting', code });
         return code;
@@ -78,7 +87,7 @@ export class CoopSession {
     if (!code) throw new CoopError('Ese código no parece válido: son 6 letras y números.');
     this.set({ phase: 'opening', role: 'guest', code, note: null, peer: null, peerPos: null, world: null });
     try {
-      const t = await this.deps.openTransport('guest', code);
+      const t = await withTimeout(this.deps.openTransport('guest', code), OPEN_TIMEOUT_MS);
       this.attach(t, code);
     } catch (e) {
       this.set({ phase: 'closed', note: e instanceof CoopError ? e.message : 'No se pudo entrar a la sala. Probá de nuevo.' });
