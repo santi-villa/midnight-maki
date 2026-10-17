@@ -8,8 +8,29 @@ import { buildZone } from '../world/zoneRuntime';
 import { HOUSES, houseDoorTile, housePropId } from '../data/houses';
 import { homeLayout } from '../art/homes';
 import { bridgeRails } from '../world/bridge';
+import { restaurantFacadeLayout } from '../art/restaurantFacade';
 
 describe('village sample keeps the saved village playable', () => {
+  it('uses the three selected facades in order and retains the third for the final stage', () => {
+    expect([0, 1, 2, 3].map(stage => restaurantFacadeLayout(112, 112, stage).frame))
+      .toEqual(['restaurant_1', 'restaurant_2', 'restaurant_3', 'restaurant_3']);
+  });
+  it('keeps the selected facade doors on the saved threshold and every light within its sprite', () => {
+    const placed = ZONES.plaza.props.find(p => p.id === 'bld_restaurant_s0')!;
+    const door = ZONES.plaza.doors.find(d => d.to === 'restaurant')!;
+    for (const stage of [0, 1, 2, 3]) {
+      const L = restaurantFacadeLayout(112, 112, stage);
+      expect(Math.abs(placed.x * 16 + L.door.x + L.door.w / 2 - (door.x * 16 + 8))).toBeLessThanOrEqual(0.5);
+      expect((placed.y + 3) * 16 - 112 + L.door.y + L.door.h).toBe(door.y * 16 + 14);
+      expect(L.x).toBeGreaterThanOrEqual(0); expect(L.y).toBeGreaterThanOrEqual(0);
+      expect(L.x + L.w).toBeLessThanOrEqual(112); expect(L.y + L.h).toBeLessThanOrEqual(112);
+      for (const w of L.windows) {
+        expect(w.x).toBeGreaterThanOrEqual(L.x); expect(w.y).toBeGreaterThanOrEqual(L.y);
+        expect(w.x + w.w).toBeLessThanOrEqual(L.x + L.w); expect(w.y + w.h).toBeLessThanOrEqual(L.y + L.h);
+        expect(w.x + w.w <= L.door.x || w.x >= L.door.x + L.door.w || w.y + w.h <= L.door.y).toBe(true);
+      }
+    }
+  });
   it('aligns every imported genkan with the saved house entrance and keeps window light off the timber door', () => {
     for (const house of HOUSES) {
       const prop = PROPS[housePropId(house)];
