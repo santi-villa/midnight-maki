@@ -4,8 +4,9 @@ import { BROW_STYLES, EARRINGS, EYE_STYLES, FACE_SHAPES, FACIAL_HAIR, HERO_DEFAU
 import { drawHero, heroHeadshot, HERO_H, HERO_W, isHeroLook } from '../art/heroRender';
 import { ctx2d, makeCanvas } from '../art/pixel';
 import { audio } from '../audio/audio';
+import { settings } from '../core/settings';
 import { defaultAppearance } from '../core/state';
-import type { Appearance, Dir } from '../core/types';
+import type { Appearance, Dir, Settings } from '../core/types';
 import { CLOTHES, CLOTHES_BY_ID, type ClothingSlot } from '../data/clothes';
 import { h, panel } from './dom';
 
@@ -39,7 +40,7 @@ interface CreatorOpts {
   askNames: boolean;
   ownedClothes?: string[]; // when editing later, only owned items
   confirmLabel: string;
-  onDone: (a: Appearance, name: string, restaurant: string) => void;
+  onDone: (a: Appearance, name: string, restaurant: string, difficulty?: Settings['cookMode']) => void;
   onCancel?: () => void;
 }
 
@@ -197,6 +198,29 @@ export function openCreator(o: CreatorOpts) {
   );
   if (o.askNames) pages.push(['Nombre', () => h('div', null, section('Tu nombre', nameInput), section('Nombre del restaurante', restInput), h('p', { class: 'hint' }, 'Podés cambiar tu ropa y tu look más adelante desde el ropero de tu habitación.'))]);
 
+  const DIFFICULTIES: { id: Settings['cookMode']; label: string; hint: string }[] = [
+    { id: 'relaxed', label: 'Relajado', hint: 'Cocina sin reloj, pesca más fácil y clientes con más paciencia.' },
+    { id: 'normal', label: 'Normal', hint: 'El ritmo de siempre en Villa Nori.' },
+    { id: 'challenge', label: 'Difícil', hint: 'Cocina con reloj y menos margen para equivocarte.' },
+  ];
+  let difficulty: Settings['cookMode'] = settings.cookMode;
+  const diffHint = h('p', { class: 'hint cr-diff-hint' }, '');
+  const diffRow = h('div', { class: 'cr-diff', role: 'radiogroup', 'aria-label': 'Dificultad' });
+  const paintDiff = () => {
+    diffRow.replaceChildren(...DIFFICULTIES.map((d) => h('button', {
+      type: 'button',
+      class: 'btn small' + (difficulty === d.id ? ' primary' : ''),
+      role: 'radio',
+      'aria-checked': difficulty === d.id ? 'true' : 'false',
+      onclick: () => { difficulty = d.id; audio.sfxPlay('tap'); paintDiff(); },
+    }, d.label)));
+    diffHint.textContent = DIFFICULTIES.find((d) => d.id === difficulty)?.hint ?? '';
+  };
+  paintDiff();
+  const difficultyBlock = o.askNames
+    ? h('div', { class: 'cr-diff-wrap' }, h('div', { class: 'cr-label' }, 'Dificultad'), diffRow, diffHint)
+    : null;
+
   const content = h('div', { class: 'cr-page' });
   const tabBar = h('div', { class: 'tabs cr-tabs' });
   const show = (i: number) => {
@@ -207,7 +231,7 @@ export function openCreator(o: CreatorOpts) {
     content.scrollTop = 0;
   };
   pages.forEach(([label], i) => tabBar.append(h('button', { class: 'tab', onclick: () => { audio.sfxPlay('tap'); show(i); } }, label)));
-  const body = h('div', { class: 'creator2' }, stageBox, h('div', { class: 'cr-side' }, tabBar, content));
+  const body = h('div', { class: 'creator2' }, stageBox, h('div', { class: 'cr-side' }, difficultyBlock, tabBar, content));
   show(0);
   paintStage();
 
@@ -255,7 +279,7 @@ export function openCreator(o: CreatorOpts) {
           const nm = name.trim().slice(0, 14) || defaultName();
           const rs = rest.trim().slice(0, 20) || 'Midnight Maki';
           p.close();
-          o.onDone(a, nm, rs);
+          o.onDone(a, nm, rs, o.askNames ? difficulty : undefined);
         },
       }, o.confirmLabel),
     ],

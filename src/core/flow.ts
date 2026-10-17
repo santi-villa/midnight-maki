@@ -2,6 +2,7 @@
 import type Phaser from 'phaser';
 import { audio } from '../audio/audio';
 import { game, newSave } from './state';
+import { settings, updateSettings } from './settings';
 import type { Appearance, SaveData } from './types';
 import { deleteSlot, saveGame, setActiveSlot } from '../persistence/storage';
 import { world } from '../scenes/WorldScene';
@@ -9,6 +10,7 @@ import { drainOutdoorWarm, outdoorWarmPending } from '../scenes/warmArt';
 import { clock } from '../systems/time';
 import { installActions } from '../systems/actions';
 import { installDaily } from '../systems/daily';
+import { openStartLoad } from '../ui/dom';
 import { mountHud, showHud } from '../ui/hud';
 import { hudHandlers } from '../ui/menus';
 import { ensureDefaultDecor } from '../world/zoneRuntime';
@@ -32,16 +34,27 @@ export async function startNewGame(a: Appearance, name: string, restaurant: stri
   const s = newSave(name, a, restaurant);
   s.time = { day: 1, period: 2, minutes: 0 };
   game.load(s);
+  const mode = settings.cookMode;
+  if (mode === 'relaxed' || mode === 'normal' || mode === 'challenge') game.setFlag('play_difficulty', mode);
   if (!(await saveGame('new'))) game.touch('new');
   await startWorld(true);
 }
 
 export async function continueGame(s: SaveData) {
   game.load(s);
+  const mode = s.flags?.play_difficulty;
+  if (mode === 'relaxed' || mode === 'normal' || mode === 'challenge') updateSettings({ cookMode: mode });
   await startWorld(false);
 }
 
 async function startWorld(isNew: boolean) {
+  const load = openStartLoad();
+  let hidLoad = false;
+  const hideLoad = async () => {
+    if (hidLoad) return;
+    hidLoad = true;
+    await load.close();
+  };
   try {
     stopAutosave();
     clock.resetPause();
@@ -50,7 +63,11 @@ async function startWorld(isNew: boolean) {
     // The title scene sleeps as soon as the menu art loads, so its warm timer never finishes.
     // Paint the remaining sheets here, before the world is playable, instead of hitching once a second in play.
     const title = phaser.scene.getScene('title');
-    if (title && outdoorWarmPending()) await paintTown(title);
+    if (title && outdoorWarmPending()) {
+      await drainOutdoorWarm(title, (done, total) => load.set(done, total, 'Preparando Villa Nori…'));
+    } else {
+      load.set(1, 1, 'Villa Nori está lista');
+    }
     phaser.scene.stop('title');
     phaser.scene.start('world');
     await new Promise<void>((r) => {
@@ -66,6 +83,7 @@ async function startWorld(isNew: boolean) {
     };
     mountHud(hudHandlers());
     (await import('../ui/coach')).installCoach();
+    await hideLoad();
     const p = game.save.player;
     if (isNew) {
       showHud(false);
@@ -81,6 +99,7 @@ async function startWorld(isNew: boolean) {
     startAutosave();
     void runTask('flow:backup', backupHousekeeping, false);
   } catch (err) {
+    await hideLoad();
     stopAutosave();
     showHud(false);
     clock.resetPause();
@@ -89,22 +108,6 @@ async function startWorld(isNew: boolean) {
     audio.crossfade('title');
     await (await import('../ui/title')).showTitle(phaser);
     throw err;
-  }
-}
-
-/** Covers the screen while the village sheets are painted, one per frame. */
-async function paintTown(scene: Phaser.Scene) {
-  const veil = document.createElement('div');
-  veil.className = 'town-warm';
-  veil.setAttribute('role', 'status');
-  veil.textContent = 'Preparando Villa Nori…';
-  document.body.append(veil);
-  try {
-    await drainOutdoorWarm(scene, (done, total) => {
-      veil.textContent = total > 0 ? `Preparando Villa Nori… ${done}/${total}` : 'Preparando Villa Nori…';
-    });
-  } finally {
-    veil.remove();
   }
 }
 

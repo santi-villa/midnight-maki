@@ -56,7 +56,18 @@ export const clock = {
     return true;
   },
 
-  /** Sleep: go to the next morning */
+  /** Move the hands without starting a new day. */
+  place(period: number, minutes: number) {
+    const t = game.save.time;
+    const prev = t.period;
+    t.period = Math.max(0, Math.min(3, Math.floor(period)));
+    t.minutes = Math.max(0, minutes);
+    game.touch('period');
+    if (t.period !== prev) for (const h of periodHooks) h(t.period);
+    bus.emit('time:changed', { day: t.day, period: t.period });
+  },
+
+  /** Sleep past dawn: go to the next morning. */
   newDay() {
     const t = game.save.time;
     t.day++;

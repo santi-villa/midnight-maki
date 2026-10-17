@@ -18,6 +18,19 @@ it('normalizes fractional, wrapped and invalid presentation values', () => {
   expect(formatHudTime(NaN)).toBe('00:00');
   expect(formatHudTime(hudTime(NaN, NaN))).toBe('06:00');
 });
+it('places the hands without starting another day', () => {
+  game.save.time.day = 4;
+  game.save.time.period = 3;
+  game.save.time.minutes = 30;
+  clock.place(3, 180);
+  expect(game.save.time.day).toBe(4);
+  expect(game.save.time.period).toBe(3);
+  expect(game.save.time.minutes).toBe(180);
+  clock.place(0, 45);
+  expect(game.save.time.day).toBe(4);
+  expect(game.save.time.period).toBe(0);
+  expect(game.save.time.minutes).toBe(45);
+});
 it('uses the existing period rollover and pause, without advancing a separate clock', () => {
   game.save.time.minutes = BALANCE.periodMinutes - 0.01;
   clock.tick(realSecondsPerPeriodMinute(game.save.time.period));

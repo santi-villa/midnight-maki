@@ -36,7 +36,7 @@ test('title: menu buttons are finger-sized and inside the screen on phones (both
     await page.locator('.tt').click();
     await page.waitForTimeout(700);
     const boxes = await page.locator('.tt-btn').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
-    expect(boxes.length).toBe(4);
+    expect(boxes.length).toBe(5);
     for (const b of boxes) {
       expect(b.height).toBeGreaterThanOrEqual(44);
       expect(b.left).toBeGreaterThanOrEqual(0);
