@@ -29,6 +29,7 @@ export const PROPS: Record<string, PropDef> = {
   tree_autumn: P('tree', 1, 1, 44, 56, '#d08a4f', '', { anim: 'sway' }),
   sakura: P('sakura', 1, 1, 44, 56, '', '', { anim: 'sway' }),
   pine: P('pine', 1, 1, 32, 50, '#46a846'),
+  village_pine: P('pine', 1, 1, 16, 32, '#46a846'),
   bush: P('bush', 1, 1, 18, 15, '#46a846', '#46a846'),
   bush_berry: P('bush', 1, 1, 18, 15, '#46a846', '#e0424f'),
   bush_flower: P('bush', 1, 1, 18, 15, '#46a846', '#f7f0f4'),

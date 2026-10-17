@@ -113,5 +113,29 @@ export const COZY_FRAMES = {
     "y": 112,
     "w": 80,
     "h": 76
+  },
+  "villagePine": {
+    "x": 176,
+    "y": 112,
+    "w": 16,
+    "h": 32
+  },
+  "villageMailbox": {
+    "x": 192,
+    "y": 112,
+    "w": 16,
+    "h": 16
+  },
+  "villageNotice": {
+    "x": 208,
+    "y": 112,
+    "w": 16,
+    "h": 16
+  },
+  "villageWoodbox": {
+    "x": 224,
+    "y": 112,
+    "w": 16,
+    "h": 16
   }
 } as const;
