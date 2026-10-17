@@ -1,4 +1,5 @@
 import type { IconSpec } from '../art/icons';
+import { ICON_ART } from '../art/iconArtMap';
 
 export type ItemCat =
   | 'ingredient' | 'supply' | 'fish' | 'bug' | 'flower' | 'shell' | 'material' | 'seed' | 'gift' | 'key' | 'dish' | 'rare';
@@ -157,6 +158,7 @@ for (const [item, sizes] of Object.entries(PACK_SIZES)) {
 }
 export const PACKS_BY_ID: Record<string, PackDef> = Object.fromEntries(PACKS.map((p) => [p.id, p]));
 
+for (const i of ITEMS) { const art = ICON_ART[i.id]; if (art) i.icon = { ...i.icon, art }; }
 export const ITEMS_BY_ID: Record<string, ItemDef> = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
 
 /** Fish that can substitute for ingredients when cooking */
