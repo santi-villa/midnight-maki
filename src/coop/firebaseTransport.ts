@@ -3,7 +3,7 @@ import { getApp } from 'firebase/app';
 import { get, getDatabase, onChildAdded, onDisconnect, onValue, push, ref, remove, runTransaction, set, type Database } from 'firebase/database';
 import { firebaseUid } from '../cloud/firebase';
 import { CoopError } from './errors';
-import type { Role } from './protocol';
+import { pack, unpack, type Role } from './protocol';
 import type { CoopTransport } from './transport';
 
 export function databaseConfigured(): boolean { return !!import.meta.env.VITE_FIREBASE_DATABASE_URL; }
@@ -52,18 +52,18 @@ async function open(role: Role, code: string): Promise<CoopTransport> {
 
   const handlers = { msg: [] as ((m: unknown) => void)[], state: [] as ((k: string, v: unknown) => void)[], peer: [] as ((p: boolean) => void)[] };
   const offs: (() => void)[] = [];
-  offs.push(onChildAdded(ref(d, `${mine}/q`), (snap) => { const v = snap.val(); void remove(snap.ref); handlers.msg.forEach((f) => f(v)); }));
+  offs.push(onChildAdded(ref(d, `${mine}/q`), (snap) => { const v = unpack((snap.val() as { j?: string } | null)?.j); void remove(snap.ref); if (v) handlers.msg.forEach((f) => f(v)); }));
   const seen: Record<string, number> = {};
   offs.push(onValue(ref(d, `${mine}/state`), (snap) => {
-    snap.forEach((c) => { const v = c.val() as { v: unknown; n: number } | null; if (v && v.n !== seen[c.key!]) { seen[c.key!] = v.n; handlers.state.forEach((f) => f(c.key!, v.v)); } });
+    snap.forEach((c) => { const v = c.val() as { j: string; n: number } | null; if (v && v.n !== seen[c.key!]) { seen[c.key!] = v.n; handlers.state.forEach((f) => f(c.key!, unpack(v.j))); } });
   }));
   let present = false;
   offs.push(onValue(ref(d, `${base}/presence/${other}`), (snap) => { present = snap.exists(); handlers.peer.forEach((f) => f(present)); }));
   let n = 0;
   return {
     role,
-    send(msg) { void push(ref(d, `${theirs}/q`), JSON.parse(JSON.stringify(msg))).catch(() => undefined); },
-    state(key, value) { void set(ref(d, `${theirs}/state/${key}`), { v: JSON.parse(JSON.stringify(value)), n: ++n }).catch(() => undefined); },
+    send(msg) { void push(ref(d, `${theirs}/q`), { j: pack(msg) }).catch(() => undefined); },
+    state(key, value) { void set(ref(d, `${theirs}/state/${key}`), { j: pack(value), n: ++n }).catch(() => undefined); },
     onMessage(fn) { handlers.msg.push(fn); },
     onState(fn) { handlers.state.push(fn); },
     onPeer(fn) { handlers.peer.push(fn); if (present) fn(true); },

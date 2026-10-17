@@ -62,3 +62,17 @@ describe('shared restaurant session', () => {
     await expect(g.join('abc')).rejects.toThrow(/código/);
   });
 });
+
+describe('what survives the Realtime Database', () => {
+  it('repairs a world pack whose empty parts went missing or became objects', async () => {
+    const { normalizeWorld, pack, unpack } = await import('../coop/protocol');
+    const mangled = { decor: { dining: { 0: { uid: 1, id: 'table_wood', x: 3, y: 3, rot: 0 } } }, restaurant: { level: 2 }, time: { day: 3 } } as never;
+    const w = normalizeWorld(mangled);
+    expect(Array.isArray(w.decor.dining)).toBe(true);
+    expect(w.decor.dining).toHaveLength(1);
+    expect(w.restaurant.upgrades).toEqual([]);
+    expect(w.roomStyle).toEqual({});
+    expect(normalizeWorld(undefined).time.day).toBe(1);
+    expect(unpack(pack({ a: [], b: {} }))).toEqual({ a: [], b: {} });
+  });
+});

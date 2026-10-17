@@ -5,7 +5,7 @@
 import { generateCode, normalizeCode } from '../cloud/friendCode';
 import { bus } from '../core/events';
 import { CoopError } from './errors';
-import { COOP_VERSION, isMsg, isPos, type Msg, type PeerInfo, type PosState, type Role, type WorldPack } from './protocol';
+import { COOP_VERSION, isMsg, isPos, normalizeWorld, type Msg, type PeerInfo, type PosState, type Role, type WorldPack } from './protocol';
 import type { CoopTransport } from './transport';
 
 export type CoopPhase = 'idle' | 'opening' | 'waiting' | 'connected' | 'closed';
@@ -129,8 +129,9 @@ export class CoopSession {
       } else this.set({ peer: raw.info });
     } else if (raw.t === 'world') {
       if (t.role !== 'guest') return;
-      this.set({ world: raw.world, phase: 'connected' });
-      this.worldHook?.(raw.world);
+      const world = normalizeWorld(raw.world);
+      this.set({ world, phase: 'connected' });
+      this.worldHook?.(world);
     } else if (raw.t === 'bye') {
       this.end(raw.why === 'full' ? 'La sala está completa.' : raw.why === 'version' ? 'Tu amigo tiene otra versión del juego.' : t.role === 'guest' ? 'Tu amigo cerró el restaurante.' : 'Tu amigo salió.');
     }
