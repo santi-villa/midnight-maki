@@ -315,6 +315,31 @@ const ICONS: Record<string, IconFn> = {
     px(g, 10, 4, INK, 4, 4);
     px(g, 11, 5, '#f2c66d', 2, 2);
   },
+  shirt(g) {
+    px(g, 1, 3, INK, 14, 12);
+    px(g, 2, 4, '#6ea6d8', 12, 10);
+    px(g, 5, 3, INK, 6, 4);
+    px(g, 6, 4, '#f3d2b4', 4, 3);
+    px(g, 2, 4, '#4e86bc', 3, 4);
+    px(g, 11, 4, '#4e86bc', 3, 4);
+    px(g, 7, 8, '#f6ecd6', 2, 3);
+  },
+  disk(g) {
+    px(g, 2, 1, INK, 12, 14);
+    px(g, 3, 2, '#6f8fbe', 10, 12);
+    px(g, 4, 2, '#e7eef8', 8, 5);
+    px(g, 5, 3, '#6f8fbe', 6, 3);
+    px(g, 5, 11, INK, 6, 3);
+    px(g, 6, 12, '#f6ecd6', 4, 1);
+  },
+  cloud(g) {
+    ellipse(g, 8, 10, 6, 3.4, INK);
+    ellipse(g, 6, 8, 3.2, 2.8, INK);
+    ellipse(g, 11, 8, 3.4, 2.8, INK);
+    ellipse(g, 8, 10, 5, 2.4, '#f7fbff');
+    ellipse(g, 6, 8.2, 2.2, 1.8, '#f7fbff');
+    ellipse(g, 11, 8.2, 2.4, 1.8, '#f7fbff');
+  },
 };
 
 function icon(name: string): HTMLCanvasElement {
