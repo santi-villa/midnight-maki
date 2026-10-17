@@ -1,0 +1,34 @@
+{
+  "interiors": [
+    {
+      "width": 1366,
+      "placed": {
+        "uid": 186,
+        "id": "interior_bed_terracota_0",
+        "x": 3,
+        "y": 2,
+        "rot": 0
+      },
+      "legacyBed": true,
+      "saved": true,
+      "doorReachable": true,
+      "reports": []
+    },
+    {
+      "width": 390,
+      "placed": {
+        "uid": 186,
+        "id": "interior_bed_terracota_0",
+        "x": 3,
+        "y": 2,
+        "rot": 0
+      },
+      "legacyBed": true,
+      "saved": true,
+      "doorReachable": true,
+      "reports": []
+    }
+  ],
+  "coop": "local two-tab transport",
+  "errors": []
+}
