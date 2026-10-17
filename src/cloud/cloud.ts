@@ -108,7 +108,7 @@ export const cloud = {
     const mine = await slotForCloud(slot);
     const lAt = newest(mine);
     if (lAt == null) return;
-    if (decideSync(lAt, rAt, marks) === 'conflict' || (rAt != null && rAt > marks.remote && lAt <= marks.local)) return; // let the next full sync ask the player
+    if (decideSync(lAt, rAt, marks) === 'conflict' || (rAt != null && rAt > marks.remote && lAt <= marks.local)) return; // a full sync replaces this device with the cloud save
     patch({ syncing: true });
     try {
       const at = await provider.putSlot(slot, mine);
@@ -119,7 +119,7 @@ export const cloud = {
     finally { patch({ syncing: false }); }
   },
 
-  /** Compare every slot with the cloud. Conflicts go to `resolve`; nothing is overwritten unasked. */
+  /** Compare every slot with the cloud. A conflict keeps the cloud copy. */
   async sync(resolve?: (c: ConflictInfo) => Promise<ConflictChoice>): Promise<SyncSummary> {
     const user = state.user;
     const sum: SyncSummary = { pushed: 0, pulled: 0, skipped: 0, reload: false };
@@ -135,7 +135,7 @@ export const cloud = {
         let act = decideSync(lAt, rAt, marks);
         if (act === 'conflict') {
           const a = mine.auto ?? mine.manual, b = theirs?.auto ?? theirs?.manual;
-          const choice: ConflictChoice = resolve && a && b ? await resolve({ slot, local: a, remote: b }) : 'skip';
+          const choice: ConflictChoice = resolve && a && b ? await resolve({ slot, local: a, remote: b }) : 'remote';
           act = choice === 'local' ? 'push' : choice === 'remote' ? 'pull' : 'none';
           if (choice === 'skip') sum.skipped++;
         }
