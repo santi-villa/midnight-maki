@@ -8,6 +8,8 @@ export const SEED_INFO: Record<string, { days: number; yield: [string, number][]
   sd_chili: { days: 3, yield: [['chili', 4]], name: 'Ají' },
   sd_flower: { days: 2, yield: [['fl_tulip', 1], ['fl_daisy', 2]], name: 'Flores' },
   sd_sakura: { days: 3, yield: [['sakura', 4]], name: 'Sakura' },
+  sd_tomato: { days: 2, yield: [['tomato', 3]], name: 'Tomate' },
+  sd_wheat: { days: 3, yield: [['wheat', 3]], name: 'Trigo' },
 };
 
 /** daily growth: a plot grows one stage per day it was watered (rain waters everything) */
