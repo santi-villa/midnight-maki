@@ -40,3 +40,10 @@ El nombre del jugador y del restaurante los escribe cada persona y los ven sus a
 
 ### Siguiente
 Visitar el restaurante de un amigo (verlo decorado, solo lectura), ranking entre amigos y regalos. Cada cosa necesita su propia regla de seguridad y moderación.
+
+## Publicado en GitHub Pages
+El juego publicado se arma en GitHub, que **no tiene tu `.env.local`**. Hay que cargar los mismos datos como **variables** del repositorio:
+GitHub → Settings → Secrets and variables → Actions → pestaña **Variables** → New repository variable, una por cada una:
+`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_DATABASE_URL`.
+(Son públicas, por eso van en Variables y no en Secrets.) Después, en Actions → «Publicar en GitHub Pages» → Run workflow (o un nuevo push).
+En Firebase → Authentication → Settings → **Authorized domains** agregá `santi-villa.github.io`.
