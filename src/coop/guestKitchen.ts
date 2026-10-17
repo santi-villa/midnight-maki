@@ -7,7 +7,7 @@ import type { Order } from '../core/types';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { kitchenOpen, openKitchenSession, type KitchenHooks, type SessionOrder } from '../restaurant/kitchenSession';
 import { hostHasIngredients, mirror } from '../restaurant/mirror';
-import { customerName } from '../restaurant/orders';
+import { WANT_TEXT, customerName } from '../restaurant/orders';
 import { tableLabel } from '../restaurant/service';
 import { addEnergy, DISH_COST, tooTiredToCook } from '../systems/fatigue';
 import { toast } from '../ui/dom';
@@ -22,7 +22,7 @@ export async function enterGuestKitchen(firstUid?: number) {
     orders: () => listed().filter((o) => RECIPES_BY_ID[o.recipe]).map((o): SessionOrder => ({
       uid: o.uid, recipe: RECIPES_BY_ID[o.recipe], who: customerName(o.customer), reward: o.reward,
       ready: taken.has(o.uid) || hostHasIngredients(RECIPES_BY_ID[o.recipe].ingredients),
-      note: o.service ? tableLabel(o.service.tableId) : undefined,
+      note: o.service ? tableLabel(o.service.tableId) + (o.want ? ` · pide ${WANT_TEXT[o.want]}` : '') : undefined,
     })),
     take: (uid) => {
       const o = mirror.snap.cookable.find((x) => x.uid === uid);

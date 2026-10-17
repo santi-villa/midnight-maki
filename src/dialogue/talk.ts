@@ -7,6 +7,7 @@ import { game } from '../core/state';
 import { CHAR_BY_ID, RACCOONS } from '../data/characters';
 import { ITEMS, ITEMS_BY_ID } from '../data/items';
 import { h, panel, toast } from '../ui/dom';
+import { pendingEcho } from '../story/echoes';
 import { choose, runScene, say } from './dialogue';
 import { GIFT_REACT, LINES, type Line } from './lines';
 import { clock } from '../systems/time';
@@ -56,6 +57,9 @@ export async function talkTo(id: string) {
     await scene();
     return;
   }
+  // a choice made some days ago comes back (see story/echoes.ts)
+  const waiting = pendingEcho(id);
+  if (waiting) { await playEcho(waiting.echo.id, waiting.variant); return; }
   // personal scenes with Pip, Spicy and Rigg (optional, tied to what the player did; see story/bonds.ts)
   if (RACCOONS.includes(id)) {
     const { bondTalk } = await import('../story/bonds');
@@ -510,4 +514,16 @@ export async function giveGift(id: string, item: string) {
   await say(id, pool[Math.floor(Math.random() * pool.length)], res.reaction === 'love' || res.reaction === 'like' ? 'happy' : res.reaction === 'dislike' ? 'sad' : 'neutral');
   if (res.reaction === 'love') toast(`A ${def.name} le encantó.`);
   if (res.levelUp) await friendshipUp(id, res.levelUp);
+}
+
+
+async function playEcho(id: string, v: import('../story/echoes').EchoVariant) {
+  game.setFlag('echo_' + id);
+  await runScene('echo_' + id, async () => {
+    for (const [who, text, mood] of v.lines) await say(who, text, mood as never);
+  });
+  for (const [item, qty] of Object.entries(v.items ?? {})) { game.addItem(item, qty, 'echo'); toast(`Obtuviste: ${qty > 1 ? qty + ' ' : ''}${ITEMS_BY_ID[item]?.name ?? item}`); }
+  if (v.coins) game.addCoins(v.coins, 'echo');
+  if (v.friendship) game.addFriendship(id, v.friendship);
+  if (v.energy) (await import('../systems/fatigue')).addEnergy(v.energy);
 }

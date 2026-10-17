@@ -71,9 +71,11 @@ export interface Order {
   customer: string;   // npc id or generic customer id
   reward: number;
   special?: string;   // marks story/quest orders
+  /** a customer's special request: a perfect dish, or served while they are still patient */
+  want?: 'perfect' | 'fast';
   /** Set once the dish is cooked and still needs to be carried to the table. */
   /** `claim`: id of the employee who is on the way to carry it (never saved across a reload) */
-  plate?: { quality: 0 | 1 | 2; variantBonus?: number; variant?: string; state?: 'ready' | 'carried' | 'delivered'; claim?: string };
+  plate?: { quality: 0 | 1 | 2; variantBonus?: number; variant?: string; state?: 'ready' | 'carried' | 'delivered'; claim?: string; /** delivered while the guests were still patient */ onTime?: boolean };
 }
 
 export interface QuestState {

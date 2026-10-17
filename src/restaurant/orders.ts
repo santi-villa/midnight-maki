@@ -181,8 +181,10 @@ export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, op
   const roll = opts?.rng ?? Math.random;
   // a dish the cook has mastered is worth a little more (4% per star)
   let coins = Math.round(o.reward * (1 + BALANCE.qualityBonus[quality] + tipBonus() + (o.kind === 'drink' ? 0 : recipeStars(o.recipe) * 0.04))) + variantBonus;
+  // the agreed price always stands; a sloppy dish only costs the tip and some reputation, and a met request pays extra
+  if (wantMet(o, quality)) coins += Math.round(o.reward * 0.4);
   // happy customers sometimes leave a tip, and a perfect dish may earn a little present
-  const tip = !opts?.noTip && quality >= 1 && roll() < (quality === 2 ? 0.55 : 0.25) ? Math.round(o.reward * (0.1 + roll() * 0.2)) : 0;
+  const tip = !opts?.noTip && quality >= 1 && roll() < (quality === 2 ? 0.65 : 0.3) ? Math.round(o.reward * (0.1 + roll() * 0.2)) : 0;
   if (!opts?.holdTip) coins += tip;
   game.addCoins(coins, 'serve');
   const gc = GENERIC_CUSTOMERS.find((c) => c.id === o.customer);
@@ -196,7 +198,7 @@ export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, op
     if (quality >= 1) game.stat('goodServed');
     game.stat('served');
   }
-  const rep = o.kind === 'drink' ? 1 : BALANCE.reputationPerServe + quality;
+  const rep = o.kind === 'drink' ? 1 : BALANCE.reputationPerServe + quality - (quality === 0 ? 1 : 0) + (wantMet(o, quality) ? 1 : 0);
   s.restaurant.reputation += rep;
   const xp = r.xp + quality * 2;
   const levelUp = addRestaurantXp(xp);
@@ -207,6 +209,12 @@ export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, op
   game.touch('serve');
   return { coins, xp, rep, levelUp, firstTime, newRecipes, tip, gift };
 }
+
+/** Did the dish meet what this customer asked for? */
+export function wantMet(o: { want?: 'perfect' | 'fast'; plate?: { onTime?: boolean } }, quality: 0 | 1 | 2): boolean {
+  return (o.want === 'perfect' && quality === 2) || (o.want === 'fast' && !!o.plate?.onTime);
+}
+export const WANT_TEXT = { perfect: 'perfecto', fast: 'rápido' } as const;
 
 export function addRestaurantXp(xp: number): number {
   if (!Number.isFinite(xp) || xp <= 0) return 0;
