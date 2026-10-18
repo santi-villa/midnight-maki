@@ -201,6 +201,8 @@ export interface Settings {
   guide?: boolean;
   /** effects quality: auto-detect, always high, or battery saver */
   perf?: 'auto' | 'high' | 'low';
+  /** Outdoor night brightness only. Missing in older settings means normal. */
+  nightBrightness?: 'normal' | 'dark';
   /** KeyboardEvent.code overrides. Missing actions use the defaults. Not part of the save. */
   bindings?: KeyBindings;
 }

@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
-import { coversLitPane, lampPoolTint, lightState, type Box, type LightState } from './lightmath';
+import { coversLitPane, homeWindowLevel, lampActivation, lampFlicker, lightSeed, lampPoolTint, lightState, type Box, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
@@ -21,6 +21,7 @@ import { closedLocalNotice, shopGate, stopFor } from '../systems/npcs';
 import { businessPhase, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
+import { dayMinutes } from '../systems/daytime';
 import { lowFx, sampleFrame } from '../core/perf';
 import { LampMoths } from './lampMoths';
 import { Pets } from './pets';
@@ -75,8 +76,8 @@ import type { CompanyActivity } from '../systems/companionship';
 export type { Target };
 
 interface NpcState { out?: boolean; actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; micro?: boolean; barkAt?: number; }
-/** kind: lamp (default, follows lamp level), spill = light from windows / doors, window = interior window light, ambient = soft room fill */
-interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window' | 'ambient'; facade?: boolean }
+/** kind: lamp (default), spill = light from a facade, window = interior window light. */
+interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window'; facade?: boolean; home?: boolean; seed?: number; shop?: string }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
 interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
@@ -582,7 +583,7 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.anim === 'sway' && !lowFx() && !settings.reduceMotion) {
         this.tweens.add({ targets: img, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
-      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 104 : p.def.kind === 'stall' ? 78 : 68, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 0.72 : 0.58 });
+      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 76 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 0.62 : 0.5 });
       this.objs.push(img);
       if (!onWall && !p.def.ground) {
         this.addShadow(p.def.kind, px, py, p.def.sw, p.def.w);
@@ -591,8 +592,9 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.kind === 'building') {
         // warm light spilling from the windows and door onto the street at night
         const fac = p.def.variant === 0; // the restaurant follows its opening hours
-        for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 28, flicker: false, color: 0xffd27a, glow: 0.42, kind: 'spill', facade: fac });
-        this.lamps.push({ x: px, y: py - 10, r: 40, flicker: true, color: 0xffc14a, glow: 0.58, kind: 'spill', facade: fac });
+        const shop = fac ? 'restaurant' : SHOP_OF_VARIANT[p.def.variant ?? -1];
+        for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 28, flicker: false, color: 0xffd27a, glow: 0.42, kind: 'spill', facade: fac, shop });
+        this.lamps.push({ x: px, y: py - 10, r: 40, flicker: false, color: 0xffc14a, glow: 0.58, kind: 'spill', facade: fac, shop });
         if (fac) {
           // Lanterns follow the selected facade; fall back to the legacy art if its atlas failed.
           const top = py - p.def.sh;
@@ -601,7 +603,6 @@ export class WorldScene extends Phaser.Scene {
             : [44, 68].map(x => ({ x, y: p.def.sh - 24 }));
           for (const l of lamps) this.lamps.push({ x: left + l.x, y: top + l.y + (hasVillageAtlas() ? 4 : 0), r: 32, flicker: true, color: 0xffb040, glow: 0.68, facade: true });
         }
-        const shop = fac ? 'restaurant' : SHOP_OF_VARIANT[p.def.variant ?? -1];
         const facadeStage = fac && hasVillageAtlas() ? p.def.stage ?? 0 : undefined;
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac, shop, undefined, facadeStage);
         if (fac) this.addWindowGlow(img, p.def.sw, p.def.sh, 0, true, true, shop, undefined, facadeStage);
@@ -612,8 +613,9 @@ export class WorldScene extends Phaser.Scene {
         const side = p.def.kind === 'sidehouse';
         const hl = homeLayout(p.def.sw, p.def.sh, p.def.variant ?? 0, side);
         const left = px - p.def.sw / 2, top = py - p.def.sh;
-        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, r: 30, flicker: false, color: 0xffd27a, glow: 0.4, kind: 'spill', facade: false });
-        this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 34, flicker: true, color: 0xffd56a, glow: 0.62, kind: 'spill', facade: false });
+        const seed = lightSeed(px, py);
+        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, r: 30, flicker: false, color: 0xffd27a, glow: 0.4, kind: 'spill', home: true, seed });
+        this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 34, flicker: true, color: 0xffd56a, glow: 0.62, kind: 'spill', home: true, seed });
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front');
       }
       if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - p.def.sh + 6);
@@ -629,10 +631,6 @@ export class WorldScene extends Phaser.Scene {
     this.placeFurnitureSprites();
     // windows glow at night
     for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 34, flicker: false, color: 0xffe2a8, glow: 0.38, kind: 'window' });
-    if (!def.outdoor) {
-      // interiors: warm ambient light spots so night isn't too dark
-      for (let y = 3; y < def.h; y += 5) for (let x = 3; x < def.w; x += 6) this.lamps.push({ x: x * TILE, y: y * TILE, r: 60, flicker: false, color: 0xffe0a0, glow: 0.16, kind: 'ambient' });
-    }
     this.addAtmosphere();
     this.placeGather();
     this.placeCrops();
@@ -3070,9 +3068,8 @@ export class WorldScene extends Phaser.Scene {
       if (!text) continue;
       const x = spot.x * TILE;
       const y = spot.y * TILE + TILE - 2;
-      const facade = this.zone.props.find((p) => p.def.kind === 'building' &&
-        spot.x >= p.x && spot.x < p.x + p.def.w && spot.y >= p.y && spot.y < p.y + p.def.h);
-      const depth = facade ? (facade.y + facade.def.h) * TILE + 0.1 : y + 2.1;
+      // Service plaques, like the quest arrow, stay readable above the night multiply layer.
+      const depth = 200002;
       const sign = this.add.image(x, y, shopSignTexture(this, text, status.phase))
         .setOrigin(0.5, 1).setDepth(depth)
         .setData({ shopId: spot.shopId, phase: status.phase });
@@ -3254,7 +3251,7 @@ export class WorldScene extends Phaser.Scene {
     if (!rects.length) return;
     const key = windowGlowTexture(this, W, H, rot, door, home, facadeStage);
     const phase = Math.random() * 6;
-    const seed = (Math.round(src.x) * 7 + Math.round(src.y) * 13) % 10;
+    const seed = lightSeed(src.x, src.y);
     for (const rect of rects) {
       const img = this.add.image(src.x, src.y, key).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
       img.setCrop(rect.x, rect.y, rect.w, rect.h);
@@ -3264,14 +3261,13 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Window light level of a facade (0..1): the restaurant follows its hours, everything else follows the evening. */
-  private facadeLevel(facade: boolean, door: boolean, g?: WindowGlow): number {
+  private facadeLevel(facade: boolean, door: boolean, g?: Partial<Pick<WindowGlow, 'home' | 'seed' | 'shop'>>): number {
     const ls = this.ls;
     if (!ls) return 0;
     if (g?.home) {
-      // houses: lit from dusk, and some go dark once it is late
+      // Deterministic stagger by house. Resident schedules will replace this in stage 3.
       const t = game.save.time;
-      const late = t.period === 3 && t.minutes > 45;
-      return late && g.seed % 3 === 0 ? 0 : late && g.seed % 3 === 1 ? ls.windows * 0.45 : ls.windows;
+      return ls.windows * homeWindowLevel(t.period, dayMinutes(t.period, t.minutes), g.seed ?? 0);
     }
     if (!facade && g?.shop) {
       // shops: lit while they are open (in the evening), a faint light left on when closed
@@ -3383,7 +3379,8 @@ export class WorldScene extends Phaser.Scene {
   /**
    * Lighting pass. A low-res "darkness" layer multiplies the scene (ambient colour per time of day, weather and place).
    * Lamps lighten that colour. At night they stay dim, so the tiles do not show as day. A faint additive halo sits on top.
-   * The pass is skipped while nothing it depends on has changed (camera, player, ambient colour, flicker step).
+   * Only camera, player, ambient colour and clock-driven lamp levels invalidate this small layer.
+   * Flame animation and occasional failures live exclusively in the additive halos.
    */
   private updateLighting() {
     const cam = this.cameras.main;
@@ -3401,6 +3398,7 @@ export class WorldScene extends Phaser.Scene {
       rain,
       season: seasonOf(t.day),
       restaurant: this.zoneId === 'restaurant' ? restaurantPhase(t.period, t.minutes) : null,
+      nightBrightness: settings.nightBrightness,
     });
     this.ls = ls;
     this.updateShadows();
@@ -3408,15 +3406,15 @@ export class WorldScene extends Phaser.Scene {
     const time = performance.now() / 1000;
     const actors = this.glowActors();
     this.updateWindowGlow(time, actors);
-    // natural variation steps ~12 times a second (none in battery / reduced-motion mode): the layer is not redrawn in between
-    const step = lo ? 0 : Math.floor(time * 12);
+    const margin = 110;
+    const visible = this.lamps.filter((l) => l.x > view.x - margin && l.x < view.right + margin && l.y > view.y - margin && l.y < view.bottom + margin);
+    const lit = visible.map((l) => ({ l, k: Math.round(this.lampLevel(l, ls) * 100) / 100 })).filter((e) => e.k > 0.02);
+    this.updateLightHalos(lit, ls, time, lo, actors);
     const px = Math.floor(this.player.x);
     const py = Math.floor(this.player.y);
-    const key = `${this.zoneId}|${Math.floor(view.x)}|${Math.floor(view.y)}|${rt.width}|${ls.tint}|${ls.lamp.toFixed(2)}|${ls.windows.toFixed(2)}|${ls.vig.toFixed(2)}|${step}|${px}|${py}|${this.lamps.length}|${lo ? 1 : 0}|${this.restaurantLevelKey()}`;
-    if (key === this.lightKey) {
-      this.updateGlowDepths(actors);
-      return;
-    }
+    const levels = lit.map(({ l, k }) => `${l.x},${l.y},${k}`).join(';');
+    const key = `${this.zoneId}|${Math.floor(view.x)}|${Math.floor(view.y)}|${Math.ceil(view.width)}|${Math.ceil(view.height)}|${ls.tint}|${ls.lamp.toFixed(2)}|${ls.vig.toFixed(2)}|${ls.halo}|${px}|${py}|${levels}`;
+    if (key === this.lightKey) return;
     this.lightKey = key;
     this.lightRedraws++;
     const needW = Math.ceil(view.width) + 8;
@@ -3426,14 +3424,6 @@ export class WorldScene extends Phaser.Scene {
     rt.setVisible(true);
     rt.clear();
     if (ls.tint !== 0xffffff) rt.fill(ls.tint, 1);
-    const visible = this.lamps.filter((l) => l.x > view.x - 70 && l.x < view.right + 70 && l.y > view.y - 70 && l.y < view.bottom + 70);
-    // slow breathing for lamps, a quicker flicker for flames and paper lanterns
-    const flick = (l: Light) => {
-      if (lo) return 1;
-      if (l.flicker) return 1 + Math.sin(time * 7 + l.x) * 0.05 + Math.sin(time * 13 + l.y) * 0.03;
-      return 1 + Math.sin(time * 1.3 + l.x * 0.1) * 0.02;
-    };
-    const lit = visible.map((l) => ({ l, k: this.lampLevel(l, ls) })).filter((e) => e.k > 0.02);
     // Once the street is dark, a full erase shows the daytime tiles. Paint a dim warm colour instead.
     const dim = lampPoolTint(ls.tint, 0xffd27a, 1) != null;
     if (lit.length) {
@@ -3461,7 +3451,7 @@ export class WorldScene extends Phaser.Scene {
       if (dim) {
         const self = lampPoolTint(ls.tint, 0xfff0dc, Math.min(1, ls.lamp), 180);
         if (self != null) {
-          this.lightStamp.setScale(1.25).setTint(self).setAlpha(1);
+          this.lightStamp.setScale(1.05).setTint(self).setAlpha(1);
           rt.draw(this.lightStamp, this.player.x - rt.x, this.player.y - 10 - rt.y);
         }
       } else if (lit.length) {
@@ -3474,7 +3464,11 @@ export class WorldScene extends Phaser.Scene {
     if (!this.vignette) this.vignette = this.make.image({ key: vignetteTexture(this) }, false);
     this.vignette.setDisplaySize(rt.width, rt.height).setAlpha(ls.vig);
     rt.draw(this.vignette, rt.width / 2, rt.height / 2);
-    // faint additive halo around each light (skipped in battery mode)
+  }
+
+  /** Animate inexpensive additive images even when the cached darkness texture stays untouched. */
+  private updateLightHalos(lit: { l: Light; k: number }[], ls: LightState, time: number, lo: boolean, actors: Actor[]) {
+    const flick = (l: Light) => lampFlicker(time, l.seed ?? lightSeed(l.x, l.y), l.flicker, lo);
     let i = 0;
     if (!lo) {
       for (const { l, k } of lit) {
@@ -3489,8 +3483,8 @@ export class WorldScene extends Phaser.Scene {
         g.setVisible(true)
           .setPosition(l.x, l.y)
           .setTint(l.color ?? 0xffd27a)
-          .setScale(spill ? 1.05 : (l.r * 1.85 * ls.halo) / 64, spill ? 0.55 : (l.r * 1.85 * ls.halo) / 64)
-          .setAlpha(Math.min(spill ? 0.6 : 0.88, (l.glow ?? 0.5) * k * f * (spill ? 0.9 : 1.2)));
+          .setScale(spill ? 1.05 : (l.r * 1.6 * ls.halo) / 64, spill ? 0.55 : (l.r * 1.6 * ls.halo) / 64)
+          .setAlpha(Math.min(spill ? 0.6 : 0.78, (l.glow ?? 0.5) * k * f * (spill ? 0.9 : 1.1)));
         i++;
       }
     }
@@ -3500,17 +3494,14 @@ export class WorldScene extends Phaser.Scene {
 
   /** How lit a given light is right now (0..1): lamps follow dusk and night, windows follow the evening, the restaurant facade follows its hours. */
   private lampLevel(l: Light, ls: LightState): number {
+    if (l.kind === 'spill') return this.facadeLevel(!!l.facade, false, l);
     if (l.facade) {
       const f = this.facadeLevel(true, false);
-      return l.kind === 'spill' ? f : Math.max(ls.lamp * f, f * 0.85);
+      return Math.max(ls.lamp * f, f * 0.85);
     }
-    return l.kind === 'spill' || l.kind === 'window' ? ls.windows : ls.lamp;
-  }
-
-  /** Part of the lighting cache key: the restaurant opens and closes by the clock while the rest of the light stays the same. */
-  private restaurantLevelKey(): string {
-    const t = game.save.time;
-    return restaurantPhase(t.period, t.minutes);
+    if (l.kind === 'window') return ls.windows;
+    return this.zone.def.outdoor && !this.zone.def.dark && this.zoneId !== 'market'
+      ? lampActivation(ls.lamp, l.seed ?? lightSeed(l.x, l.y)) : ls.lamp;
   }
 
   /** Applies battery mode: caps the frame rate and rebuilds ambience without heavy effects. */

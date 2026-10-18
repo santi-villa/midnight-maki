@@ -548,6 +548,7 @@ export const DEFAULT_SETTINGS: Settings = {
   joystick: true,
   guide: true,
   perf: 'auto',
+  nightBrightness: 'normal',
   cookMode: 'relaxed',
   settingsVersion: 2,
 };
@@ -559,7 +560,7 @@ export function loadSettings(): Settings {
       const saved = JSON.parse(raw);
       // v2: the virtual joystick is on by default (older saves stored it switched off)
       if (!saved.settingsVersion || saved.settingsVersion < 2) Object.assign(saved, { joystick: true, settingsVersion: 2 });
-      return { ...DEFAULT_SETTINGS, ...saved, haptics: saved.haptics === true, bindings: sanitizeBindings(saved.bindings) };
+      return { ...DEFAULT_SETTINGS, ...saved, nightBrightness: saved.nightBrightness === 'dark' ? 'dark' : 'normal', haptics: saved.haptics === true, bindings: sanitizeBindings(saved.bindings) };
     }
   } catch {
     /* ignore */
