@@ -1,3 +1,4 @@
+import { inputMethod } from '../input/keys';
 import { recipeCollectionView } from './recipes';
 import { runTask } from '../core/errors';
 /** Main in-game menus: bag, journal (quests, investigation, relations, collections, calendar), and menu. */
@@ -196,7 +197,7 @@ function phoneApps(): PhoneApp[] {
     { id: 'investigation', name: 'Pistas', icon: 'inspect', hint: 'El cuaderno de investigación', run: () => openJournal(1) },
     { id: 'bag', name: 'Mochila', icon: 'bag', hint: 'Ingredientes y objetos', run: () => openBag() },
     { id: 'settings', name: 'Ajustes', icon: 'wood_gear', hint: 'Sonido, texto y controles', run: () => openSettings(true) },
-    { id: 'more', name: 'Más', icon: 'menu', hint: 'Personaje, descanso, guardado y salida', run: openMenu },
+    { id: 'more', name: 'Más', icon: 'menu', hint: 'Guardar, cargar, ajustes y salida', run: () => openMenu(true) },
   ];
 }
 registerPhoneApps(phoneApps);
@@ -266,10 +267,10 @@ function openPauseBoard() {
   let close = () => {};
   const go = (fn: () => void) => () => { close(); void runTask('ui:menu', fn); };
   const item = (label: string, icon: string, fn: () => void, key?: string, wide = false) =>
-    h('button', { type: 'button', class: 'pause-item' + (wide ? ' wide' : ''), onclick: go(fn) }, skinIconEl(icon), h('span', null, label), key ? h('kbd', null, key) : null);
+    h('button', { type: 'button', class: 'pause-item' + (wide ? ' wide' : ''), onclick: go(fn) }, skinIconEl(icon), h('span', null, label), key && inputMethod() !== 'touch' ? h('kbd', null, key) : null);
 
   const adventure = h('div', { class: 'pause-page' },
-    h('p', { class: 'pause-hint' }, 'El juego está en pausa. Esc para seguir jugando.'),
+    h('p', { class: 'pause-hint' }, inputMethod() === 'touch' ? 'El juego está en pausa. Tocá la ✕ para seguir jugando.' : 'El juego está en pausa. Esc para seguir jugando.'),
     h('h3', null, 'Aventuras y Progreso'),
     h('div', { class: 'pause-grid' },
       item('Mochila', 'bag', () => openBag(), badge('inventory')),
