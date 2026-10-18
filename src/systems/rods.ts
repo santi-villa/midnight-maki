@@ -31,19 +31,19 @@ export const RODS: readonly RodDef[] = [
   {
     id: 'rod_basic', name: 'Caña básica', tier: 0, price: 40, caught: 0,
     blurb: 'Económica. Alcanza para los peces de todos los días.',
-    zoneAdd: 0, control: 1, gain: 1, rare: 1, bite: 1, hook: 1,
+    zoneAdd: 0, control: 1, gain: 0.55, rare: 1, bite: 1, hook: 1,
   },
   {
     id: 'rod_better', name: 'Caña mejorada', tier: 1, price: 150, from: 'rod_basic', caught: 4,
     items: { wood: 2 },
     blurb: 'La zona verde se mueve más tranquila y los piques tardan un poco menos.',
-    zoneAdd: 8, control: 0.86, gain: 1.1, rare: 1.12, bite: 0.88, hook: 1.1,
+    zoneAdd: 8, control: 0.86, gain: 0.8, rare: 1.12, bite: 0.88, hook: 1.1,
   },
   {
     id: 'rod_advanced', name: 'Caña avanzada', tier: 2, price: 360, from: 'rod_better', caught: 12,
     items: { wood: 3, stone: 1 },
     blurb: 'Más control y un poco más de suerte con peces raros. Igual se pueden escapar.',
-    zoneAdd: 14, control: 0.74, gain: 1.18, rare: 1.28, bite: 0.75, hook: 1.2,
+    zoneAdd: 14, control: 0.74, gain: 1.05, rare: 1.28, bite: 0.75, hook: 1.2,
   },
 ];
 
@@ -73,7 +73,7 @@ export interface RodTune {
   hook: number;
 }
 
-const BARE: RodTune = { name: 'Sin caña', zoneAdd: 0, control: 1, gain: 1, rare: 1, bite: 1, hook: 1 };
+const BARE: RodTune = { name: 'Sin caña', zoneAdd: 0, control: 1, gain: 0.55, rare: 1, bite: 1, hook: 1 };
 
 export function bestRod(inventory: Record<string, number> | null | undefined): RodDef | null {
   let found: RodDef | null = null;

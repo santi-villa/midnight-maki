@@ -13,7 +13,7 @@ import { clock } from '../systems/time';
 import { EVENTS, upcomingEvents } from '../systems/events';
 import { collectionProgress } from '../systems/collect';
 import { portraitURL } from '../systems/appearance';
-import { confirmBox, h, panel, toast } from './dom';
+import { confirmBox, h, modalOpen, panel, toast } from './dom';
 import { openSettings } from './settingsPanel';
 import type { HudHandlers } from './hud';
 import { whereIs } from '../systems/npcs';
@@ -228,7 +228,7 @@ function calendarView() {
 
 // ------------------------------------------------------------------ main menu
 /** Esc: the wooden pause board (two columns, section titles, key badges). */
-export function openPauseMenu() { openPauseBoard(); }
+export function openPauseMenu() { if (!modalOpen()) openPauseBoard(); }
 
 /** Phone "Más" list. Escape uses openPauseBoard instead. */
 export function openMenu(pause = false) {
@@ -270,7 +270,8 @@ function openPauseBoard() {
     h('button', { type: 'button', class: 'pause-item' + (wide ? ' wide' : ''), onclick: go(fn) }, skinIconEl(icon), h('span', null, label), key && inputMethod() !== 'touch' ? h('kbd', null, key) : null);
 
   const adventure = h('div', { class: 'pause-page' },
-    h('p', { class: 'pause-hint' }, inputMethod() === 'touch' ? 'El juego está en pausa. Tocá la ✕ para seguir jugando.' : 'El juego está en pausa. Esc para seguir jugando.'),
+    h('p', { class: 'pause-hint' }, 'El juego está en pausa. Tocá Continuar partida o ✕ para volver. En PC también podés usar Esc.'),
+    h('button', { type: 'button', class: 'btn primary', onclick: () => close() }, 'Continuar partida'),
     h('h3', null, 'Aventuras y Progreso'),
     h('div', { class: 'pause-grid' },
       item('Mochila', 'bag', () => openBag(), badge('inventory')),

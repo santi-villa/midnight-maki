@@ -3,8 +3,8 @@ import type { CustomerId } from '../art/customers';
 import { GENERIC_CUSTOMERS } from './orders';
 
 export const CUSTOMER_LOOK: Record<string, CustomerId> = {
-  c_tourist: 'oli', c_student: 'toby', c_fisher: 'nico', c_grandpa: 'po', c_couple: 'fredi',
-  c_kid: 'pipo', c_painter: 'gigi', c_runner: 'leo', c_writer: 'po', c_sailor: 'pipo',
+  c_tourist: 'oli', c_student: 'toby', c_fisher: 'nico', c_grandpa: 'po', c_couple: 'mugi',
+  c_kid: 'pipo', c_painter: 'gigi', c_runner: 'leo', c_writer: 'hana', c_sailor: 'kuri',
   c_oli: 'oli', c_toby: 'toby', c_fredi: 'fredi', c_pipo: 'pipo', c_po: 'po', c_gigi: 'gigi', c_nico: 'nico', c_leo: 'leo',
 };
 export const customerLook = (id: string): CustomerId => CUSTOMER_LOOK[id] ?? 'oli';
