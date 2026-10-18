@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { windowGlowRects } from '../art/windowGlow';
-import { coversLitPane, lampPoolTint, lightState, mixHex, mulHex, shadowStyle, tintLum, type LightInput } from '../scenes/lightmath';
+import { coversLitPane, homeWindowLevel, lampActivation, lampFlicker, lightSeed, lampPoolTint, lightState, mixHex, mulHex, shadowStyle, tintLum, type LightInput } from '../scenes/lightmath';
 
 const lum = (c: number) => 0.2126 * ((c >> 16) & 255) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255);
 const base: LightInput = { period: 1, prog: 0.5, outdoor: true, rain: false, season: 0 };
 const at = (o: Partial<LightInput>) => lightState({ ...base, ...o });
 
 describe('ambient light', () => {
+  it('offers a darker outdoor night without changing daylight or interiors, including old settings', () => {
+    expect(at({ period: 3, prog: 1 }).tint).toBe(at({ period: 3, prog: 1, nightBrightness: 'normal' }).tint);
+    expect(lum(at({ period: 3, prog: 1 }).tint)).toBeLessThan(45);
+    expect(lum(at({ period: 3, nightBrightness: 'dark' }).tint)).toBeLessThan(lum(at({ period: 3 }).tint));
+    for (const o of [{ period: 1 }, { period: 3, outdoor: false }]) {
+      expect(at({ ...o, nightBrightness: 'dark' }).tint).toBe(at(o).tint);
+    }
+    for (const rain of [true, false]) {
+      expect(at({ period: 2, prog: 1, rain, nightBrightness: 'dark' }).tint).toBe(at({ period: 3, prog: 0, rain, nightBrightness: 'dark' }).tint);
+    }
+  });
   it('gets darker from afternoon to dusk to night, outdoors', () => {
     const a = lum(at({ period: 1 }).tint);
     const d = lum(at({ period: 2, prog: 0.9 }).tint);
@@ -44,6 +55,43 @@ describe('ambient light', () => {
 });
 
 describe('lamps, windows and the moon', () => {
+  it('switches lamps on gradually at distinct thresholds, with stable position identities', () => {
+    const seeds = [16, 32, 48, 64].map((x) => lightSeed(x, 64));
+    expect(lightSeed(32, 64)).toBe(lightSeed(32, 64));
+    expect(new Set(seeds.map((s) => lampActivation(0.5, s))).size).toBeGreaterThan(1);
+    for (const seed of seeds) {
+      expect(lampActivation(0, seed)).toBe(0);
+      expect(lampActivation(1, seed)).toBe(1);
+      let previous = 0;
+      for (let i = 0; i <= 100; i++) {
+        const next = lampActivation(i / 100, seed);
+        expect(next).toBeGreaterThanOrEqual(previous);
+        expect(next - previous).toBeLessThan(0.06);
+        previous = next;
+      }
+    }
+  });
+
+  it('keeps street lamps stable, varies flames irregularly, and disables failures for reduced motion', () => {
+    const values = Array.from({ length: 3700 }, (_, i) => lampFlicker(i / 100, 11, true));
+    expect(Math.min(...values)).toBe(0); // one occasional short failure
+    expect(values.filter((v) => v === 0).length).toBeLessThan(20);
+    const flame = values.filter((v) => v > 0);
+    expect(Math.max(...flame) - Math.min(...flame)).toBeGreaterThan(0.3);
+    for (let t = 0; t < 40; t += 0.1) {
+      expect(lampFlicker(t, 11, false)).toBe(1);
+      expect(lampFlicker(t, 11, true, true)).toBe(1);
+    }
+    expect(lampFlicker(1, 11, true)).not.toBe(lampFlicker(9, 11, true));
+  });
+
+  it('turns houses off separately at night and restores their windows the next day', () => {
+    expect(homeWindowLevel(3, 22 * 60 + 10, 0)).toBe(0);
+    expect(homeWindowLevel(3, 22 * 60 + 10, 5)).toBe(1);
+    expect(homeWindowLevel(3, 22 * 60 + 3, 0)).toBeCloseTo(0.5);
+    expect(homeWindowLevel(3, 25 * 60, 9)).toBe(0);
+    expect(homeWindowLevel(0, 6 * 60, 0)).toBe(1);
+  });
   it('lamps are off in the afternoon, ramp up at dusk and are full at night', () => {
     expect(at({ period: 1 }).lamp).toBe(0);
     expect(at({ period: 2, prog: 0.1 }).lamp).toBeLessThan(at({ period: 2, prog: 0.9 }).lamp);
@@ -136,6 +184,11 @@ describe('lamp pools', () => {
     expect(tintLum(pool!)).toBeLessThan(160);
     expect((pool! >> 16) & 255).toBeGreaterThan((night >> 16) & 255);
     for (const sh of [16, 8, 0]) expect((pool! >> sh) & 255).toBeGreaterThanOrEqual((night >> sh) & 255);
+  });
+
+  it('fades a pool from the ambient colour as its lamp switches on', () => {
+    expect(lampPoolTint(night, 0xffc070, 0)).toBe(night);
+    expect(tintLum(lampPoolTint(night, 0xffc070, 0.1)!)).toBeLessThan(tintLum(lampPoolTint(night, 0xffc070, 0.8)!));
   });
 
   it('keeps an indoor night and a gloomy room from turning into day', () => {

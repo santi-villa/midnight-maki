@@ -83,6 +83,7 @@ export function openSettings(inGame: boolean) {
       toggle('Joystick virtual', 'joystick', 'Aparece al usar el dedo, además de tocar el suelo para caminar.'),
       choice<string>('Atajo del NoriPhone (teclado)', [['p', 'P'], ['n', 'N'], ['t', 'T']], () => settings.phoneKey ?? 'p', (v) => updateSettings({ phoneKey: v }))),
     section('Pantalla y comodidad', 'phone',
+      choice<'normal' | 'dark'>('Noche', [['normal', 'Normal'], ['dark', 'Oscura']], () => settings.nightBrightness ?? 'normal', (v) => updateSettings({ nightBrightness: v }), 'Brillo del exterior por la noche. Sofi conserva una luz tenue para orientarte.'),
       choice<'auto' | 'high' | 'low'>('Efectos visuales', [['auto', 'Automático'], ['high', 'Lindos'], ['low', 'Ahorro de batería']], () => settings.perf ?? 'auto', (v) => { if (v === 'auto') resetAutoPerf(); updateSettings({ perf: v }); }),
       toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
       toggle('Vibración', 'haptics', supportsHaptics() ? 'Toques breves en momentos especiales. El dispositivo puede limitar la vibración.' : 'Este navegador no ofrece vibración. Tu preferencia se guarda para dispositivos compatibles.')),
