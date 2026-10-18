@@ -67,7 +67,7 @@ describe('ambient neighbours', () => {
     const owls = NEIGHBORS.filter((n) => n.traits.includes('nocturnal')).map((n) => n.id);
     const others = NEIGHBORS.filter((n) => !n.traits.includes('nocturnal')).map((n) => n.id);
     const night = (ids: string[]) => count(slots(3), (_i, p) => outdoors(p.zone), ids);
-    const asleep = (ids: string[]) => count(slots(0), (_i, p) => p.kind === 'home', ids);
+    const asleep = (ids: string[]) => count(c => slots(0)(c).map(s => ({ ...s, minutes: 45 })), (_i, p) => p.kind === 'home', ids); // 09:00, after early risers wake
     expect(night(owls).n / night(owls).total).toBeGreaterThan(night(others).n / night(others).total);
     expect(asleep(owls).n / asleep(owls).total).toBeGreaterThan(asleep(others).n / asleep(others).total + 0.2);
   });

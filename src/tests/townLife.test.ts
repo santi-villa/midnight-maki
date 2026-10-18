@@ -57,17 +57,17 @@ describe('continuous town journeys', () => {
     expect(town.inZone('house_beach_33_9').some((r) => r.id === 'yuki')).toBe(true);
   });
 
-  it('keeps the unhoused villagers out at night, and Hoshi and Taro on their own nights', () => {
+  it('sends early sleepers home, keeps night owls out and preserves the special market shift', () => {
     game.save.time.period = 3;
     game.save.time.minutes = 40;
     const town = new TownLife(); town.sync();
-    for (const id of ['ume', 'nami', 'momo']) {
+    for (const id of ['ume', 'nami', 'momo', 'bento', 'sora']) {
       const r = town.residents.get(id)!;
       expect(r.stop.zone.startsWith('house_'), id).toBe(true);
       expect(r.visible, id).toBe(true);
       expect(r.stop.act, id).toBe('sleep');
     }
-    for (const id of ['bento', 'kumo', 'sumi', 'sora', 'kiki', 'akio']) {
+    for (const id of ['kumo', 'sumi', 'kiki', 'akio']) {
       const r = town.residents.get(id)!;
       expect(['plaza', 'beach', 'garden', 'forest'], id).toContain(r.stop.zone);
       expect(r.visible, id).toBe(true);
@@ -76,6 +76,8 @@ describe('continuous town journeys', () => {
     const hoshi = CHARACTERS.find((c) => c.id === 'hoshi')!;
     expect(hoshi.routine[3].act).toBe('stars');
     expect(town.residents.get('hoshi')!.stop.zone).toBe('plaza');
+    expect(town.residents.get('taro')!.stop.zone.startsWith('house_')).toBe(true);
+    game.setFlag('market_open'); town.sync();
     expect(town.residents.get('taro')!.stop.zone).toBe('market');
   });
 
@@ -118,7 +120,7 @@ describe('continuous town journeys', () => {
     game.setFlag('at_taro', 'restaurant,7,10,talk'); town.sync();
     expect(town.residents.get('taro')?.trip.position).toEqual({ zone: 'restaurant', x: 7, y: 10 });
     game.load(newSave('Otra')); town.sync();
-    expect(town.residents.get('taro')?.trip.position.zone).toBe('shop_taro');
+    expect(town.residents.get('taro')?.trip.position.zone).toBe('house_plaza_1_27'); // new saves start at 06:00, before he wakes
   });
 
   it('can finish every neighbor journey between successive periods on the real maps', () => {
