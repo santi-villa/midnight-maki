@@ -122,10 +122,10 @@ export function orderMarkTexture(scene: Phaser.Scene): string {
 }
 
 /** Texture of a restaurant customer (the 28x40 animal customers). Side-seated: Actor flips it for seats facing left. */
-export function customerTexture(scene: Phaser.Scene, id: CustomerId): string {
-  const key = 'cust_' + id;
+export function customerTexture(scene: Phaser.Scene, id: CustomerId, seed = '', raincoat = false): string {
+  const key = 'cust_' + id + (seed ? '_' + seed : '') + (raincoat ? '_rain' : '');
   if (!scene.textures.exists(key)) {
-    const { canvas, fw, fh, count } = buildCustomerSheet(id);
+    const { canvas, fw, fh, count } = buildCustomerSheet(id, { seed, raincoat });
     const tex = scene.textures.addCanvas(key, canvas)!;
     for (let i = 0; i < count; i++) tex.add(i, 0, i * fw, 0, fw, fh);
     tex.customData = { sideSit: true };
