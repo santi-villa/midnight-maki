@@ -93,6 +93,9 @@ describe('what survives the Realtime Database', () => {
     expect(w.restaurant.upgrades).toEqual([]);
     expect(w.roomStyle).toEqual({});
     expect(normalizeWorld(undefined).time.day).toBe(1);
+    expect(normalizeWorld(undefined).weather).toBeUndefined();
+    expect(normalizeWorld({ ...world, weather: 'rain' }).weather).toBe('rain');
+    expect(normalizeWorld({ ...world, weather: 'invalid' } as never).weather).toBeUndefined();
     expect(unpack(pack({ a: [], b: {} }))).toEqual({ a: [], b: {} });
   });
 });

@@ -10,6 +10,8 @@ export interface PropDef {
   solid: boolean;
   /** Flat scenery under actors; it does not cast a standing object's shadow. */
   ground?: boolean;
+  /** Ground contact, full projected silhouette, or no shadow (hanging props). */
+  sombra?: 'contacto' | 'proyectada' | 'ninguna';
   variant?: number;
   light?: string;
   /** look of the restaurant facade: 0 inherited .. 3 heart of the village (see restaurant/stages.ts) */
@@ -20,7 +22,7 @@ export interface PropDef {
 }
 
 const P = (kind: string, w: number, h: number, sw: number, sh: number, c1 = '', c2 = '', extra: Partial<PropDef> = {}): PropDef => ({
-  kind, w, h, sw, sh, c1, c2, solid: true, ...extra,
+  kind, w, h, sw, sh, c1, c2, solid: true, sombra: 'proyectada', ...extra,
 });
 
 export const PROPS: Record<string, PropDef> = {
@@ -47,12 +49,12 @@ export const PROPS: Record<string, PropDef> = {
   flowers: P('flowers', 1, 1, 16, 14, '#f47fa0', '#ffffff', { solid: false }),
   flowers_lav: P('flowers', 1, 1, 16, 14, '#a98ae6', '#ffd36a', { solid: false }),
   reeds: P('reeds', 1, 1, 16, 16, '#5db449', '', { solid: false }),
-  lamppost: P('lamppost', 1, 1, 16, 32, '', '', { light: '#f4d68c' }),
-  street_lamp_l: P('lamppost', 1, 1, 16, 32, '', '', { variant: 1, light: '#f4d68c' }),
-  street_lamp_r: P('lamppost', 1, 1, 16, 32, '', '', { variant: 2, light: '#f4d68c' }),
-  stonelantern: P('stonelantern', 1, 1, 16, 24, '', '', { light: '#f4d68c' }),
-  lantern_red: P('paperlantern', 1, 1, 16, 26, '#d9675f', '', { light: '#f4b08c', solid: false, anim: 'sway' }),
-  lantern_cream: P('paperlantern', 1, 1, 16, 26, '#f3e6c8', '', { light: '#f4d68c', solid: false, anim: 'sway' }),
+  lamppost: P('lamppost', 1, 1, 16, 32, '', '', { sombra: 'contacto', light: '#ffe08a' }),
+  street_lamp_l: P('lamppost', 1, 1, 16, 32, '', '', { sombra: 'contacto', variant: 1, light: '#ffe08a' }),
+  street_lamp_r: P('lamppost', 1, 1, 16, 32, '', '', { sombra: 'contacto', variant: 2, light: '#ffe08a' }),
+  stonelantern: P('stonelantern', 1, 1, 16, 24, '', '', { sombra: 'contacto', light: '#ffe08a' }),
+  lantern_red: P('paperlantern', 1, 1, 16, 26, '#d9675f', '', { sombra: 'ninguna', light: '#f4b08c', solid: false, anim: 'sway' }),
+  lantern_cream: P('paperlantern', 1, 1, 16, 26, '#f3e6c8', '', { sombra: 'ninguna', light: '#ffe08a', solid: false, anim: 'sway' }),
   fence: P('fence', 1, 1, 16, 16),
   sack: P('sack', 1, 1, 16, 16, '#d8b98a'),
   bench: P('bench', 2, 1, 32, 16, '#b07a4c'),
@@ -104,7 +106,7 @@ export const PROPS: Record<string, PropDef> = {
   pot_rose: P('pot', 1, 1, 16, 18, '#6f9e5a', '#c27f86'),
   pot_cream: P('pot', 1, 1, 16, 32, '#7fae5f', '#d8c09a'),
   menuboard: P('menuboard', 1, 1, 16, 22),
-  lanternstring: P('lanternstring', 4, 1, 64, 36, '#d9675f', '#f2c66d', { solid: false, light: '#ffb070' }),
+  lanternstring: P('lanternstring', 4, 1, 64, 36, '#d9675f', '#f2c66d', { sombra: 'ninguna', solid: false, light: '#ffb070' }),
   poster_a: P('poster', 1, 1, 14, 18, '#94c0d2', '#f2c66d', { solid: false }),
   poster_b: P('poster', 1, 1, 14, 18, '#e8a0b0', '#3b4470', { solid: false }),
   awning_rose: P('awning', 3, 1, 48, 10, '#d9a3a6', '#f6ecd6', { solid: false }),
@@ -126,11 +128,11 @@ export const PROPS: Record<string, PropDef> = {
   library_books: P('bookstack', 1, 1, 16, 12, '#b2585e', '#3b4470', { solid: false }),
   wallshelf: P('wallshelf', 2, 1, 32, 22, '', '', { solid: false }),
   mm_sign: P('mmsign', 5, 1, 80, 31, '', '', { solid: false }),
-  wall_lantern_red: P('paperlantern', 1, 1, 16, 26, '#d9675f', '', { light: '#f4b08c', solid: false, anim: 'sway' }),
-  wall_lantern_cream: P('paperlantern', 1, 1, 16, 26, '#f3e6c8', '', { light: '#f4d68c', solid: false, anim: 'sway' }),
+  wall_lantern_red: P('paperlantern', 1, 1, 16, 26, '#d9675f', '', { sombra: 'ninguna', light: '#f4b08c', solid: false, anim: 'sway' }),
+  wall_lantern_cream: P('paperlantern', 1, 1, 16, 26, '#f3e6c8', '', { sombra: 'ninguna', light: '#f4d68c', solid: false, anim: 'sway' }),
   sake_barrel: P('sakebarrel', 1, 1, 16, 18, '#b8524f'),
   bamboo: P('bamboo', 1, 1, 16, 36, '#6f9e5a', '#3b4470'),
-  andon: P('andon', 1, 1, 16, 28, '#f6e3b0', '', { light: '#f4d68c' }),
+  andon: P('andon', 1, 1, 16, 28, '#f6e3b0', '', { sombra: 'contacto', light: '#ffe08a' }),
   stairs: P('stairs', 1, 1, 16, 16, '', '', { solid: false }),
   stairs_down: P('stairs', 1, 1, 16, 16, '', '', { solid: false, variant: 1 }),
   door_storage: P('walldoor', 1, 1, 16, 16, '', '', { variant: 0 }),

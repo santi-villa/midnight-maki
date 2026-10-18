@@ -3,6 +3,7 @@ import { haptic } from '../core/haptics';
 import { bus } from '../core/events';
 import { runTask } from '../core/errors';
 import { game } from '../core/state';
+import { mirror } from '../restaurant/mirror';
 import { restaurantPhase } from '../systems/schedule';
 
 export type QuestTarget =
@@ -96,7 +97,7 @@ let pendingRewards: (() => Promise<void> | void)[] = [];
 
 /** Re-evaluates all active quests; advances steps whose condition is met. */
 export function check() {
-  if (checking || !game.loaded) return;
+  if (checking || !game.loaded || mirror.on) return;
   checking = true;
   try {
     // auto-start

@@ -9,8 +9,11 @@ import type { HouseDef } from './houses';
 
 export type HouseSpot = [string, number, number, number?];
 
-/** Same order as the first twelve HOUSES. The last four houses have no named resident. */
-const RESIDENTS = ['ren', 'mika', 'haru', 'tomo', 'nene', 'goro', 'fuyu', 'sato', 'mame', 'kai', 'rin', 'oto'];
+/**
+ * Same order as HOUSES. The first twelve are the ambient neighbours.
+ * The last four are story villagers who sleep there at night: Yuki, Nami, Ume, Momo.
+ */
+const RESIDENTS = ['ren', 'mika', 'haru', 'tomo', 'nene', 'goro', 'fuyu', 'sato', 'mame', 'kai', 'rin', 'oto', 'yuki', 'nami', 'ume', 'momo'];
 
 const LAYOUTS: Record<string, HouseSpot[]> = {
   // carpenter: chest, stool, wood

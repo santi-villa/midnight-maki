@@ -29,6 +29,7 @@ export type Target =
   | { kind: 'bug'; idx: number; label: string };
 
 export type ContextIntent =
+  | { type: 'pet'; id: string }
   | { type: 'target'; target: Target }
   | { type: 'gift'; npcId: string }
   | { type: 'company'; npcId: string }
@@ -79,6 +80,7 @@ export interface SenseFurniture {
 }
 
 export interface ContextSense {
+  pets?: { id: string; name: string; x: number; y: number }[];
   zoneId: string;
   px: number;
   py: number;
@@ -244,6 +246,9 @@ function addTables(bag: Map<string, Scored>, sense: ContextSense) {
 
 export function resolveContext(sense: ContextSense): ContextOffer {
   const bag = new Map<string, Scored>();
+  for (const p of sense.pets ?? []) consider(bag, {
+    id: `pet:${p.id}`, label: `Acariciar a ${p.name}`, detail: `${p.name}, el gato de Midnight Maki`, icon: 'heart', intent: { type: 'pet', id: p.id },
+  }, p.x, p.y, 24, sense, 2);
   for (const n of sense.npcs) {
     consider(bag, {
       id: `npc:${n.id}`,

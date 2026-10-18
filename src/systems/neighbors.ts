@@ -5,8 +5,9 @@ import { NEIGHBORS, type Neighbor } from '../data/neighbors';
 import { ZONES } from '../data/zones';
 import { buildZone } from '../world/zoneRuntime';
 import type { Grid } from '../world/grid';
-import { Journey } from './journeys';
+import { Journey, type Position } from './journeys';
 import { planVillage, type PlanContext } from './neighborPlan';
+import { restPhase } from './residentSleep';
 import { FOUNTAIN, SHORE, STROLL, byDoor, type Place } from './neighborSpots';
 
 export interface NeighborState {
@@ -38,7 +39,7 @@ export function planContext(): PlanContext {
   const open = new Set<string>(['plaza', 'library']);
   for (const [flag, zone] of [['unlock_beach', 'beach'], ['unlock_garden', 'garden'], ['unlock_forest', 'forest']] as const) if (game.has(flag)) open.add(zone);
   if (game.flag('market_open')) open.add('market');
-  return { day: t.day, period: Math.max(0, Math.min(3, t.period)), half: t.minutes >= 45 ? 1 : 0, part: Math.max(0, Math.min(3, Math.floor(t.minutes / 22.5))) as 0 | 1 | 2 | 3, rain: game.flag('weather') === 'rain', open };
+  return { day: t.day, period: Math.max(0, Math.min(3, t.period)), minutes: t.minutes, half: t.minutes >= 45 ? 1 : 0, part: Math.max(0, Math.min(3, Math.floor(t.minutes / 22.5))) as 0 | 1 | 2 | 3, rain: game.flag('weather') === 'rain', open };
 }
 
 export class NeighborLife {
@@ -51,7 +52,15 @@ export class NeighborLife {
 
   hold(id: string, away: boolean) {
     if (away) this.away.add(id);
-    else if (this.away.delete(id)) this.state.delete(id); // back among the others at their planned place
+    else if (this.away.delete(id)) { const s = this.state.get(id); if (s) s.key = ''; }
+  }
+
+  /** Hand the actual returning customer's position back to the town simulation. Never respawn at home. */
+  release(id: string, position: Position) {
+    this.away.delete(id);
+    const s = this.state.get(id);
+    if (s) { s.trip.place(position); s.key = ''; }
+    this.syncIn = 0;
   }
 
   grid = (zone: string): Grid => {
@@ -75,7 +84,7 @@ export class NeighborLife {
     for (const n of NEIGHBORS) {
       const wanted = plan.get(n.id);
       if (!wanted) continue;
-      const key = `${ctx.day}:${ctx.period}:${ctx.part ?? ctx.half}:${ctx.rain ? 1 : 0}`;
+      const key = `${ctx.day}:${ctx.period}:${ctx.part ?? ctx.half}:${ctx.rain ? 1 : 0}:${restPhase(n.id, ctx.period, ctx.minutes ?? 0, ctx.rain)}`;
       const place = { ...this.reachable(wanted), ride: wanted.ride, withFriend: wanted.withFriend };
       const stop: RoutineStop = { zone: place.zone, x: place.x, y: place.y, wander: 0, act: place.act, dir: place.dir, seatLift: place.seatLift, bed: place.bed };
       const cur = this.state.get(n.id);
