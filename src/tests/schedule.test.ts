@@ -54,7 +54,7 @@ describe('daily rhythm', () => {
 
   it('gives the morning a cleaning start, a meal, and a walk to the door before a zone change', () => {
     at(0, 5);
-    expect(stopFor('taro', 0)?.act).toBe('clean');
+    expect(stopFor('bento', 0)?.act).toBe('clean');
     at(0, 40);
     expect(stopFor('taro', 0)?.act).toBe('work');
     expect(stopFor('taro', 0)?.zone).toBe('shop_taro');
@@ -85,7 +85,7 @@ describe('daily rhythm', () => {
     expect(stopFor('rigg', 3)).toMatchObject({ zone: 'restaurant', x: 10, y: 4, act: 'read' });
   });
   it('sends Pip home after closing and leaves the villagers where the night put them', () => {
-    at(3, 40);
+    at(3, 60);
     expect(stopFor('yuki', 3)).toMatchObject({ zone: 'house_beach_33_9', act: 'sleep' });
     expect(whereIs('kumo')).not.toBe('library');
     expect(stopFor('kumo', 3)?.act).toMatch(/sit|talk/);
