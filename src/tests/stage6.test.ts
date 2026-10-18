@@ -28,7 +28,8 @@ describe('fishing rods', () => {
     expect(RODS[2].price).toBe(360);
     expect(RODS[2].rare).toBeGreaterThan(1);
     expect(RODS[2].rare).toBeLessThan(1.5);
-    expect(RODS[2].gain).toBeGreaterThan(1);
+    expect(tuneOf(null).gain).toBe(0.55);
+    expect(RODS.map(r => r.gain)).toEqual([0.55, 0.8, 1.05]);
     expect(RODS[2].control).toBeGreaterThan(0);
     expect(RODS[2].control).toBeLessThan(1);
     for (const rod of RODS) expect(ITEMS_BY_ID[rod.id].sell).toBe(0);
