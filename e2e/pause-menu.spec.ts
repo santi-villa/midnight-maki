@@ -1,19 +1,14 @@
-import { finishArrival } from './helpers/arrival';
+import { bootExploration } from './helpers/exploration';
 import { expect, test, type Page } from '@playwright/test';
 
+test.use({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false });
 async function begin(page: Page) {
-  await page.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ music: 0, ambience: 0, sfx: 0, textSpeed: 0 })));
-  await page.goto('/?debug&st');
-  await page.locator('.tt').click();
-  await page.getByRole('button', { name: 'Nueva partida' }).click();
-  await page.getByText('Partida 1').click({ timeout: 4000 }).catch(() => {});
-  await page.getByRole('button', { name: 'Comenzar' }).click();
-  await page.getByRole('button', { name: 'Saltar intro ›' }).click();
-  await finishArrival(page);
+  await bootExploration(page);
+  await page.evaluate(() => (window as any).mmDebug.clock.resume());
   await expect(page.locator('.hud-digital')).toBeVisible();
 }
 
-test('escape menu matches the wooden two-column board', async ({ page }, info) => {
+test('escape menu matches the wooden two-column board', async ({ page }) => {
   await begin(page);
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.keyboard.press('Escape');
@@ -21,7 +16,8 @@ test('escape menu matches the wooden two-column board', async ({ page }, info) =
   await expect(board).toBeVisible();
   await expect(board).toContainText('Aventuras y Progreso');
   await expect(board).toContainText('Opciones de Sistema');
-  await expect(board).toContainText('El juego está en pausa. Esc para seguir jugando.');
+  await expect(board).toContainText('El juego está en pausa.');
+  await expect(board.getByRole('button', { name: 'Continuar partida' })).toBeVisible();
   await expect(board.getByRole('button', { name: 'Guardar y salir' })).toBeVisible();
   const mochila = await board.getByRole('button', { name: /Mochila/ }).boundingBox();
   const mapa = await board.getByRole('button', { name: /Mapa/ }).boundingBox();
@@ -31,7 +27,7 @@ test('escape menu matches the wooden two-column board', async ({ page }, info) =
   const sheet = await board.boundingBox();
   expect(sheet!.width).toBeLessThan(520);
   expect(sheet!.x).toBeGreaterThan(200);
-  await page.screenshot({ path: info.outputPath('pause-1280.png') });
+  await page.screenshot({ path: 'docs/art/pausa/pc.png' });
 
   await page.setViewportSize({ width: 390, height: 844 });
   const narrow = await board.boundingBox();
@@ -39,10 +35,46 @@ test('escape menu matches the wooden two-column board', async ({ page }, info) =
   expect(narrow!.x + narrow!.width).toBeLessThanOrEqual(390);
   const clipped = await board.locator('.pause-item span').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent));
   expect(clipped).toEqual([]);
-  await page.screenshot({ path: info.outputPath('pause-390.png') });
+  await page.screenshot({ path: 'docs/art/pausa/menu-390.png' });
 
   await board.getByRole('tab', { name: 'Amigos' }).click();
   await expect(board.getByRole('button', { name: 'Jugar juntos' })).toBeVisible();
   await board.getByRole('tab', { name: 'Ajustes' }).click();
   await expect(board.getByRole('button', { name: 'Descansar un rato' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(board).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).mmDebug.clock.paused)).toBe(false);
+});
+
+test.describe('touch pause', () => {
+  test.use({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  test('pause icon fits small screens and actually stops and resumes exploration', async ({ page }) => {
+    const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+    await begin(page);
+    for (const [width, height] of [[320, 740], [390, 844], [844, 390]]) {
+      await page.setViewportSize({ width, height });
+      const pause = page.getByRole('button', { name: /^Pausa/ });
+      await expect(pause).toBeVisible();
+      const rect = await pause.boundingBox(), status = await page.locator('.hud-status-wrap').boundingBox();
+      expect(rect!.width).toBeGreaterThanOrEqual(44); expect(rect!.height).toBeGreaterThanOrEqual(44);
+      expect(rect!.x).toBeGreaterThanOrEqual(status!.x + status!.width);
+      expect(rect!.x + rect!.width).toBeLessThanOrEqual(width); expect(rect!.y + rect!.height).toBeLessThanOrEqual(height);
+      await page.screenshot({ path: `docs/art/pausa/hud-${width}.png` });
+      await pause.tap();
+      const board = page.locator('.pause-sheet');
+      await expect(board).toBeVisible(); await expect(board).toHaveCount(1);
+      expect(await page.evaluate(() => {
+        const m = (window as any).mmDebug, before = m.game.save.time.minutes;
+        m.clock.tick(10);
+        return { paused: m.clock.paused, canAct: m.world.canAct(), unchanged: m.game.save.time.minutes === before };
+      })).toEqual({ paused: true, canAct: false, unchanged: true });
+      if (width === 390) await page.screenshot({ path: 'docs/art/pausa/tactil.png' });
+      await board.getByRole('button', { name: 'Continuar partida' }).tap();
+      await expect(board).toHaveCount(0);
+      expect(await page.evaluate(() => ({ paused: (window as any).mmDebug.clock.paused, canAct: (window as any).mmDebug.world.canAct() }))).toEqual({ paused: false, canAct: true });
+    }
+    const before = await page.evaluate(() => (window as any).mmDebug.game.save.time.minutes);
+    await expect.poll(() => page.evaluate(() => (window as any).mmDebug.game.save.time.minutes)).toBeGreaterThan(before);
+    expect(errors).toEqual([]);
+  });
 });
