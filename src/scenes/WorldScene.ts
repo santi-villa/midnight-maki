@@ -69,6 +69,10 @@ import { microFor } from '../systems/npcMicro';
 import { bridgeRails } from '../world/bridge';
 import { bridgeRailCanvas } from '../art/bridges';
 import { hasVillageAtlas } from '../art/villageAssets';
+import { shopShutter, shutterLevel } from '../art/shopShutter';
+import { buildingLayout } from '../art/nature';
+import { villageShopLayout } from '../art/village';
+import { makeCanvas, ctx2d } from '../art/pixel';
 import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
@@ -86,7 +90,7 @@ interface Light { x: number; y: number; r: number; flicker: boolean; color?: num
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
 interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
-interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean }
+interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean; shutter: Phaser.GameObjects.Image; level: number; target: number; tween?: Phaser.Tweens.Tween }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
@@ -618,7 +622,24 @@ export class WorldScene extends Phaser.Scene {
         const facadeStage = fac && hasVillageAtlas() ? p.def.stage ?? 0 : undefined;
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac, shop, undefined, facadeStage);
         if (fac) this.addWindowGlow(img, p.def.sw, p.def.sh, 0, true, true, shop, undefined, facadeStage);
-        if (shop) this.shopFacades.push({ img, propId: p.key, shop, closed: false });
+        if (shop) {
+          const L = fac && hasVillageAtlas() ? restaurantFacadeLayout(p.def.sw, p.def.sh, p.def.stage ?? 0).door : (() => {
+            const d = fac ? buildingLayout(p.def.sw, p.def.sh) : villageShopLayout(p.def.sw, p.def.sh, p.def.variant ?? 0);
+            return { x: d.dx, y: d.doorY, w: d.doorW, h: d.doorH };
+          })();
+          const w = L.w + 2, h = L.h + 2, texKey = `shutter_${w}x${h}`;
+          if (!this.textures.exists(texKey)) {
+            const buf = shopShutter(w, h), canvas = makeCanvas(w, h), ctx = ctx2d(canvas);
+            const data = ctx.createImageData(w, h); data.data.set(buf.data); ctx.putImageData(data, 0, 0);
+            this.textures.addCanvas(texKey, canvas);
+          }
+          const shutter = this.add.image(px - p.def.sw / 2 + L.x - 1, py - p.def.sh + L.y - 1, texKey)
+            .setOrigin(0, 0).setDepth(img.depth + 0.15);
+          this.objs.push(shutter);
+          const facade: ShopFacade = { img, propId: p.key, shop, closed: false, shutter, level: -1, target: -1 };
+          shutter.once('destroy', () => facade.tween?.stop());
+          this.shopFacades.push(facade);
+        }
       }
       if ((p.def.kind === 'townhouse' || p.def.kind === 'sidehouse') && (p.def.variant ?? 0) < 8) {
         // houses: lit windows, the glass of the door and the porch lantern, and a pool of light on the path
@@ -1558,15 +1579,17 @@ export class WorldScene extends Phaser.Scene {
         const key = `${v.id}:${i}`;
         live.add(key);
         let body = this.guests.get(key);
+        const who = v.customers[i] ?? v.customer;
+        const nb = neighborOf(who);
+        const texture = nb ? lookTexture(this, nb.look) : customerTexture(this, customerLook(who), who, !!this.zone.def.outdoor && game.flag('weather') === 'rain');
         if (!body) {
-          const who = v.customers[i] ?? v.customer;
-          const nb = neighborOf(who);
-          const actor = new Actor(this, who, nb ? lookTexture(this, nb.look) : customerTexture(this, customerLook(who)), p.x, p.y);
+          const actor = new Actor(this, who, texture, p.x, p.y);
           actor.manual = true;
           body = { actor, phase };
           this.guests.set(key, body);
         }
         const a = body.actor;
+        if (a.sprite.texture.key !== texture) a.setTexture(texture);
         const sitting = SEATED_PHASES.includes(phase);
         const seat = g?.seats[i];
         const table = g?.tableId ? this.diningPieces().find((pc) => String(pc.uid) === g.tableId) : undefined;
@@ -3072,15 +3095,25 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Each shop's front has an open and a closed drawing: shutters and a rolled awning when it is closed. */
+  /** Shutters share the service state; they only draw over the existing entry. */
   private refreshShopFacades() {
     const t = game.save.time;
     for (const f of this.shopFacades) {
       if (!f.img.active) continue;
-      const closed = f.shop === 'restaurant' ? restaurantPhase(t.period, t.minutes) !== 'open' : !shopGate(f.shop).open;
-      if (closed === f.closed && f.img.texture.key === propTexture(this, f.propId, closed)) continue;
+      const phase = f.shop === 'restaurant' ? restaurantPhase(t.period, t.minutes) : shopGate(f.shop).phase;
+      const target = shutterLevel(phase);
+      const closed = phase === 'closed';
       f.closed = closed;
       f.img.setTexture(propTexture(this, f.propId, closed));
+      if (target === f.target) continue;
+      f.tween?.stop(); f.target = target;
+      const draw = () => {
+        const h = Math.round(f.shutter.height * f.level);
+        // Keep the rolled header visible, even when fully open. Crop, never stretch the slats.
+        f.shutter.setCrop(0, 0, f.shutter.width, Math.max(2, h));
+      };
+      if (f.level < 0 || settings.reduceMotion || lowFx()) { f.level = target; draw(); }
+      else f.tween = this.tweens.add({ targets: f, level: target, duration: 450, ease: 'Sine.inOut', onUpdate: draw, onComplete: draw });
     }
   }
 
@@ -3090,6 +3123,7 @@ export class WorldScene extends Phaser.Scene {
     this.shopSigns = [];
     if (!this.zone) return;
     for (const spot of signSpots(this.zoneId)) {
+      if (this.shopFacades.some(f => f.shop === spot.shopId)) continue;
       const status = shopGate(spot.shopId);
       const text = shopSignText(status);
       if (!text) continue;
