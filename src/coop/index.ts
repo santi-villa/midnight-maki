@@ -36,6 +36,7 @@ function buildWorld(): WorldPack {
     restaurant: { level: s.restaurant.level, upgrades: [...s.restaurant.upgrades], reputation: s.restaurant.reputation },
     time: { day: s.time.day, period: s.time.period, minutes: s.time.minutes },
     restaurantName: s.player.restaurantName,
+    weather: game.flag('weather') === 'rain' ? 'rain' : 'clear',
   };
 }
 
@@ -43,6 +44,7 @@ export const coop = new CoopSession({ openTransport, buildWorld, me });
 
 // ------------------------------------------------------------------ the guest sees the host's restaurant
 interface Stash {
+  weather?: number | string | boolean;
   decor: typeof game.save.decor;
   roomStyle: typeof game.save.roomStyle;
   restaurant: { level: number; upgrades: string[]; reputation: number };
@@ -59,10 +61,11 @@ async function enterGuestWorld(w: WorldPack) {
   stash = {
     decor: s.decor, roomStyle: s.roomStyle,
     restaurant: { level: s.restaurant.level, upgrades: s.restaurant.upgrades, reputation: s.restaurant.reputation },
-    time: { ...s.time },
+    time: { ...s.time }, weather: s.flags.weather,
     at: { zone: world.zoneId, x: world.player.tx, y: world.player.ty, dir: world.player.dir },
   };
   setSaveBlocked(true);
+  if (w.weather) s.flags.weather = w.weather;
   mirror.start();
   s.decor = w.decor; s.roomStyle = w.roomStyle;
   s.restaurant.level = w.restaurant.level; s.restaurant.upgrades = [...w.restaurant.upgrades]; s.restaurant.reputation = w.restaurant.reputation;
@@ -79,6 +82,7 @@ async function leaveGuestWorld() {
   s.decor = st.decor; s.roomStyle = st.roomStyle;
   s.restaurant.level = st.restaurant.level; s.restaurant.upgrades = st.restaurant.upgrades; s.restaurant.reputation = st.restaurant.reputation;
   s.time.day = st.time.day; s.time.period = st.time.period; s.time.minutes = st.time.minutes;
+  if (st.weather === undefined) delete s.flags.weather; else s.flags.weather = st.weather;
   setSaveBlocked(false);
   await world.enterZone(st.at.zone, st.at.x, st.at.y, st.at.dir, true, true);
 }
@@ -107,7 +111,12 @@ mirror.ask = (a: ActKind, arg: { tableId?: string; uid?: number; q?: number; b?:
   coop.send({ t: 'act', id, a, ...arg });
   mirror.predict(a, arg);
 };
-coop.onFloor((raw) => { const s = normalizeFloor(raw); if (s) mirror.apply(s); });
+coop.onFloor((raw) => {
+  const s = normalizeFloor(raw);
+  if (!s || !mirror.on) return;
+  if (stash && s.weather) game.save.flags.weather = s.weather;
+  mirror.apply(s);
+});
 coop.on('res', (m) => {
   const r = m as { id: number; text: string; coins?: number };
   if (!pending.delete(r.id)) return;

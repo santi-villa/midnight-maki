@@ -13,6 +13,8 @@ export interface WorldPack {
   roomStyle: Record<string, { floor: string; wall: string }>;
   restaurant: { level: number; upgrades: string[]; reputation: number };
   time: { day: number; period: number; minutes: number };
+  /** Optional for protocol-6 clients built before weather synchronisation. */
+  weather?: 'clear' | 'rain';
   restaurantName: string;
 }
 
@@ -59,6 +61,7 @@ export function normalizeWorld(raw: Partial<WorldPack> | null | undefined): Worl
     roomStyle: asObject<{ floor: string; wall: string }>(w.roomStyle),
     restaurant: { level: Number(r.level) || 1, upgrades: asArray<string>(r.upgrades), reputation: Number(r.reputation) || 0 },
     time: { day: Number(t.day) || 1, period: Number(t.period) || 0, minutes: Number(t.minutes) || 0 },
+    ...(w.weather === 'clear' || w.weather === 'rain' ? { weather: w.weather } : {}),
     restaurantName: typeof w.restaurantName === 'string' ? w.restaurantName : 'Midnight Maki',
   };
 }

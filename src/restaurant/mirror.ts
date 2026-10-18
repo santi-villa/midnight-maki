@@ -26,6 +26,8 @@ export interface FloorSnap {
   /** table ids in the host's order, so "Mesa 2" means the same thing on both screens */
   tables: string[];
   time: { day: number; period: number; minutes: number };
+  /** Optional for protocol-6 clients built before weather synchronisation. */
+  weather?: 'clear' | 'rain';
 }
 
 /** guests may carry for the host's tray, under this claim name */
@@ -78,6 +80,7 @@ export function normalizeFloor(raw: unknown): FloorSnap | null {
     cookable: asArray<Order>(r.cookable),
     pantry: r.pantry && typeof r.pantry === 'object' ? r.pantry : {},
     tables: asArray<string>(r.tables),
+    ...(r.weather === 'clear' || r.weather === 'rain' ? { weather: r.weather } : {}),
     time: { day: Number(t.day) || 1, period: Number(t.period) || 0, minutes: Number(t.minutes) || 0 },
   };
 }
