@@ -231,8 +231,8 @@ function standSouth(zone: string, pieces: Piece[], x: number, y: number, w: numb
 }
 
 /** At home: sleep by the bed at night, sit or read by a chair during the day. */
-export function homeActivity(n: Neighbor, period: number): Place {
-  const sleepy = period === 3 || (period === 0 && n.traits.includes('nocturnal'));
+export function homeActivity(n: Neighbor, period: number, sleeping?: boolean): Place {
+  const sleepy = sleeping ?? (period === 3 || (period === 0 && n.traits.includes('nocturnal')));
   const base: Place = {
     zone: n.home, x: 5, y: 5, kind: 'home', dir: 'down',
     act: sleepy ? 'sleep' : n.likes.includes('read') ? 'read' : 'look',

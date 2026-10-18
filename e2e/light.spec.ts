@@ -198,6 +198,13 @@ test('lighting: night settings, real lamp pools, staggered windows and readable 
     await page.screenshot({ path: `docs/art/luces/etapa-1/${name}-noche.png` });
   }
   await go(page, { ...PLAZA, period: 3, minutes: 50 });
+  // Windows now follow real arrivals, rather than the former visual-only hash timer.
+  await page.evaluate(() => {
+    const w = (window as any).mmDebug.world;
+    w.neighborLife.sync(); w.town.sync();
+    for (let i = 0; i < 400; i++) { w.neighborLife.tick(0.5); w.town.tick(0.5); }
+  });
+  await page.waitForTimeout(100);
   const windows = await page.evaluate(() => {
     const w = (window as any).mmDebug.world;
     return w.windowGlows.filter((g: any) => g.home).map((g: any) => w.facadeLevel(false, false, g));
