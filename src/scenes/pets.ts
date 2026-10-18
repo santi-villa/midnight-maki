@@ -51,7 +51,7 @@ interface Pet { spot: PetSpot; s: Phaser.GameObjects.Sprite; hopping: boolean; c
 
 export class Pets {
   private pets: Pet[] = [];
-  constructor(scene: Phaser.Scene, zone: string, night: boolean) {
+  constructor(scene: Phaser.Scene, zone: string, night: boolean, private onStep?: (x: number, y: number) => void) {
     if (!scene.textures.exists(PETS_ATLAS_KEY)) return;
     ensureAnims(scene);
     for (const spot of PET_SPOTS.filter((p) => p.zone === zone && !(night && p.day))) {
@@ -73,7 +73,7 @@ export class Pets {
       if (SHEETS[k].hop && !p.hopping && p.cool <= 0 && d < 30) {
         p.hopping = true;
         p.s.play(`pet_${k}_hop`);
-        p.s.once('animationcomplete', () => { p.hopping = false; p.cool = 7; p.s.play(`pet_${k}_idle`); });
+        p.s.once('animationcomplete', () => { p.hopping = false; p.cool = 7; p.s.play(`pet_${k}_idle`); this.onStep?.(p.s.x, p.s.y); });
       } else if (k === 'dog_golden') {
         const near = d < 56;
         if (near !== p.barking) { p.barking = near; p.s.play(near ? 'pet_dog_golden_bark' : 'pet_dog_golden_idle'); }

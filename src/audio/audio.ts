@@ -111,7 +111,14 @@ export function songURLs(track: Track): string[] {
     .map(([, url]) => url);
 }
 
-class AudioEngine {
+interface AmbienceBed { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; gain: GainNode; filter: BiquadFilterNode; rain: boolean }
+
+function holdParam(param: AudioParam, time: number) {
+  if (typeof param.cancelAndHoldAtTime === 'function') param.cancelAndHoldAtTime(time);
+  else { const value = param.value; param.cancelScheduledValues(time); param.setValueAtTime(value, time); }
+}
+
+export class AudioEngine {
   ctx: AudioContext | null = null;
   private music!: GainNode;
   private sfx!: GainNode;
@@ -122,8 +129,10 @@ class AudioEngine {
   private nextTime = 0;
   private step = 0;
   private rng = Math.random;
-  private ambSrc: AudioBufferSourceNode | null = null;
+  private ambBed: AmbienceBed | null = null;
   private ambKind = '';
+  private requestedAmbience = 'none';
+  private windowDropTimer: number | null = null;
   private nightBed: { el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode } | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private pendingTrack: Track = 'none';
@@ -265,6 +274,7 @@ class AudioEngine {
       } else this.unlock();
     });
     if (this.pendingTrack !== 'none') this.play(this.pendingTrack);
+    this.ambience(this.requestedAmbience);
   }
 
   applyVolumes() {
@@ -553,59 +563,112 @@ class AudioEngine {
     bed.gain.disconnect();
   }
 
-  /** looping ambience bed: 'rain' | 'waves' | 'night' | 'none' */
+  /** Looping ambience. Rain keeps the same sources when crossing a doorway: only filtering/gain fade. */
   ambience(kind: string) {
+    this.requestedAmbience = kind;
     if (!this.ctx || kind === this.ambKind) return;
     this.ambKind = kind;
-    if (this.ambSrc) {
-      try {
-        this.ambSrc.stop();
-      } catch {
-        /* already stopped */
-      }
-      this.ambSrc = null;
+    if (this.windowDropTimer !== null) window.clearTimeout(this.windowDropTimer);
+    this.windowDropTimer = null;
+    const c = this.ctx;
+    const rain = kind === 'rain' || kind === 'rain_inside';
+    const inside = kind === 'rain_inside';
+    if (rain && this.ambBed?.rain) {
+      this.fadeRain(this.ambBed, inside);
+      if (inside) this.queueWindowDrop();
+      return;
     }
+    this.retireAmbience();
     if (kind !== 'night') this.stopNightBed();
     if (kind === 'none') return;
     if (kind === 'night' && this.startNightBed()) return;
-    const c = this.ctx;
-    const s = c.createBufferSource();
-    s.buffer = this.noise();
-    s.loop = true;
     const f = c.createBiquadFilter();
     const g = c.createGain();
-    if (kind === 'rain') {
-      f.type = 'bandpass';
-      f.frequency.value = 1800;
-      f.Q.value = 0.4;
-      g.gain.value = 0.5;
-    } else if (kind === 'waves') {
-      f.type = 'lowpass';
-      f.frequency.value = 420;
-      g.gain.value = 0.14;
+    const bed: AmbienceBed = { sources: [], nodes: [f, g], gain: g, filter: f, rain };
+    this.ambBed = bed;
+    f.type = 'lowpass'; f.Q.value = 0.5;
+    f.frequency.value = rain ? (inside ? 420 : 1200) : kind === 'waves' ? 420 : 280;
+    g.gain.setValueAtTime(0, c.currentTime);
+    g.gain.linearRampToValueAtTime(rain ? (inside ? 0.065 : 0.25) : kind === 'waves' ? 0.14 : 0.1, c.currentTime + 0.55);
+    f.connect(g).connect(this.amb);
+    const addNoise = (body: boolean) => {
+      const s = c.createBufferSource(); s.buffer = this.noise(); s.loop = true;
+      bed.sources.push(s); bed.nodes.push(s);
+      if (body) {
+        s.playbackRate.value = 0.55;
+        const low = c.createBiquadFilter(); low.type = 'lowpass'; low.frequency.value = 180;
+        const gain = c.createGain(); gain.gain.value = 0.38;
+        s.connect(low).connect(gain).connect(f); bed.nodes.push(low, gain);
+      } else s.connect(f);
+      s.start(0, body ? 0.7 : 0);
+    };
+    addNoise(false);
+    if (rain) addNoise(true);
+    if (kind === 'waves') {
+      // Preserve the beach bed until its separate sound pass; retire its oscillator with its source.
       const lfo = c.createOscillator();
       const lg = c.createGain();
-      lfo.frequency.value = 0.12;
-      lg.gain.value = 0.08;
+      lfo.frequency.value = 0.12; lg.gain.value = 0.08;
       lfo.connect(lg).connect(g.gain);
-      lfo.start();
-    } else {
-      f.type = 'lowpass';
-      f.frequency.value = 280;
-      g.gain.value = 0.1;
+      lfo.start(); bed.sources.push(lfo); bed.nodes.push(lfo, lg);
     }
-    s.connect(f).connect(g).connect(this.amb);
-    s.start();
-    this.ambSrc = s;
+    if (inside) this.queueWindowDrop();
   }
 
-  sfxPlay(name: string) {
+  private fadeRain(bed: AmbienceBed, inside: boolean) {
+    const t = this.ctx!.currentTime;
+    // Holding the current value makes a quick in/out/in sequence continuous too.
+    holdParam(bed.gain.gain, t);
+    holdParam(bed.filter.frequency, t);
+    bed.gain.gain.linearRampToValueAtTime(inside ? 0.065 : 0.25, t + 0.55);
+    bed.filter.frequency.exponentialRampToValueAtTime(inside ? 420 : 1200, t + 0.55);
+  }
+
+  private retireAmbience() {
+    const bed = this.ambBed;
+    if (!bed || !this.ctx) return;
+    this.ambBed = null;
+    const t = this.ctx.currentTime;
+    holdParam(bed.gain.gain, t);
+    bed.gain.gain.linearRampToValueAtTime(0, t + 0.55);
+    let left = bed.sources.length;
+    for (const source of bed.sources) {
+      source.onended = () => { if (--left === 0) for (const node of bed.nodes) node.disconnect(); };
+      source.stop(t + 0.6);
+    }
+  }
+
+  private queueWindowDrop() {
+    this.windowDropTimer = window.setTimeout(() => {
+      this.windowDropTimer = null;
+      if (this.ambKind !== 'rain_inside' || !this.ctx) return;
+      if (!document.hidden && this.ctx.state === 'running') this.windowDrop();
+      this.queueWindowDrop();
+    }, 1600 + Math.random() * 3400);
+  }
+
+  /** A soft, isolated tap on glass, routed through Ambience (not the effects slider). */
+  private windowDrop() {
+    const c = this.ctx!; const t = c.currentTime;
+    const o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(330 + Math.random() * 110, t);
+    o.frequency.exponentialRampToValueAtTime(170, t + 0.08);
+    f.type = 'lowpass'; f.frequency.value = 650;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.035, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+    o.connect(f).connect(g).connect(this.amb);
+    o.onended = () => { o.disconnect(); f.disconnect(); g.disconnect(); };
+    o.start(t); o.stop(t + 0.16);
+  }
+
+  sfxPlay(name: string, volume = 1) {
     const c = this.ctx;
     if (!c) return;
     const now = c.currentTime;
     // avoid stacking the same sound repeatedly
     if (this.lastSfx[name] && now - this.lastSfx[name] < 0.04) return;
     this.lastSfx[name] = now;
+    const level = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0;
+    if (level <= 0) return;
     const tone = (freq: number, t0: number, dur: number, type: OscillatorType = 'sine', vol = 0.3, slide = 0) => {
       const o = c.createOscillator();
       const g = c.createGain();
@@ -613,7 +676,7 @@ class AudioEngine {
       o.frequency.setValueAtTime(freq, now + t0);
       if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, now + t0 + dur);
       g.gain.setValueAtTime(0.0001, now + t0);
-      g.gain.linearRampToValueAtTime(vol, now + t0 + 0.01);
+      g.gain.linearRampToValueAtTime(vol * level, now + t0 + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, now + t0 + dur);
       o.connect(g).connect(this.sfx);
       o.start(now + t0);
@@ -626,7 +689,7 @@ class AudioEngine {
       f.type = 'bandpass';
       f.frequency.value = freq;
       const g = c.createGain();
-      g.gain.setValueAtTime(vol, now + t0);
+      g.gain.setValueAtTime(vol * level, now + t0);
       g.gain.exponentialRampToValueAtTime(0.0001, now + t0 + dur);
       s.connect(f).connect(g).connect(this.sfx);
       s.start(now + t0, Math.random());
@@ -656,10 +719,11 @@ class AudioEngine {
       case 'paper': noiseHit(0, 0.25, 2600, 0.18); noiseHit(0.2, 0.18, 3200, 0.12); break;
       case 'train': for (let i = 0; i < 8; i++) { noiseHit(i * 0.22, 0.08, 500, 0.22); noiseHit(i * 0.22 + 0.09, 0.06, 700, 0.14); } tone(392, 1.9, 0.5, 'triangle', 0.09); tone(330, 1.9, 0.5, 'triangle', 0.08); break;
       case 'step': noiseHit(0, 0.05, 650, 0.06); break;
-      case 'step_grass': noiseHit(0, 0.07, 800, 0.05); noiseHit(0.02, 0.06, 520, 0.035); break;
+      case 'step_grass': noiseHit(0, 0.07, 600, 0.05); noiseHit(0.02, 0.06, 420, 0.035); break;
       case 'step_wood': noiseHit(0, 0.04, 380, 0.07); tone(110 + Math.random() * 20, 0, 0.06, 'sine', 0.05); break;
-      case 'step_stone': noiseHit(0, 0.035, 900, 0.07); tone(240 + Math.random() * 40, 0, 0.04, 'sine', 0.03); break;
+      case 'step_stone': noiseHit(0, 0.04, 600, 0.07); tone(160 + Math.random() * 30, 0, 0.05, 'sine', 0.03); break;
       case 'step_sand': noiseHit(0, 0.09, 520, 0.04); break;
+      case 'step_wet': noiseHit(0, 0.1, 520, 0.075); noiseHit(0.025, 0.07, 330, 0.035); tone(120, 0, 0.07, 'sine', 0.025, 0.7); break;
       case 'bell': tone(1318, 0, 0.5, 'sine', 0.1); tone(1760, 0.04, 0.6, 'sine', 0.07); break;
       case 'blip': tone(520, 0, 0.035, 'triangle', 0.05); break;
       case 'clue': [784, 988, 1318].forEach((f, i) => tone(f, i * 0.1, 0.3, 'sine', 0.15)); break;
