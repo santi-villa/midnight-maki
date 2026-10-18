@@ -9,6 +9,7 @@ import { applyProjectBenefits } from '../restaurant/projects';
 import { seatsApproachable } from '../restaurant/seating';
 import { applyStageGrants, stageForLevel } from '../restaurant/stages';
 import { HOUSES } from '../data/houses';
+import { EXTRA_HOMES } from '../data/residentHomes';
 import { housePieces } from '../data/houseInterior';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
@@ -145,6 +146,38 @@ export function ensureDefaultDecor() {
       if (arr.length) return;
       for (const [id, x, y, rot] of housePieces(h, i)) arr.push({ uid: game.uid(), id, x, y, rot: rot ?? 0 });
     });
+  }
+  // An extra fold-out bed for shared residences. Append only; never move existing furniture.
+  for (const [id, home] of Object.entries(EXTRA_HOMES)) {
+    if (game.has('resident_futon_' + id)) continue;
+    const pieces = game.room(home), zone = ZONES[home];
+    if (!zone || !pieces.length) continue;
+    const g = new Grid(zone.w, zone.h);
+    for (let y = 0; y < zone.h; y++) for (let x = 0; x < zone.w; x++) g.setSolid(x, y, !'ftkm'.includes(zone.ground[y][x]));
+    for (const f of pieces) {
+      const d = FURN_BY_ID[f.id]; if (!d || d.wall || d.walkable) continue;
+      const s = furnSize(d, f.rot);
+      for (let y = f.y; y < f.y + s.h; y++) for (let x = f.x; x < f.x + s.w; x++) g.setSolid(x, y, true);
+    }
+    const size = furnSize(FURN_BY_ID.futon_indigo, 1);
+    let placed = false;
+    for (let y = 4; y >= 2 && !placed; y--) for (let x = 1; x <= 7 && !placed; x++) {
+      const tiles: [number, number][] = [];
+      for (let dy = 0; dy < size.h; dy++) for (let dx = 0; dx < size.w; dx++) tiles.push([x + dx, y + dy]);
+      if (tiles.some(([tx, ty]) => g.isSolid(tx, ty)) || g.isSolid(x, y + size.h)) continue;
+      if (tiles.some(([tx, ty]) => tx === 5 && ty === 5)) continue;
+      if (zone.doors.some(d => tiles.some(([tx, ty]) => Math.abs(d.x - tx) + Math.abs(d.y - ty) <= 1))) continue;
+      const trial = g.clone(); for (const [tx, ty] of tiles) trial.setSolid(tx, ty, true);
+      const door = zone.doors[0];
+      if (!trial.path(door.x, door.y, x, y + size.h)) continue;
+      if (pieces.some(f => {
+        const d = FURN_BY_ID[f.id]; if (!d || !['bed', 'futon'].includes(d.kind)) return false;
+        const s = furnSize(d, f.rot), fy = f.y + s.h;
+        return !g.isSolid(f.x, fy) && (trial.isSolid(f.x, fy) || !trial.path(door.x, door.y, f.x, fy));
+      })) continue;
+      const uid = game.uid(); pieces.push({ uid, id: 'futon_indigo', x, y, rot: 1 });
+      game.setFlag('resident_futon_' + id, uid); placed = true;
+    }
   }
   applyStageGrants(); // after the defaults, so the new tables never land on them
   widenSavedTables();

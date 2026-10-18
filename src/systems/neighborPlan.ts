@@ -8,12 +8,14 @@ import { rng } from '../art/pixel';
 import type { Dir } from '../core/types';
 import { NEIGHBORS, type Like, type Neighbor } from '../data/neighbors';
 import { ZONES } from '../data/zones';
+import { restPhase } from './residentSleep';
 import { FOREST, FOUNTAIN, GARDEN, MARKET, SHORE, STROLL, allBenches, byDoor, homeActivity, shoreSpots, shopSpot, tileOpen, type Place } from './neighborSpots';
 
 export interface PlanContext {
   day: number;
   /** 0 morning .. 3 night */
   period: number;
+  minutes?: number;
   /** first or second half of the period */
   half: 0 | 1;
   /** quarter of the period (about 45 real seconds each): people change place four times per part of the day */
@@ -151,11 +153,17 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
   const chatters: Neighbor[] = [];
   const mood = new Map<string, Activity>();
   for (const n of roster) {
+    const rest = restPhase(n.id, ctx.period, ctx.minutes ?? 0, ctx.rain);
+    if (rest !== 'awake') {
+      out.set(n.id, claim(homeActivity(n, ctx.period, rest === 'sleeping'), n.id));
+      mood.set(n.id, 'home');
+      continue;
+    }
     const r = rng(hash(n.id) * 7 + ctx.day * 131 + slot * 17);
     const act = pickActivity(weights(n, ctx), r());
     mood.set(n.id, act);
-    if (act === 'home') { out.set(n.id, claim(homeActivity(n, ctx.period), n.id)); continue; }
-    if (act === 'work') { const s = n.shop ? shopSpot(n.shop) : null; out.set(n.id, claim(s ?? homeActivity(n, ctx.period), n.id)); continue; }
+    if (act === 'home') { out.set(n.id, claim(homeActivity(n, ctx.period, false), n.id)); continue; }
+    if (act === 'work') { const s = n.shop ? shopSpot(n.shop) : null; out.set(n.id, claim(s ?? homeActivity(n, ctx.period, false), n.id)); continue; }
     if (act === 'chat') { chatters.push(n); continue; }
     if (act === 'errand') {
       // a visit to someone else's business: walks there, looks around, then moves on with the next part of the day
@@ -172,7 +180,7 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
       for (const l of likes) pool.push(...spotsFor(l, ctx, n));
       if (!pool.length) pool = STROLL;
     } else pool = STROLL.filter((p) => p.zone === 'plaza' || ctx.open.has(p.zone));
-    if (!pool.length) { out.set(n.id, claim(homeActivity(n, ctx.period), n.id)); continue; }
+    if (!pool.length) { out.set(n.id, claim(homeActivity(n, ctx.period, false), n.id)); continue; }
     const p = pool[Math.floor(r() * pool.length)];
     out.set(n.id, { ...claim(p, n.id), ride: !!n.bike && (act === 'stroll' || p.kind === 'sea') });
   }
@@ -207,8 +215,8 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
       const b = chatters[i + 1];
       const at = pickAnchor();
       if (!at) {
-        out.set(a.id, claim(homeActivity(a, ctx.period), a.id));
-        if (b) out.set(b.id, claim(homeActivity(b, ctx.period), b.id));
+        out.set(a.id, claim(homeActivity(a, ctx.period, false), a.id));
+        if (b) out.set(b.id, claim(homeActivity(b, ctx.period, false), b.id));
         continue;
       }
       parked.push(at);
