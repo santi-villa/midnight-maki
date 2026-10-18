@@ -1,6 +1,6 @@
 # Jugar juntos (coop de 2 personas)
 
-Estado: **etapa 1 hecha** (conexión, sala por código, ver el restaurante del anfitrión, verse caminar). Falta que el invitado vea los clientes y sirva (etapa 2) y que cocine (etapa 3).
+Estado: **cooperativo de restaurante implementado, protocolo 6**: presencia, clientes, pedidos, cocina, bebidas, entrega, propinas y descanso compartido. Verificación local y límites de la comprobación real en `revision-online-etapa-0.md`. No equivale a un mundo completo compartido con historia y guardado común.
 
 ## Idea
 - El **anfitrión manda**: su partida y su restaurante siguen corriendo en su dispositivo.
@@ -24,10 +24,10 @@ Estado: **etapa 1 hecha** (conexión, sala por código, ver el restaurante del a
 
 Plan gratis (Spark) de Realtime Database: unas 100 conexiones simultáneas; con 2 por sala sobra para empezar. Confirmá los límites actuales en la página de precios de Firebase.
 
-## Lo que sigue
-- **Etapa 2:** el invitado ve a los clientes y el estado del salón (mesas, pedidos, platos) y puede tomar pedidos, llevar platos y recoger propinas. Cada acción la pide el invitado y la ejecuta el anfitrión con las mismas funciones que usa el personal contratado.
-- **Etapa 3:** el invitado cocina (el acto en la cocina corre en su dispositivo; el anfitrión descuenta los ingredientes y recibe el plato con su calidad). Propina para el invitado con un tope por día.
-- Pendiente de decidir: qué pasa con el reloj si el anfitrión abre una ventana (hoy cada uno tiene el suyo).
+## Evolución del cooperativo
+- **Etapa 2, implementada:** el invitado ve a los clientes y el estado del salón (mesas, pedidos, platos) y puede tomar pedidos, llevar platos y recoger propinas. Cada acción la pide el invitado y la ejecuta el anfitrión con las mismas funciones que usa el personal contratado.
+- **Etapa 3, implementada:** el invitado cocina (el acto en la cocina corre en su dispositivo; el anfitrión descuenta los ingredientes y recibe el plato con su calidad). Propina para el invitado con un tope por día.
+- El invitado sigue el reloj del anfitrión mientras visita; no ejecuta el avance del día de su propia partida.
 
 ## Etapa 2: servir juntos (protocolo v3)
 

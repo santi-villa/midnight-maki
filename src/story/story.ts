@@ -12,6 +12,7 @@ import { ITEMS_BY_ID } from '../data/items';
 import { askText, choose, fmt, runScene, say } from '../dialogue/dialogue';
 import { check, defineQuests, isDone } from '../quests/quests';
 import { learnRecipe } from '../restaurant/orders';
+import { mirror } from '../restaurant/mirror';
 import { pantryTotal } from '../restaurant/supplies';
 import { world } from '../scenes/WorldScene';
 import { registerAction } from '../systems/actions';
@@ -206,6 +207,8 @@ bus.on('time:changed', ({ period }) => {
   if (period === 3 && game.has('ch6_done') && !game.has('dark_night_seen') && world?.zone?.def.outdoor) setTimeout(() => void runTask('story:dark-night', darkNight), 800);
 });
 export async function onEnterZone(zone: string) {
+  // A visit borrows the host's clock and weather, never the guest's personal story.
+  if (mirror.on) return;
   game.setFlag('visited_' + zone);
   if (zone === 'restaurant' && game.has('arrived') && !game.has('intro_done')) await startArrivalEncounter();
   const moon = game.flag('festival_today') === 'moon';
