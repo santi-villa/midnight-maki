@@ -5,7 +5,12 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
-import { lampPoolTint, lightState, type LightState } from './lightmath';
+import { RainFx } from './rainFx';
+import { rainCells, WetGround } from './rainmath';
+import { residentHome, restPhase } from '../systems/residentSleep';
+import { HOUSES } from '../data/houses';
+import { Footsteps, stepGain, stepSurface } from '../audio/footsteps';
+import { coversLitPane, homeWindowLevel, lampActivation, lampFlicker, lightSeed, lampPoolTint, lightState, type Box, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
@@ -21,6 +26,7 @@ import { closedLocalNotice, shopGate, stopFor } from '../systems/npcs';
 import { businessPhase, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
+import { dayMinutes } from '../systems/daytime';
 import { lowFx, sampleFrame } from '../core/perf';
 import { LampMoths } from './lampMoths';
 import { Pets } from './pets';
@@ -54,12 +60,19 @@ import { SpeechTurns } from '../world/speechTurns';
 import { customerLook } from '../restaurant/customers';
 import { clients, clientsDemand, nextTownGuest, noteTownMeal, noteTownLeft } from '../restaurant/townVisits';
 import { neighborOf } from '../restaurant/townClients';
-import { whatPlace, topicLine, type TalkCtx } from '../dialogue/topics';
+import { whatPlace, topicLine, type TalkCtx, type Topic } from '../dialogue/topics';
+import { inDialogue } from '../dialogue/dialogue';
+import { APPROACH_CHANCE, APPROACH_WAIT } from '../systems/approach';
 import { homeLayout } from '../art/homes';
+import { windowGlowRects, type GlowRect } from '../art/windowGlow';
 import { microFor } from '../systems/npcMicro';
 import { bridgeRails } from '../world/bridge';
 import { bridgeRailCanvas } from '../art/bridges';
 import { hasVillageAtlas } from '../art/villageAssets';
+import { shopShutter, shutterLevel } from '../art/shopShutter';
+import { buildingLayout } from '../art/nature';
+import { villageShopLayout } from '../art/village';
+import { makeCanvas, ctx2d } from '../art/pixel';
 import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
@@ -72,12 +85,12 @@ import type { CompanyActivity } from '../systems/companionship';
 export type { Target };
 
 interface NpcState { out?: boolean; actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; micro?: boolean; barkAt?: number; }
-/** kind: lamp (default, follows lamp level), spill = light from windows / doors, window = interior window light, ambient = soft room fill */
-interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window' | 'ambient'; facade?: boolean }
+/** kind: lamp (default), spill = light from a facade, window = interior window light. */
+interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window'; facade?: boolean; home?: boolean; homeId?: string; seed?: number; shop?: string }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
-interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; seed: number }
+interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
-interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean }
+interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean; shutter: Phaser.GameObjects.Image; level: number; target: number; tween?: Phaser.Tweens.Tween }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
@@ -132,11 +145,15 @@ export class WorldScene extends Phaser.Scene {
   /** counts how often the darkness layer was actually redrawn (tests check that a still scene is not redrawn every frame) */
   lightRedraws = 0;
   private windowGlows: WindowGlow[] = [];
+  private homeLevels = new Map<string, number>();
   private castList: CastShadow[] = [];
   private shadowKey = '';
   private dark!: Phaser.GameObjects.RenderTexture;
   private lightStamp!: Phaser.GameObjects.Image;
-  private weather: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
+  private rainFx: RainFx | null = null;
+  private wetGround = new WetGround();
+  private weatherKey = '';
+  private footsteps = new Footsteps();
   private ambient: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
   private gatherSprites: { spot: GatherSpot; img: Phaser.GameObjects.Image }[] = [];
   private bugs: Bug[] = [];
@@ -153,8 +170,9 @@ export class WorldScene extends Phaser.Scene {
   /** story hook: may unlock a door when the player tries it (returns true if now open) */
   lockHook: (to: string) => boolean = () => false;
   private quirkT = 20;
+  private approachT = 90;
+  private approaching: string | null = null;
   private blockKey = '';
-  private stepT = 0;
   private transitioning = false;
   private pointerDown: { x: number; y: number; t: number } | null = null;
   decorMode = false;
@@ -393,6 +411,7 @@ export class WorldScene extends Phaser.Scene {
         return false;
       }
     }
+    if (id !== this.zoneId && this.approaching) this.cancelApproach(this.approaching);
     this.transitioning = true;
     const previous = this.zone;
     const position = this.player ? { zone: this.zoneId, x: this.player.tx, y: this.player.ty, dir: this.player.dir } : null;
@@ -482,6 +501,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private clearZone() {
+    this.rainFx?.destroy(); this.rainFx = null;
+    this.footsteps = new Footsteps();
     this.questPin?.setVisible(false);
     for (const s of this.shopSigns) s.destroy();
     this.shopSigns = [];
@@ -553,6 +574,8 @@ export class WorldScene extends Phaser.Scene {
     this.occluders = [];
     // props
     for (const p of this.zone.props) {
+      // Outdoor puddles now grow and dry with the rain instead of being permanent prop stamps.
+      if (def.outdoor && p.def.kind === 'puddle') continue;
       const key = propTexture(this, p.key);
       const px = p.x * TILE + (p.def.w * TILE) / 2;
       const py = (p.y + p.def.h) * TILE;
@@ -576,39 +599,59 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.anim === 'sway' && !lowFx() && !settings.reduceMotion) {
         this.tweens.add({ targets: img, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
-      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 84 : p.def.kind === 'stall' ? 70 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: 0.55 });
+      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 76 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 0.62 : 0.5 });
       this.objs.push(img);
-      if (!onWall && !p.def.ground) {
-        this.addShadow(p.def.kind, px, py, p.def.sw, p.def.w);
-        this.castShadow(img, p.def.kind);
+      if (!onWall && !p.def.ground && p.def.sombra !== 'ninguna') {
+        const contact = p.def.sombra === 'contacto';
+        this.addShadow(p.def.kind, px, py, contact ? 8 : p.def.sw, p.def.w, contact);
+        if (!contact) this.castShadow(img, p.def.kind);
       }
       if (p.def.kind === 'building') {
         // warm light spilling from the windows and door onto the street at night
         const fac = p.def.variant === 0; // the restaurant follows its opening hours
-        for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 22, flicker: false, color: 0xffb867, glow: 0.35, kind: 'spill', facade: fac });
-        this.lamps.push({ x: px, y: py - 10, r: 34, flicker: true, color: 0xff9f5a, glow: 0.5, kind: 'spill', facade: fac });
+        const shop = fac ? 'restaurant' : SHOP_OF_VARIANT[p.def.variant ?? -1];
+        for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) this.lamps.push({ x: wx, y: py + 6, r: 28, flicker: false, color: 0xffd27a, glow: 0.42, kind: 'spill', facade: fac, shop });
+        this.lamps.push({ x: px, y: py - 10, r: 40, flicker: false, color: 0xffc14a, glow: 0.58, kind: 'spill', facade: fac, shop });
         if (fac) {
           // Lanterns follow the selected facade; fall back to the legacy art if its atlas failed.
           const top = py - p.def.sh;
           const left = px - p.def.sw / 2;
           const lamps = hasVillageAtlas() ? restaurantFacadeLayout(p.def.sw, p.def.sh, p.def.stage ?? 0).lanterns
             : [44, 68].map(x => ({ x, y: p.def.sh - 24 }));
-          for (const l of lamps) this.lamps.push({ x: left + l.x, y: top + l.y + (hasVillageAtlas() ? 4 : 0), r: 26, flicker: true, color: 0xff7a3a, glow: 0.6, facade: true });
+          for (const l of lamps) this.lamps.push({ x: left + l.x, y: top + l.y + (hasVillageAtlas() ? 4 : 0), r: 32, flicker: true, color: 0xffb040, glow: 0.68, facade: true });
         }
-        const shop = fac ? 'restaurant' : SHOP_OF_VARIANT[p.def.variant ?? -1];
         const facadeStage = fac && hasVillageAtlas() ? p.def.stage ?? 0 : undefined;
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac, shop, undefined, facadeStage);
         if (fac) this.addWindowGlow(img, p.def.sw, p.def.sh, 0, true, true, shop, undefined, facadeStage);
-        if (shop) this.shopFacades.push({ img, propId: p.key, shop, closed: false });
+        if (shop) {
+          const L = fac && hasVillageAtlas() ? restaurantFacadeLayout(p.def.sw, p.def.sh, p.def.stage ?? 0).door : (() => {
+            const d = fac ? buildingLayout(p.def.sw, p.def.sh) : villageShopLayout(p.def.sw, p.def.sh, p.def.variant ?? 0);
+            return { x: d.dx, y: d.doorY, w: d.doorW, h: d.doorH };
+          })();
+          const w = L.w + 2, h = L.h + 2, texKey = `shutter_${w}x${h}`;
+          if (!this.textures.exists(texKey)) {
+            const buf = shopShutter(w, h), canvas = makeCanvas(w, h), ctx = ctx2d(canvas);
+            const data = ctx.createImageData(w, h); data.data.set(buf.data); ctx.putImageData(data, 0, 0);
+            this.textures.addCanvas(texKey, canvas);
+          }
+          const shutter = this.add.image(px - p.def.sw / 2 + L.x - 1, py - p.def.sh + L.y - 1, texKey)
+            .setOrigin(0, 0).setDepth(img.depth + 0.15);
+          this.objs.push(shutter);
+          const facade: ShopFacade = { img, propId: p.key, shop, closed: false, shutter, level: -1, target: -1 };
+          shutter.once('destroy', () => facade.tween?.stop());
+          this.shopFacades.push(facade);
+        }
       }
       if ((p.def.kind === 'townhouse' || p.def.kind === 'sidehouse') && (p.def.variant ?? 0) < 8) {
         // houses: lit windows, the glass of the door and the porch lantern, and a pool of light on the path
         const side = p.def.kind === 'sidehouse';
         const hl = homeLayout(p.def.sw, p.def.sh, p.def.variant ?? 0, side);
         const left = px - p.def.sw / 2, top = py - p.def.sh;
-        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, r: 24, flicker: false, color: 0xffb867, glow: 0.3, kind: 'spill', facade: false });
-        this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 26, flicker: true, color: 0xffaa55, glow: 0.45, kind: 'spill', facade: false });
-        this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front');
+        const seed = lightSeed(px, py);
+        const homeId = HOUSES.find(h => h.zone === this.zoneId && h.x === p.x && h.y === p.y)?.id;
+        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, r: 30, flicker: false, color: 0xffd27a, glow: 0.4, kind: 'spill', home: true, homeId, seed });
+        this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 34, flicker: true, color: 0xffd56a, glow: 0.62, kind: 'spill', home: true, homeId, seed });
+        this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front', undefined, homeId);
       }
       if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - p.def.sh + 6);
     }
@@ -622,11 +665,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.placeFurnitureSprites();
     // windows glow at night
-    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 30, flicker: false, color: 0xffd08a, glow: 0.3, kind: 'window' });
-    if (!def.outdoor) {
-      // interiors: warm ambient light spots so night isn't too dark
-      for (let y = 3; y < def.h; y += 5) for (let x = 3; x < def.w; x += 6) this.lamps.push({ x: x * TILE, y: y * TILE, r: 56, flicker: false, color: 0xffc27a, glow: 0.12, kind: 'ambient' });
-    }
+    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 34, flicker: false, color: 0xffe2a8, glow: 0.38, kind: 'window' });
     this.addAtmosphere();
     this.placeGather();
     this.placeCrops();
@@ -766,8 +805,11 @@ export class WorldScene extends Phaser.Scene {
   spawnCritters() {
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
-    this.pets?.destroy();
-    this.pets = this.zone?.def.outdoor ? new Pets(this, this.zoneId, clock.isNight()) : null;
+    if (this.pets?.zone === this.zoneId) this.pets.setNight(clock.isNight(), this.zone.grid);
+    else {
+      this.pets?.destroy();
+      this.pets = this.zone?.def.outdoor || this.zoneId === 'restaurant' ? new Pets(this, this.zoneId, clock.isNight(), (x, y) => this.petFootstep(x, y), this.zone.grid) : null;
+    }
     const def = this.zone.def;
     if (!def.outdoor || game.flag('weather') === 'rain' || ['market', 'station'].includes(this.zoneId)) return;
     const night = clock.isNight();
@@ -782,7 +824,6 @@ export class WorldScene extends Phaser.Scene {
       }
     };
     if (!night) for (let i = 0; i < (this.zoneId === 'beach' ? 2 : 3); i++) add('bird');
-    if (this.zoneId === 'plaza' || this.zoneId === 'garden') add('cat');
     if (!night && seasonOf(game.save.time.day) < 2 && ['plaza', 'garden', 'forest'].includes(this.zoneId)) for (let i = 0; i < (this.zoneId === 'garden' ? 5 : 3); i++) add('butterfly');
   }
 
@@ -1134,6 +1175,7 @@ export class WorldScene extends Phaser.Scene {
       }
       if (v.stage === 'dining' && !g && v.phase) this.sendVisitorHome(v);
       if (v.stage === 'departing' && v.trips.every((t) => t.settled)) {
+        v.customers.forEach((c, i) => { const n = neighborOf(c); if (n) this.neighborLife.release(n.id, v.trips[i].position); });
         for (const c of v.customers) if (neighborOf(c)) noteTownLeft(c, this.ateParties.has(v.id) && !this.impatientParties.has(v.id));
         this.ateParties.delete(v.id); this.impatientParties.delete(v.id);
         this.visitors.delete(v.id);
@@ -1538,15 +1580,17 @@ export class WorldScene extends Phaser.Scene {
         const key = `${v.id}:${i}`;
         live.add(key);
         let body = this.guests.get(key);
+        const who = v.customers[i] ?? v.customer;
+        const nb = neighborOf(who);
+        const texture = nb ? lookTexture(this, nb.look) : customerTexture(this, customerLook(who), who, !!this.zone.def.outdoor && game.flag('weather') === 'rain');
         if (!body) {
-          const who = v.customers[i] ?? v.customer;
-          const nb = neighborOf(who);
-          const actor = new Actor(this, who, nb ? lookTexture(this, nb.look) : customerTexture(this, customerLook(who)), p.x, p.y);
+          const actor = new Actor(this, who, texture, p.x, p.y);
           actor.manual = true;
           body = { actor, phase };
           this.guests.set(key, body);
         }
         const a = body.actor;
+        if (a.sprite.texture.key !== texture) a.setTexture(texture);
         const sitting = SEATED_PHASES.includes(phase);
         const seat = g?.seats[i];
         const table = g?.tableId ? this.diningPieces().find((pc) => String(pc.uid) === g.tableId) : undefined;
@@ -1787,7 +1831,7 @@ export class WorldScene extends Phaser.Scene {
     if (game.flag('festival_today') && this.zone.def.outdoor && this.zoneId === 'plaza') track = 'festival';
     audio.play(track);
     const rain = game.flag('weather') === 'rain';
-    audio.ambience(rain && this.zone.def.outdoor ? 'rain' : this.zoneId === 'beach' ? 'waves' : clock.isNight() && this.zone.def.outdoor ? 'night' : rain ? 'rain' : 'none');
+    audio.ambience(rain ? (this.zone.def.outdoor ? 'rain' : 'rain_inside') : this.zoneId === 'beach' ? (clock.isNight() ? 'waves_night' : 'waves') : clock.isNight() && this.zone.def.outdoor ? 'night' : 'none');
   }
 
   // ------------------------------------------------------------------ ambient fx
@@ -1798,8 +1842,11 @@ export class WorldScene extends Phaser.Scene {
     this.waterFx?.destroy();
     this.waterFx = null;
     if (this.zone?.def.outdoor && this.waterTiles.length) this.waterFx = new WaterFx(this, this.zone.def.ground, this.lamps, lowFx());
-    this.weather?.destroy();
-    this.weather = null;
+    this.rainFx?.destroy(); this.rainFx = null;
+    if (this.zone?.def.outdoor) {
+      this.wetGround.visit(this.zoneId);
+      this.rainFx = new RainFx(this, rainCells(this.zone.def.ground, (x, y) => this.zone.grid.isSolid(x, y)), lowFx());
+    }
     this.moths?.destroy();
     this.moths = null;
     if (!this.zone || lowFx()) return;
@@ -1809,24 +1856,6 @@ export class WorldScene extends Phaser.Scene {
     const W = def.w * TILE;
     const H = def.h * TILE;
     const rain = game.flag('weather') === 'rain';
-    if (rain && def.outdoor) {
-      const tex = dotTexture(this, 'rain', '#bcd4e6', 1, 4);
-      this.weather = this.add.particles(0, -10, tex, {
-        x: { min: 0, max: W },
-        speedY: { min: 170, max: 220 },
-        speedX: -20,
-        lifespan: (H / 190) * 1000 + 300,
-        frequency: 25,
-        quantity: 2,
-        alpha: 0.55,
-      });
-      this.weather.setDepth(150000);
-      // little splashes and ripples on the ground
-      const sp = dotTexture(this, 'splash', '#dce8f5', 2, 1);
-      const splash = this.add.particles(0, 0, sp, { x: { min: 0, max: W }, y: { min: 0, max: H }, lifespan: 260, frequency: 30, quantity: 2, scaleX: { start: 1, end: 3 }, alpha: { start: 0.7, end: 0 } });
-      splash.setDepth(-4);
-      this.ambient.push(splash);
-    }
     if (!def.outdoor) {
       if (this.zoneId === 'restaurant') {
         const steam = dotTexture(this, 'steam', '#f6ecd6', 2, 2);
@@ -1853,19 +1882,32 @@ export class WorldScene extends Phaser.Scene {
       cs.setDepth(149000);
       this.ambient.push(cs);
     }
-    if (night && ['forest', 'garden', 'plaza', 'market'].includes(this.zoneId)) {
-      const ff = dotTexture(this, 'firefly', '#f4f0a0', 1, 1);
+    if (night && !rain && ['forest', 'garden', 'plaza', 'market', 'beach'].includes(this.zoneId)) {
+      const ff = dotTexture(this, 'firefly', '#ffe9a0', 1, 1);
       const em = this.add.particles(0, 0, ff, {
         x: { min: 0, max: W },
         y: { min: 0, max: H },
-        speedX: { min: -6, max: 6 },
-        speedY: { min: -6, max: 6 },
-        lifespan: 4000,
-        frequency: 260,
+        speedX: { min: -8, max: 8 },
+        speedY: { min: -5, max: 5 },
+        lifespan: 5200,
+        frequency: 110,
         alpha: { start: 0, end: 1, ease: 'Sine.easeInOut', yoyo: true } as any,
       });
       em.setDepth(210000);
       this.ambient.push(em);
+      const mote = dotTexture(this, 'nightmote', '#fff6c8', 2, 2);
+      const bits = this.add.particles(0, 0, mote, {
+        x: { min: 0, max: W },
+        y: { min: 0, max: H },
+        speedX: { min: -4, max: 4 },
+        speedY: { min: -3, max: 3 },
+        lifespan: 3600,
+        frequency: 240,
+        scale: { start: 1, end: 0.4 },
+        alpha: { start: 0, end: 0.85, ease: 'Sine.easeInOut', yoyo: true } as any,
+      });
+      bits.setDepth(210000);
+      this.ambient.push(bits);
     }
     const season = seasonOf(game.save.time.day);
     if (season === 3 && !rain) {
@@ -2008,6 +2050,10 @@ export class WorldScene extends Phaser.Scene {
     if (!this.canAct()) return;
     this.player.stop();
     const intent = action.intent;
+    if (intent.type === 'pet') {
+      if (this.pets?.pet(intent.id, this.player)) bus.emit('toast', { text: `${intent.id} ronronea y se acomoda a tu lado.` });
+      return;
+    }
     if (intent.type === 'target') {
       this.doInteract(intent.target);
       return;
@@ -2191,6 +2237,7 @@ export class WorldScene extends Phaser.Scene {
         y: n.actor.y - 4,
         company: this.canKeepCompany(id),
       })),
+      pets: this.pets?.interactions,
       neighbors: [...this.neighborBodies.entries()].filter(([, b]) => b.actor.sprite.visible).map(([id, b]) => ({ id, name: NEIGHBOR_BY_ID[id]?.name ?? id, x: b.actor.x, y: b.actor.y - 4 })),
       interacts: this.zone.def.interact.filter((i) => condOk(i.cond)).map((i) => {
         if (!i.action.startsWith('shop:')) return i;
@@ -2460,6 +2507,13 @@ export class WorldScene extends Phaser.Scene {
     if (sampleFrame(dms)) this.enterLowFx(true);
     const dt = Math.min(0.05, dms / 1000);
     if (!this.player || !this.zone) return;
+    const raining = game.flag('weather') === 'rain';
+    if (this.weatherKey !== String(raining)) {
+      this.weatherKey = String(raining);
+      this.playZoneAudio(); this.setupAmbient(); this.spawnCritters();
+    }
+    this.wetGround.advance(dt, raining);
+    this.rainFx?.update(dt, raining, this.wetGround.visit(this.zoneId), this.cameras.main.worldView);
     if (!this.transitioning) { if (mirror.on) this.followHostClock(); else clock.tick(dt); }
     if (!mirror.on) this.watchBedtime();
     this.syncCoop(dt);
@@ -2476,7 +2530,8 @@ export class WorldScene extends Phaser.Scene {
     for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);
     this.moths?.update(dt, this.cameras.main.worldView);
-    if (this.pets && this.player) this.pets.update(dt, this.player);
+    if (this.pets && this.player) this.pets.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt, this.player, [...this.guests.values()].map(g => g.actor), this.glowActors().filter(a => a !== this.player));
+    this.updateFootsteps(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
     this.waterFx?.update(dt, this.waterEnv());
@@ -2488,6 +2543,7 @@ export class WorldScene extends Phaser.Scene {
     this.flushNpcWait();
     this.dust(dt);
     this.quirks(dt);
+    this.maybeApproach(dt);
     this.updateGuide(dt);
     this.syncLife(dt);
     this.refreshContext();
@@ -2495,12 +2551,32 @@ export class WorldScene extends Phaser.Scene {
     this.layoutBubbles();
   }
 
-  /** Footstep sound for the surface Sofi is walking on. */
-  private stepSound(): string {
-    if (!this.zone.def.outdoor) return 'step_wood';
-    if (this.zoneId === 'beach') return 'step_sand';
-    if (['plaza', 'market', 'station'].includes(this.zoneId)) return 'step_stone';
-    return 'step_grass';
+  private stepSound(x: number, y: number): string {
+    const outdoor = !!this.zone.def.outdoor;
+    const tile = this.zone.def.ground[Math.floor((y - 1) / TILE)]?.[Math.floor(x / TILE)] ?? '';
+    return stepSurface(outdoor, tile, outdoor && (game.flag('weather') === 'rain' || this.wetGround.visit(this.zoneId) > 0.18));
+  }
+
+  private petFootstep(x: number, y: number) {
+    if (clock.paused || this.inputLocked || this.transitioning || document.hidden) return;
+    const gain = stepGain(Math.hypot(x - this.player.x, y - this.player.y), true);
+    if (gain > 0.01) audio.sfxPlay(this.stepSound(x, y), gain);
+  }
+
+  private updateFootsteps(dt: number) {
+    const paused = clock.paused || !!this.inputLocked || this.transitioning || this.decorMode || document.hidden;
+    const actors = this.glowActors();
+    if (this.remote?.sprite.visible) actors.push(this.remote);
+    actors.sort((a, b) => Math.hypot(a.x - this.player.x, a.y - this.player.y) - Math.hypot(b.x - this.player.x, b.y - this.player.y));
+    for (const a of actors) {
+      if (!this.footsteps.sample(a, a.x, a.y, dt, paused)) continue;
+      const gain = a === this.player ? 1 : stepGain(Math.hypot(a.x - this.player.x, a.y - this.player.y));
+      if (gain > 0.01) audio.sfxPlay(this.stepSound(a.x, a.y), gain);
+    }
+    for (const c of this.critters) {
+      if (c.kind !== 'cat' || !c.s.visible) continue;
+      if (this.footsteps.sample(c.s, c.s.x, c.s.y, dt, paused, true)) this.petFootstep(c.s.x, c.s.y);
+    }
   }
 
   private updatePlayer(dt: number) {
@@ -2534,13 +2610,6 @@ export class WorldScene extends Phaser.Scene {
     }
     const wasTile = `${p.tx},${p.ty}`;
     p.update(dt);
-    if (p.moving) {
-      this.stepT -= dt;
-      if (this.stepT <= 0) {
-        this.stepT = 0.32;
-        audio.sfxPlay(this.stepSound());
-      }
-    }
     if (`${p.tx},${p.ty}` !== wasTile || (p.moving && p.manual)) this.checkWalkDoor();
     if (this.cookProp) this.cookProp.setPosition(p.x, p.y - 34);
     if (this.notingUntil && (p.moving || performance.now() >= this.notingUntil)) {
@@ -3027,15 +3096,25 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Each shop's front has an open and a closed drawing: shutters and a rolled awning when it is closed. */
+  /** Shutters share the service state; they only draw over the existing entry. */
   private refreshShopFacades() {
     const t = game.save.time;
     for (const f of this.shopFacades) {
       if (!f.img.active) continue;
-      const closed = f.shop === 'restaurant' ? restaurantPhase(t.period, t.minutes) !== 'open' : !shopGate(f.shop).open;
-      if (closed === f.closed && f.img.texture.key === propTexture(this, f.propId, closed)) continue;
+      const phase = f.shop === 'restaurant' ? restaurantPhase(t.period, t.minutes) : shopGate(f.shop).phase;
+      const target = shutterLevel(phase);
+      const closed = phase === 'closed';
       f.closed = closed;
       f.img.setTexture(propTexture(this, f.propId, closed));
+      if (target === f.target) continue;
+      f.tween?.stop(); f.target = target;
+      const draw = () => {
+        const h = Math.round(f.shutter.height * f.level);
+        // Keep the rolled header visible, even when fully open. Crop, never stretch the slats.
+        f.shutter.setCrop(0, 0, f.shutter.width, Math.max(2, h));
+      };
+      if (f.level < 0 || settings.reduceMotion || lowFx()) { f.level = target; draw(); }
+      else f.tween = this.tweens.add({ targets: f, level: target, duration: 450, ease: 'Sine.inOut', onUpdate: draw, onComplete: draw });
     }
   }
 
@@ -3045,14 +3124,14 @@ export class WorldScene extends Phaser.Scene {
     this.shopSigns = [];
     if (!this.zone) return;
     for (const spot of signSpots(this.zoneId)) {
+      if (this.shopFacades.some(f => f.shop === spot.shopId)) continue;
       const status = shopGate(spot.shopId);
       const text = shopSignText(status);
       if (!text) continue;
       const x = spot.x * TILE;
       const y = spot.y * TILE + TILE - 2;
-      const facade = this.zone.props.find((p) => p.def.kind === 'building' &&
-        spot.x >= p.x && spot.x < p.x + p.def.w && spot.y >= p.y && spot.y < p.y + p.def.h);
-      const depth = facade ? (facade.y + facade.def.h) * TILE + 0.1 : y + 2.1;
+      // Service plaques, like the quest arrow, stay readable above the night multiply layer.
+      const depth = 200002;
       const sign = this.add.image(x, y, shopSignTexture(this, text, status.phase))
         .setOrigin(0.5, 1).setDepth(depth)
         .setData({ shopId: spot.shopId, phase: status.phase });
@@ -3197,7 +3276,7 @@ export class WorldScene extends Phaser.Scene {
   /**
    * Projected shadow: the sprite's silhouette, flipped onto the ground and pivoted on the object's feet.
    * The sun leans the tip. It does not slide the whole shape off the base.
-   * Paper lanterns keep only the contact oval: a flipped copy read as a second red balloon.
+   * Hanging lanterns have no ground shadow; small freestanding lamps use only base contact.
    */
   private castShadow(img: Phaser.GameObjects.Image, kind: string, track = true): Phaser.GameObjects.Image | null {
     if (['flowers', 'reeds', 'mushroom', 'pier', 'stars', 'puddle', 'awning', 'poster', 'stairs', 'rug', 'paperlantern', 'lanternstring'].includes(kind)) return null;
@@ -3215,9 +3294,10 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Contact shadow: a short mark on the ground, centered on the object's base. */
-  private addShadow(kind: string, x: number, y: number, sw: number, w: number) {
+  private addShadow(kind: string, x: number, y: number, sw: number, w: number, contact = false) {
     let sh: Phaser.GameObjects.Shape;
-    if (kind === 'building') sh = this.add.rectangle(x, y + 1, w * TILE * 0.92, 5, 0x1a1428, 0.28);
+    if (contact) sh = this.add.ellipse(x, y - 1, 6, 2, 0x1a1428, 0.25).setData('contactShadow', true);
+    else if (kind === 'building') sh = this.add.rectangle(x, y + 1, w * TILE * 0.92, 5, 0x1a1428, 0.28);
     else if (['tree', 'sakura', 'pine'].includes(kind)) sh = this.add.ellipse(x, y, Math.max(10, sw * 0.42), 5, 0x1a1428, 0.32);
     else if (['flowers', 'reeds', 'mushroom', 'pier', 'stars', 'torii'].includes(kind)) return;
     else sh = this.add.ellipse(x, y, Math.max(8, sw * 0.7), 4, 0x1a1428, 0.28);
@@ -3225,22 +3305,32 @@ export class WorldScene extends Phaser.Scene {
     this.objs.push(sh);
   }
 
-  /** A warm overlay of lit windows (and the restaurant doorway) on top of a building sprite. Shown by updateWindowGlow. */
-  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean, shop?: string, home?: 'front' | 'side', facadeStage?: number) {
-    const img = this.add.image(src.x, src.y, windowGlowTexture(this, W, H, rot, door, home, facadeStage)).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
-    this.objs.push(img);
-    this.windowGlows.push({ img, src, facade, door, phase: Math.random() * 6, shop, home: !!home, seed: (Math.round(src.x) * 7 + Math.round(src.y) * 13) % 10 });
+  /** A warm overlay of lit windows on top of a building sprite. One image per pane, so a passer-by covers only the glass they walk across. */
+  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean, shop?: string, home?: 'front' | 'side', facadeStage?: number, homeId?: string) {
+    const useFacade = facadeStage !== undefined && hasVillageAtlas();
+    const rects = useFacade
+      ? (door ? [] : restaurantFacadeLayout(W, H, facadeStage).windows.map((w) => ({ x: w.x + 1, y: w.y + 1, w: Math.max(1, w.w - 2), h: Math.max(1, w.h - 2) })))
+      : windowGlowRects(W, H, rot, door, home);
+    if (!rects.length) return;
+    const key = windowGlowTexture(this, W, H, rot, door, home, facadeStage);
+    const phase = Math.random() * 6;
+    const seed = lightSeed(src.x, src.y);
+    for (const rect of rects) {
+      const img = this.add.image(src.x, src.y, key).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
+      img.setCrop(rect.x, rect.y, rect.w, rect.h);
+      this.objs.push(img);
+      this.windowGlows.push({ img, src, rect, facade, door, phase, shop, home: !!home, homeId, seed });
+    }
   }
 
   /** Window light level of a facade (0..1): the restaurant follows its hours, everything else follows the evening. */
-  private facadeLevel(facade: boolean, door: boolean, g?: WindowGlow): number {
+  private facadeLevel(facade: boolean, door: boolean, g?: Partial<Pick<WindowGlow, 'home' | 'homeId' | 'seed' | 'shop'>>): number {
     const ls = this.ls;
     if (!ls) return 0;
     if (g?.home) {
-      // houses: lit from dusk, and some go dark once it is late
       const t = game.save.time;
-      const late = t.period === 3 && t.minutes > 45;
-      return late && g.seed % 3 === 0 ? 0 : late && g.seed % 3 === 1 ? ls.windows * 0.45 : ls.windows;
+      if (g.homeId) return ls.windows * this.homeLightLevel(g.homeId);
+      return ls.windows * homeWindowLevel(t.period, dayMinutes(t.period, t.minutes), g.seed ?? 0);
     }
     if (!facade && g?.shop) {
       // shops: lit while they are open (in the evening), a faint light left on when closed
@@ -3256,7 +3346,23 @@ export class WorldScene extends Phaser.Scene {
     return base * f * (door && ph !== 'open' ? 0.4 : 1);
   }
 
-  private updateWindowGlow(time: number) {
+  /** A window goes dark only once all its residents have actually reached their sleeping place. */
+  private homeLightLevel(home: string): number {
+    const cached = this.homeLevels.get(home); if (cached !== undefined) return cached;
+    const t = game.save.time, rain = game.flag('weather') === 'rain';
+    const ids = [...NEIGHBORS.filter(n => n.home === home).map(n => n.id),
+      ...Object.keys(CHAR_BY_ID).filter(id => id !== 'mika' && residentHome(id) === home && (!CHAR_BY_ID[id].needsFlag || game.has(CHAR_BY_ID[id].needsFlag!)))];
+    if (!ids.length) return 1;
+    const level = ids.every(id => {
+      if (restPhase(id, t.period, t.minutes, rain) !== 'sleeping') return false;
+      if ([...this.visitors.values()].some(v => v.customers.some(c => neighborOf(c)?.id === id))) return false;
+      const r = this.neighborLife.state.get(id)?.trip ?? this.town.residents.get(id)?.trip;
+      return !!r?.settled && r.position.zone === home && r.destination.act === 'sleep';
+    }) ? 0 : 1;
+    this.homeLevels.set(home, level); return level;
+  }
+
+  private updateWindowGlow(time: number, actors: Actor[]) {
     const lo = lowFx();
     for (const w of this.windowGlows) {
       if (!w.img.active) continue;
@@ -3265,6 +3371,68 @@ export class WorldScene extends Phaser.Scene {
       const breath = lo ? 1 : 1 + 0.04 * Math.sin(time * 0.9 + w.phase);
       const a = Math.min(0.85, lvl * 0.7 * breath) * w.src.alpha;
       w.img.setVisible(a > 0.02).setAlpha(a).setPosition(w.src.x, w.src.y);
+      // Above the night tint the pane stays warm. Drop only a covered pane onto the facade so the person draws over it.
+      const covered = this.coverDepth(actors, this.paneBox(w.img, w.rect), w.src.y);
+      w.img.setDepth(covered == null ? 200001 : Math.min(w.src.depth + 0.2, covered));
+    }
+  }
+
+  /** People who can walk across a lit window. Sleeping in a bed uses a cropped sprite, so that box would be wrong. */
+  private glowActors(): Actor[] {
+    const actors: Actor[] = [];
+    const add = (a: Actor | undefined) => {
+      if (!a?.sprite.active || !a.sprite.visible) return;
+      if (a.bed && a.act === 'sleep') return;
+      actors.push(a);
+    };
+    add(this.player);
+    for (const n of this.npcs.values()) add(n.actor);
+    for (const e of this.extras.values()) add(e);
+    for (const b of this.staffBodies.values()) add(b.actor);
+    for (const b of this.neighborBodies.values()) add(b.actor);
+    for (const g of this.guests.values()) add(g.actor);
+    return actors;
+  }
+
+  /** Narrower than a padded frame, so standing in one window does not put out the next. */
+  private actorBody(a: Actor): Box {
+    const s = a.sprite;
+    const top = s.y - s.displayHeight + a.pad;
+    return { l: s.x - 9, r: s.x + 9, t: top, b: s.y };
+  }
+
+  /** World box of one cropped pane. Crop keeps the full-frame origin, so the glass stays where it was painted. */
+  private paneBox(img: Phaser.GameObjects.Image, rect: GlowRect): Box {
+    const frame = img.frame;
+    const left = img.x - frame.realWidth / 2 + rect.x;
+    const top = img.y - frame.realHeight + rect.y;
+    return { l: left, r: left + rect.w, t: top, b: top + rect.h };
+  }
+
+  /** Depth just behind the furthest-back person covering this light, or null when the light stays above the night tint. */
+  private coverDepth(actors: Actor[], box: Box, baseY: number): number | null {
+    let depth: number | null = null;
+    for (const a of actors) {
+      if (!coversLitPane(a.y, this.actorBody(a), box, baseY)) continue;
+      const d = a.sprite.depth - 0.1;
+      if (depth == null || d < depth) depth = d;
+    }
+    return depth;
+  }
+
+  /** Soft window and doorway blooms sit on the same layer as the panes. Tuck one behind a person standing in it. */
+  private updateGlowDepths(actors: Actor[]) {
+    for (const g of this.glowPool) {
+      if (!g.visible) continue;
+      const kind = g.getData('glowKind') as string | undefined;
+      if (kind !== 'spill' && kind !== 'window') {
+        g.setDepth(200001);
+        continue;
+      }
+      const hw = g.displayWidth / 2;
+      const hh = g.displayHeight / 2;
+      const covered = this.coverDepth(actors, { l: g.x - hw, r: g.x + hw, t: g.y - hh, b: g.y + hh }, g.y);
+      g.setDepth(covered == null ? 200001 : covered);
     }
   }
 
@@ -3290,7 +3458,8 @@ export class WorldScene extends Phaser.Scene {
   /**
    * Lighting pass. A low-res "darkness" layer multiplies the scene (ambient colour per time of day, weather and place).
    * Lamps lighten that colour. At night they stay dim, so the tiles do not show as day. A faint additive halo sits on top.
-   * The pass is skipped while nothing it depends on has changed (camera, player, ambient colour, flicker step).
+   * Only camera, player, ambient colour and clock-driven lamp levels invalidate this small layer.
+   * Flame animation and occasional failures live exclusively in the additive halos.
    */
   private updateLighting() {
     const cam = this.cameras.main;
@@ -3308,17 +3477,23 @@ export class WorldScene extends Phaser.Scene {
       rain,
       season: seasonOf(t.day),
       restaurant: this.zoneId === 'restaurant' ? restaurantPhase(t.period, t.minutes) : null,
+      nightBrightness: settings.nightBrightness,
     });
     this.ls = ls;
+    this.homeLevels.clear();
     this.updateShadows();
     const lo = lowFx();
     const time = performance.now() / 1000;
-    this.updateWindowGlow(time);
-    // natural variation steps ~12 times a second (none in battery / reduced-motion mode): the layer is not redrawn in between
-    const step = lo ? 0 : Math.floor(time * 12);
+    const actors = this.glowActors();
+    this.updateWindowGlow(time, actors);
+    const margin = 110;
+    const visible = this.lamps.filter((l) => l.x > view.x - margin && l.x < view.right + margin && l.y > view.y - margin && l.y < view.bottom + margin);
+    const lit = visible.map((l) => ({ l, k: Math.round(this.lampLevel(l, ls) * 100) / 100 })).filter((e) => e.k > 0.02);
+    this.updateLightHalos(lit, ls, time, lo, actors);
     const px = Math.floor(this.player.x);
     const py = Math.floor(this.player.y);
-    const key = `${this.zoneId}|${Math.floor(view.x)}|${Math.floor(view.y)}|${rt.width}|${ls.tint}|${ls.lamp.toFixed(2)}|${ls.windows.toFixed(2)}|${ls.vig.toFixed(2)}|${step}|${px}|${py}|${this.lamps.length}|${lo ? 1 : 0}|${this.restaurantLevelKey()}`;
+    const levels = lit.map(({ l, k }) => `${l.x},${l.y},${k}`).join(';');
+    const key = `${this.zoneId}|${Math.floor(view.x)}|${Math.floor(view.y)}|${Math.ceil(view.width)}|${Math.ceil(view.height)}|${ls.tint}|${ls.lamp.toFixed(2)}|${ls.vig.toFixed(2)}|${ls.halo}|${px}|${py}|${levels}`;
     if (key === this.lightKey) return;
     this.lightKey = key;
     this.lightRedraws++;
@@ -3329,21 +3504,13 @@ export class WorldScene extends Phaser.Scene {
     rt.setVisible(true);
     rt.clear();
     if (ls.tint !== 0xffffff) rt.fill(ls.tint, 1);
-    const visible = this.lamps.filter((l) => l.x > view.x - 70 && l.x < view.right + 70 && l.y > view.y - 70 && l.y < view.bottom + 70);
-    // slow breathing for lamps, a quicker flicker for flames and paper lanterns
-    const flick = (l: Light) => {
-      if (lo) return 1;
-      if (l.flicker) return 1 + Math.sin(time * 7 + l.x) * 0.05 + Math.sin(time * 13 + l.y) * 0.03;
-      return 1 + Math.sin(time * 1.3 + l.x * 0.1) * 0.02;
-    };
-    const lit = visible.map((l) => ({ l, k: this.lampLevel(l, ls) })).filter((e) => e.k > 0.02);
     // Once the street is dark, a full erase shows the daytime tiles. Paint a dim warm colour instead.
-    const dim = lampPoolTint(ls.tint, 0xffc070, 1) != null;
+    const dim = lampPoolTint(ls.tint, 0xffd27a, 1) != null;
     if (lit.length) {
       for (const { l, k } of lit) {
         const scale = (l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64;
         if (dim) {
-          const col = lampPoolTint(ls.tint, l.color ?? 0xffc070, k)!;
+          const col = lampPoolTint(ls.tint, l.color ?? 0xffd27a, k)!;
           this.lightStamp.setScale(scale).setTint(col).setAlpha(1);
           rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
         } else {
@@ -3353,7 +3520,7 @@ export class WorldScene extends Phaser.Scene {
       }
       if (!dim) {
         for (const { l, k } of lit) {
-          this.lightStamp.setScale((l.r * 1.7 * ls.halo) / 64).setTint(l.color ?? 0xffc070).setAlpha(0.5 * k * (ls.halo > 1 ? 0.85 : 1));
+          this.lightStamp.setScale((l.r * 1.85 * ls.halo) / 64).setTint(l.color ?? 0xffd27a).setAlpha(0.62 * k * (ls.halo > 1 ? 0.85 : 1));
           rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
         }
       }
@@ -3364,7 +3531,7 @@ export class WorldScene extends Phaser.Scene {
       if (dim) {
         const self = lampPoolTint(ls.tint, 0xfff0dc, Math.min(1, ls.lamp), 180);
         if (self != null) {
-          this.lightStamp.setScale(1.25).setTint(self).setAlpha(1);
+          this.lightStamp.setScale(1.05).setTint(self).setAlpha(1);
           rt.draw(this.lightStamp, this.player.x - rt.x, this.player.y - 10 - rt.y);
         }
       } else if (lit.length) {
@@ -3377,7 +3544,11 @@ export class WorldScene extends Phaser.Scene {
     if (!this.vignette) this.vignette = this.make.image({ key: vignetteTexture(this) }, false);
     this.vignette.setDisplaySize(rt.width, rt.height).setAlpha(ls.vig);
     rt.draw(this.vignette, rt.width / 2, rt.height / 2);
-    // faint additive halo around each light (skipped in battery mode)
+  }
+
+  /** Animate inexpensive additive images even when the cached darkness texture stays untouched. */
+  private updateLightHalos(lit: { l: Light; k: number }[], ls: LightState, time: number, lo: boolean, actors: Actor[]) {
+    const flick = (l: Light) => lampFlicker(time, l.seed ?? lightSeed(l.x, l.y), l.flicker, lo);
     let i = 0;
     if (!lo) {
       for (const { l, k } of lit) {
@@ -3388,30 +3559,29 @@ export class WorldScene extends Phaser.Scene {
         }
         const f = flick(l);
         const spill = l.kind === 'spill';
+        g.setData('glowKind', l.kind ?? '');
         g.setVisible(true)
           .setPosition(l.x, l.y)
-          .setTint(l.color ?? 0xffc070)
-          .setScale(spill ? 0.9 : (l.r * 1.5 * ls.halo) / 64, spill ? 0.45 : (l.r * 1.5 * ls.halo) / 64)
-          .setAlpha(Math.min(0.7, (l.glow ?? 0.4) * k * f * 0.9));
+          .setTint(l.color ?? 0xffd27a)
+          .setScale(spill ? 1.05 : (l.r * 1.6 * ls.halo) / 64, spill ? 0.55 : (l.r * 1.6 * ls.halo) / 64)
+          .setAlpha(Math.min(spill ? 0.6 : 0.78, (l.glow ?? 0.5) * k * f * (spill ? 0.9 : 1.1)));
         i++;
       }
     }
     for (; i < this.glowPool.length; i++) this.glowPool[i].setVisible(false);
+    this.updateGlowDepths(actors);
   }
 
   /** How lit a given light is right now (0..1): lamps follow dusk and night, windows follow the evening, the restaurant facade follows its hours. */
   private lampLevel(l: Light, ls: LightState): number {
+    if (l.kind === 'spill') return this.facadeLevel(!!l.facade, false, l);
     if (l.facade) {
       const f = this.facadeLevel(true, false);
-      return l.kind === 'spill' ? f : Math.max(ls.lamp * f, f * 0.85);
+      return Math.max(ls.lamp * f, f * 0.85);
     }
-    return l.kind === 'spill' || l.kind === 'window' ? ls.windows : ls.lamp;
-  }
-
-  /** Part of the lighting cache key: the restaurant opens and closes by the clock while the rest of the light stays the same. */
-  private restaurantLevelKey(): string {
-    const t = game.save.time;
-    return restaurantPhase(t.period, t.minutes);
+    if (l.kind === 'window') return ls.windows;
+    return this.zone.def.outdoor && !this.zone.def.dark && this.zoneId !== 'market'
+      ? lampActivation(ls.lamp, l.seed ?? lightSeed(l.x, l.y)) : ls.lamp;
   }
 
   /** Applies battery mode: caps the frame rate and rebuilds ambience without heavy effects. */
@@ -3520,6 +3690,89 @@ export class WorldScene extends Phaser.Scene {
       dishes.push({ tableId: o.service!.tableId, x: f.f.x * TILE + (size.w * TILE) / 2, y: f.f.y * TILE, table: tableLabel(o.service!.tableId), dish: def?.name ?? 'pedido' });
     }
     return deliveryGoals(dishes);
+  }
+
+  /** Very rarely, someone free nearby walks over and says one existing line. */
+  private maybeApproach(dt: number) {
+    if (this.approaching || !this.canAct() || !game.has('intro_done') || inDialogue() || !this.speech.idle()) return;
+    this.approachT -= dt;
+    if (this.approachT > 0) return;
+    this.approachT = APPROACH_WAIT;
+    if (Math.random() >= APPROACH_CHANCE) return;
+    const n = this.approachCandidate();
+    if (!n) return;
+    const tile = this.besidePlayer(n);
+    if (!tile) return;
+    const id = n.actor.id;
+    n.social = true;
+    n.out = false;
+    n.actor.setAct('idle');
+    this.approaching = id;
+    const zone = this.zoneId;
+    const arrived = n.actor.walkTo(this.zone.grid, tile[0], tile[1], () => {
+      if (this.approaching === id && this.zoneId === zone) void this.finishApproach(id);
+    });
+    if (!arrived) { this.cancelApproach(id); return; }
+    this.time.delayedCall(14000, () => {
+      const cur = this.npcs.get(id);
+      if (this.approaching === id && cur?.actor.path.length) {
+        cur.actor.stop();
+        this.cancelApproach(id);
+      }
+    });
+  }
+
+  private approachCandidate(): NpcState | null {
+    const busy = new Set(['sleep', 'stars', 'cook', 'work', 'fish']);
+    const open: NpcState[] = [];
+    for (const [id, n] of this.npcs) {
+      if (n.social || n.traveling || n.leaving || !n.actor.sprite.visible) continue;
+      if (id === 'pip' && this.hostId) continue;
+      if (CHAR_BY_ID[id]?.raccoon && restaurantPhase(game.save.time.period, game.save.time.minutes) === 'open') continue;
+      const pinned = game.flag('at_' + id);
+      if (typeof pinned === 'string' && pinned) continue;
+      if (busy.has(n.actor.act) || busy.has(n.act ?? '')) continue;
+      const d = Math.hypot(n.actor.x - this.player.x, n.actor.y - this.player.y);
+      if (d < 48 || d > 300) continue;
+      open.push(n);
+    }
+    return open.length ? open[Math.floor(Math.random() * open.length)] : null;
+  }
+
+  private besidePlayer(n: NpcState): [number, number] | null {
+    const spots: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [-1, 1]];
+    for (const [dx, dy] of spots) {
+      const x = this.player.tx + dx;
+      const y = this.player.ty + dy;
+      if (this.zone.grid.isSolid(x, y) || this.feetBlocked(x, y, n.actor.id, true)) continue;
+      const steps = this.zone.grid.path(n.actor.tx, n.actor.ty, x, y)?.length ?? 99;
+      if (steps > 16) continue;
+      return [x, y];
+    }
+    return null;
+  }
+
+  private async finishApproach(id: string) {
+    const n = this.npcs.get(id);
+    if (!n?.actor.sprite.active || !this.canAct() || inDialogue()) { this.cancelApproach(id); return; }
+    n.actor.faceTowards(this.player.x, this.player.y);
+    this.player.faceTowards(n.actor.x, n.actor.y);
+    const topics: Topic[] = ['how', 'town', 'news'];
+    const line = topicLine(topics[Math.floor(Math.random() * topics.length)], this.npcTalkCtx(n));
+    try {
+      const { runScene, say } = await import('../dialogue/dialogue');
+      await runScene('talk_visit_' + id, async () => { await say(id, line.t, line.e ?? 'neutral'); });
+    } finally {
+      this.cancelApproach(id);
+    }
+  }
+
+  private cancelApproach(id: string) {
+    if (this.approaching === id) this.approaching = null;
+    const n = this.npcs.get(id);
+    if (!n) return;
+    n.social = false;
+    n.t = 6;
   }
 
   private quirks(dt: number) {

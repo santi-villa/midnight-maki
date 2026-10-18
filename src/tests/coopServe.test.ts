@@ -82,6 +82,10 @@ describe('shared kitchen: the guest cooks with the host ingredients', () => {
     const snap = buildFloor([]);
     expect(snap.cookable.map((o) => o.uid)).toEqual([uid]);
     expect(snap.pantry.rice).toBe(3);
+    game.setFlag('weather', 'rain');
+    expect(normalizeFloor(buildFloor([]))?.weather).toBe('rain');
+    expect(normalizeFloor({})?.weather).toBeUndefined();
+    expect(normalizeFloor({ weather: 'invalid' })?.weather).toBeUndefined();
   });
 
   it('spends the ingredients when the guest starts and puts the finished plate on the host tray', () => {

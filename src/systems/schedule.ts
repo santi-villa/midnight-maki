@@ -28,16 +28,20 @@ export interface ShopPlace {
   outdoor?: { zone: string; x: number; y: number };
 }
 
-export const BUSINESS_HOURS = { openAt: 8 * 60, closeAt: 23 * 60, hours: '08:00–23:00' } as const;
+/** Stalls and the tailor, baker, carpenter and beach stands close with the dusk. */
+export const EARLY_HOURS = { openAt: 8 * 60, closeAt: 20 * 60, hours: '08:00–20:00' } as const;
+/** The grocer, the library and the restaurant stay open through dinner. */
+export const LATE_HOURS = { openAt: 8 * 60, closeAt: 22 * 60, hours: '08:00–22:00' } as const;
+export const BUSINESS_HOURS = LATE_HOURS;
 export const SHOP_PLACES: ShopPlace[] = [
-  { ...BUSINESS_HOURS, id: 'taro', title: 'Almacén de Taro', zone: 'shop_taro', keeper: 'taro', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 24, y: 17 } },
-  { ...BUSINESS_HOURS, id: 'yuki', title: 'Ropa de Yuki', zone: 'shop_yuki', keeper: 'yuki', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 23, y: 5 } },
-  { ...BUSINESS_HOURS, id: 'bento', title: 'Panadería de Bento', zone: 'shop_bento', keeper: 'bento', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 8, y: 17 } },
-  { ...BUSINESS_HOURS, id: 'ren', title: 'Carpintería de Ren', zone: 'plaza', counter: { x: 25, y: 23, act: 'work' }, sign: { x: 24, y: 23 } },
-  { ...BUSINESS_HOURS, id: 'sumi', title: 'Puesto de Sumi', zone: 'plaza', keeper: 'sumi', counter: { x: 21, y: 21, act: 'paint' }, sign: { x: 20, y: 21 } },
-  { ...BUSINESS_HOURS, id: 'nami', title: 'Puesto de pescado', zone: 'beach', keeper: 'nami', counter: { x: 6, y: 9, act: 'work' }, sign: { x: 6, y: 9 } },
-  { ...BUSINESS_HOURS, id: 'shells', title: 'Puesto de conchas', zone: 'beach', sign: { x: 10, y: 9 } },
-  { ...BUSINESS_HOURS, id: 'library', title: 'Biblioteca', zone: 'library', keeper: 'kumo', counter: { x: 9, y: 7, act: 'read', seatLift: 12, dir: 'down' }, sign: { x: 4, y: 8 }, outdoor: { zone: 'plaza', x: 9, y: 23 } },
+  { ...LATE_HOURS, id: 'taro', title: 'Almacén de Taro', zone: 'shop_taro', keeper: 'taro', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 24, y: 17 } },
+  { ...EARLY_HOURS, id: 'yuki', title: 'Ropa de Yuki', zone: 'shop_yuki', keeper: 'yuki', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 23, y: 5 } },
+  { ...EARLY_HOURS, id: 'bento', title: 'Panadería de Bento', zone: 'shop_bento', keeper: 'bento', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 8, y: 17 } },
+  { ...EARLY_HOURS, id: 'ren', title: 'Carpintería de Ren', zone: 'plaza', counter: { x: 25, y: 23, act: 'work' }, sign: { x: 24, y: 23 } },
+  { ...EARLY_HOURS, id: 'sumi', title: 'Puesto de Sumi', zone: 'plaza', keeper: 'sumi', counter: { x: 21, y: 21, act: 'paint' }, sign: { x: 20, y: 21 } },
+  { ...EARLY_HOURS, id: 'nami', title: 'Puesto de pescado', zone: 'beach', keeper: 'nami', counter: { x: 6, y: 9, act: 'work' }, sign: { x: 6, y: 9 } },
+  { ...EARLY_HOURS, id: 'shells', title: 'Puesto de conchas', zone: 'beach', sign: { x: 10, y: 9 } },
+  { ...LATE_HOURS, id: 'library', title: 'Biblioteca', zone: 'library', keeper: 'kumo', counter: { x: 9, y: 7, act: 'read', seatLift: 12, dir: 'down' }, sign: { x: 4, y: 8 }, outdoor: { zone: 'plaza', x: 9, y: 23 } },
 ];
 
 const SHOP_BY_ID: Record<string, ShopPlace> = Object.fromEntries(SHOP_PLACES.map((s) => [s.id, s]));
@@ -148,18 +152,28 @@ export function shopPlace(id: string): ShopPlace | undefined {
   return SHOP_BY_ID[id];
 }
 
-/** Open throughout the displayed 08:00–23:00 interval; transition notices never shorten service. */
-export function businessPhase(period: number, minutes: number): ShopPhase {
+/**
+ * Open from 08:00 until `closeAt`. The ten displayed minutes before open are setup,
+ * and the ten after close are closing. Neither window shortens the service itself.
+ */
+export function businessPhase(period: number, minutes: number, closeAt = LATE_HOURS.closeAt): ShopPhase {
   if (!Number.isFinite(period) || !Number.isFinite(minutes)) return 'closed';
   const now = dayMinutes(period, minutes);
-  if (now < BUSINESS_HOURS.openAt) return now >= BUSINESS_HOURS.openAt - 10 ? 'setup' : 'closed';
-  if (now < BUSINESS_HOURS.closeAt) return 'open';
-  return now < BUSINESS_HOURS.closeAt + 10 ? 'closing' : 'closed';
+  const openAt = LATE_HOURS.openAt;
+  if (now < openAt) return now >= openAt - 10 ? 'setup' : 'closed';
+  if (now < closeAt) return 'open';
+  return now < closeAt + 10 ? 'closing' : 'closed';
 }
 
-// Same public hours; existing orders can still be finished after closing.
-export const RESTAURANT_HOURS = BUSINESS_HOURS;
-export const restaurantPhase = businessPhase;
+export function placePhase(place: ShopPlace, period: number, minutes: number): ShopPhase {
+  return businessPhase(period, minutes, place.closeAt);
+}
+
+/** Dinner runs until 22:00. Orders already taken can still be finished after the door closes. */
+export const RESTAURANT_HOURS = LATE_HOURS;
+export function restaurantPhase(period: number, minutes: number): ShopPhase {
+  return businessPhase(period, minutes, RESTAURANT_HOURS.closeAt);
+}
 
 const NIGHT_STALLS: Record<string, string> = {
   market_food: 'Dulces de luna', market_rare: 'Objetos raros', market_clothes: 'Ropa de luna', market_furn: 'Decoración nocturna',
@@ -177,7 +191,7 @@ export function shopStatus(id: string, q: ShopQuery): ShopStatus {
   const closed = (detail: string): ShopStatus => ({ ...base, open: false, phase: 'closed', detail });
   if (q.shut) return closed(`${place.title} hoy no abre. Horario: ${place.hours}.`);
   if (q.force || q.storyHere) return { ...base, open: true, phase: 'open', detail: '' };
-  const phase = businessPhase(q.period, q.minutes);
+  const phase = placePhase(place, q.period, q.minutes);
   if (phase === 'open' && place.keeper && q.keeperZone !== place.zone) {
     return closed(`${place.title} está cerrado: no hay nadie atendiendo. Horario: ${place.hours}.`);
   }

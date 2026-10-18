@@ -6,8 +6,8 @@ import { cornerStop } from '../restaurant/corners';
 const stop = (x: number, y: number, act: RoutineStop['act'], alternatives: [number, number][], dir: RoutineStop['dir'] = 'down'): RoutineStop =>
   ({ zone: 'restaurant', x, y, act, alternatives, wander: 0, dir });
 
-/** Minute of the night (21:00 + n) until which Rigg keeps cleaning. The restaurant closes at minute 60. */
-export const CLEAN_UNTIL = 80;
+/** Minute of the night (21:00 + n) until which Rigg keeps cleaning. The restaurant closes at minute 30 (22:00). */
+export const CLEAN_UNTIL = 50;
 
 const BEDS: Record<string, { zone: string; x: number; y: number; alternatives: [number, number][] }> = {
   pip: { zone: 'home', x: 9, y: 4, alternatives: [[10, 4], [10, 5]] },

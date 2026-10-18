@@ -73,7 +73,7 @@ export function mountHud(hd: HudHandlers) {
     return b;
   };
   chrome.length = 0;
-  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', 'inventory', () => handlers.bag()), btn('clipboard', 'Misiones', 'journal', () => handlers.journal()), btn('map', 'Mapa', 'map', () => import('./worldmap').then((m) => m.openWorldMap())), btn('menu', 'Pausa', 'cancel', () => import('./menus').then((m) => m.openPauseMenu())));
+  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', 'inventory', () => handlers.bag()), btn('clipboard', 'Misiones', 'journal', () => handlers.journal()), btn('map', 'Mapa', 'map', () => import('./worldmap').then((m) => m.openWorldMap())), btn('pause', 'Pausa', 'cancel', () => { void import('./menus').then((m) => m.openPauseMenu()); }));
   questEl = h('div', {
     class: 'hud-quest', role: 'button', tabindex: 0, title: 'Ver detalles de la misión',
     onclick: () => {

@@ -3,8 +3,9 @@ import { game } from '../core/state';
 import { CHARACTERS, type CharacterDef, type RoutineStop } from '../data/characters';
 import { ZONES } from '../data/zones';
 import { raccoonRoutine } from '../data/raccoons';
-import { applyBeat, businessPhase, SHOP_PLACES, FESTIVAL_SPOT, phaseOf, restaurantPhase, shopInteractionText, shopPlace, shopStatus, type ShopStatus } from './schedule';
+import { applyBeat, SHOP_PLACES, FESTIVAL_SPOT, phaseOf, placePhase, restaurantPhase, shopInteractionText, shopPlace, shopStatus, type ShopStatus } from './schedule';
 import { benchSpots } from './neighborSpots';
+import { restPhase, sleepStop } from './residentSleep';
 
 function minutesNow(): number {
   return game.save.time.minutes;
@@ -49,16 +50,31 @@ export function stopFor(id: string, period: number): RoutineStop | null {
   // during the prologue tutorial the raccoons stay at the restaurant so they're always reachable
   if (c.raccoon && !game.save.quests.done.includes('prologue') && game.save.time.day < 2) return { zone: 'restaurant', ...introSpot(id) };
   const shop = SHOP_PLACES.find(place => place.keeper === id);
-  if (shop?.counter && businessPhase(period, minutesNow()) === 'open') {
+  if (shop?.counter && (placePhase(shop, period, minutesNow()) === 'open' || game.has('shop_force_' + shop.id) && !game.has('shop_shut_' + shop.id))) {
     return { zone: shop.zone, ...shop.counter, wander: 0 };
   }
   const fest = (period === 1 || period === 2) && game.flag('festival_today') ? FESTIVAL_SPOT[c.id] : undefined;
   if (fest) return beat(c, period, fest, period < 2);
+  if (period === 3 && game.has('market_open') && c.routine[3].zone === 'market') return c.routine[3];
+  if (!c.raccoon) {
+    const rest = restPhase(id, period, minutesNow(), game.flag('weather') === 'rain');
+    if (rest !== 'awake') {
+      const home = sleepStop(id, rest === 'sleeping');
+      if (home) return home;
+    }
+  }
   if (c.raccoon && game.has('intro_done')) {
     const routine = raccoonRoutine(id, period, minutesNow(), restaurantPhase(period, minutesNow()) === 'open');
     if (routine) return routine;
   }
   const spot = c.routine[period];
+  if (period === 3 && spot.zone === 'market' && !game.has('market_open')) return sleepStop(id, false);
+  // The old night snapshot must not put an early sleeper to bed at 21:00,
+  // nor leave a night owl asleep in the plaza after waking up.
+  if (!c.raccoon && spot.act === 'sleep') {
+    const home = sleepStop(id, false);
+    if (home) return home;
+  }
   if (game.flag('weather') === 'rain' && period < 3) {
     const outdoor = !!ZONES[spot.zone]?.outdoor;
     // already indoors: keep the shift, and still eat, clean and close up
@@ -70,8 +86,12 @@ export function stopFor(id: string, period: number): RoutineStop | null {
     if (c.id === 'nami' || c.id === 'kiki') return beat(c, period, spot);
     return null;
   }
-  // villagers who "sleep" in town are indoors (not visible). Raccoons sleep in their rooms.
-  if (spot.act === 'sleep' && !c.raccoon) return null;
+  // A house sleeper is visible in their own room. A town "sleep" still means they are indoors and hidden.
+  if (spot.act === 'sleep' && !c.raccoon && !spot.zone.startsWith('house_')) return null;
+  // Night company stays seated or talking. The usual beats would walk them off at the end of the period.
+  if (period === 3 && (spot.act === 'sit' || spot.act === 'talk' || (spot.act === 'sleep' && spot.zone.startsWith('house_')))) {
+    return { ...spot, wander: 0 };
+  }
   return beat(c, period, spot);
 }
 

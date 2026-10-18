@@ -6,9 +6,9 @@ test('a night that reaches the morning waits for the guest, then the day passes 
   test.setTimeout(200_000);
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 640 } });
   const a = await ctx.newPage();
-  await a.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ textSpeed: 0, music: 0, sfx: 0, ambience: 0 })));
+  await a.addInitScript(() => localStorage.setItem('mm_settings', JSON.stringify({ perf: 'high', textSpeed: 0, music: 0, sfx: 0, ambience: 0 })));
   await a.goto('/?debug&coop-local');
-  await a.locator('.tt').click();
+  await a.locator('.tt.ready').click(); await a.locator('.tt.armed').waitFor();
   await a.getByRole('button', { name: 'Nueva partida' }).click(); await a.getByText('Partida 1').click({ timeout: 4000 }).catch(() => {});
   await a.getByRole('button', { name: 'Comenzar' }).click();
   await a.getByRole('button', { name: 'Saltar intro ›' }).click();
@@ -16,7 +16,7 @@ test('a night that reaches the morning waits for the guest, then the day passes 
   await a.evaluate(() => (window as any).mmDebug.storage.saveGame('test'));
   const b = await ctx.newPage();
   await b.goto('/?debug&coop-local');
-  await b.locator('.tt').click();
+  await b.locator('.tt.ready').click(); await b.locator('.tt.armed').waitFor();
   await b.getByRole('button', { name: 'Continuar' }).click();
   await expect.poll(() => b.evaluate(() => !!(window as any).mmDebug?.world?.player && (window as any).mmDebug.game.loaded), { timeout: 30_000 }).toBe(true);
   const code = await a.evaluate(() => (window as any).mmDebug.coop.host());

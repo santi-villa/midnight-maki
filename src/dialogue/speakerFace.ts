@@ -4,6 +4,7 @@ import { buildPortrait } from '../art/characters';
 import { buildCustomerFrames, type CustomerId } from '../art/customers';
 import { ctx2d, makeCanvas } from '../art/pixel';
 import { PixBuf } from '../art/pixbuf';
+import { narratorPortrait, NARRATOR_PORTRAIT_IMAGE } from '../art/narratorPortrait';
 import { game } from '../core/state';
 import type { Appearance, Species } from '../core/types';
 import { CHAR_BY_ID, CHARACTERS } from '../data/characters';
@@ -18,7 +19,7 @@ export type SpeakerArt =
   | { kind: 'player' }
   | { kind: 'character'; id: string }
   | { kind: 'neighbor'; id: string }
-  | { kind: 'customer'; id: CustomerId }
+  | { kind: 'customer'; id: CustomerId; seed?: string }
   | { kind: 'guest'; id: string };
 
 export interface SpeakerFace {
@@ -61,7 +62,7 @@ function faceForId(id: string, name: string): SpeakerFace | null {
   const neighbor = NEIGHBOR_BY_ID[id];
   if (neighbor) return { id, name: name || neighbor.name, voice: 0.95, art: { kind: 'neighbor', id } };
   const customer = customerIdOf(id);
-  if (customer) return { id: '', vkey: 'guest:' + id, name: name || id, voice: 0.9, art: { kind: 'customer', id: customer } };
+  if (customer) return { id: '', vkey: 'guest:' + id, name: name || id, voice: 0.9, art: { kind: 'customer', id: customer, seed: id } };
   return null;
 }
 
@@ -71,7 +72,7 @@ function faceForName(name: string): SpeakerFace | null {
   const neighbor = named(NEIGHBORS, name);
   if (neighbor) return faceForId(neighbor.id, name);
   const customer = customerIdOf(name);
-  if (customer) return { id: '', vkey: 'guest:' + name, name, voice: 0.9, art: { kind: 'customer', id: customer } };
+  if (customer) return { id: '', vkey: 'guest:' + name, name, voice: 0.9, art: { kind: 'customer', id: customer, seed: named(GENERIC_CUSTOMERS, name)?.id } };
   return null;
 }
 
@@ -115,18 +116,6 @@ function cropTop(src: PixBuf, h: number): PixBuf {
   return out;
 }
 
-function lantern(): PixBuf {
-  const b = new PixBuf(18, 22);
-  b.vline(9, 1, 3, '#4e3428');
-  b.rect(5, 4, 8, 2, '#8a5a3c');
-  b.rect(4, 6, 10, 10, '#f3e6c8');
-  b.rect(6, 8, 6, 6, '#e7c56a');
-  b.hline(4, 11, 10, '#e4d2b0');
-  b.rect(5, 16, 8, 2, '#8a5a3c');
-  b.outline('#2b1d17');
-  return b;
-}
-
 function letter(): PixBuf {
   const b = new PixBuf(18, 22);
   b.rect(2, 3, 14, 16, '#f6ecd6');
@@ -160,18 +149,18 @@ function guestLook(seed: string): Appearance {
 /** A picture for every speaker, including the narrator and people without a stored portrait. */
 export function portraitSrc(face: SpeakerFace, expr: Expr = 'neutral'): string {
   const art = face.art;
-  const key = art.kind === 'character' || art.kind === 'neighbor' || art.kind === 'player' || art.kind === 'guest'
-    ? `${art.kind}:${art.kind === 'player' ? 'player' : art.id}:${expr}`
+  const key = art.kind === 'character' || art.kind === 'neighbor' || art.kind === 'player' || art.kind === 'guest' || art.kind === 'customer'
+    ? `${art.kind}:${art.kind === 'player' ? 'player' : art.id}:${art.kind === 'customer' ? art.seed ?? '' : ''}:${expr}`
     : art.kind;
   const cached = pictures.get(key);
   if (cached) return cached;
   let url: string;
-  if (art.kind === 'narr') url = urlOf(lantern().scaled(4));
+  if (art.kind === 'narr') url = NARRATOR_PORTRAIT_IMAGE ?? urlOf(narratorPortrait().scaled(3));
   else if (art.kind === 'letter') url = urlOf(letter().scaled(4));
   else if (art.kind === 'player') url = portraitURL('player', expr);
   else if (art.kind === 'character') url = portraitURL(art.id, expr);
   else if (art.kind === 'neighbor') url = buildPortrait(NEIGHBOR_BY_ID[art.id].look, expr, [], 4).toDataURL();
-  else if (art.kind === 'customer') url = urlOf(cropTop(buildCustomerFrames(art.id)[0], 24).scaled(3));
+  else if (art.kind === 'customer') url = urlOf(cropTop(buildCustomerFrames(art.id, { seed: art.seed })[0], 24).scaled(3));
   else url = buildPortrait(guestLook(art.id), expr, [], 4).toDataURL();
   pictures.set(key, url);
   return url;

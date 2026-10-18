@@ -1,11 +1,11 @@
 import { PixBuf } from './pixbuf';
 
-// Clientes independientes: no se cargan ni aparecen en ninguna escena todavía.
+// Clientes del restaurante: formato compartido con Actor y retratos de diálogo.
 // Mismo formato procedural que los otros personajes; cada cuadro mide 28×40.
 export const CUSTOMER_W = 28;
 export const CUSTOMER_H = 40;
 
-export type CustomerId = 'oli' | 'toby' | 'fredi' | 'pipo' | 'po' | 'gigi' | 'nico' | 'leo';
+export type CustomerId = 'oli' | 'toby' | 'fredi' | 'pipo' | 'po' | 'gigi' | 'nico' | 'leo' | 'hana' | 'mugi' | 'kuri';
 
 interface CustomerStyle {
   id: CustomerId;
@@ -17,6 +17,9 @@ interface CustomerStyle {
   shirt: string;
   shirtLight: string;
   shirtShade: string;
+  hair?: string;
+  hairStyle?: number;
+  raincoat?: boolean;
 }
 
 export const CUSTOMERS: readonly CustomerStyle[] = [
@@ -28,6 +31,9 @@ export const CUSTOMERS: readonly CustomerStyle[] = [
   { id: 'gigi', name: 'Gigi', species: 'Jirafa', fur: '#d9ae54', light: '#f2d17b', shade: '#a2773d', shirt: '#806844', shirtLight: '#a18a58', shirtShade: '#584834' },
   { id: 'nico', name: 'Nico', species: 'Capibara', fur: '#986743', light: '#b98c5b', shade: '#704b35', shirt: '#7b8050', shirtLight: '#9a9b67', shirtShade: '#555b3d' },
   { id: 'leo', name: 'Leo', species: 'León', fur: '#ddad4e', light: '#f4ce72', shade: '#ad7b35', shirt: '#a94337', shirtLight: '#d66345', shirtShade: '#77322e' },
+  { id: 'hana', name: 'Hana', species: 'Gata', fur: '#a3a29c', light: '#d9d5c5', shade: '#73757c', shirt: '#a67492', shirtLight: '#d0a3b6', shirtShade: '#74566e' },
+  { id: 'mugi', name: 'Mugi', species: 'Conejo', fur: '#e0ceb0', light: '#f8ead3', shade: '#ad967f', shirt: '#668b80', shirtLight: '#9cb8a0', shirtShade: '#476761' },
+  { id: 'kuri', name: 'Kuri', species: 'Nutria', fur: '#986b50', light: '#d2ae87', shade: '#6f4d3f', shirt: '#6a759a', shirtLight: '#a1acc8', shirtShade: '#4c5477' },
 ];
 
 const OUT = '#302a32';
@@ -72,6 +78,7 @@ function backOfHead(b: PixBuf, s: CustomerStyle, cx: number) {
   const fur = s.id === 'leo' ? '#795031' : s.fur;
   const dims: Record<CustomerId, [number, number, number, number]> = {
     oli: [13, 8, 7, 0], toby: [14, 7, 7, 0], fredi: [13, 8, 6, 0], pipo: [14, 8, 9, 0], po: [13, 7, 7, 0],
+    hana: [13, 8, 7, 0], mugi: [14, 7, 7, 0], kuri: [14, 8, 7, 0],
     gigi: [12, 6, 6, 0], nico: [14, 7, 7, 0], leo: [14, 7, 7, 0],
   };
   const [cy, rx, ry] = dims[s.id];
@@ -87,6 +94,23 @@ function head(s: CustomerStyle, side: boolean, blink: boolean, chew = false, bac
   const muzzleX = side ? 20 : 13;
 
   switch (s.id) {
+    case 'hana':
+    case 'mugi':
+    case 'kuri': {
+      for (const ex of side ? [8, 18] : [6, 20]) {
+        if (s.id === 'mugi') {
+          b.rect(ex - 1, 2, 4, 10, s.fur).rect(ex, 3, 2, 7, '#c38f95');
+        } else if (s.id === 'hana') {
+          b.set(ex, 3, OUT).hline(ex - 1, 4, 3, s.shade).rect(ex - 2, 5, 5, 5, s.fur).rect(ex - 1, 6, 3, 2, '#c38f95');
+        } else roundEar(b, ex, 9, s);
+      }
+      b.ellipse(cx, 14, 8, 7, s.fur).hline(cx - 4, 8, 8, s.light);
+      b.ellipse(muzzleX, 18, side ? 4 : 5, 2, s.light);
+      eyes(b, side, 12, blink, cx);
+      b.hline(muzzleX, 16, 2, OUT).set(muzzleX, 17, OUT);
+      if (s.id === 'hana') for (const dx of [-6, 5]) b.hline(cx + dx, 17, 3, s.shade);
+      break;
+    }
     case 'oli':
       roundEar(b, side ? 9 : 5, 6, s);
       roundEar(b, side ? 16 : 21, 6, s);
@@ -201,6 +225,12 @@ function head(s: CustomerStyle, side: boolean, blink: boolean, chew = false, bac
       break;
   }
   if (back) backOfHead(b, s, cx);
+  if (s.hair) {
+    const hx = side ? 14 : 11;
+    b.hline(hx - 2, 7, 7, s.hair).rect(hx - 1, 6, 4, 2, s.hair);
+    if (s.hairStyle === 1) b.rect(hx + 3, 8, 2, 3, s.hair);
+    if (s.hairStyle === 2) b.rect(hx - 3, 6, 2, 5, s.hair).set(hx - 2, 5, s.hair);
+  }
   if (chew) b.hline(muzzleX, s.id === 'gigi' ? 19 : 20, 2, OUT);
   return b.outline(OUT);
 }
@@ -327,6 +357,20 @@ function customerFrame(s: CustomerStyle, p: Pose = {}) {
     body.rect(x - 1 + armShift, top + 2, 3, 5, s.id === 'oli' ? '#e5bf59' : penguin ? s.fur : s.shirtShade);
     body.rect(x - 1 + armShift, top + 7, 3, 2, hand);
   }
+  if (s.raincoat) {
+    body.rect(x - 5, top, 11, seated ? 7 : 10, s.shirt);
+    body.hline(x - 4, top, 9, s.shirtLight).vline(x + 4, top + 1, seated ? 5 : 8, s.shirtShade);
+    if (back) body.hline(x - 4, top + 3, 9, s.shirtShade);
+    else {
+      body.vline(x + (side ? 2 : 0), top + 2, seated ? 4 : 7, s.shirtShade);
+      body.hline(x - 3, top + 6, 3, s.shirtLight).hline(x + 2, top + 6, 3, s.shirtLight);
+      for (const dy of [3, 5]) body.set(x + (side ? 3 : 1), top + dy, CREAM);
+    }
+    body.rect(side ? x - 1 + armShift : x - 7, top + 2, side ? 3 : 2, 6, s.shirtShade);
+    if (!side) body.rect(x + 6, top + 2, 2, 6, s.shirt);
+    // Folded hood sits on the shoulders, leaving species and hair recognisable.
+    body.hline(x - 3, top + 1, 7, s.shirtShade).hline(x - 2, top + 2, 5, s.shirtLight);
+  }
   body.outline(OUT);
   b.blit(body, 0, 0);
   const headY = (seated ? 5 : 0) + bob;
@@ -349,9 +393,26 @@ function customerFrame(s: CustomerStyle, p: Pose = {}) {
   return b;
 }
 
-export function buildCustomerFrames(id: CustomerId): PixBuf[] {
-  const s = CUSTOMERS.find((customer) => customer.id === id);
-  if (!s) throw new Error(`Cliente desconocido: ${id}`);
+export interface CustomerOutfit { seed?: string; raincoat?: boolean }
+
+export function buildCustomerFrames(id: CustomerId, outfit: CustomerOutfit = {}): PixBuf[] {
+  const base = CUSTOMERS.find((customer) => customer.id === id);
+  if (!base) throw new Error(`Cliente desconocido: ${id}`);
+  const s = { ...base, raincoat: outfit.raincoat };
+  // Existing named visitors keep their original clothes; generic identities gain stable variations.
+  if (outfit.seed && outfit.seed !== 'c_' + id) {
+    let n = 2166136261;
+    for (const ch of outfit.seed) n = Math.imul(n ^ ch.charCodeAt(0), 16777619) >>> 0;
+    const palettes = [
+      ['#65867a', '#a3b5a0', '#405f59'], ['#b18370', '#dcb699', '#7b5958'],
+      ['#7d749a', '#b6a9be', '#58516f'], ['#537c98', '#8fadb6', '#37556c'],
+    ];
+    [s.shirt, s.shirtLight, s.shirtShade] = palettes[n % palettes.length];
+    s.hair = ['#493a3d', '#9b6650', '#c8b490'][n % 3]; s.hairStyle = (n >>> 3) % 3;
+  }
+  if (outfit.raincoat) {
+    s.shirt = '#c1a052'; s.shirtLight = '#e9cb79'; s.shirtShade = '#887145';
+  }
   return [
     customerFrame(s),
     customerFrame(s, { blink: true }),

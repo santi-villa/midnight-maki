@@ -58,9 +58,9 @@ beforeEach(() => {
 });
 
 describe('restaurant hours', () => {
-  it('uses the displayed 08:00–23:00 interval across all four periods', () => {
-    expect(RESTAURANT_HOURS).toMatchObject({ openAt: 480, closeAt: 1380, hours: '08:00–23:00' });
-    for (const [period, minutes, phase] of [[0, 0, 'closed'], [0, 29.75, 'setup'], [0, 30, 'open'], [0, 89, 'open'], [1, 0, 'open'], [2, 89, 'open'], [3, 59.5, 'open'], [3, 60, 'closing'], [3, 65, 'closed'], [3, 90, 'closed']] as const) {
+  it('uses the displayed 08:00–22:00 interval across all four periods', () => {
+    expect(RESTAURANT_HOURS).toMatchObject({ openAt: 480, closeAt: 1320, hours: '08:00–22:00' });
+    for (const [period, minutes, phase] of [[0, 0, 'closed'], [0, 29.75, 'setup'], [0, 30, 'open'], [0, 89, 'open'], [1, 0, 'open'], [2, 89, 'open'], [3, 29.5, 'open'], [3, 30, 'closing'], [3, 35, 'closed'], [3, 90, 'closed']] as const) {
       expect(restaurantPhase(period, minutes)).toBe(phase);
     }
     expect(restaurantPhase(Number.NaN, Number.NaN)).toBe('closed');
@@ -81,8 +81,8 @@ describe('restaurant hours', () => {
     expect(arrive(2, 10)).toBe(1);
     expect(arrive(2, 85)).toBe(1);
     expect(arrive(3, 10)).toBe(1);
-    expect(arrive(3, 59.5)).toBe(1);
-    expect(arrive(3, 60)).toBe(0);
+    expect(arrive(3, 29.5)).toBe(1);
+    expect(arrive(3, 30)).toBe(0);
     expect(arrive(3, 90)).toBe(0);
   });
 
@@ -100,7 +100,7 @@ describe('restaurant hours', () => {
     expect(spawnGuest(room, 'c_tourist')).toBeTruthy();
     seatArrived();
     expect(guestViews()[0]?.phase).toBe('waiting_order');
-    at(3, 60);
+    at(3, 30);
     expect(pumpService(1, room).notice).toMatch(/cierra/);
     expect(guestViews()).toEqual([]);
     expect(game.save.orders).toEqual([]);
@@ -116,7 +116,7 @@ describe('restaurant hours', () => {
     spawnGuest(room, 'c_tourist');
     seatArrived();
     expect(takeOrderAt('1')).toMatch(/Kappa/);
-    at(3, 60);
+    at(3, 30);
     expect(pumpService(3, room).notice).toMatch(/pedidos ya tomados/);
     expect(guestViews()[0]?.phase).toBe('waiting_food');
     const uid = game.save.orders[0].uid;
@@ -162,7 +162,7 @@ describe('restaurant hours', () => {
     takeOrderAt('1');
     expect(game.save.orders).toHaveLength(1);
 
-    at(3, 60, 2);
+    at(3, 30, 2);
     expect(pumpService(1, room).notice).toMatch(/cierra/);
     expect(guestViews()[0]?.phase).toBe('waiting_food');
 
@@ -316,12 +316,12 @@ describe('restaurant hours', () => {
     expect(whereIs('pip')).toBe('restaurant');
     expect(whereIs('spicy')).toBe('restaurant');
     expect(whereIs('rigg')).toBe('restaurant');
-    at(3, 70);
+    at(3, 40);
     expect(whereIs('pip')).toBe('home');
     expect(whereIs('spicy')).toBe('home');
-    expect(whereIs('rigg')).toBe('restaurant'); // stays to clean for a while
+    expect(whereIs('rigg')).toBe('restaurant'); // stays to clean for a while after 22:00
     expect(stopFor('rigg', 3)).toMatchObject({ zone: 'restaurant', act: 'clean' });
-    at(3, 85);
+    at(3, 55);
     expect(whereIs('rigg')).toBe('home');
     expect(stopFor('rigg', 3)).toMatchObject({ act: 'sleep' });
     at(3, 70);

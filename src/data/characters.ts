@@ -1,5 +1,6 @@
 import type { Appearance } from '../core/types';
 import type { Dir } from '../core/types';
+import { benchSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 
 /** Poses a character can hold. Walking is separate: it is just moving between these. */
 export type NpcAct = 'sleep' | 'cook' | 'read' | 'sit' | 'play' | 'work' | 'fish' | 'paint' | 'stars' | 'eat' | 'drink' | 'clean' | 'talk' | 'look';
@@ -104,7 +105,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'garden', x: 15, y: 11, wander: 3, act: 'work' },
       { zone: 'plaza', x: 20, y: 10, wander: 2 },
       { zone: 'garden', x: 13, y: 9, wander: 1, act: 'sit' },
-      { zone: 'plaza', x: 4, y: 14, wander: 0, act: 'sleep' },
+      { zone: 'house_garden_31_4', x: 1, y: 4, wander: 0, act: 'sleep', dir: 'up', bed: { x: 1, y: 2, w: 1, h: 2 } },
     ],
     bio: 'Tranquila y un poco tímida. Cuida el Jardín de los Faroles.', birthday: 110, voice: 1.3,
   },
@@ -128,7 +129,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'shop_yuki', x: 5, y: 3, wander: 0 },
       { zone: 'shop_yuki', x: 5, y: 3, wander: 0 },
       { zone: 'plaza', x: 13, y: 15, wander: 0, act: 'sit' },
-      { zone: 'plaza', x: 26, y: 7, wander: 0, act: 'sleep' },
+      { zone: 'house_beach_33_9', x: 7, y: 4, wander: 0, act: 'sleep', dir: 'up', bed: { x: 7, y: 2, w: 1, h: 2 } },
     ],
     bio: 'Creativa y perfeccionista. Cose toda la ropa del pueblo.', birthday: 120, voice: 1.4,
   },
@@ -140,7 +141,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'plaza', x: 11, y: 21, wander: 1, act: 'read' },
       { zone: 'plaza', x: 11, y: 21, wander: 1, act: 'read' },
       { zone: 'restaurant', x: 13, y: 7, wander: 0, act: 'sit' },
-      { zone: 'plaza', x: 11, y: 21, wander: 0, act: 'sleep' },
+      { zone: 'plaza', x: 11, y: 21, wander: 0, act: 'sit' },
     ],
     bio: 'Reservado y erudito. Conoce la historia de Villa Nori mejor que nadie... o eso dice.', birthday: 301, voice: 0.8,
   },
@@ -152,7 +153,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'beach', x: 20, y: 17, wander: 1, act: 'fish' },
       { zone: 'beach', x: 6, y: 9, wander: 1, act: 'work' },
       { zone: 'beach', x: 16, y: 12, wander: 3 },
-      { zone: 'beach', x: 26, y: 7, wander: 0, act: 'sleep' },
+      { zone: 'house_beach_40_9', x: 1, y: 4, wander: 0, act: 'sleep', dir: 'up', bed: { x: 1, y: 2, w: 1, h: 2 } },
     ],
     bio: 'Alegre y aventurera. Enseña a pescar a cualquiera que tenga paciencia.', birthday: 208, voice: 1.25, needsFlag: 'unlock_beach',
   },
@@ -176,7 +177,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'shop_bento', x: 5, y: 3, wander: 0 },
       { zone: 'shop_bento', x: 5, y: 3, wander: 0 },
       { zone: 'restaurant', x: 9, y: 10, wander: 0, act: 'sit' },
-      { zone: 'plaza', x: 5, y: 19, wander: 0, act: 'sleep' },
+      { zone: 'plaza', x: 5, y: 19, wander: 0, act: 'sit' },
     ],
     bio: 'Enorme, amable y apasionado por hornear. Su pan de leche es famoso.', birthday: 403, voice: 0.7,
   },
@@ -188,7 +189,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'plaza', x: 21, y: 21, wander: 2, act: 'paint' },
       { zone: 'garden', x: 18, y: 12, wander: 2, act: 'paint' },
       { zone: 'beach', x: 13, y: 12, wander: 1, act: 'paint' },
-      { zone: 'plaza', x: 21, y: 21, wander: 0, act: 'sleep' },
+      { zone: 'beach', x: 13, y: 12, wander: 0, act: 'sit' },
     ],
     bio: 'Pinta paisajes y vende cuadros y decoraciones. Ve colores donde otros no.', birthday: 122, voice: 1.2,
   },
@@ -200,7 +201,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'plaza', x: 16, y: 3, wander: 2 },
       { zone: 'forest', x: 14, y: 15, wander: 4 },
       { zone: 'forest', x: 10, y: 12, wander: 3 },
-      { zone: 'plaza', x: 16, y: 3, wander: 0, act: 'sleep' },
+      { zone: 'garden', x: 16, y: 14, wander: 0, act: 'sit' },
     ],
     bio: 'Inquieta y valiente. Conoce todos los caminos secretos de Villa Nori.', birthday: 215, voice: 1.45,
   },
@@ -212,7 +213,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'plaza', x: 10, y: 6, wander: 4 },
       { zone: 'plaza', x: 20, y: 12, wander: 6 },
       { zone: 'beach', x: 15, y: 5, wander: 3 },
-      { zone: 'plaza', x: 9, y: 5, wander: 0, act: 'sleep' },
+      { zone: 'beach', x: 15, y: 8, wander: 0, act: 'sit' },
     ],
     bio: 'Entrega cartas y encargos con una puntualidad admirable.', birthday: 401, voice: 1.15,
   },
@@ -224,7 +225,7 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'garden', x: 13, y: 8, wander: 0, act: 'sit' },
       { zone: 'restaurant', x: 9, y: 7, wander: 0, act: 'sit' },
       { zone: 'plaza', x: 18, y: 14, wander: 0, act: 'sit' },
-      { zone: 'plaza', x: 18, y: 14, wander: 0, act: 'sleep' },
+      { zone: 'house_garden_25_4', x: 7, y: 4, wander: 0, act: 'sleep', dir: 'up', bed: { x: 7, y: 2, w: 1, h: 2 } },
     ],
     bio: 'Conoció al antiguo dueño de Midnight Maki. Recuerda más de lo que cuenta.', birthday: 410, voice: 0.9,
   },
@@ -236,11 +237,48 @@ export const CHARACTERS: CharacterDef[] = [
       { zone: 'garden', x: 12, y: 9, wander: 1, act: 'sit' },
       { zone: 'restaurant', x: 13, y: 7, wander: 0, act: 'sit' },
       { zone: 'beach', x: 16, y: 12, wander: 1 },
-      { zone: 'restaurant', x: 13, y: 7, wander: 0, act: 'sleep' },
+      { zone: 'beach', x: 18, y: 10, wander: 0, act: 'sit' },
     ],
     bio: 'Fundó Midnight Maki y cuidó el faro durante años. Ahora vuelve de visita.', birthday: 207, voice: 0.75, needsFlag: 'akio_visit',
   },
 ];
+
+/** Two nearby spots, so a pair can sit or talk without sharing a tile. */
+function nearPair(spots: Place[]): [Place, Place] | null {
+  let best: [Place, Place] | null = null;
+  let bestD = 99;
+  for (let i = 0; i < spots.length; i++) for (let j = i + 1; j < spots.length; j++) {
+    const d = Math.abs(spots[i].x - spots[j].x) + Math.abs(spots[i].y - spots[j].y);
+    if (d >= 1 && d <= 4 && d < bestD) { bestD = d; best = [spots[i], spots[j]]; }
+  }
+  return best;
+}
+
+function placeNight(id: string, p: Place | undefined, act: NpcAct, dir?: Dir) {
+  const c = CHARACTERS.find((ch) => ch.id === id);
+  if (!c || !p) return;
+  c.routine[3] = {
+    zone: p.zone, x: p.x, y: p.y, wander: 0, act, dir: dir ?? p.dir,
+    seatLift: p.kind === 'bench' ? 12 : 0,
+  };
+}
+
+// People without a house stay out after dark: a bench, the beach, or the water.
+const benchPair = nearPair(benchSpots('plaza'));
+if (benchPair) {
+  placeNight('bento', benchPair[0], 'talk', 'right');
+  placeNight('kumo', benchPair[1], 'talk', 'left');
+}
+const beach = shoreSpots('beach');
+const beachPair = nearPair(beach);
+if (beachPair) {
+  placeNight('sumi', beachPair[0], 'talk');
+  placeNight('sora', beachPair[1], 'talk');
+}
+const river = shoreSpots('garden')[0] ?? shoreSpots('forest')[0];
+placeNight('kiki', river, 'sit');
+const used = new Set([beachPair?.[0], beachPair?.[1]].filter(Boolean).map((p) => `${p!.x},${p!.y}`));
+placeNight('akio', beach.find((p) => !used.has(`${p.x},${p.y}`)) ?? beach[0], 'sit');
 
 export const CHAR_BY_ID: Record<string, CharacterDef> = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
 if (CHAR_BY_ID.sumi) CHAR_BY_ID.mika = CHAR_BY_ID.sumi; // backwards compatibility alias for legacy saves

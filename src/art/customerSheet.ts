@@ -7,7 +7,7 @@
  *   - up   = the side view walking (no back view was drawn),
  *   - left = the right-facing frames mirrored.
  */
-import { buildCustomerFrames, CUSTOMER_H, CUSTOMER_W, CUSTOMERS, type CustomerId } from './customers';
+import { buildCustomerFrames, CUSTOMER_H, CUSTOMER_W, CUSTOMERS, type CustomerId, type CustomerOutfit } from './customers';
 import type { PixBuf } from './pixbuf';
 import { ctx2d, makeCanvas } from './pixel';
 
@@ -40,8 +40,8 @@ function variant(src: HTMLCanvasElement, mirror: boolean, lift = 0): HTMLCanvasE
   return c;
 }
 
-export function buildCustomerSheet(id: CustomerId): { canvas: HTMLCanvasElement; fw: number; fh: number; count: number } {
-  const f = buildCustomerFrames(id).map(toCanvas);
+export function buildCustomerSheet(id: CustomerId, outfit: CustomerOutfit = {}): { canvas: HTMLCanvasElement; fw: number; fh: number; count: number } {
+  const f = buildCustomerFrames(id, outfit).map(toCanvas);
   const front = f[0];
   const sheet: HTMLCanvasElement[] = new Array(CUSTOMER_FRAME_COUNT);
   const rightWalk = [f[4], f[5], f[6], f[7]];

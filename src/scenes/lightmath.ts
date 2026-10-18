@@ -23,6 +23,7 @@ export interface LightInput {
   rain: boolean;
   season: number; // 0 spring .. 3 winter
   restaurant?: RestaurantPhase | null; // set while inside the restaurant
+  nightBrightness?: 'normal' | 'dark';
 }
 
 export interface LightState {
@@ -55,10 +56,21 @@ export function tintLum(c: number): number {
  * Multiply colour under a lamp. Null means the street is already bright, so a soft erase is enough.
  * A full erase at night uncovers the daytime tiles, so the pool stays dimmer than daylight and never darker than the street.
  */
+export interface Box { l: number; r: number; t: number; b: number }
+
+/**
+ * A lit pane should slip behind someone standing in front of the wall and overlapping that pane.
+ * Feet above the wall are on the roof side: the pane stays up, or the whole window would dim.
+ */
+export function coversLitPane(feetY: number, body: Box, pane: Box, baseY: number): boolean {
+  if (feetY < baseY - 2) return false;
+  return body.r > pane.l && body.l < pane.r && body.b > pane.t && body.t < pane.b;
+}
+
 export function lampPoolTint(ambient: number, lampColor: number, strength: number, cap = 150): number | null {
   if (tintLum(ambient) > 200) return null;
   const k = Math.max(0, Math.min(1, strength));
-  const mixed = mixHex(ambient, lampColor, 0.22 + 0.2 * k);
+  const mixed = mixHex(ambient, lampColor, 0.42 * k);
   const chAt = (sh: number) => {
     const a = ch(ambient, sh);
     const m = ch(mixed, sh);
@@ -84,8 +96,8 @@ const MORNING = [[0, 0xffe2c0], [1, 0xfffaf0]] as [number, number][];
 // every period starts exactly where the previous one ends, so the clock never makes the light jump
 const AFTERNOON = [[0, 0xfffaf0], [1, 0xffdca8]] as [number, number][];
 // warm gold -> rose -> dusky lavender
-const DUSK = [[0, 0xffdca8], [0.4, 0xf4b0a8], [0.75, 0xb69ad0], [1, 0x6a6cb2]] as [number, number][];
-const NIGHT = [[0, 0x6a6cb2], [0.3, 0x4a5296], [1, 0x383f82]] as [number, number][];
+const DUSK = [[0, 0xffdca8], [0.4, 0xf4b0a8], [0.75, 0x9591bb], [1, 0x444c7e]] as [number, number][];
+const NIGHT = [[0, 0x444c7e], [0.3, 0x29345d], [1, 0x202944]] as [number, number][];
 // ---- indoor: stays warm so interiors read as lit rooms against the cold street
 const IN_DAY = 0xffffff;
 const IN_DUSK = [[0, 0xffeed8], [1, 0xe6c8c0]] as [number, number][];
@@ -155,8 +167,8 @@ export function lightState(i: LightInput): LightState {
     // rain: a grey-blue veil in daylight, a deeper blue at night, lamps stay on but their light is wetter and a touch dimmer
     // the veil changes colour gradually through dusk, so there is no jump when the night starts
     if (per < 2) tint = mixHex(tint, i.outdoor ? 0x8592b4 : 0xd8d4e0, i.outdoor ? 0.55 : 0.25);
-    else if (per === 2) tint = i.outdoor ? mixHex(tint, mixHex(0x8592b4, 0x2c3466, k), 0.55 - 0.25 * k) : mixHex(tint, mixHex(0xd8d4e0, 0x2c3466, k), 0.25 - 0.2 * k);
-    else tint = mixHex(tint, 0x2c3466, i.outdoor ? 0.3 : 0.05);
+    else if (per === 2) tint = i.outdoor ? mixHex(tint, mixHex(0x8592b4, 0x151d38, k), 0.55 - 0.25 * k) : mixHex(tint, mixHex(0xd8d4e0, 0x2c3466, k), 0.25 - 0.2 * k);
+    else tint = mixHex(tint, i.outdoor ? 0x151d38 : 0x2c3466, i.outdoor ? 0.3 : 0.05);
     if (i.outdoor) {
       lamp = Math.max(lamp, 0.55);
       windows = Math.max(windows, per < 3 ? 0.6 : 1);
@@ -173,11 +185,57 @@ export function lightState(i: LightInput): LightState {
     if (per >= 2) tint = mixHex(tint, mixHex(tint, 0x8f7aa6, 0.55), 1 - f);
   }
   if (i.outdoor && !i.dark) {
+    // Optional comfort setting: fade it in during dusk; never change daylight or indoor lighting.
+    if (i.nightBrightness === 'dark' && per >= 2) {
+      tint = mulHex(tint, mixHex(0xffffff, 0x9aa8c4, per === 3 ? 1 : smooth(0.6, 1, k)));
+    }
     // seasonal colour grade: warm amber in autumn, cool blue-white in winter
     const grade = i.season === 2 ? 0xffbe84 : i.season === 3 ? 0xc4d8ff : 0xffffff;
     if (grade !== 0xffffff) tint = mulHex(tint, grade);
   }
   return { tint, vig, lamp, windows, moon, halo, shadow: shadowStyle(per, k, i.rain && i.outdoor, i.outdoor) };
+}
+
+/** Stable identities shared by window panes, spill lights and the additive halos. No save fields needed. */
+export function lightSeed(x: number, y: number): number {
+  return (Math.imul(Math.round(x), 73856093) ^ Math.imul(Math.round(y), 19349663)) >>> 0;
+}
+
+const hashNoise = (n: number): number => {
+  let v = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+  v = Math.imul(v ^ (v >>> 16), 0x45d9f3b);
+  return ((v ^ (v >>> 16)) >>> 0) / 0xffffffff;
+};
+
+/** Different, smooth switch-on thresholds. Only the game clock drives the static light pools. */
+export function lampActivation(level: number, seed: number): number {
+  const start = 0.06 + hashNoise(seed) * 0.6;
+  return smooth(start, start + 0.28, level);
+}
+
+/** Irregular flame/paper variation and a rare short failure. Street lamps always return exactly 1. */
+export function lampFlicker(time: number, seed: number, flame: boolean, still = false): number {
+  if (still || !flame) return 1;
+  if (seed % 11 === 0) {
+    const cycle = Math.floor(time / 37);
+    const at = 5 + hashNoise(seed + cycle * 97) * 25;
+    const phase = time - cycle * 37 - at;
+    if (phase >= 0 && phase < 0.12) return 0;
+  }
+  const noise = (speed: number) => {
+    const p = time * speed;
+    const n = Math.floor(p);
+    const k = smooth(0, 1, p - n);
+    return hashNoise(seed + n) * (1 - k) + hashNoise(seed + n + 1) * k;
+  };
+  return 0.48 + 0.55 * noise(3.7) + 0.18 * noise(11.3);
+}
+
+/** Temporary visual bedtime per house (22:00–00:15); stage 3 will supply the resident's schedule. */
+export function homeWindowLevel(period: number, minuteOfDay: number, seed: number): number {
+  if (period !== 3) return 1;
+  const bedtime = 22 * 60 + (seed % 10) * 15;
+  return 1 - smooth(bedtime, bedtime + 6, minuteOfDay);
 }
 
 export interface CastAnchor {

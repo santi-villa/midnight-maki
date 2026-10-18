@@ -60,7 +60,7 @@ describe('daily rhythm', () => {
     expect(stopFor('taro', 0)?.zone).toBe('shop_taro');
     at(1, 85);
     const leaving = stopFor('taro', 1);
-    const door = { x: 5, y: 3 }; // the counter stays staffed until 23:00
+    const door = { x: 5, y: 3 }; // the counter stays staffed while that shop is open
     expect(leaving?.zone).toBe('shop_taro');
     expect(leaving?.x).toBe(door.x);
     expect(leaving?.y).toBe(door.y);
@@ -77,16 +77,18 @@ describe('daily rhythm', () => {
 
   it('keeps the raccoons working in the restaurant while the night door is still open', () => {
     game.setFlag('intro_done');
-    at(3, 30);
-    expect(stopFor('yuki', 3)?.zone).toBe('shop_yuki');
+    at(3, 20);
+    expect(stopFor('yuki', 3)?.zone).toBe('house_beach_33_9');
     expect(whereIs('kumo')).toBe('library');
     expect(whereIs('pip')).toBe('restaurant');
     expect(stopFor('spicy', 3)).toMatchObject({ zone: 'restaurant', act: 'cook' });
     expect(stopFor('rigg', 3)).toMatchObject({ zone: 'restaurant', x: 10, y: 4, act: 'read' });
   });
-  it('hides sleeping staff and sends Pip home after closing', () => {
-    at(3, 70);
-    expect(stopFor('yuki', 3)).toBeNull(); expect(whereIs('kumo')).toBeNull();
+  it('sends Pip home after closing and leaves the villagers where the night put them', () => {
+    at(3, 40);
+    expect(stopFor('yuki', 3)).toMatchObject({ zone: 'house_beach_33_9', act: 'sleep' });
+    expect(whereIs('kumo')).not.toBe('library');
+    expect(stopFor('kumo', 3)?.act).toMatch(/sit|talk/);
     expect(stopFor('pip', 3)).toMatchObject({ zone: 'home', act: 'sleep' });
   });
 
@@ -155,8 +157,12 @@ describe('shop hours', () => {
     expect(shopGate('taro').open).toBe(true);
     at(1, 5);
     expect(shopGate('yuki').open).toBe(true);
-    at(3, 60);
+    at(2, 60);
     expect(shopGate('bento').phase).toBe('closing');
+    expect(shopGate('bento').open).toBe(false);
+    expect(shopGate('taro').open).toBe(true);
+    at(3, 30);
+    expect(shopGate('taro').phase).toBe('closing');
     expect(shopGate('bento').open).toBe(false);
   });
 
@@ -189,8 +195,10 @@ describe('shop hours', () => {
 });
 
 describe('consistent storefront indicators', () => {
-  it.each(['taro', 'bento', 'yuki'])('%s follows setup, morning, afternoon, closing, dusk and night', (id) => {
-    const cases: [number, number, string][] = [[0, 0, 'closed'], [0, 29.75, 'setup'], [0, 30, 'open'], [0, 89, 'open'], [1, 0, 'open'], [1, 89, 'open'], [2, 20, 'open'], [3, 59.5, 'open'], [3, 60, 'closing'], [3, 70, 'closed']];
+  it.each([['taro', false], ['bento', true], ['yuki', true]] as const)('%s follows setup, its own close, and the night', (id, early) => {
+    const cases: [number, number, string][] = early
+      ? [[0, 0, 'closed'], [0, 29.75, 'setup'], [0, 30, 'open'], [0, 89, 'open'], [1, 0, 'open'], [1, 89, 'open'], [2, 20, 'open'], [2, 59.5, 'open'], [2, 60, 'closing'], [2, 70, 'closed'], [3, 20, 'closed']]
+      : [[0, 0, 'closed'], [0, 29.75, 'setup'], [0, 30, 'open'], [0, 89, 'open'], [1, 0, 'open'], [1, 89, 'open'], [2, 20, 'open'], [2, 89, 'open'], [3, 20, 'open'], [3, 29.5, 'open'], [3, 30, 'closing'], [3, 40, 'closed']];
     for (const [period, minutes, phase] of cases) {
       at(period, minutes);
       const status = shopGate(id);
@@ -215,7 +223,8 @@ describe('consistent storefront indicators', () => {
     expect(shopSignText(shopGate('taro'))).toBe('');
     game.setFlag('shop_shut_taro');
     expect(shopSignText(shopGate('taro'))).toBe('CERRADO');
-    expect(shopInteractionText(shopGate('taro'))).toContain('08:00–23:00');
+    expect(shopInteractionText(shopGate('taro'))).toContain('08:00–22:00');
+    expect(shopInteractionText(shopGate('yuki'))).toContain('08:00–20:00');
   });
 
   it('places shop plaques against walls away from the walk-through door tiles', () => {

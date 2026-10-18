@@ -9,9 +9,10 @@ import { runTask } from '../core/errors';
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
-import { choose, fmt, runScene, say } from '../dialogue/dialogue';
+import { askText, choose, fmt, runScene, say } from '../dialogue/dialogue';
 import { check, defineQuests, isDone } from '../quests/quests';
 import { learnRecipe } from '../restaurant/orders';
+import { mirror } from '../restaurant/mirror';
 import { pantryTotal } from '../restaurant/supplies';
 import { world } from '../scenes/WorldScene';
 import { registerAction } from '../systems/actions';
@@ -206,6 +207,8 @@ bus.on('time:changed', ({ period }) => {
   if (period === 3 && game.has('ch6_done') && !game.has('dark_night_seen') && world?.zone?.def.outdoor) setTimeout(() => void runTask('story:dark-night', darkNight), 800);
 });
 export async function onEnterZone(zone: string) {
+  // A visit borrows the host's clock and weather, never the guest's personal story.
+  if (mirror.on) return;
   game.setFlag('visited_' + zone);
   if (zone === 'restaurant' && game.has('arrived') && !game.has('intro_done')) await startArrivalEncounter();
   const moon = game.flag('festival_today') === 'moon';
@@ -327,7 +330,12 @@ async function meetRaccoons() {
       await world.walk('rigg', 12, 8);
       await say('rigg', 'Rigg. Me ocupo de... pensar. Alguien tiene que hacerlo.', 'smug');
       await say('rigg', 'El restaurante está casi abandonado. Hace años que no viene nadie. Nosotros lo mantenemos como podemos.');
-      const c = await choose(['Me quedo. Vamos a abrir Midnight Maki juntos.', 'No sé cocinar sushi... pero puedo aprender.']);
+      await say('spicy', 'Si lo vamos a abrir, el cartel necesita un nombre.', 'happy');
+      const restaurant = await askText('spicy', '¿Cómo se va a llamar el restaurante?', 'Midnight Maki', 20);
+      game.save.player.restaurantName = restaurant;
+      game.touch('restaurant-name');
+      await say('pip', '¡{restaurant}! Me gusta cómo suena.', 'happy');
+      const c = await choose(['Me quedo. Vamos a abrir {restaurant} juntos.', 'No sé cocinar sushi... pero puedo aprender.']);
       if (c === 0) await say('pip', '¡SÍ! ¡Se queda! ¡Se queda!', 'happy');
       else await say('spicy', '¡Para eso estoy yo! Te voy a enseñar todo. Bueno, casi todo. Algunos secretos son secretos.', 'smug');
       recordDecision('prologue_stay', c === 0 ? 'decidida' : 'aprender');

@@ -138,6 +138,9 @@ const ICONS: Record<string, IconFn> = {
     for (const x of [3,7,11]) px(g, x, 3, '#f6ead0', 2, 3);
     px(g, 9, 8, INK, 3, 6); px(g, 4, 8, '#9fc3c6', 3, 3);
   },
+  pause(g) {
+    for (const x of [3, 10]) { px(g, x - 1, 2, INK, 5, 12); px(g, x, 3, '#f4dfb0', 3, 10); px(g, x, 3, '#fff4d4', 1, 9); }
+  },
   menu(g) {
     for (const y of [3, 7, 11]) {
       px(g, 2, y, '#513722', 12, 3);
