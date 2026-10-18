@@ -1,6 +1,8 @@
 import { finishArrival } from './helpers/arrival';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
+test.use({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false });
+
 async function boot(page: Page, extra: Record<string, unknown> = {}) {
   await page.addInitScript((s) => localStorage.setItem('mm_settings', JSON.stringify(s)), { textSpeed: 0, music: 0, sfx: 0, ambience: 0, perf: 'high', ...extra });
   await page.goto('/?debug');
@@ -12,6 +14,9 @@ async function boot(page: Page, extra: Record<string, unknown> = {}) {
   await page.getByRole('button', { name: 'Saltar intro ›' }).click();
   await finishArrival(page);
   await expect(page.locator('.game-hud .hud-top')).toBeVisible();
+  const movementTip = page.getByRole('button', { name: /Entendido/ });
+  if (await movementTip.isVisible()) await movementTip.click();
+  await page.evaluate(() => (window as any).mmDebug.clock.pause());
 }
 
 interface Scene { zone: string; spot: [number, number]; period: number; minutes?: number; rain?: boolean }
@@ -22,7 +27,7 @@ async function go(page: Page, s: Scene) {
     t.period = s.period;
     t.minutes = s.minutes ?? 10;
     m.game.setFlag('weather', s.rain ? 'rain' : 'clear');
-    m.world.enterZone(s.zone, s.spot[0], s.spot[1], 'down', false);
+    return m.world.enterZone(s.zone, s.spot[0], s.spot[1], 'down', false, true);
   }, s);
   await page.waitForTimeout(1500);
 }
@@ -62,7 +67,7 @@ async function brightness(browser: Browser, png: Buffer, x: number, y: number, r
 
 async function shot(page: Page, name: string) {
   await page.evaluate(() => ((document.getElementById('ui') as HTMLElement).style.display = 'none'));
-  const buf = await page.screenshot({ path: `docs/art/luces/${name}.png` });
+  const buf = await page.screenshot({ path: test.info().outputPath(`${name}.png`) });
   await page.evaluate(() => ((document.getElementById('ui') as HTMLElement).style.display = ''));
   return buf;
 }
@@ -97,9 +102,9 @@ test('lighting: day, dusk, night and rain in the plaza and outside the restauran
   expect(win('day').length).toBeGreaterThan(0);
   expect(win('day').every((g) => !g.visible)).toBe(true);
   expect(win('night').some((g) => g.visible && g.alpha > 0.4)).toBe(true);
-  // the restaurant doorway is always findable while it is open (afternoon included)
-  expect(seen.day.glows.some((g) => g.door && g.visible)).toBe(true);
-  expect(seen.night.glows.some((g) => g.door && g.visible && g.alpha > 0.3)).toBe(true);
+  // The imported facade uses its actual window panes (it has no separate legacy door overlay).
+  expect(seen.day.glows.some((g) => g.facade && g.visible)).toBe(true);
+  expect(seen.night.glows.some((g) => g.facade && g.visible && g.alpha > 0.3)).toBe(true);
   // rain: lamps stay on, light is wetter
   expect(seen.dayRain.lamp).toBeGreaterThanOrEqual(0.55);
   expect(seen.nightRain.halo).toBeGreaterThan(1);
@@ -113,12 +118,12 @@ test('lighting: the restaurant facade and its room follow the opening hours', as
   };
   const open = await at(3, 5);
   await shot(page, 'restaurante-fachada-noche-abierto');
-  const closing = await at(3, 999);
-  const closed = await at(0, 10);
+  const closing = await at(3, 32); // 22:04, within the existing ten-minute closing phase
+  const closed = await at(3, 40); // 22:20
   const sum = (g: { a: number }[]) => g.reduce((s, x) => s + x.a, 0);
   expect(sum(open)).toBeGreaterThan(sum(closing));
   expect(sum(closing)).toBeGreaterThan(sum(closed));
-  await shot(page, 'restaurante-fachada-manana-cerrado');
+  await shot(page, 'restaurante-fachada-noche-cerrado');
   // inside
   const room = async (period: number, minutes: number) => {
     await go(page, { zone: 'restaurant', spot: [9, 9], period, minutes });
@@ -130,15 +135,27 @@ test('lighting: the restaurant facade and its room follow the opening hours', as
   expect(lampOpen).toBeGreaterThan(lampClosed);
 });
 
-test('lighting: the darkness layer is not redrawn every frame, and battery mode keeps it still', async ({ page }) => {
+test('lighting: animated halos never redraw a still darkness layer, including reduced effects', async ({ page }) => {
   await boot(page);
   await go(page, { ...PLAZA, period: 3 });
-  const a = (await state(page)).redraws;
-  await page.waitForTimeout(1000);
-  const b = (await state(page)).redraws;
-  expect(b - a).toBeGreaterThan(5); // natural flicker steps (~12 per second), never a redraw per frame
-  expect(b - a).toBeLessThan(20);
+  const before = await page.evaluate(() => {
+    const w = (window as any).mmDebug.world;
+    return { redraws: w.lightRedraws, halo: w.glowPool.map((g: any) => g.alpha) };
+  });
+  await page.waitForTimeout(800);
+  const after = await page.evaluate(() => {
+    const w = (window as any).mmDebug.world;
+    return { redraws: w.lightRedraws, halo: w.glowPool.map((g: any) => g.alpha) };
+  });
+  expect(after.redraws - before.redraws).toBe(0);
+  expect(after.halo).not.toEqual(before.halo);
   expect((await state(page)).bloom).toBeGreaterThan(0);
+  // Moving Sofi still invalidates the player pool, and must redraw the darkness.
+  await page.evaluate(() => {
+    const p = (window as any).mmDebug.world.player;
+    p.teleport(p.tx + 1, p.ty);
+  });
+  await expect.poll(async () => (await state(page)).redraws).toBeGreaterThan(after.redraws);
 });
 
 for (const [name, extra] of [['battery mode', { perf: 'low' }], ['reduced motion', { reduceMotion: true }]] as const) {
@@ -158,3 +175,59 @@ for (const [name, extra] of [['battery mode', { perf: 'low' }], ['reduced motion
     await shot(page, 'plaza-noche-' + (name === 'battery mode' ? 'bateria' : 'movimiento-reducido'));
   });
 }
+
+test('lighting: night settings, real lamp pools, staggered windows and readable scenes', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await boot(page);
+  await go(page, { zone: 'garden', spot: [12, 11], period: 2, minutes: 25 });
+  const levels = await page.evaluate(() => {
+    const w = (window as any).mmDebug.world;
+    return w.lamps.filter((l: any) => !l.kind && !l.facade).map((l: any) => w.lampLevel(l, w.ls));
+  });
+  expect(levels.some((v: number) => v > 0 && v < 1)).toBe(true);
+  expect(new Set(levels).size).toBeGreaterThan(2);
+  await page.screenshot({ path: 'docs/art/luces/etapa-1/jardin-encendido-atardecer.png' });
+  for (const [name, scene] of Object.entries({
+    plaza: { ...PLAZA, period: 3, minutes: 20 },
+    jardin: { zone: 'garden', spot: [12, 11], period: 3, minutes: 20 },
+    restaurante: { zone: 'restaurant', spot: [9, 9], period: 3, minutes: 20 },
+  } as Record<string, Scene>)) {
+    await go(page, scene);
+    expect(await page.evaluate(() => (window as any).mmDebug.world.lamps.some((l: any) => l.kind === 'ambient'))).toBe(false);
+    await page.screenshot({ path: `docs/art/luces/etapa-1/${name}-noche.png` });
+  }
+  await go(page, { ...PLAZA, period: 3, minutes: 50 });
+  const windows = await page.evaluate(() => {
+    const w = (window as any).mmDebug.world;
+    return w.windowGlows.filter((g: any) => g.home).map((g: any) => w.facadeLevel(false, false, g));
+  });
+  expect(windows.some((v: number) => v === 0)).toBe(true);
+  expect(windows.some((v: number) => v > 0.5)).toBe(true);
+  // Exterior pools and corresponding panes must use exactly the same house/shop state.
+  expect(await page.evaluate(() => {
+    const w = (window as any).mmDebug.world;
+    return w.lamps.filter((l: any) => l.home).every((l: any) => {
+      const pane = w.windowGlows.find((g: any) => g.home && g.seed === l.seed);
+      return pane && w.lampLevel(l, w.ls) === w.facadeLevel(false, false, pane);
+    });
+  })).toBe(true);
+  const normal = (await state(page)).tint;
+  await page.screenshot({ path: 'docs/art/luces/etapa-1/plaza-noche-normal-tardia.png' });
+  // Test the actual settings controls, not a mutation of the preference object.
+  await page.evaluate(async () => (await import('/src/ui/settingsPanel.ts' as string)).openSettings(true));
+  const choices = page.getByRole('radiogroup', { name: 'Noche', exact: true });
+  await expect(choices.getByRole('radio', { name: 'Normal', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await choices.getByRole('radio', { name: 'Oscura', exact: true }).click();
+  await expect.poll(async () => (await state(page)).tint).not.toBe(normal);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mm_settings')!).nightBrightness)).toBe('dark');
+  expect(await page.evaluate(async () => (await import('/src/persistence/storage.ts' as string)).loadSettings().nightBrightness)).toBe('dark');
+  await page.screenshot({ path: 'docs/art/luces/etapa-1/ajustes-noche.png' });
+  await page.keyboard.press('Escape');
+  await page.screenshot({ path: 'docs/art/luces/etapa-1/plaza-noche-oscura.png' });
+  expect(await page.evaluate(() => {
+    const w = (window as any).mmDebug.world;
+    return w.shopSigns.length > 0 && w.shopSigns.every((s: any) => s.depth > w.dark.depth);
+  })).toBe(true);
+  expect(errors).toEqual([]);
+});
