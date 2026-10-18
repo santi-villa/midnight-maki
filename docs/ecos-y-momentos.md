@@ -18,3 +18,6 @@ Además, el final (promesa del faro) repite hasta tres líneas según estas elec
 
 ## Momentos del pueblo (`systems/townMoments.ts`)
 Siete vecinos reaccionan una vez a lo que hiciste con el restaurante (faroles, más mesas, personal, nivel 3 y 5, vitrina, reputación). Lo dicen en una burbuja cuando pasás cerca. Un vecino que ya comió en tu restaurante y tiene un plato favorito, al volver dice que volvió por ese plato.
+
+## Menú de pausa en celular
+El menú de pausa (el cartel de madera con Aventuras y Progreso, Guardar, Cargar, Ajustes, Cuenta y Guardar y salir) solo se abría con la tecla Esc. Ahora hay un cuarto botón redondo con el ícono de menú junto a Mochila, Misiones y Mapa, que abre el mismo menú; la ✕ lo cierra. En pantalla táctil el texto dice "Tocá la ✕ para seguir jugando" y no se muestran las teclas (I, M, J, Tab). La app "Más" del NoriPhone abre el mismo menú.

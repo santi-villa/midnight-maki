@@ -46,3 +46,23 @@ test('escape menu matches the wooden two-column board', async ({ page }, info) =
   await board.getByRole('tab', { name: 'Ajustes' }).click();
   await expect(board.getByRole('button', { name: 'Descansar un rato' })).toBeVisible();
 });
+
+test('on a phone a HUD button opens the same pause board and the ✕ closes it', async ({ page }, info) => {
+  await begin(page);
+  const vw = page.viewportSize()!.width;
+  const buttons = page.locator('.game-hud .hud-buttons .icon-btn');
+  await expect(buttons).toHaveCount(4);
+  const last = await buttons.last().boundingBox();
+  expect(last!.x + last!.width).toBeLessThanOrEqual(vw);
+  await buttons.last().tap();
+  const board = page.locator('.pause-sheet');
+  await expect(board).toBeVisible();
+  await expect(board).toContainText('Aventuras y Progreso');
+  await expect(board).toContainText('Tocá la ✕ para seguir jugando');
+  const box = await board.boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(vw);
+  await page.screenshot({ path: info.outputPath('pause-phone.png') });
+  await board.locator('.close-x').tap();
+  await expect(board).toBeHidden();
+});
