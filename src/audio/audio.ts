@@ -111,7 +111,7 @@ export function songURLs(track: Track): string[] {
     .map(([, url]) => url);
 }
 
-interface AmbienceBed { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; gain: GainNode; filter: BiquadFilterNode; rain: boolean }
+interface AmbienceBed { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; gain: GainNode; filter: BiquadFilterNode; rain: boolean; waves: boolean }
 
 function holdParam(param: AudioParam, time: number) {
   if (typeof param.cancelAndHoldAtTime === 'function') param.cancelAndHoldAtTime(time);
@@ -133,6 +133,7 @@ export class AudioEngine {
   private ambKind = '';
   private requestedAmbience = 'none';
   private windowDropTimer: number | null = null;
+  private gullTimer: number | null = null;
   private nightBed: { el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode } | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private pendingTrack: Track = 'none';
@@ -570,9 +571,16 @@ export class AudioEngine {
     this.ambKind = kind;
     if (this.windowDropTimer !== null) window.clearTimeout(this.windowDropTimer);
     this.windowDropTimer = null;
+    if (this.gullTimer !== null) window.clearTimeout(this.gullTimer);
+    this.gullTimer = null;
     const c = this.ctx;
     const rain = kind === 'rain' || kind === 'rain_inside';
     const inside = kind === 'rain_inside';
+    const waves = kind === 'waves' || kind === 'waves_night';
+    if (waves && this.ambBed?.waves) {
+      if (kind === 'waves') this.queueGull();
+      return;
+    }
     if (rain && this.ambBed?.rain) {
       this.fadeRain(this.ambBed, inside);
       if (inside) this.queueWindowDrop();
@@ -584,12 +592,12 @@ export class AudioEngine {
     if (kind === 'night' && this.startNightBed()) return;
     const f = c.createBiquadFilter();
     const g = c.createGain();
-    const bed: AmbienceBed = { sources: [], nodes: [f, g], gain: g, filter: f, rain };
+    const bed: AmbienceBed = { sources: [], nodes: [f, g], gain: g, filter: f, rain, waves };
     this.ambBed = bed;
     f.type = 'lowpass'; f.Q.value = 0.5;
-    f.frequency.value = rain ? (inside ? 420 : 1200) : kind === 'waves' ? 420 : 280;
+    f.frequency.value = rain ? (inside ? 420 : 1200) : waves ? 1800 : 280;
     g.gain.setValueAtTime(0, c.currentTime);
-    g.gain.linearRampToValueAtTime(rain ? (inside ? 0.065 : 0.25) : kind === 'waves' ? 0.14 : 0.1, c.currentTime + 0.55);
+    g.gain.linearRampToValueAtTime(rain ? (inside ? 0.065 : 0.25) : waves ? 0.09 : 0.1, c.currentTime + 0.55);
     f.connect(g).connect(this.amb);
     const addNoise = (body: boolean) => {
       const s = c.createBufferSource(); s.buffer = this.noise(); s.loop = true;
@@ -602,17 +610,57 @@ export class AudioEngine {
       } else s.connect(f);
       s.start(0, body ? 0.7 : 0);
     };
-    addNoise(false);
-    if (rain) addNoise(true);
-    if (kind === 'waves') {
-      // Preserve the beach bed until its separate sound pass; retire its oscillator with its source.
-      const lfo = c.createOscillator();
-      const lg = c.createGain();
-      lfo.frequency.value = 0.12; lg.gain.value = 0.08;
-      lfo.connect(lg).connect(g.gain);
-      lfo.start(); bed.sources.push(lfo); bed.nodes.push(lfo, lg);
-    }
+    if (waves) { addNoise(true); this.addSeaFoam(bed); }
+    else { addNoise(false); if (rain) addNoise(true); }
+    if (kind === 'waves') this.queueGull();
     if (inside) this.queueWindowDrop();
+  }
+
+  /** Quiet foam above the low, constant swell. Random smoothed swells replace the eight-second sine. */
+  private addSeaFoam(bed: AmbienceBed) {
+    const c = this.ctx!;
+    const foam = c.createBufferSource(); foam.buffer = this.noise(); foam.loop = true; foam.playbackRate.value = 1.13;
+    const band = c.createBiquadFilter(); band.type = 'bandpass'; band.frequency.value = 900; band.Q.value = 0.45;
+    const gain = c.createGain(); gain.gain.value = 0;
+    foam.connect(band).connect(gain).connect(bed.filter);
+    // A tiny looping control buffer: irregular 2–5 second waves, continuous at the seam.
+    const rate = 32, length = 47 * rate, envelope = c.createBuffer(1, length, 8000);
+    const data = envelope.getChannelData(0); const first = 0.3;
+    let at = 0, value = first;
+    while (at < length - 1) {
+      const next = Math.min(length - 1, at + Math.round((2 + this.rng() * 3) * rate));
+      const target = next === length - 1 ? first : 0.12 + this.rng() * 0.42;
+      for (let i = at; i <= next; i++) {
+        const u = (i - at) / (next - at), ease = u * u * (3 - 2 * u);
+        data[i] = value + (target - value) * ease;
+      }
+      at = next; value = target;
+    }
+    const control = c.createBufferSource(); control.buffer = envelope; control.loop = true; control.playbackRate.value = rate / 8000; control.connect(gain.gain);
+    bed.sources.push(foam, control); bed.nodes.push(foam, band, gain, control);
+    foam.start(0, 1.1); control.start();
+  }
+
+  private queueGull() {
+    this.gullTimer = window.setTimeout(() => {
+      this.gullTimer = null;
+      if (this.ambKind !== 'waves' || !this.ctx) return;
+      if (!document.hidden && this.ctx.state === 'running') this.seagull();
+      this.queueGull();
+    }, 35_000 + this.rng() * 55_000);
+  }
+
+  /** Distant gull, routed through the ambience slider and never queued at night. */
+  private seagull() {
+    const c = this.ctx!, t = c.currentTime;
+    const o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+    o.type = 'triangle'; f.type = 'lowpass'; f.frequency.value = 1500;
+    o.frequency.setValueAtTime(720, t); o.frequency.linearRampToValueAtTime(1050, t + 0.12);
+    o.frequency.exponentialRampToValueAtTime(620, t + 0.55);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.009, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
+    o.connect(f).connect(g).connect(this.amb);
+    o.onended = () => { o.disconnect(); f.disconnect(); g.disconnect(); };
+    o.start(t); o.stop(t + 0.7);
   }
 
   private fadeRain(bed: AmbienceBed, inside: boolean) {
