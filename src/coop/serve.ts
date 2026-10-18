@@ -137,6 +137,7 @@ export function buildFloor(parties: PartySnap[]): FloorSnap {
     jobs: tableJobs(),
     orders: game.save.orders.filter((o) => o.plate && o.plate.state !== 'delivered'),
     cookable, pantry, staff,
+    weather: game.flag('weather') === 'rain' ? 'rain' : 'clear',
     tables: tableIds(),
     time: { day: t.day, period: t.period, minutes: Math.round(t.minutes * 10) / 10 },
   };
