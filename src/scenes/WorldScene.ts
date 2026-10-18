@@ -601,9 +601,10 @@ export class WorldScene extends Phaser.Scene {
       }
       if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 76 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 0.62 : 0.5 });
       this.objs.push(img);
-      if (!onWall && !p.def.ground) {
-        this.addShadow(p.def.kind, px, py, p.def.sw, p.def.w);
-        this.castShadow(img, p.def.kind);
+      if (!onWall && !p.def.ground && p.def.sombra !== 'ninguna') {
+        const contact = p.def.sombra === 'contacto';
+        this.addShadow(p.def.kind, px, py, contact ? 8 : p.def.sw, p.def.w, contact);
+        if (!contact) this.castShadow(img, p.def.kind);
       }
       if (p.def.kind === 'building') {
         // warm light spilling from the windows and door onto the street at night
@@ -1830,7 +1831,7 @@ export class WorldScene extends Phaser.Scene {
     if (game.flag('festival_today') && this.zone.def.outdoor && this.zoneId === 'plaza') track = 'festival';
     audio.play(track);
     const rain = game.flag('weather') === 'rain';
-    audio.ambience(rain ? (this.zone.def.outdoor ? 'rain' : 'rain_inside') : clock.isNight() && this.zone.def.outdoor ? 'night' : this.zoneId === 'beach' ? 'waves' : 'none');
+    audio.ambience(rain ? (this.zone.def.outdoor ? 'rain' : 'rain_inside') : this.zoneId === 'beach' ? (clock.isNight() ? 'waves_night' : 'waves') : clock.isNight() && this.zone.def.outdoor ? 'night' : 'none');
   }
 
   // ------------------------------------------------------------------ ambient fx
@@ -3275,7 +3276,7 @@ export class WorldScene extends Phaser.Scene {
   /**
    * Projected shadow: the sprite's silhouette, flipped onto the ground and pivoted on the object's feet.
    * The sun leans the tip. It does not slide the whole shape off the base.
-   * Paper lanterns keep only the contact oval: a flipped copy read as a second red balloon.
+   * Hanging lanterns have no ground shadow; small freestanding lamps use only base contact.
    */
   private castShadow(img: Phaser.GameObjects.Image, kind: string, track = true): Phaser.GameObjects.Image | null {
     if (['flowers', 'reeds', 'mushroom', 'pier', 'stars', 'puddle', 'awning', 'poster', 'stairs', 'rug', 'paperlantern', 'lanternstring'].includes(kind)) return null;
@@ -3293,9 +3294,10 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Contact shadow: a short mark on the ground, centered on the object's base. */
-  private addShadow(kind: string, x: number, y: number, sw: number, w: number) {
+  private addShadow(kind: string, x: number, y: number, sw: number, w: number, contact = false) {
     let sh: Phaser.GameObjects.Shape;
-    if (kind === 'building') sh = this.add.rectangle(x, y + 1, w * TILE * 0.92, 5, 0x1a1428, 0.28);
+    if (contact) sh = this.add.ellipse(x, y - 1, 6, 2, 0x1a1428, 0.25).setData('contactShadow', true);
+    else if (kind === 'building') sh = this.add.rectangle(x, y + 1, w * TILE * 0.92, 5, 0x1a1428, 0.28);
     else if (['tree', 'sakura', 'pine'].includes(kind)) sh = this.add.ellipse(x, y, Math.max(10, sw * 0.42), 5, 0x1a1428, 0.32);
     else if (['flowers', 'reeds', 'mushroom', 'pier', 'stars', 'torii'].includes(kind)) return;
     else sh = this.add.ellipse(x, y, Math.max(8, sw * 0.7), 4, 0x1a1428, 0.28);
