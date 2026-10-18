@@ -5,6 +5,9 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
+import { RainFx } from './rainFx';
+import { rainCells, WetGround } from './rainmath';
+import { Footsteps, stepGain, stepSurface } from '../audio/footsteps';
 import { coversLitPane, homeWindowLevel, lampActivation, lampFlicker, lightSeed, lampPoolTint, lightState, type Box, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
 import { bus } from '../core/events';
@@ -140,7 +143,10 @@ export class WorldScene extends Phaser.Scene {
   private shadowKey = '';
   private dark!: Phaser.GameObjects.RenderTexture;
   private lightStamp!: Phaser.GameObjects.Image;
-  private weather: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
+  private rainFx: RainFx | null = null;
+  private wetGround = new WetGround();
+  private weatherKey = '';
+  private footsteps = new Footsteps();
   private ambient: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
   private gatherSprites: { spot: GatherSpot; img: Phaser.GameObjects.Image }[] = [];
   private bugs: Bug[] = [];
@@ -160,7 +166,6 @@ export class WorldScene extends Phaser.Scene {
   private approachT = 90;
   private approaching: string | null = null;
   private blockKey = '';
-  private stepT = 0;
   private transitioning = false;
   private pointerDown: { x: number; y: number; t: number } | null = null;
   decorMode = false;
@@ -489,6 +494,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private clearZone() {
+    this.rainFx?.destroy(); this.rainFx = null;
+    this.footsteps = new Footsteps();
     this.questPin?.setVisible(false);
     for (const s of this.shopSigns) s.destroy();
     this.shopSigns = [];
@@ -560,6 +567,8 @@ export class WorldScene extends Phaser.Scene {
     this.occluders = [];
     // props
     for (const p of this.zone.props) {
+      // Outdoor puddles now grow and dry with the rain instead of being permanent prop stamps.
+      if (def.outdoor && p.def.kind === 'puddle') continue;
       const key = propTexture(this, p.key);
       const px = p.x * TILE + (p.def.w * TILE) / 2;
       const py = (p.y + p.def.h) * TILE;
@@ -771,7 +780,7 @@ export class WorldScene extends Phaser.Scene {
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
     this.pets?.destroy();
-    this.pets = this.zone?.def.outdoor ? new Pets(this, this.zoneId, clock.isNight()) : null;
+    this.pets = this.zone?.def.outdoor ? new Pets(this, this.zoneId, clock.isNight(), (x, y) => this.petFootstep(x, y)) : null;
     const def = this.zone.def;
     if (!def.outdoor || game.flag('weather') === 'rain' || ['market', 'station'].includes(this.zoneId)) return;
     const night = clock.isNight();
@@ -1791,7 +1800,7 @@ export class WorldScene extends Phaser.Scene {
     if (game.flag('festival_today') && this.zone.def.outdoor && this.zoneId === 'plaza') track = 'festival';
     audio.play(track);
     const rain = game.flag('weather') === 'rain';
-    audio.ambience(rain && this.zone.def.outdoor ? 'rain' : clock.isNight() && this.zone.def.outdoor ? 'night' : this.zoneId === 'beach' ? 'waves' : rain ? 'rain' : 'none');
+    audio.ambience(rain ? (this.zone.def.outdoor ? 'rain' : 'rain_inside') : clock.isNight() && this.zone.def.outdoor ? 'night' : this.zoneId === 'beach' ? 'waves' : 'none');
   }
 
   // ------------------------------------------------------------------ ambient fx
@@ -1802,8 +1811,11 @@ export class WorldScene extends Phaser.Scene {
     this.waterFx?.destroy();
     this.waterFx = null;
     if (this.zone?.def.outdoor && this.waterTiles.length) this.waterFx = new WaterFx(this, this.zone.def.ground, this.lamps, lowFx());
-    this.weather?.destroy();
-    this.weather = null;
+    this.rainFx?.destroy(); this.rainFx = null;
+    if (this.zone?.def.outdoor) {
+      this.wetGround.visit(this.zoneId);
+      this.rainFx = new RainFx(this, rainCells(this.zone.def.ground, (x, y) => this.zone.grid.isSolid(x, y)), lowFx());
+    }
     this.moths?.destroy();
     this.moths = null;
     if (!this.zone || lowFx()) return;
@@ -1813,24 +1825,6 @@ export class WorldScene extends Phaser.Scene {
     const W = def.w * TILE;
     const H = def.h * TILE;
     const rain = game.flag('weather') === 'rain';
-    if (rain && def.outdoor) {
-      const tex = dotTexture(this, 'rain', '#bcd4e6', 1, 4);
-      this.weather = this.add.particles(0, -10, tex, {
-        x: { min: 0, max: W },
-        speedY: { min: 170, max: 220 },
-        speedX: -20,
-        lifespan: (H / 190) * 1000 + 300,
-        frequency: 25,
-        quantity: 2,
-        alpha: 0.55,
-      });
-      this.weather.setDepth(150000);
-      // little splashes and ripples on the ground
-      const sp = dotTexture(this, 'splash', '#dce8f5', 2, 1);
-      const splash = this.add.particles(0, 0, sp, { x: { min: 0, max: W }, y: { min: 0, max: H }, lifespan: 260, frequency: 30, quantity: 2, scaleX: { start: 1, end: 3 }, alpha: { start: 0.7, end: 0 } });
-      splash.setDepth(-4);
-      this.ambient.push(splash);
-    }
     if (!def.outdoor) {
       if (this.zoneId === 'restaurant') {
         const steam = dotTexture(this, 'steam', '#f6ecd6', 2, 2);
@@ -2477,6 +2471,13 @@ export class WorldScene extends Phaser.Scene {
     if (sampleFrame(dms)) this.enterLowFx(true);
     const dt = Math.min(0.05, dms / 1000);
     if (!this.player || !this.zone) return;
+    const raining = game.flag('weather') === 'rain';
+    if (this.weatherKey !== String(raining)) {
+      this.weatherKey = String(raining);
+      this.playZoneAudio(); this.setupAmbient(); this.spawnCritters();
+    }
+    this.wetGround.advance(dt, raining);
+    this.rainFx?.update(dt, raining, this.wetGround.visit(this.zoneId), this.cameras.main.worldView);
     if (!this.transitioning) { if (mirror.on) this.followHostClock(); else clock.tick(dt); }
     if (!mirror.on) this.watchBedtime();
     this.syncCoop(dt);
@@ -2494,6 +2495,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateCritters(dt);
     this.moths?.update(dt, this.cameras.main.worldView);
     if (this.pets && this.player) this.pets.update(dt, this.player);
+    this.updateFootsteps(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
     this.waterFx?.update(dt, this.waterEnv());
@@ -2513,12 +2515,32 @@ export class WorldScene extends Phaser.Scene {
     this.layoutBubbles();
   }
 
-  /** Footstep sound for the surface Sofi is walking on. */
-  private stepSound(): string {
-    if (!this.zone.def.outdoor) return 'step_wood';
-    if (this.zoneId === 'beach') return 'step_sand';
-    if (['plaza', 'market', 'station'].includes(this.zoneId)) return 'step_stone';
-    return 'step_grass';
+  private stepSound(x: number, y: number): string {
+    const outdoor = !!this.zone.def.outdoor;
+    const tile = this.zone.def.ground[Math.floor((y - 1) / TILE)]?.[Math.floor(x / TILE)] ?? '';
+    return stepSurface(outdoor, tile, outdoor && (game.flag('weather') === 'rain' || this.wetGround.visit(this.zoneId) > 0.18));
+  }
+
+  private petFootstep(x: number, y: number) {
+    if (clock.paused || this.inputLocked || this.transitioning || document.hidden) return;
+    const gain = stepGain(Math.hypot(x - this.player.x, y - this.player.y), true);
+    if (gain > 0.01) audio.sfxPlay(this.stepSound(x, y), gain);
+  }
+
+  private updateFootsteps(dt: number) {
+    const paused = clock.paused || !!this.inputLocked || this.transitioning || this.decorMode || document.hidden;
+    const actors = this.glowActors();
+    if (this.remote?.sprite.visible) actors.push(this.remote);
+    actors.sort((a, b) => Math.hypot(a.x - this.player.x, a.y - this.player.y) - Math.hypot(b.x - this.player.x, b.y - this.player.y));
+    for (const a of actors) {
+      if (!this.footsteps.sample(a, a.x, a.y, dt, paused)) continue;
+      const gain = a === this.player ? 1 : stepGain(Math.hypot(a.x - this.player.x, a.y - this.player.y));
+      if (gain > 0.01) audio.sfxPlay(this.stepSound(a.x, a.y), gain);
+    }
+    for (const c of this.critters) {
+      if (c.kind !== 'cat' || !c.s.visible) continue;
+      if (this.footsteps.sample(c.s, c.s.x, c.s.y, dt, paused, true)) this.petFootstep(c.s.x, c.s.y);
+    }
   }
 
   private updatePlayer(dt: number) {
@@ -2552,13 +2574,6 @@ export class WorldScene extends Phaser.Scene {
     }
     const wasTile = `${p.tx},${p.ty}`;
     p.update(dt);
-    if (p.moving) {
-      this.stepT -= dt;
-      if (this.stepT <= 0) {
-        this.stepT = 0.32;
-        audio.sfxPlay(this.stepSound());
-      }
-    }
     if (`${p.tx},${p.ty}` !== wasTile || (p.moving && p.manual)) this.checkWalkDoor();
     if (this.cookProp) this.cookProp.setPosition(p.x, p.y - 34);
     if (this.notingUntil && (p.moving || performance.now() >= this.notingUntil)) {
