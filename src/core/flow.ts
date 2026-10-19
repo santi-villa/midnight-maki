@@ -60,10 +60,10 @@ async function startWorld(isNew: boolean) {
     clock.resetPause();
     ensureDefaultDecor();
     installDaily();
-    // The title scene sleeps as soon as the menu art loads, so its warm timer never finishes.
-    // Paint the remaining sheets here, before the world is playable, instead of hitching once a second in play.
+    // Existing saves need their destination immediately. New games can prepare outdoor art
+    // while reading the intro, rather than waiting for the whole village before its first picture.
     const title = phaser.scene.getScene('title');
-    if (title && outdoorWarmPending()) {
+    if (!isNew && title && outdoorWarmPending()) {
       await drainOutdoorWarm(title, (done, total) => load.set(done, total, 'Preparando Villa Nori…'));
     } else {
       load.set(1, 1, 'Villa Nori está lista');
@@ -88,7 +88,7 @@ async function startWorld(isNew: boolean) {
     if (isNew) {
       showHud(false);
       const { playIntro } = await import('../story/intro');
-      await playIntro();
+      await playIntro(() => drainOutdoorWarm(world));
     } else {
       let zone = p.zone;
       if (zone === 'arrival' || !zone) zone = 'restaurant';

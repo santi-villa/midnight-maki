@@ -82,5 +82,13 @@ test('compact mission and phone remain usable and saves continue in the restaura
   await page.getByRole('button', { name: 'Continuar', exact: true }).tap();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world?.zoneId)).toBe('restaurant');
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.canAct())).toBe(true);
+  for (const [width, height] of [[1280, 720], [390, 844]]) {
+    await page.setViewportSize({ width, height });
+    await expect.poll(() => page.evaluate(() => {
+      const w = (window as any).mmDebug.world;
+      return { width: w.cameras.main.width, height: w.cameras.main.height,
+        canvasWidth: w.game.canvas.width, canvasHeight: w.game.canvas.height };
+    })).toEqual({ width, height, canvasWidth: width, canvasHeight: height });
+  }
   expect(errors).toEqual([]);
 });
