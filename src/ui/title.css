@@ -2,6 +2,17 @@
    The blurred copy fills the whole screen, so the space under the menu is art, not flat navy. */
 .tt .tt-bg { bottom: 0; place-items: start center; }
 .tt.has-bg .tt-brand { display: none; }
+/* The title is the logo image over the clean artwork. It rises and settles very slowly. */
+.tt { --logo-w: min(92vw, 520px); --logo-h: calc(var(--logo-w) * 0.344); }
+.tt .tt-logo {
+  position: absolute; z-index: 2; left: 50%; top: calc(4vh + var(--safe-t)); width: var(--logo-w); height: auto;
+  transform: translateX(-50%); pointer-events: none; user-select: none;
+  filter: drop-shadow(0 4px 0 #15172a) drop-shadow(0 0 14px #0b1030aa);
+  animation: tt-logo-float 5s ease-in-out infinite alternate;
+}
+.tt.no-bg .tt-logo { display: none; }
+.tt.tt-calm .tt-logo, .reduce-motion .tt .tt-logo { animation: none; }
+@keyframes tt-logo-float { from { transform: translate(-50%, 0); } to { transform: translate(-50%, -5px); } }
 .tt .tt-back { filter: blur(18px) brightness(.4); }
 .tt .tt-frame { flex: none; }
 .tt .tt-brand {
@@ -17,7 +28,7 @@
 .tt .tt-brand .brand-subtitle { font-size: clamp(12px, 1.9vh, 17px); margin-top: 9px; color: #fff0d4; letter-spacing: 1px; text-shadow: 1px 2px #15172a; }
 .tt .tt-brand .brand-family { font-size: 12px; margin-top: 5px; color: #bed1ad; text-shadow: 1px 1px #15172a; }
 .tt .tt-prompt {
-  left: 50%; right: auto; top: calc(5vh + 160px + var(--safe-t)); bottom: auto;
+  left: 50%; right: auto; top: calc(4vh + var(--logo-h) + 22px + var(--safe-t)); bottom: auto;
   transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
   min-height: 44px; padding: 8px 16px; border: 2px solid #bca06b; border-radius: 4px;
   background: #20283de8; color: #fff0d4; font: inherit; font-size: 17px; letter-spacing: .4px;
@@ -46,14 +57,13 @@
   .tt-main-actions:has(> :nth-child(2):last-child) { grid-template-columns: 1fr; }
   .tt .tt-brand { top: calc(5vh + var(--safe-t)); }
   .tt .tt-brand .brand-family { display: none; }
-  .tt .tt-prompt { top: calc(5vh + 145px + var(--safe-t)); }
 }
 @media (max-height: 520px) and (orientation: landscape) {
   .tt .tt-menu { gap: 4px; padding: 5px 8px; bottom: calc(14px + var(--safe-b)); }
   .tt .tt-brand { top: calc(8px + var(--safe-t)); }
   .tt .tt-brand .brand-top, .tt .tt-brand .brand-bottom { font-size: 27px; }
   .tt .tt-brand .brand-family { display: none; }
-  .tt .tt-prompt { top: calc(110px + var(--safe-t)); }
+  .tt { --logo-w: min(46vw, 400px); }
   .tt .tt-btn { font-size: 15px; }
 }
 
