@@ -11,7 +11,7 @@ async function openTitle(page: Page, extra: Record<string, unknown> = {}) {
 
 test('title: only art + prompt first, first tap unlocks audio and fades the menu in', async ({ page }) => {
   await openTitle(page);
-  await expect(page.locator('.tt-prompt')).toHaveText('Tocá para comenzar');
+  await expect(page.locator('.tt-prompt')).toContainText('Entrar a Villa Nori');
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('.tt-menu')!).opacity)).toBe('0');
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('.tt-menu')!).pointerEvents)).toBe('none');
   await page.locator('.tt').click();

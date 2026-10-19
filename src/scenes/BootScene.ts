@@ -37,7 +37,7 @@ export class BootScene extends Phaser.Scene {
     prog?.(0.85);
     ensureTileset(this);
     prog?.(1);
-    if (tip) tip.textContent = 'Abriendo Mapaches y Sushi…';
+    if (tip) tip.textContent = 'Abriendo Maki & Mapaches…';
     this.scene.start('title');
     this.game.events.emit('booted');
   }
