@@ -20,7 +20,7 @@ import { PRESENTATIONS, recordRecipeResult, recipePresentation } from './recipeC
 import { WANT_TEXT, canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learnRecipe, maxOrders, refreshOrders, serveOrder, addRestaurantXp, unlockLevelRecipes, charm } from './orders';
 import { mirror } from './mirror';
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
-import { UPGRADES, buyUpgrade, upgradeMissing } from './upgrades';
+import { UPGRADES, buyUpgrade, upgradeMissing, type UpgradeDef } from './upgrades';
 
 /** Where to get wood and stone, shown next to whatever is missing. */
 const materialHint = (missing: string[]) => (missing.some((m) => /^(Madera|Piedra)/.test(m)) ? '. La madera y la piedra se compran en la Carpintería de Ren (plaza) o se juntan por el pueblo.' : '');
@@ -535,13 +535,15 @@ export function openUpgrades(onClose?: () => void) {
             }
           });
         } }, 'Ascender')) : h('p', { class: 'hint' }, rs.level === 1 ? 'El nivel 2 se alcanza cocinando, sin cobrar monedas ni materiales.' : 'Nivel máximo alcanzado. Seguí eligiendo mejoras y disfrutando del pueblo.')));
-    for (const u of UPGRADES) {
+    // available first, then the ones still blocked, bought ones last (order only; costs and requirements unchanged)
+    const rank = (u: UpgradeDef) => game.save.restaurant.upgrades.includes(u.id) ? 2 : upgradeMissing(u).length ? 1 : 0;
+    for (const u of [...UPGRADES].sort((a, b) => rank(a) - rank(b))) {
       const owned = game.save.restaurant.upgrades.includes(u.id);
       const missing = upgradeMissing(u);
       body.append(
         h('div', { class: 'card col' },
           h('b', null, u.name), h('div', { class: 'hint' }, u.desc),
-          owned ? h('span', { class: 'pill' }, 'Comprada') : h('div', { class: 'col' }, h('span', { class: 'hint' }, resources(u.price, u.items ?? {})),
+          owned ? h('span', { class: 'pill' }, 'Comprada') : h('div', { class: 'col' }, h('span', { class: missing.length ? 'pill' : 'pill ok' }, missing.length ? 'Bloqueada' : 'Disponible'), h('span', { class: 'hint' }, resources(u.price, u.items ?? {})),
             missing.length ? h('span', { class: 'hint' }, `Falta: ${missing.join(' · ')}${materialHint(missing)}`) : null,
             h('button', { class: 'btn primary', disabled: !!missing.length, onclick: () => { if (buyUpgrade(u.id)) { audio.sfxPlay('coin'); toast(`¡${u.name}!`); render(); } else { toast('No se pudo construir: revisá los recursos o el espacio libre del cuarto. No se cobró nada.'); render(); } } }, 'Construir'))),
       );

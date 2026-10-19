@@ -14,16 +14,15 @@ test('escape menu matches the wooden two-column board', async ({ page }) => {
   await page.keyboard.press('Escape');
   const board = page.locator('.pause-sheet');
   await expect(board).toBeVisible();
-  await expect(board).toContainText('Aventuras y Progreso');
-  await expect(board).toContainText('Opciones de Sistema');
   await expect(board).toContainText('El juego está en pausa.');
-  await expect(board.getByRole('button', { name: 'Continuar partida' })).toBeVisible();
+  await expect(board.getByRole('button', { name: 'Reanudar' })).toBeVisible();
   await expect(board.getByRole('button', { name: 'Guardar y salir' })).toBeVisible();
-  const mochila = await board.getByRole('button', { name: /Mochila/ }).boundingBox();
-  const mapa = await board.getByRole('button', { name: /Mapa/ }).boundingBox();
-  expect(mochila && mapa).toBeTruthy();
-  expect(Math.abs(mochila!.y - mapa!.y)).toBeLessThan(8);
-  expect(mapa!.x).toBeGreaterThan(mochila!.x + mochila!.width - 4);
+  const guardar = await board.getByRole('button', { name: 'Guardar', exact: true }).boundingBox();
+  const cargar = await board.getByRole('button', { name: /Cargar/ }).boundingBox();
+  expect(guardar && cargar).toBeTruthy();
+  expect(Math.abs(guardar!.y - cargar!.y)).toBeLessThan(8);
+  expect(cargar!.x).toBeGreaterThan(guardar!.x + guardar!.width - 4);
+  await expect(board.getByRole('button', { name: /Mochila/ })).toHaveCount(0);
   const sheet = await board.boundingBox();
   expect(sheet!.width).toBeLessThan(520);
   expect(sheet!.x).toBeGreaterThan(200);
@@ -37,10 +36,9 @@ test('escape menu matches the wooden two-column board', async ({ page }) => {
   expect(clipped).toEqual([]);
   await page.screenshot({ path: 'docs/art/pausa/menu-390.png' });
 
-  await board.getByRole('tab', { name: 'Amigos' }).click();
-  await expect(board.getByRole('button', { name: 'Jugar juntos' })).toBeVisible();
-  await board.getByRole('tab', { name: 'Ajustes' }).click();
   await expect(board.getByRole('button', { name: 'Descansar un rato' })).toBeVisible();
+  await board.getByRole('button', { name: 'Ajustes' }).click();
+  await expect(page.locator('.panel-head', { hasText: 'Ajustes' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(board).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).mmDebug.clock.paused)).toBe(false);
@@ -69,7 +67,7 @@ test.describe('touch pause', () => {
         return { paused: m.clock.paused, canAct: m.world.canAct(), unchanged: m.game.save.time.minutes === before };
       })).toEqual({ paused: true, canAct: false, unchanged: true });
       if (width === 390) await page.screenshot({ path: 'docs/art/pausa/tactil.png' });
-      await board.getByRole('button', { name: 'Continuar partida' }).tap();
+      await board.getByRole('button', { name: 'Reanudar' }).tap();
       await expect(board).toHaveCount(0);
       expect(await page.evaluate(() => ({ paused: (window as any).mmDebug.clock.paused, canAct: (window as any).mmDebug.world.canAct() }))).toEqual({ paused: false, canAct: true });
     }

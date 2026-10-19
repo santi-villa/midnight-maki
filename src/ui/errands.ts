@@ -35,10 +35,10 @@ export function errandsSection(onClaim?: () => void): HTMLElement {
       const p = progressOf(e), done = isComplete(e);
       return h('article', { class: 'card col errand-card' + (done && !e.claimed ? ' ready' : '') + (e.claimed ? ' claimed' : ''), 'data-errand-id': e.id },
         h('div', { class: 'errand-heading' }, h('b', null, errandFrom(e)), h('span', { class: 'errand-status' }, e.claimed ? 'Recibido' : done ? e.kind === 'deliver' ? 'Listo para entregar' : 'Listo para cobrar' : 'En curso')),
-        h('div', null, errandText(e)),
-        h('p', { class: 'hint' }, errandHint(e)),
+        h('div', { class: 'errand-goal' }, errandText(e)),
         rewardList(e.coins, e.rewards),
         h('div', { class: 'bar', role: 'progressbar', 'aria-label': 'Progreso del encargo', 'aria-valuemin': '0', 'aria-valuemax': e.goal, 'aria-valuenow': p }, h('i', { style: { width: `${p / e.goal * 100}%` } })),
+        h('details', { class: 'errand-more' }, h('summary', null, 'Cómo se cumple'), h('p', { class: 'hint' }, errandHint(e))),
         h('div', { class: 'errand-actions' }, h('span', { class: 'hint' }, e.claimed ? 'Premio recibido' : `${p}/${e.goal}${pending ? ' · Premio guardado' : weekly ? ` · Hasta el día ${e.dueDay ?? st.week * 7 + 7}` : ' · Hoy'}`),
           done && !e.claimed ? h('button', { class: 'btn small primary', onclick: () => {
             const receipt = claimErrandReward(e.id);
@@ -51,14 +51,14 @@ export function errandsSection(onClaim?: () => void): HTMLElement {
             render();
           } }, e.kind === 'deliver' ? `Entregar ${e.goal} y recibir` : 'Recibir premio') : null));
     };
-    wrap.append(h('h3', null, `Encargos de hoy · Día ${st.day}`), h('p', { class: 'hint' }, 'Opcionales y sin castigos. Los premios de encargos completados esperan hasta que los cobres.'), ...st.daily.map((e) => card(e, false)));
-    wrap.append(h('h3', null, `Meta semanal · ${WEEKLY_THEMES.find((t) => t.id === st.weeklyTheme)?.name ?? 'Ayudar al pueblo'}`), h('p', { class: 'hint' }, 'Cada semana propone otra actividad disponible. Los muebles y adornos se guardan para que elijas dónde colocarlos.'), ...st.weekly.map((e) => card(e, true)));
+    wrap.append(h('h3', null, `Encargos de hoy · Día ${st.day}`), h('p', { class: 'hint' }, 'Opcionales y sin castigos. Los premios esperan hasta que los cobres.'), ...st.daily.map((e) => card(e, false)));
+    wrap.append(h('h3', null, `Meta semanal · ${WEEKLY_THEMES.find((t) => t.id === st.weeklyTheme)?.name ?? 'Ayudar al pueblo'}`), h('p', { class: 'hint' }, 'Cada semana propone otra actividad. Los muebles y adornos se guardan para que elijas dónde colocarlos.'), ...st.weekly.map((e) => card(e, true)));
     if (st.pending?.length) wrap.append(h('h3', null, 'Premios pendientes'), ...st.pending.map((e) => card(e, e.id.startsWith('w'), true)));
     const completed = game.save.stats.weeklyErrandsDone ?? 0;
-    wrap.append(h('h3', null, 'Gracias de Villa Nori'), h('p', { class: 'hint' }, `${completed} encargos semanales recibidos. Podés dejar pasar semanas: no hay rachas que mantener.`), h('div', { class: 'errand-stamps' }, ...WEEKLY_STAMPS.map((stamp) => {
+    wrap.append(h('details', { class: 'errand-more errand-thanks' }, h('summary', null, `Gracias de Villa Nori · ${completed} encargos semanales`), h('p', { class: 'hint' }, 'Podés dejar pasar semanas: no hay rachas que mantener.'), h('div', { class: 'errand-stamps' }, ...WEEKLY_STAMPS.map((stamp) => {
       const got = game.has('once_errand_stamp_' + stamp.goal);
       return h('div', { class: 'errand-stamp' + (got ? ' earned' : '') }, furniturePicture(stamp.furniture), h('b', null, stamp.name), h('span', { class: 'hint' }, FURN_BY_ID[stamp.furniture].name), h('span', { class: 'hint' }, got ? 'Recibido · disponible en Decorar' : `Al recibir ${stamp.goal} metas semanales`));
-    })));
+    }))));
   };
   render();
   return wrap;

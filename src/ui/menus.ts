@@ -1,4 +1,3 @@
-import { inputMethod } from '../input/keys';
 import { recipeCollectionView } from './recipes';
 import { runTask } from '../core/errors';
 /** Main in-game menus: bag, journal (quests, investigation, relations, collections, calendar), and menu. */
@@ -25,8 +24,6 @@ import { openTownMemories } from './townMemories';
 import { chip, emptyState, tabBar } from './kit';
 import { skinIconEl } from './skin';
 import { dayOfSeason, seasonOf, SEASONS, weekday } from '../core/balance';
-import { settings } from '../core/settings';
-import { bindingMap, keyLabel, type GameAction } from '../input/bindings';
 
 function tabs(names: string[], onPick: (i: number) => void, start = 0, icons: string[] = []) {
   const bar = tabBar(names.map((label, i) => ({ label, icon: icons[i] })), onPick, start);
@@ -258,69 +255,29 @@ export function openMenu(pause = false) {
   const p = panel({ title: 'Menú', body: grid });
 }
 
-/** Wooden pause board from the reference: adventures on top, system underneath, exit across the bottom. */
+/** Pause board: resume, save, load, settings and exit. Everything else lives in the NoriPhone. */
 function openPauseBoard() {
-  const keys = bindingMap(settings.bindings);
-  const badge = (action: GameAction) => keyLabel(keys[action]);
   let close = () => {};
   const go = (fn: () => void) => () => { close(); void runTask('ui:menu', fn); };
-  const item = (label: string, icon: string, fn: () => void, key?: string, wide = false) =>
-    h('button', { type: 'button', class: 'pause-item' + (wide ? ' wide' : ''), onclick: go(fn) }, skinIconEl(icon), h('span', null, label), key && inputMethod() !== 'touch' ? h('kbd', null, key) : null);
+  const item = (label: string, icon: string, fn: () => void, wide = false) =>
+    h('button', { type: 'button', class: 'pause-item' + (wide ? ' wide' : ''), onclick: go(fn) }, skinIconEl(icon), h('span', null, label));
 
-  const adventure = h('div', { class: 'pause-page' },
-    h('p', { class: 'pause-hint' }, 'El juego está en pausa. Tocá Continuar partida o ✕ para volver. En PC también podés usar Esc.'),
-    h('button', { type: 'button', class: 'btn primary', onclick: () => close() }, 'Continuar partida'),
-    h('h3', null, 'Aventuras y Progreso'),
-    h('div', { class: 'pause-grid' },
-      item('Mochila', 'bag', () => openBag(), badge('inventory')),
-      item('Mapa', 'map', () => openMap(), badge('map')),
-      item('Misiones', 'clipboard', () => openJournal(0), badge('journal')),
-      item('Personaje', 'shirt', () => import('./wardrobe').then((m) => m.openWardrobe())),
-      item('Amigos', 'heart', () => openJournal(2)),
-      item('Recetario', 'maki', () => openJournal(4)),
-      item('NoriPhone', 'phone', () => openNoriPhone(), 'Tab'),
-      item('Colecciones', 'gift', () => openJournal(3)),
-      item('Investigación', 'inspect', () => openJournal(1)),
-      item('Cámara', 'camera', () => import('./camera').then((m) => m.takePhoto())),
-    ),
-    h('h3', null, 'Opciones de Sistema'),
+  const page = h('div', { class: 'pause-page' },
+    h('p', { class: 'pause-hint' }, 'El juego está en pausa. Tocá Reanudar o ✕ para volver. En PC también podés usar Esc.'),
+    h('button', { type: 'button', class: 'btn primary', onclick: () => close() }, 'Reanudar'),
     h('div', { class: 'pause-grid' },
       item('Guardar', 'disk', saveManualSlot),
       item('Cargar', 'door', loadSlot),
       item('Ajustes', 'gear', () => openSettings(true)),
+      item('Amigos online', 'heart', () => import('./friends').then((m) => m.openFriends())),
       item('Cuenta', 'cloud', () => import('./account').then((m) => m.openAccount())),
+      item('Descansar un rato', 'bed', () => restPeriod(), true),
     ),
     h('button', { type: 'button', class: 'pause-exit', onclick: go(saveAndExit) }, 'Guardar y salir'),
   );
-  const friends = h('div', { class: 'pause-page' },
-    h('h3', null, 'Amigos'),
-    h('div', { class: 'pause-grid' },
-      item('Amigos', 'heart', () => openJournal(2)),
-      item('Amigos online', 'heart', () => import('./friends').then((m) => m.openFriends())),
-      item('Jugar juntos', 'maki', () => import('./coop').then((m) => m.openCoop()), undefined, true),
-    ),
-  );
-  const system = h('div', { class: 'pause-page' },
-    h('h3', null, 'Sistema'),
-    h('div', { class: 'pause-grid' },
-      item('Ajustes', 'gear', () => openSettings(true)),
-      item('Descansar un rato', 'bed', () => restPeriod(), undefined, true),
-    ),
-  );
-  const pages = [adventure, friends, system];
-  const host = h('div', { class: 'pause-pages' });
-  const show = (i: number) => host.replaceChildren(pages[i]);
-  show(0);
-  const bar = tabBar([
-    { label: 'Pausa', icon: 'menu' },
-    { label: 'Amigos', icon: 'heart' },
-    { label: 'Ajustes', icon: 'gear' },
-  ], show, 0);
-  bar.classList.add('pause-tabs');
-  const p = panel({ title: 'Pausa', body: host });
+  const p = panel({ title: 'Pausa', body: page });
   close = p.close;
   p.root.classList.add('pause-sheet');
-  p.root.querySelector('.panel-head')?.prepend(bar);
 }
 
 async function saveManualSlot() {
