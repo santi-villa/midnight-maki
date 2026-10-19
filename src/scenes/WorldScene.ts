@@ -236,6 +236,9 @@ export class WorldScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const w = this.scale.width;
     const h = this.scale.height;
+    // A scene created after title-screen rotations can inherit its old camera viewport.
+    // Size it before computing bounds/zoom, also when changing orientation in play.
+    cam.setSize(w, h);
     const fit = walkingZoom(w, h, TILE);
     const framing = this.framingZoom != null;
     const zoom = framing ? clampFrameZoom(this.framingZoom!, fit) : fit;
@@ -2650,8 +2653,13 @@ export class WorldScene extends Phaser.Scene {
     for (const g of this.guests.values()) if (g.actor.sprite.visible && !SEATED_PHASES.includes(g.phase)) actors.push(g.actor);
 
     const lerp = Math.min(1, dt * 10);
+    const view = this.cameras.main.worldView;
     for (const occ of this.occluders) {
       if (!occ.sprite.active) continue;
+      // Only visual transparency is culled. People, paths and schedules still simulate
+      // normally, and the small margin starts the fade before a prop enters the view.
+      const b = occ.bounds;
+      if (b.right < view.x - 32 || b.left > view.right + 32 || b.bottom < view.y - 32 || b.top > view.bottom + 32) continue;
       let occluded = false;
       for (const a of actors) {
         if (a.y < occ.baseY) {
