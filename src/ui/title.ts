@@ -166,7 +166,7 @@ export async function showTitle(phaser: Phaser.Game) {
     const L = LAYOUTS[m];
     fx.replaceChildren();
     const pos = (x: number, y: number) => ({ left: (x / L.w) * 100 + '%', top: (y / L.h) * 100 + '%' });
-    L.glows.slice(2).forEach(([x, y, r], i) => fx.append(h('i', { class: 'tt-glow', style: { ...pos(x, y), width: ((r * 2) / L.w) * 100 + '%', animationDelay: -((i * 1.37) % 5) + 's', animationDuration: 3.2 + (i % 4) * 0.7 + 's' } })));
+    L.glows.forEach(([x, y, r], i) => fx.append(h('i', { class: 'tt-glow', style: { ...pos(x, y), width: ((r * 2) / L.w) * 100 + '%', animationDelay: -((i * 1.37) % 5) + 's', animationDuration: 3.2 + (i % 4) * 0.7 + 's' } })));
     L.stars.forEach(([x, y], i) => fx.append(h('i', { class: 'tt-star', style: { ...pos(x, y), animationDelay: -((i * 0.83) % 4) + 's', animationDuration: 2.2 + (i % 5) * 0.6 + 's' } })));
     L.water.forEach(([x, y, w], i) => fx.append(h('i', { class: 'tt-water', style: { ...pos(x, y), width: (w / L.w) * 100 + '%', animationDelay: -((i * 1.1) % 4) + 's', animationDuration: 3 + (i % 3) + 's' } })));
     L.leaves.forEach(([x, y], i) => fx.append(h('i', { class: 'tt-leaf l' + (i % 3), style: { ...pos(x, y), animationDelay: -((i * 4.3) % 18) + 's', animationDuration: 15 + (i % 3) * 3 + 's' } })));
@@ -204,6 +204,7 @@ export async function showTitle(phaser: Phaser.Game) {
   };
   img.onerror = () => { root.classList.add('no-bg'); artworkReady(); };
 
+  // the logo is part of the illustration; the HTML one only stands in when the artwork cannot load
   const logo = brandLogo('title-logo mm-logo tt-brand');
 
   // ---- menu, revealed after the first tap

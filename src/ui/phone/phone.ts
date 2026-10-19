@@ -39,7 +39,6 @@ let caseCanvas: HTMLCanvasElement;
 let screen: HTMLElement;
 let wall: HTMLCanvasElement;
 let view: HTMLElement;
-let peek: HTMLButtonElement;
 let mounted = false;
 let phase: Phase = 'closed';
 let screenName: 'home' | 'custom' = 'home';
@@ -86,16 +85,17 @@ function layout() {
   const geo = caseGeometry(m, Wc, Hc);
   const cssW = Wc * pxs;
   const cssH = Hc * pxs;
-  // Closed: a medium-small phone, top peeking above the bottom-right corner. Open: the same art, centred.
+  // Closed: the same phone, scaled down and tucked under the bottom-right corner so only its top shows.
+  // Open: the same art, centred. The visible part is also what the HUD keeps clear above it.
   const centreY = s.t + (vh - s.t - s.b) / 2;
   const maxW = 128;
   const closedScale = Math.min(0.5, maxW / cssW);
-  const showFrac = 0;
-  const visH = 0;
-  const tuckBelow = cssH * closedScale - visH;
-  const cx = vw - s.r - 10 - (cssW * closedScale) / 2;
-  const cy = vh - s.b + tuckBelow - (cssH * closedScale) / 2;
-  document.documentElement.style.setProperty('--phone-peek-h', '64px');
+  const closedW = cssW * closedScale;
+  const closedH = cssH * closedScale;
+  const visH = Math.round(Math.min(closedH * 0.36, 120));
+  const cx = vw - s.r - 12 - closedW / 2;
+  const cy = vh - s.b - visH + closedH / 2;
+  document.documentElement.style.setProperty('--phone-peek-h', visH + 'px');
   device.classList.add('no-anim');
   const st = device.style;
   st.setProperty('--px', pxs + 'px');
@@ -106,13 +106,11 @@ function layout() {
   st.setProperty('--scr-w', geo.sw * pxs + 'px');
   st.setProperty('--scr-h', geo.sh * pxs + 'px');
   st.setProperty('--scr-r', m.screenRadius * pxs + 'px');
-  st.setProperty('--show-frac', Math.round(showFrac * 100) + '%');
   st.setProperty('--closed-scale', closedScale.toFixed(3));
   st.setProperty('--peek-x', Math.round(cx - vw / 2) + 'px');
   st.setProperty('--peek-y', Math.round(cy - centreY) + 'px');
   st.top = centreY + 'px';
   drawCase(caseCanvas, m, color, Wc, Hc);
-  peek.style.width = '';
   device.dataset.model = m.id;
   void device.offsetWidth;
   device.classList.remove('no-anim');
@@ -159,7 +157,6 @@ export function openPhone() {
   device.setAttribute('role', 'dialog');
   device.setAttribute('aria-modal', 'true');
   device.setAttribute('aria-label', 'NoriPhone');
-  peek.tabIndex = -1;
   screen.classList.add('is-busy'); // no stray taps while it is still moving
   window.clearTimeout(busyTimer);
   busyTimer = window.setTimeout(settleOpen, quick ? 30 : 340);
@@ -189,6 +186,7 @@ export function closePhone() {
   clockOff = null;
   device.removeAttribute('role');
   device.removeAttribute('aria-modal');
+  setClosedAccess(false);
   layer.classList.remove('is-open');
   device.classList.remove('is-open');
   screen.classList.add('is-busy');
@@ -196,8 +194,9 @@ export function closePhone() {
   const done = () => {
     if (phase !== 'closing') return;
     phase = 'closed';
+    setClosedAccess(true);
+    layer.classList.toggle('is-covered', covered(document.getElementById('ui')!));
     screen.inert = true;
-    peek.tabIndex = 0;
     screenName = 'home';
   };
   window.setTimeout(done, reduced() ? 30 : 260);
@@ -521,7 +520,6 @@ export function mountPhone() {
   wall = h('canvas', { class: 'pn-wall', 'aria-hidden': 'true' });
   view = h('div', { class: 'pn-view' });
   screen = h('div', { class: 'noriphone-screen is-busy' }, wall, h('div', { class: 'pn-shade' }), view);
-  peek = h('button', { type: 'button', class: 'noriphone-peek', 'aria-label': 'Abrir NoriPhone', onclick: () => openPhone() }, skinIconEl('phone'), h('span', null, 'NoriPhone'));
   const gripTop = h('div', { class: 'noriphone-grip top' });
   const gripBottom = h('div', { class: 'noriphone-grip bottom' });
   const charm = phoneCharm();
@@ -530,10 +528,20 @@ export function mountPhone() {
   screen.inert = true;
   dim = h('div', { class: 'noriphone-dim' });
   dim.addEventListener('pointerdown', () => { if (phase === 'open' && performance.now() - openedAt > 450 && !modalOpen_top()) closePhone(); });
-  layer = h('div', { class: 'noriphone-layer' }, dim, device, peek);
+  layer = h('div', { class: 'noriphone-layer' }, dim, device);
   ui.append(layer);
   setupGrip(gripTop);
   setupGrip(gripBottom);
+  // closed, the whole phone is the launcher: tap or Enter on the visible top opens it
+  device.addEventListener('click', () => { if (phase === 'closed') openPhone(); });
+  device.addEventListener('keydown', (e) => {
+    if (phase === 'closed' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPhone(); }
+  });
+  setClosedAccess(true);
+  // a menu, dialogue or scene on top hides the closed phone (it comes back by itself)
+  const covers = () => layer.classList.toggle('is-covered', phase === 'closed' && covered(ui));
+  new MutationObserver(covers).observe(ui, { childList: true });
+  covers();
   look = game.loaded ? saved() : look;
   layout();
   void paintWallpaper();
@@ -556,6 +564,16 @@ export function mountPhone() {
       }
     }, 1200);
   });
+}
+
+/** Windows that cover the closed phone: menus, dialogues, minigames, cooking, the title. */
+const COVER_SELECTOR = ':scope > .panel-backdrop, :scope > .dlg-wrap, :scope > .cook, :scope > .mg, :scope > .title-screen';
+const covered = (ui: HTMLElement) => ui.querySelector(COVER_SELECTOR) != null;
+
+/** The closed phone is a button for keyboard and screen readers too; the open one is a dialog. */
+function setClosedAccess(on: boolean) {
+  if (on) { device.setAttribute('role', 'button'); device.setAttribute('aria-label', 'Abrir NoriPhone'); device.tabIndex = 0; }
+  else { device.removeAttribute('role'); device.removeAttribute('aria-label'); device.tabIndex = -1; }
 }
 
 /** True when another window (an app opened from the phone) is on top of it. */
