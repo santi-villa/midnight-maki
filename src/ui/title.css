@@ -1,5 +1,7 @@
-/* The illustration always has its own space: controls never cover the three mapaches. */
-.tt .tt-bg { bottom: var(--title-menu-space, 0px); }
+/* The illustration always has its own space: controls never cover the three mapaches.
+   The blurred copy fills the whole screen, so the space under the menu is art, not flat navy. */
+.tt .tt-bg { bottom: 0; place-items: start center; }
+.tt.has-bg .tt-brand { display: none; }
 .tt .tt-back { filter: blur(18px) brightness(.4); }
 .tt .tt-frame { flex: none; }
 .tt .tt-brand {

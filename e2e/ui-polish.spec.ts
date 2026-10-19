@@ -61,10 +61,12 @@ test('compact mission and phone remain usable and saves continue in the restaura
   await page.waitForTimeout(350);
   await page.screenshot({ path: info.outputPath('hud-compacto.png') });
   const launcher = page.getByRole('button', { name: 'Abrir NoriPhone', exact: true });
+  // the closed phone peeks from the bottom edge: its visible top must still be a usable target
   const bounds = (await launcher.boundingBox())!;
-  expect(bounds.height).toBeGreaterThanOrEqual(44);
-  expect(bounds.y + bounds.height).toBeLessThanOrEqual(844);
-  await launcher.tap();
+  const visible = Math.min(bounds.y + bounds.height, 844) - bounds.y;
+  expect(visible).toBeGreaterThanOrEqual(44);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  await launcher.tap({ position: { x: bounds.width / 2, y: 20 } });
   const phone = page.getByRole('dialog', { name: 'NoriPhone', exact: true });
   await expect(phone).toBeVisible();
   await expect(phone.getByRole('button', { name: 'Misiones. Historia y objetivos', exact: true })).toBeVisible();
