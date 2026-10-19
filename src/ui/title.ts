@@ -261,7 +261,7 @@ export async function showTitle(phaser: Phaser.Game) {
   hideBoot();
   if (saved && takeResumeOnce()) void runTask('flow:resume', doContinue);
   // keep the calm / battery flags in sync with the settings panel
-  offSettings = bus.on('settings:changed', () => { if (document.body.contains(root)) refreshCalm(); });
+  offSettings = bus.on('settings:changed', () => { if (document.body.contains(root)) { refreshCalm(); layout(); } });
 }
 
 function credits() {
