@@ -28,10 +28,15 @@
 .pn-charm { position: absolute; z-index: 3; left: calc(var(--px) * 0); top: calc(var(--scr-y) + var(--scr-h) * 0.18); width: calc(var(--px) * 12); height: auto;
   image-rendering: pixelated; pointer-events: none; filter: drop-shadow(1px 2px 0 rgba(42, 34, 32, .28)); }
 
-.noriphone-peek { position: absolute; left: 0; top: 0; transform: none; width: 100%; height: var(--show-frac, 42%); background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; pointer-events: auto; }
-.noriphone-device.is-open .noriphone-peek { pointer-events: none; }
-body.cook-focus .noriphone-device:not(.is-open),
-body:has(.decor-sheet) .noriphone-device:not(.is-open) { visibility: hidden; }
+/* The closed phone is a compact launcher; its personalised case appears on opening. */
+.noriphone-peek { position: absolute; left: auto; top: auto; right: calc(12px + var(--safe-r));
+  bottom: calc(12px + var(--safe-b)); display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 112px; width: auto; min-height: 48px; padding: 4px 8px; transform: none;
+  border: 7px solid transparent; border-image: var(--tx-plank-btn) 4 fill / 7px stretch;
+  background: none; color: #43291c; font: inherit; font-size: 16px; cursor: pointer;
+  box-shadow: 0 3px 0 #493020; pointer-events: auto; }
+.noriphone-peek .skin-icon { width: 24px; height: 24px; }
+.noriphone-layer.is-open .noriphone-peek { visibility: hidden; pointer-events: none; }
 .noriphone-peek:focus-visible { outline: 1px solid #6b5344; outline-offset: -2px; }
 .noriphone-grip { position: absolute; left: 0; right: 0; pointer-events: none; touch-action: none; }
 .noriphone-device.is-open .noriphone-grip { pointer-events: auto; }

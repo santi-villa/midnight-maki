@@ -36,7 +36,7 @@ export async function loadChoiceList(onPick: (slot: number, kind: 'auto' | 'manu
   col.append(h('p', { class: 'hint' }, 'Cada partida puede tener un guardado automático, con el último progreso, y uno manual, el punto fijo.'));
   for (const info of slots) {
     const body = h('div', { class: 'col' });
-    if (!info.auto && !info.manual) body.append(h('p', { class: 'hint', style: { margin: '0' } }, 'Vacía'));
+    if (!info.auto && !info.manual) body.append(h('p', { class: 'hint', style: { margin: '0' } }, 'Vacía · Empezar una nueva aventura'));
     for (const brief of [info.auto, info.manual]) {
       if (!brief) continue;
       const label = brief.kind === 'auto' ? 'Automático' : 'Manual';
@@ -55,13 +55,13 @@ export async function slotChoiceList(onPick: (slot: number, info: SlotInfo) => v
     const hints: HTMLElement[] = [];
     if (info.auto) hints.push(h('span', { class: 'hint', style: { fontWeight: '400' } }, `Automático · ${describeBrief(info.auto)}`));
     if (info.manual) hints.push(h('span', { class: 'hint', style: { fontWeight: '400' } }, `Manual · ${describeBrief(info.manual)}`));
-    if (!hints.length) hints.push(h('span', { class: 'hint', style: { fontWeight: '400' } }, 'Vacía'));
+    if (!hints.length) hints.push(h('span', { class: 'hint', style: { fontWeight: '400' } }, 'Vacía · Empezar una nueva aventura'));
     col.append(h('button', {
       type: 'button',
       class: 'btn',
       style: choiceStyle,
       onclick: () => onPick(info.slot, info),
-    }, h('span', null, slotTitle(info.slot)), ...hints));
+    }, h('span', { class: 'save-slot-title' }, slotTitle(info.slot)), ...hints));
   }
   return col;
 }

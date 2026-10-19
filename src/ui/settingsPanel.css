@@ -1,0 +1,15 @@
+/* A few clear categories replace one long settings page; controls keep their touch targets. */
+.settings-panel .tabbar { flex: 0 0 auto; padding: 2px 2px 8px; gap: 4px; }
+.settings-panel .tabbar .tab { font-size: 14px; padding: 0 8px; }
+.settings-panel .tabbar .skin-icon { width: 18px; height: 18px; }
+.settings-panel .settings-content { display: flex; flex-direction: column; gap: 12px; }
+.settings-panel .sect { margin: 0; }
+.keyboard-settings { margin-top: 10px; }
+.keyboard-settings summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; padding: 6px 8px; border: 2px solid #bd9e73; background: #f5e7cb; color: #503425; font-weight: 700; }
+.keyboard-settings summary::before { content: '▸'; margin-right: 8px; }
+.keyboard-settings[open] summary::before { content: '▾'; }
+@media (max-width: 600px) {
+  .panel.settings-panel { height: min(660px, 100%); }
+  .settings-panel .tabbar { display: flex; flex-wrap: wrap; overflow: visible; }
+  .settings-panel .tabbar .tab { flex: 1 0 auto; }
+}

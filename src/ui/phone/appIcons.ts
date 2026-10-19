@@ -253,6 +253,23 @@ function staff(g: Grid) {
   dot(g, 6, 17, '#c4505a', 4, 1);
 }
 
+/** Two diners around a little table, distinct from the waiter in Personal. */
+function clients(g: Grid) {
+  for (const [x, shirt, hair] of [[9, GREEN, WOOD_DK], [23, RED, '#3b3038']] as const) {
+    oval(g, x, 10, 5, 6, INK);
+    oval(g, x, 10, 4, 5, '#f0c9a8');
+    dot(g, x - 4, 5, hair, 8, 4);
+    dot(g, x - 2, 10, INK);
+    dot(g, x + 2, 10, INK);
+    dot(g, x - 4, 16, shirt, 8, 7);
+  }
+  dot(g, 4, 22, WOOD_DK, 25, 3);
+  dot(g, 5, 21, WOOD_LT, 23, 2);
+  oval(g, 16, 20, 5, 2, CREAM);
+  dot(g, 14, 18, NORI, 5, 3);
+  dot(g, 15, 18, RICE, 3);
+}
+
 function calendar(g: Grid) {
   dot(g, 5, 6, RED, 22, 7);
   dot(g, 5, 12, PAPER, 22, 16);
@@ -405,7 +422,7 @@ function signals(g: Grid) {
 }
 
 const DRAW: Record<string, (g: Grid) => void> = {
-  camera, photos, map, quests, friends, collections, recipes, restaurant, supplies, staff, clients: staff, calendar, memories, investigation, bag, customize, settings, more,
+  camera, photos, map, quests, friends, collections, recipes, restaurant, supplies, staff, clients, calendar, memories, investigation, bag, customize, settings, more,
 };
 
 let cache: Record<string, Grid> | null = null;
