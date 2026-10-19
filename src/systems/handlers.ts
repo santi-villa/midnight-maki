@@ -132,7 +132,7 @@ registerAction('note', (key) => {
 registerAction('board', () => {
   const ids = boardQuests();
   const orders = h('div', { class: 'col board-orders' });
-  orders.append(h('p', { class: 'hint' }, 'Pedidos de los vecinos. Aceptá solo los que tengas ganas: ninguno vence.'));
+  orders.append(h('p', { class: 'hint' }, 'Favores de los vecinos. Aceptá solo los que tengas ganas: ninguno vence.'));
   if (!ids.length) orders.append(h('p', { class: 'muted' }, 'No hay pedidos nuevos por ahora. Volvé otro día.'));
   for (const id of ids) {
     const q = questDef(id)!;
@@ -159,7 +159,7 @@ registerAction('board', () => {
     tabs: tabBar([
       { label: 'Encargos', icon: 'clipboard' },
       { label: 'Proyectos', icon: 'act' },
-      { label: 'Pedidos', icon: 'scroll' },
+      { label: 'Favores', icon: 'scroll' },
     ], show),
     body: host,
   });

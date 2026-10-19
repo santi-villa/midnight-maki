@@ -41,7 +41,9 @@ export function tabBar(items: (string | TabSpec)[], onPick: (i: number) => void,
 
 /** One-of-many choice drawn as a joined row of big buttons. */
 export function seg<T extends string | number>(opts: [T, string][], get: () => T, set: (v: T) => void, label = ''): HTMLElement {
-  const wrap = h('div', { class: 'seg', role: 'radiogroup', 'aria-label': label, style: { '--n': String(opts.length) } as never });
+  const wrap = h('div', { class: 'seg', role: 'radiogroup', 'aria-label': label });
+  // h() assigns style via Object.assign, which drops custom properties: set --n directly.
+  wrap.style.setProperty('--n', String(opts.length));
   wrap.dataset.n = String(opts.length);
   const draw = () => {
     wrap.replaceChildren(...opts.map(([v, name]) => h('button', {
