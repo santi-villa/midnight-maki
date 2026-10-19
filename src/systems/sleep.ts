@@ -27,7 +27,6 @@ function sleepSlider(bed: number): Promise<number | null> {
   let settled = false;
   let closePanel = () => {};
   const before = Math.round(getEnergy());
-  const wake = h('div', { class: 'sleep-wake' }, '');
   const detail = h('p', { class: 'sleep-detail' }, '');
   const energy = h('p', { class: 'hint' }, '');
   const input = h('input', {
@@ -44,14 +43,12 @@ function sleepSlider(bed: number): Promise<number | null> {
     const plan = wakePlan(bed, hours);
     const after = Math.round(energyAfterSleep(before, plan.sleptHours));
     const when = hhmm(plan.wakeMinute);
-    wake.textContent = when;
-    detail.textContent = `${plan.sleptHours} ${plan.sleptHours === 1 ? 'hora' : 'horas'} · despertás a las ${when}`;
+    const next = plan.advanceDay ? 'empieza el día siguiente' : 'seguís el mismo día';
+    detail.textContent = `${plan.sleptHours} ${plan.sleptHours === 1 ? 'hora' : 'horas'} · despertás a las ${when}, ${next}`;
     energy.textContent = `Energía ${before} → ${after}`;
-    input.setAttribute('aria-valuetext', `${plan.sleptHours} horas, despertás a las ${when}`);
+    input.setAttribute('aria-valuetext', `${plan.sleptHours} horas, despertás a las ${when}, ${next}`);
   };
   input.addEventListener('input', paint);
-  const ticks: HTMLElement[] = [];
-  for (let n = MIN_SLEEP; n <= MAX_SLEEP; n++) ticks.push(h('span', null, String(n)));
   return new Promise((resolve) => {
     const finish = (value: number | null) => {
       if (settled) return;
@@ -63,11 +60,8 @@ function sleepSlider(bed: number): Promise<number | null> {
     const opened = panel({
       title: 'A dormir',
       body: h('div', { class: 'sleep-pick' },
-        h('p', { class: 'hint' }, 'Deslizá cuántas horas pasan. El reloj avanza esas horas, no salta a las 6.'),
-        wake,
+        h('div', { class: 'sleep-range-row' }, h('span', { class: 'hint' }, `${MIN_SLEEP}`), input, h('span', { class: 'hint' }, `${MAX_SLEEP}`)),
         detail,
-        input,
-        h('div', { class: 'sleep-scale', 'aria-hidden': 'true' }, ...ticks),
         energy,
       ),
       foot: [
@@ -77,6 +71,7 @@ function sleepSlider(bed: number): Promise<number | null> {
       onClose: () => finish(null),
     });
     closePanel = opened.close;
+    opened.root.classList.add('sleep-sheet');
     paint();
   });
 }

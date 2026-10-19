@@ -36,13 +36,15 @@ export async function loadChoiceList(onPick: (slot: number, kind: 'auto' | 'manu
   col.append(h('p', { class: 'hint' }, 'Cada partida puede tener un guardado automático, con el último progreso, y uno manual, el punto fijo.'));
   for (const info of slots) {
     const body = h('div', { class: 'col' });
-    if (!info.auto && !info.manual) body.append(h('p', { class: 'hint', style: { margin: '0' } }, 'Vacía · Empezar una nueva aventura'));
+    const empty = !info.auto && !info.manual;
+    // an empty slot is information only: no button, so it never looks like something to press
+    if (empty) body.append(h('p', { class: 'hint save-empty-note', style: { margin: '0' } }, 'Sin partida guardada'));
     for (const brief of [info.auto, info.manual]) {
       if (!brief) continue;
       const label = brief.kind === 'auto' ? 'Automático' : 'Manual';
       body.append(choiceButton(`${label} · ${brief.name} · día ${brief.day}`, describeBrief(brief), () => onPick(info.slot, brief.kind)));
     }
-    col.append(h('div', { class: 'card col' }, h('b', null, slotTitle(info.slot)), body));
+    col.append(h('div', { class: 'card col' + (empty ? ' save-empty' : ''), 'data-empty': String(empty) }, h('b', null, slotTitle(info.slot)), body));
   }
   return col;
 }

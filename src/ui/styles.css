@@ -141,6 +141,7 @@ button { font-family: var(--pixel); font-size: 1em; cursor: pointer; color: inhe
 .hint { font-size: .85em; color: var(--ink-soft); }
 .coin { color: #a07116; font-weight: 700; }
 .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--cream-2); font-size: .8em; }
+.pill.ok { background: #dfe9c8; color: #3f5a2c; }
 .bar { height: 10px; border-radius: 6px; background: var(--cream-2); border: 2px solid var(--wood-dark); overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--rose-2); }
 .card { background: #fff8e8; border: 3px solid var(--cream-2); border-radius: 12px; padding: 10px; }
@@ -214,14 +215,13 @@ h3 { margin: 4px 0 8px; font-size: 1.05em; }
 .start-load-bar i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(90deg, #f2c66d 0 8px, #e0a94f 8px 10px); transition: width .18s steps(6); }
 .start-load-tip { width: 100%; min-height: 52px; padding: 8px 10px; background: var(--tx-parchment) 0 0 / 32px 32px; border: 3px solid #2b1d17; color: #3a2418; }
 .sleep-pick { display: flex; flex-direction: column; gap: 8px; align-items: stretch; text-align: center; }
-.sleep-wake {
-  font-size: 2.2em; letter-spacing: 2px; line-height: 1.1; padding: 10px 8px; color: #fff4dc; text-shadow: var(--outline);
-  border: 12px solid transparent; border-image: var(--tx-logframe) 8 / 12px round; background: var(--tx-planks) center / 64px 64px;
-}
 .sleep-detail { margin: 0; font-weight: 600; color: #6b3a1e; }
 .sleep-range { width: 100%; height: 36px; accent-color: #c9783f; touch-action: pan-x; }
-.sleep-scale { display: flex; justify-content: space-between; font-size: .8em; color: var(--ink-soft); padding: 0 2px; }
-.reduce-motion .start-load, .reduce-motion .start-load-bar i, .reduce-motion .sleep-wake { transition: none; animation: none; }
+.panel-backdrop:has(.sleep-sheet) { align-items: center; }
+.panel.sleep-sheet { height: auto; max-height: min(100%, 360px); }
+.sleep-range-row { display: flex; align-items: center; gap: 8px; }
+.sleep-range-row .sleep-range { flex: 1; min-width: 0; }
+.reduce-motion .start-load, .reduce-motion .start-load-bar i { transition: none; animation: none; }
 .fade.on { opacity: 1; pointer-events: auto; }
 
 /* ---------- Dialogue ---------- */
@@ -933,8 +933,13 @@ html, body { -webkit-touch-callout: none; overscroll-behavior: none; }
 
 /* Notice-board rewards and keepsakes use the existing parchment and wooden palette. */
 .errands-section h3 { margin: 12px 0 2px; color: var(--wood-dark); }
+.card.save-empty { border-style: dashed; opacity: .75; }
 .errand-card { gap: 6px; }
 .errand-card p { margin: 0; }
+.errand-goal { font-weight: 600; }
+.errand-more { font-size: .92em; }
+.errand-more summary { cursor: pointer; color: #586d48; font-weight: 600; padding: 2px 0; }
+.errand-more[open] summary { margin-bottom: 4px; }
 .errand-card.ready { border-color: #7a9c62; background: #f2f4e5; }
 .errand-card.claimed { opacity: .65; }
 .errand-heading, .errand-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
