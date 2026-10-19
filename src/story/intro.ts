@@ -182,18 +182,27 @@ async function showScene(scene: IntroScene): Promise<void> {
   }
 }
 
-export async function playIntro() {
+export async function playIntro(prepareWorld?: () => Promise<void>) {
   await fade(true, 10);
   openBook();
   audio.unlock();
   playMusic('intro');
+  await findImage(INTRO_SCENES[0].image);
   await fade(false, 500);
+  // One sheet per frame while the player reads. Attach rejection handling immediately;
+  // skipping still awaits this preparation behind closed transition panels.
+  const preparing = new Promise<void>((resolve, reject) => {
+    requestAnimationFrame(() => {
+      Promise.resolve().then(() => prepareWorld?.()).then(resolve, reject);
+    });
+  }).then(() => ({ ok: true as const }), error => ({ ok: false as const, error }));
   try {
     for (const scene of INTRO_SCENES) {
       if (skipped) break;
       await showScene(scene);
     }
   } catch (err) {
+    await preparing;
     await stopIntroAudio(0); closeBook(); throw err;
   }
   world.inputLocked++;
@@ -202,6 +211,8 @@ export async function playIntro() {
     await screenTransition('doors', async () => {
       await stopIntroAudio(0);
       closeBook();
+      const prepared = await preparing;
+      if (!prepared.ok) throw prepared.error;
       addClue('letter_inherit', true);
       audio.crossfade(clock.period >= 2 ? 'restaurant_night' : 'restaurant');
       const entry = RESTAURANT_ENTRY;

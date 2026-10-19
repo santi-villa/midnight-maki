@@ -62,6 +62,30 @@ const game = new Phaser.Game({
   disableContextMenu: true,
 });
 
+// On mobile an orientation event can precede the new container geometry. Phaser
+// records the new parent bounds after applying the old size, then misses the change.
+// Observe the actual container and reconcile once per frame, only when size differs.
+let viewportFrame = 0;
+const host = document.getElementById('game')!;
+const resizeViewport = () => {
+  cancelAnimationFrame(viewportFrame);
+  viewportFrame = requestAnimationFrame(() => {
+    const bounds = host.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    if (Math.abs(game.scale.width - bounds.width) < 1 && Math.abs(game.scale.height - bounds.height) < 1) return;
+    game.scale.getParentBounds();
+    game.scale.refresh();
+  });
+};
+const viewportObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resizeViewport);
+viewportObserver?.observe(host);
+window.addEventListener('resize', resizeViewport);
+game.events.once('destroy', () => {
+  cancelAnimationFrame(viewportFrame);
+  viewportObserver?.disconnect();
+  window.removeEventListener('resize', resizeViewport);
+});
+
 (window as any).__mm = game; // handy for debugging & e2e tests
 if (import.meta.env.DEV) void import('./kitchen/board').then((m) => { (window as any).__cook = m.cook; });
 if (import.meta.env.DEV) void import('./data/recipes').then((m) => { (window as any).__recipes = m.RECIPES_BY_ID; });
