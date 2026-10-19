@@ -15,6 +15,7 @@ let skipped = false;
 let book: HTMLElement | null = null;
 let music: IntroMusic | '' = '';
 const fired = new Set<string>();
+const images = new Map<number, Promise<string | null>>();
 
 const ADVANCE_KEYS = new Set(['Enter', ' ', 'ArrowRight', 'ArrowDown']);
 
@@ -34,6 +35,7 @@ function openBook() {
   skipped = false;
   music = '';
   fired.clear();
+  images.clear();
   const skip = h('button', { class: 'btn small book-skip', type: 'button', onclick: skipIntro }, 'Saltar intro ›');
   book = h('div', { class: 'book' }, skip);
   uiRoot().append(book);
@@ -91,12 +93,15 @@ function probe(url: string): Promise<boolean> {
   });
 }
 
-async function findImage(n: number): Promise<string | null> {
-  const base = import.meta.env.BASE_URL + 'intro/' + n;
-  for (const ext of ['.jpg', '.png', '.webp']) {
-    if (await probe(base + ext)) return base + ext;
-  }
-  return null;
+function findImage(n: number): Promise<string | null> {
+  if (!images.has(n)) images.set(n, (async () => {
+    const base = import.meta.env.BASE_URL + 'intro/' + n;
+    for (const ext of ['.webp', '.jpg', '.png']) {
+      if (await probe(base + ext)) return base + ext;
+    }
+    return null;
+  })());
+  return images.get(n)!;
 }
 
 async function showLetter(): Promise<void> {
@@ -138,6 +143,9 @@ async function showScene(scene: IntroScene): Promise<void> {
   const pic = h('div', { class: 'book-pic' });
   const src = await findImage(scene.image);
   if (skipped || !book) return;
+  // At most one picture ahead; never download all seven before the story starts.
+  const next = INTRO_SCENES[INTRO_SCENES.indexOf(scene) + 1];
+  if (next) void findImage(next.image);
   if (src) pic.append(h('img', { class: 'book-photo', src, alt: fmt(scene.alt) }));
   else pic.append(h('div', { class: 'book-missing' }, `Falta la ilustración public/intro/${scene.image}.jpg`));
   const who = h('div', { class: 'book-who' });
