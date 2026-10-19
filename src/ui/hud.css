@@ -160,3 +160,17 @@ body.input-touch .game-hud .hud-phone { display: none; }
   .game-hud .hud-quest { font-size: 17px; width: min(320px, 34vw); max-width: min(320px, 34vw); }
   .world-prompt { font-size: 1.1em; }
 }
+
+/* A folded mission keeps its next action visible without covering the street. */
+.game-hud .hud-quest.mini {
+  width: min(280px, 64vw); max-width: min(280px, 64vw); min-height: 44px;
+  white-space: normal; padding: 4px 7px; font-size: 14px;
+}
+.game-hud .hud-quest.mini b { display: none; }
+.game-hud .hud-quest.mini span.step {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; margin: 0; line-height: 1.25;
+}
+@media (max-width: 600px) {
+  .game-hud .hud-quest:not(.mini) { width: min(280px, 76vw); max-width: min(280px, 76vw); }
+}

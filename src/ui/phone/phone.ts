@@ -88,16 +88,14 @@ function layout() {
   const cssH = Hc * pxs;
   // Closed: a medium-small phone, top peeking above the bottom-right corner. Open: the same art, centred.
   const centreY = s.t + (vh - s.t - s.b) / 2;
-  const maxW = Math.min(176, Math.max(128, vw * 0.44));
-  let closedScale = Math.min(0.72, maxW / cssW);
-  let showFrac = 0.4;
-  let visH = cssH * closedScale * showFrac;
-  if (visH > 146) { showFrac = 146 / (cssH * closedScale); visH = cssH * closedScale * showFrac; }
-  if (visH < 108) { showFrac = Math.min(0.55, 108 / (cssH * closedScale)); visH = cssH * closedScale * showFrac; }
+  const maxW = 128;
+  const closedScale = Math.min(0.5, maxW / cssW);
+  const showFrac = 0;
+  const visH = 0;
   const tuckBelow = cssH * closedScale - visH;
   const cx = vw - s.r - 10 - (cssW * closedScale) / 2;
   const cy = vh - s.b + tuckBelow - (cssH * closedScale) / 2;
-  document.documentElement.style.setProperty('--phone-peek-h', Math.round(visH) + 'px');
+  document.documentElement.style.setProperty('--phone-peek-h', '64px');
   device.classList.add('no-anim');
   const st = device.style;
   st.setProperty('--px', pxs + 'px');
@@ -523,16 +521,16 @@ export function mountPhone() {
   wall = h('canvas', { class: 'pn-wall', 'aria-hidden': 'true' });
   view = h('div', { class: 'pn-view' });
   screen = h('div', { class: 'noriphone-screen is-busy' }, wall, h('div', { class: 'pn-shade' }), view);
-  peek = h('button', { type: 'button', class: 'noriphone-peek', 'aria-label': 'Abrir NoriPhone', onclick: () => openPhone() });
+  peek = h('button', { type: 'button', class: 'noriphone-peek', 'aria-label': 'Abrir NoriPhone', onclick: () => openPhone() }, skinIconEl('phone'), h('span', null, 'NoriPhone'));
   const gripTop = h('div', { class: 'noriphone-grip top' });
   const gripBottom = h('div', { class: 'noriphone-grip bottom' });
   const charm = phoneCharm();
   charm.classList.add('pn-charm');
-  device = h('div', { class: 'noriphone-device' }, caseCanvas, screen, charm, gripTop, gripBottom, peek);
+  device = h('div', { class: 'noriphone-device' }, caseCanvas, screen, charm, gripTop, gripBottom);
   screen.inert = true;
   dim = h('div', { class: 'noriphone-dim' });
   dim.addEventListener('pointerdown', () => { if (phase === 'open' && performance.now() - openedAt > 450 && !modalOpen_top()) closePhone(); });
-  layer = h('div', { class: 'noriphone-layer' }, dim, device);
+  layer = h('div', { class: 'noriphone-layer' }, dim, device, peek);
   ui.append(layer);
   setupGrip(gripTop);
   setupGrip(gripBottom);

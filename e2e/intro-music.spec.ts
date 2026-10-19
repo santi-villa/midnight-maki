@@ -40,7 +40,7 @@ test('the same custom song loops through seven scenes and the letter, then fades
   await begin(page);
   await expect.poll(async () => (await music(page)).duration).toBeGreaterThan(1);
   expect(await music(page)).toMatchObject({ track: 'intro', loop: true, paused: false, timer: null });
-  expect((await music(page)).file).toContain('introduction-music.mp3');
+  expect((await music(page)).file).toMatch(/introduction-music\.(ogg|m4a|mp3)/);
   await page.evaluate(() => {
     const el = (window as any).mmDebug.audio.custom.el;
     (window as any).introElement = el;
@@ -50,7 +50,7 @@ test('the same custom song loops through seven scenes and the letter, then fades
   const scenes = await page.evaluate(async () => (await import('/src/story/introScript.ts')).INTRO_SCENES.map((s: any) => ({ image: s.image, lines: s.lines.length, letterAfter: s.letterAfter })));
   let lastTime = 0;
   for (const scene of scenes) {
-    await expect(page.locator('.book-page.in .book-photo')).toHaveAttribute('src', new RegExp(`/intro/${scene.image}\\.jpg$`));
+    await expect(page.locator('.book-page.in .book-photo')).toHaveAttribute('src', new RegExp(`/intro/${scene.image}\\.webp$`));
     for (let line = 0; line < scene.lines; line++) {
       const state = await music(page);
       expect(state.track).toBe('intro');
