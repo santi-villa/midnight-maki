@@ -93,6 +93,9 @@ const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
  */
 const MUSIC_FILES = import.meta.glob('../music/*.{mp3,ogg,m4a,wav,webm,opus}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const NIGHT_FILES = import.meta.glob('./*night-ambience*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+/** Real rain recordings: `rain-outside.mp3` and `rain-inside.mp3` (the muffled one indoors). Without them the synthesized rain plays. */
+const RAIN_FILES = import.meta.glob('./rain-*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const rainUrl = (inside: boolean) => Object.entries(RAIN_FILES).find(([name]) => name.includes(inside ? 'inside' : 'outside'))?.[1];
 const SONG_MATCH: Partial<Record<Track, RegExp>> = { title: /menu|title|principal/i, intro: /intro/i, kitchen: /^(?!.*(hard|dificil|difícil)).*(kitchen|cocina)/i, kitchen_hard: /(kitchen|cocina).*(hard|dificil|difícil)/i };
 
 /** Opus and Ogg first: Chromium plays them. AAC in m4a stays as the next try. */
@@ -135,6 +138,8 @@ export class AudioEngine {
   private windowDropTimer: number | null = null;
   private gullTimer: number | null = null;
   private nightBed: { el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode } | null = null;
+  private rainBeds: Partial<Record<'inside' | 'outside', { el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode }>> = {};
+  private rainKind: 'inside' | 'outside' | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private pendingTrack: Track = 'none';
   private lastSfx: Record<string, number> = {};
@@ -224,6 +229,7 @@ export class AudioEngine {
       if (this.ctx.state === 'suspended') void runTask('audio:resume', () => this.ctx!.resume(), false);
       this.tryCustom();
       this.tryNightBed();
+      if (this.rainKind) void this.rainBeds[this.rainKind]?.el.play().catch(() => { /* the next gesture retries */ });
       return;
     }
     try {
@@ -271,6 +277,7 @@ export class AudioEngine {
       if (document.hidden) {
         this.custom?.el.pause();
         this.nightBed?.el.pause();
+        for (const bed of Object.values(this.rainBeds)) bed?.el.pause();
         void runTask('audio:suspend', () => this.ctx!.suspend(), false);
       } else this.unlock();
     });
@@ -554,6 +561,54 @@ export class AudioEngine {
     void bed.el.play().catch(() => { /* the next gesture retries */ });
   }
 
+  /** Rain as a recording. Indoors and outdoors are two loops; a doorway fades one into the other. */
+  private playRainFile(inside: boolean): boolean {
+    const c = this.ctx;
+    const url = rainUrl(inside);
+    if (!c || !url || typeof Audio === 'undefined') return false;
+    const want = inside ? 'inside' : 'outside';
+    const other = inside ? 'outside' : 'inside';
+    let bed = this.rainBeds[want];
+    if (!bed) {
+      const el = new Audio();
+      el.src = url;
+      el.loop = true;
+      el.preload = 'auto';
+      const node = c.createMediaElementSource(el);
+      const gain = c.createGain();
+      gain.gain.value = 0;
+      node.connect(gain).connect(this.amb);
+      bed = { el, node, gain };
+      this.rainBeds[want] = bed;
+    }
+    this.rainKind = want;
+    const t = c.currentTime;
+    holdParam(bed.gain.gain, t);
+    bed.gain.gain.linearRampToValueAtTime(inside ? 0.22 : 0.5, t + 0.55);
+    const old = this.rainBeds[other];
+    if (old) {
+      holdParam(old.gain.gain, t);
+      old.gain.gain.linearRampToValueAtTime(0, t + 0.55);
+      window.setTimeout(() => { if (this.rainKind !== other) old.el.pause(); }, 700);
+    }
+    if (bed.el.paused && !document.hidden) void bed.el.play().catch(() => { /* the next gesture retries */ });
+    return true;
+  }
+
+  private stopRainFiles() {
+    if (this.rainKind === null) return;
+    this.rainKind = null;
+    const c = this.ctx;
+    if (!c) return;
+    const t = c.currentTime;
+    for (const bed of Object.values(this.rainBeds)) {
+      if (!bed) continue;
+      holdParam(bed.gain.gain, t);
+      bed.gain.gain.linearRampToValueAtTime(0, t + 0.55);
+    }
+    window.setTimeout(() => { if (this.rainKind === null) for (const bed of Object.values(this.rainBeds)) bed?.el.pause(); }, 700);
+  }
+
   private stopNightBed() {
     const bed = this.nightBed;
     if (!bed) return;
@@ -577,6 +632,12 @@ export class AudioEngine {
     const rain = kind === 'rain' || kind === 'rain_inside';
     const inside = kind === 'rain_inside';
     const waves = kind === 'waves' || kind === 'waves_night';
+    if (rain && this.playRainFile(inside)) {
+      if (this.ambBed) this.retireAmbience();
+      if (inside) this.queueWindowDrop();
+      return;
+    }
+    if (!rain) this.stopRainFiles();
     if (waves && this.ambBed?.waves) {
       if (kind === 'waves') this.queueGull();
       return;
