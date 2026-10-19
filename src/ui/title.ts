@@ -177,7 +177,7 @@ export async function showTitle(phaser: Phaser.Game) {
     const m = vh > vw ? 'vertical' : 'horizontal';
     if (m !== mode) {
       mode = m;
-      const url = base + 'title/title-' + m + '.webp';
+      const url = base + 'title/title-art-' + m + '.webp';
       img.src = url;
       back.src = url;
       build(m);
