@@ -1,4 +1,6 @@
-Ilustraciones de la introducción. El juego las busca en este orden: 1.jpg, 1.png, 1.webp.
+Ilustraciones de la introducción. El juego prefiere WebP y conserva fallback JPG/PNG.
+Las siete ilustraciones se comprimieron sin cambiar su resolución ni la historia.
+Se prepara únicamente la siguiente imagen durante la lectura, sin bloquear el inicio.
   1  Sofi en su habitación
   2  La carta bajo la puerta
   3  Sofi lee la carta

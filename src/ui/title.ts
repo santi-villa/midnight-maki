@@ -12,6 +12,7 @@ import { versionLabel } from '../core/version';
 import { confirmBox, h, hideBoot, panel, toast, uiRoot } from './dom';
 import { loadChoiceList, resumeSnapshot, slotChoiceList, slotTitle } from './saves';
 import { openSettings } from './settingsPanel';
+import './title.css';
 
 /** Where the animated touches sit, in pixels of each illustration (768x1376 vertical, 1376x768 horizontal). */
 interface Layout {
@@ -44,7 +45,9 @@ export async function showTitle(phaser: Phaser.Game) {
   const saved = await hasSave();
   const base = import.meta.env.BASE_URL;
   const root = h('div', { class: 'title-screen tt' });
+  let offSettings = () => {};
   const close = () => {
+    offSettings();
     window.removeEventListener('resize', layout);
     window.removeEventListener('keydown', onKey);
     root.remove();
@@ -62,7 +65,7 @@ export async function showTitle(phaser: Phaser.Game) {
     await continueGame(found.data);
   };
   const doNew = async () => {
-    let picker: { close: () => void } | null = null;
+    let picker: { close: () => void; root: HTMLElement } | null = null;
     const list = await slotChoiceList(async (slot, info) => {
       const occupied = info.auto ?? info.manual;
       if (occupied && !(await confirmBox(`${slotTitle(slot)} ya tiene la partida de ${occupied.name}. Si empezás de nuevo y confirmás el personaje, se borran el guardado automático y el manual. ¿Seguir?`, 'Empezar de nuevo'))) return;
@@ -80,13 +83,13 @@ export async function showTitle(phaser: Phaser.Game) {
     });
     picker = panel({
       title: 'Nueva partida',
-      wide: true,
       body: h('div', { class: 'col' }, h('p', { class: 'hint' }, 'Hay tres partidas. Una vacía empieza de cero. En una ocupada, la anterior se borra recién cuando confirmás el personaje.'), list),
     });
+    picker.root.classList.add('save-picker');
   };
   let loadPanel: { close: () => void } | null = null;
   const offerImport = async (data: SaveData) => {
-    let picker: { close: () => void } | null = null;
+    let picker: { close: () => void; root: HTMLElement } | null = null;
     const list = await slotChoiceList(async (slot, info) => {
       if ((info.auto || info.manual) && !(await confirmBox(`${slotTitle(slot)} ya está ocupada. Esta copia reemplaza su guardado automático y su manual. ¿Seguir?`, 'Reemplazar'))) return;
       if (!(await installSave(slot, data))) {
@@ -148,12 +151,12 @@ export async function showTitle(phaser: Phaser.Game) {
       codeBox,
       codeGo,
     );
-    loadPanel = panel({ title: 'Cargar partida', body, wide: true, onClose: () => { loadPanel = null; } });
+    loadPanel = panel({ title: 'Cargar partida', body, onClose: () => { loadPanel = null; } });
   };
 
-  // ---- artwork, framed so that nothing is ever cropped (the logo is part of the picture)
+  // ---- clean artwork plates; title and controls remain independent of the illustration
   const back = h('img', { class: 'tt-back', alt: '', draggable: 'false' }) as HTMLImageElement;
-  const img = h('img', { class: 'tt-img', alt: 'Mapaches y Sushi: Pip, Spicy y Rigg junto a Midnight Maki', draggable: 'false' }) as HTMLImageElement;
+  const img = h('img', { class: 'tt-img', alt: 'Maki & Mapaches: Pip, Spicy y Rigg junto a Midnight Maki', draggable: 'false' }) as HTMLImageElement;
   let artworkReady!: () => void;
   const artwork = new Promise<void>(resolve => { artworkReady = resolve; });
   const fx = h('div', { class: 'tt-fx' });
@@ -163,7 +166,7 @@ export async function showTitle(phaser: Phaser.Game) {
     const L = LAYOUTS[m];
     fx.replaceChildren();
     const pos = (x: number, y: number) => ({ left: (x / L.w) * 100 + '%', top: (y / L.h) * 100 + '%' });
-    L.glows.forEach(([x, y, r], i) => fx.append(h('i', { class: 'tt-glow', style: { ...pos(x, y), width: ((r * 2) / L.w) * 100 + '%', animationDelay: -((i * 1.37) % 5) + 's', animationDuration: 3.2 + (i % 4) * 0.7 + 's' } })));
+    L.glows.slice(2).forEach(([x, y, r], i) => fx.append(h('i', { class: 'tt-glow', style: { ...pos(x, y), width: ((r * 2) / L.w) * 100 + '%', animationDelay: -((i * 1.37) % 5) + 's', animationDuration: 3.2 + (i % 4) * 0.7 + 's' } })));
     L.stars.forEach(([x, y], i) => fx.append(h('i', { class: 'tt-star', style: { ...pos(x, y), animationDelay: -((i * 0.83) % 4) + 's', animationDuration: 2.2 + (i % 5) * 0.6 + 's' } })));
     L.water.forEach(([x, y, w], i) => fx.append(h('i', { class: 'tt-water', style: { ...pos(x, y), width: (w / L.w) * 100 + '%', animationDelay: -((i * 1.1) % 4) + 's', animationDuration: 3 + (i % 3) + 's' } })));
     L.leaves.forEach(([x, y], i) => fx.append(h('i', { class: 'tt-leaf l' + (i % 3), style: { ...pos(x, y), animationDelay: -((i * 4.3) % 18) + 's', animationDuration: 15 + (i % 3) * 3 + 's' } })));
@@ -180,7 +183,9 @@ export async function showTitle(phaser: Phaser.Game) {
       build(m);
     }
     const L = LAYOUTS[m];
-    const k = Math.min(vw / L.w, vh / L.h);
+    const reserved = root.classList.contains('open') ? menu.getBoundingClientRect().height + 36 : 0;
+    root.style.setProperty('--title-menu-space', reserved + 'px');
+    const k = Math.min(vw / L.w, Math.max(150, vh - reserved) / L.h);
     frame.style.width = Math.floor(L.w * k) + 'px';
     frame.style.height = Math.floor(L.h * k) + 'px';
     frame.style.setProperty('--u', k + 'px');
@@ -199,8 +204,7 @@ export async function showTitle(phaser: Phaser.Game) {
   };
   img.onerror = () => { root.classList.add('no-bg'); artworkReady(); };
 
-  // ---- fallback logo (only visible when the illustration cannot be loaded)
-  const logo = brandLogo('title-logo mm-logo tt-logo-fallback');
+  const logo = brandLogo('title-logo mm-logo tt-brand');
 
   // ---- menu, revealed after the first tap
   const btn = (label: string, cls: string, fn: () => void) =>
@@ -210,8 +214,12 @@ export async function showTitle(phaser: Phaser.Game) {
   buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', () => void runTask('flow:new-menu', doNew)));
   buttons.push(btn('Cargar partida', '', () => void runTask('flow:load-menu', doLoad)), btn('Opciones', '', () => openSettings(false)), btn('Créditos', '', credits));
   buttons.push(btn('Cuenta y nube', '', () => void import('./account').then((m) => m.openAccount())));
-  const menu = h('div', { class: 'tt-menu', role: 'menu' }, h('div', { class: 'tt-mark', 'aria-hidden': 'true' }, 'Menú'), ...buttons, imp);
-  const prompt = h('div', { class: 'tt-prompt' }, 'Tocá para comenzar');
+  const mainCount = saved ? 3 : 2;
+  const menu = h('nav', { class: 'tt-menu', 'aria-label': 'Menú principal' },
+    h('div', { class: 'tt-main-actions' }, ...buttons.slice(0, mainCount)),
+    h('div', { class: 'tt-utilities' }, ...buttons.slice(mainCount)), imp);
+  menu.inert = true;
+  const prompt = h('button', { type: 'button', class: 'tt-prompt', onclick: () => reveal() }, 'Entrar a Villa Nori', h('span', { 'aria-hidden': 'true' }, ' ▸'));
 
   let revealed = false;
   const reveal = () => {
@@ -220,9 +228,12 @@ export async function showTitle(phaser: Phaser.Game) {
     audio.unlock(); // browsers only allow audio after a gesture
     audio.play('title');
     root.classList.add('open');
+    prompt.hidden = true;
+    layout();
     // buttons ignore taps until the fade-in is under way, so the tap that opened the menu cannot press one
     window.setTimeout(() => {
       root.classList.add('armed');
+      menu.inert = false;
       buttons[0]?.focus({ preventScroll: true });
     }, 420);
   };
@@ -250,7 +261,7 @@ export async function showTitle(phaser: Phaser.Game) {
   hideBoot();
   if (saved && takeResumeOnce()) void runTask('flow:resume', doContinue);
   // keep the calm / battery flags in sync with the settings panel
-  bus.on('settings:changed', () => { if (document.body.contains(root)) refreshCalm(); });
+  offSettings = bus.on('settings:changed', () => { if (document.body.contains(root)) { refreshCalm(); layout(); } });
 }
 
 function credits() {
@@ -259,7 +270,7 @@ function credits() {
     body: h(
       'div',
       { class: 'col', style: { lineHeight: '1.5' } },
-      h('p', null, h('b', null, 'Mapaches y Sushi: Los secretos de Villa Nori')),
+      h('p', null, h('b', null, 'Maki & Mapaches: Los secretos de Villa Nori')),
       h('p', null, 'Un regalo para Sofi, de Santi.'),
       h('p', null, 'Ilustraciones pixel art, música y sonidos para Villa Nori.'),
       h('p', null, 'Terreno y tejas: VectoRaith (demo Traditional Japanese, con adaptación de color). Muebles y decoración: Bitglow. Huerta: Cozy Farm Lite, de Bramble & Byte.'),
@@ -270,9 +281,9 @@ function credits() {
 }
 
 function brandLogo(className: string) {
-  return h('div', { class: className, 'aria-label': 'Mapaches y Sushi' },
-    h('div', { class: 'brand-top' }, 'MAPACHES ', h('span', null, 'y')),
-    h('div', { class: 'brand-bottom' }, 'SUSHI'),
+  return h('div', { class: className, 'aria-label': 'Maki & Mapaches' },
+    h('div', { class: 'brand-top' }, 'MAKI ', h('span', null, '&')),
+    h('div', { class: 'brand-bottom' }, 'MAPACHES'),
     h('div', { class: 'brand-subtitle' }, 'Los secretos de Villa Nori'),
     h('div', { class: 'brand-family' }, 'Pip · Spicy Beacon · Rigg'));
 }

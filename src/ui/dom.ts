@@ -306,7 +306,7 @@ export function openStartLoad(): { set: (done: number, total: number, text?: str
   const root = h('div', { class: 'start-load', role: 'status', 'aria-live': 'polite', 'aria-busy': 'true' },
     h('div', { class: 'start-load-card' },
       h('div', { class: 'start-load-lantern', 'aria-hidden': 'true', html: START_LANTERN }),
-      h('div', { class: 'start-load-title' }, 'Mapaches y Sushi'),
+      h('div', { class: 'start-load-title' }, 'Maki & Mapaches'),
       label,
       h('div', { class: 'start-load-bar', 'aria-hidden': 'true' }, fill),
       count,

@@ -85,7 +85,10 @@ export function mountHud(hd: HudHandlers) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); questEl.click(); }
     },
   });
-  try { if (localStorage.getItem('mm_questmini') === '1') questEl.classList.add('mini'); } catch { /* ignore */ }
+  const compactQuest = window.matchMedia('(max-width: 600px)').matches;
+  let questPreference: string | null = null;
+  try { questPreference = localStorage.getItem('mm_questmini'); } catch { /* local preferences unavailable */ }
+  if (questPreference === '1' || (questPreference == null && compactQuest)) questEl.classList.add('mini');
   questEl.setAttribute('aria-expanded', String(!questEl.classList.contains('mini')));
   suggestEl = h('div', { class: 'hud-suggest' });
   phoneBtn = h('button', {
@@ -133,7 +136,7 @@ export function refresh() {
   paintHudClock(clockEl, minute);
   const q = handlers.questText();
   questEl.style.display = q ? '' : 'none';
-  if (q) questEl.innerHTML = q;
+  if (q && questEl.innerHTML !== q) questEl.innerHTML = q;
 }
 
 function refreshSuggestions() {
