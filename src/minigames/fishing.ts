@@ -63,7 +63,7 @@ export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
     const sparks: Spark[] = [];
     const sh = shell(kind === 'sea' ? 'Pesca en el mar' : 'Pesca en el lago', W, H, 2, () => end(false));
     const say = (t: string) => { sh.info.textContent = t; };
-    say(`${tune.name}. Tocá para lanzar.`);
+    say(tune.name);
     const btn = h('button', { class: 'btn primary', style: { minWidth: '180px', minHeight: '60px', fontSize: '1.1em' } }, 'Lanzar') as HTMLButtonElement;
     sh.buttons.append(btn);
     const label = (t: string) => { if (btn.textContent !== t) btn.textContent = t; };
@@ -98,7 +98,7 @@ export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
         haptic('light' as never);
         burst(W / 2, SURFACE + 8, 12, '#ffffff');
         label('Mantener');
-        say(quick ? '¡Gran anzuelada! Mantené para subir la zona verde.' : 'Mantené para subir la zona verde y seguí al pez.');
+        say(quick ? '¡Gran anzuelada!' : 'Seguí al pez con la zona verde.');
       }
       holding = true;
     };
@@ -206,7 +206,7 @@ export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
           audio.sfxPlay('bite');
           haptic('tap');
           label('¡AHORA!');
-          say('¡Picó! ¡Tocá ya!');
+          say('¡Picó!');
         }
       } else if (state === 'bite') {
         biteT -= dt;

@@ -7,7 +7,7 @@ import { BALANCE } from '../core/balance';
 import { game } from '../core/state';
 import { CHARACTERS } from '../data/characters';
 import { ITEMS, ITEMS_BY_ID, type ItemCat } from '../data/items';
-import { allQuests, currentStep, questDef, trackedText } from '../quests/quests';
+import { currentStep, questDef, trackedText } from '../quests/quests';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
 import { EVENTS, upcomingEvents } from '../systems/events';
@@ -35,11 +35,11 @@ function tabs(names: string[], onPick: (i: number) => void, start = 0, icons: st
 }
 
 // ------------------------------------------------------------------ bag
-const BAG_CATS: { name: string; cats: ItemCat[] }[] = [
-  { name: 'Ingredientes', cats: ['ingredient', 'supply', 'seed'] },
-  { name: 'Colección', cats: ['fish', 'bug', 'flower', 'shell', 'material', 'rare'] },
-  { name: 'Regalos', cats: ['gift'] },
-  { name: 'Especiales', cats: ['key'] },
+const BAG_CATS: { name: string; cats: ItemCat[]; empty: string }[] = [
+  { name: 'Ingredientes', cats: ['ingredient', 'supply', 'seed'], empty: 'No tenés ingredientes sueltos. Los encontrás en las tiendas del pueblo.' },
+  { name: 'Colección', cats: ['fish', 'bug', 'flower', 'shell', 'material', 'rare'], empty: 'Todavía no juntaste nada. Pescá, buscá insectos y flores por el pueblo.' },
+  { name: 'Regalos', cats: ['gift'], empty: 'Sin regalos por ahora. Podés dárselos a tus vecinos cuando los conozcas mejor.' },
+  { name: 'Especiales', cats: ['key'], empty: 'Acá aparecen las llaves y los objetos de historia.' },
 ];
 
 export function openBag(start = 0) {
@@ -58,7 +58,7 @@ export function openBag(start = 0) {
       grid.append(b);
     }
     items.sort((a, b) => a.name.localeCompare(b.name, 'es'));
-    body.append(items.length ? grid : emptyState('Nada por acá todavía. Lo que juntes, compres o pesques aparece en esta pestaña.', 'bag'), info);
+    body.append(items.length ? grid : emptyState(BAG_CATS[i].empty, 'bag'), info);
   };
   show(start);
   const counts = BAG_CATS.map((c) => ITEMS.filter((it) => c.cats.includes(it.cat) && game.count(it.id) > 0).length);
@@ -92,7 +92,7 @@ function questsView() {
       const tracked = game.save.quests.tracked === q!.id;
       wrap.append(
         h('div', { class: 'card col', style: { gap: '4px', borderColor: tracked ? '#f2c66d' : undefined } },
-          h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, q!.title), h('button', { class: 'btn small ' + (tracked ? 'primary' : ''), onclick: (e: Event) => { game.save.quests.tracked = q!.id; game.touch('track'); (e.target as HTMLElement).textContent = 'Marcada'; } }, tracked ? 'Marcada' : 'Marcar')),
+          h('div', { class: 'row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px 8px' } }, h('b', { style: { minWidth: '0', overflowWrap: 'anywhere' } }, q!.title), h('button', { class: 'btn small ' + (tracked ? 'primary' : ''), onclick: (e: Event) => { game.save.quests.tracked = q!.id; game.touch('track'); (e.target as HTMLElement).textContent = 'Marcada'; } }, tracked ? 'Marcada' : 'Marcar')),
           h('div', { class: 'hint' }, q!.desc),
           q!.steps.length > 1 ? h('div', { class: 'steps', role: 'img', 'aria-label': `Paso ${stepNo + 1} de ${q!.steps.length}` }, ...q!.steps.map((_, k) => h('i', { class: k < stepNo ? 'done' : k === stepNo ? 'now' : '' }))) : null,
           st ? h('div', null, '→ ', st.text) : null,
@@ -103,8 +103,6 @@ function questsView() {
   }
   const done = game.save.quests.done.map((id) => questDef(id)).filter(Boolean);
   if (done.length) wrap.append(h('h3', null, `Completadas (${done.length})`), h('div', { class: 'hint' }, done.map((q) => q!.title).join(' · ')));
-  const total = allQuests().filter((q) => q.kind === 'side').length;
-  wrap.append(h('p', { class: 'hint' }, `Misiones secundarias en el juego: ${total}. Revisá la cartelera de la plaza y hablá con los vecinos.`));
   return wrap;
 }
 
