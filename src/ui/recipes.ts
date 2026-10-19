@@ -68,7 +68,8 @@ export function recipeCollectionView(): HTMLElement {
       return;
     }
     for (const cat of Object.keys(CATEGORIES) as (keyof typeof CATEGORIES)[]) {
-      const list = recipes.filter((r) => r.cat === cat);
+      // known recipes first inside each category, then the ones still to discover
+      const list = recipes.filter((r) => r.cat === cat).sort((a, b) => Number(known(b)) - Number(known(a)));
       if (!list.length) continue;
       const grid = h('div', { class: 'recipe-grid' });
       for (const r of list) {
