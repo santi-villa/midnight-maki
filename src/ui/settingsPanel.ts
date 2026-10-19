@@ -6,7 +6,9 @@ import { ACTION_LABEL, EDITABLE_ACTIONS, bindingConflict, bindingMap, keyLabel, 
 import { armKeyCapture } from '../input/keys';
 import { activeSlot, clearManual, exportSave, importSaveFile, markResumeOnce, saveCode, saveFromCode, saveGame, saveManual, shareSave } from '../persistence/storage';
 import { h, panel, toast } from './dom';
-import { section, seg, setting, switchEl } from './kit';
+import { section, seg, setting, switchEl, tabBar } from './kit';
+import { inputMethod } from '../input/keys';
+import './settingsPanel.css';
 import { haptic, supportsHaptics } from '../core/haptics';
 
 export function openSettings(inGame: boolean) {
@@ -65,9 +67,11 @@ export function openSettings(inGame: boolean) {
       }
     },
   }, 'Restaurar desde el código');
-  const body = h(
-    'div',
-    { class: 'col' },
+  const keyboard = h('details', { class: 'keyboard-settings', open: inputMethod() !== 'touch' },
+    h('summary', null, 'Teclado y atajos'),
+    choice<string>('Atajo del NoriPhone', [['p', 'P'], ['n', 'N'], ['t', 'T']], () => settings.phoneKey ?? 'p', (v) => updateSettings({ phoneKey: v })),
+    controlsSection());
+  const groups = [
     section('Sonido', 'lantern', slider('Música', 'music'), slider('Ambiente', 'ambience'), slider('Efectos', 'sfx')),
     section('Lectura', 'scroll',
       choice('Tamaño de texto', [[0.9, 'Chico'], [1, 'Normal'], [1.15, 'Grande'], [1.3, 'Enorme']], () => settings.textScale, (v) => updateSettings({ textScale: v })),
@@ -80,14 +84,15 @@ export function openSettings(inGame: boolean) {
       sleepHoursSetting(),
       choice('Cómo cocinar', [['act', 'En el restaurante'], ['board', 'Tablero de gestos (clásico)']], () => settings.cookStyle ?? 'act', (v) => updateSettings({ cookStyle: v })),
       toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),
-      toggle('Joystick virtual', 'joystick', 'Aparece al usar el dedo, además de tocar el suelo para caminar.'),
-      choice<string>('Atajo del NoriPhone (teclado)', [['p', 'P'], ['n', 'N'], ['t', 'T']], () => settings.phoneKey ?? 'p', (v) => updateSettings({ phoneKey: v }))),
+      ),
     section('Pantalla y comodidad', 'phone',
       choice<'normal' | 'dark'>('Noche', [['normal', 'Normal'], ['dark', 'Oscura']], () => settings.nightBrightness ?? 'normal', (v) => updateSettings({ nightBrightness: v }), 'Brillo del exterior por la noche. Sofi conserva una luz tenue para orientarte.'),
       choice<'auto' | 'high' | 'low'>('Efectos visuales', [['auto', 'Automático'], ['high', 'Lindos'], ['low', 'Ahorro de batería']], () => settings.perf ?? 'auto', (v) => { if (v === 'auto') resetAutoPerf(); updateSettings({ perf: v }); }),
       toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
       toggle('Vibración', 'haptics', supportsHaptics() ? 'Toques breves en momentos especiales. El dispositivo puede limitar la vibración.' : 'Este navegador no ofrece vibración. Tu preferencia se guarda para dispositivos compatibles.')),
-    controlsSection(),
+    section('Controles', 'act',
+      h('p', { class: 'hint' }, 'Tocá el suelo para caminar y el botón de acción para interactuar.'),
+      toggle('Joystick virtual', 'joystick', 'Una ruedita de madera para moverte con el dedo.'), keyboard),
     inGame
       ? section('Partida y copias de seguridad', 'scroll',
           h('div', { class: 'col', style: { padding: '6px 0' } },
@@ -106,8 +111,26 @@ export function openSettings(inGame: boolean) {
           restoreBtn,
         ))
       : null,
-  );
-  panel({ title: 'Ajustes', body });
+  ];
+  const categories = [
+    { label: 'Sonido', icon: 'lantern', content: [groups[0]] },
+    { label: 'Juego', icon: 'gear', content: [groups[2]] },
+    { label: 'Controles', icon: 'act', content: [groups[4]] },
+    { label: 'Comodidad', icon: 'heart', content: [groups[1], groups[3]] },
+    ...(inGame ? [{ label: 'Partida', icon: 'disk', content: [groups[5]] }] : []),
+  ];
+  const body = h('div', { class: 'settings-content', role: 'tabpanel', id: 'settings-content' });
+  const show = (i: number) => {
+    body.replaceChildren(...categories[i].content.filter((el): el is HTMLElement => !!el));
+    body.setAttribute('aria-label', categories[i].label);
+    const scroll = body.closest('.panel-body');
+    if (scroll) scroll.scrollTop = 0;
+  };
+  show(0);
+  const tabs = tabBar(categories, show);
+  tabs.querySelectorAll('[role=tab]').forEach(t => t.setAttribute('aria-controls', body.id));
+  const p = panel({ title: 'Ajustes', body, tabs });
+  p.root.classList.add('settings-panel');
 }
 
 function sleepHoursSetting() {
