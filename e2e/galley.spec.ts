@@ -111,3 +111,28 @@ test('the rice-maker employee walks and stocks the hangiri by itself', async ({ 
   }, { timeout: 90_000, intervals: [500] }).toBeGreaterThanOrEqual(1);
   expect(await page.evaluate(() => (window as any).mmDebug.errorReports?.length ?? 0)).toBe(0);
 });
+
+test('a drink is made at the blender with a glass and taken by hand', async ({ page }) => {
+  test.setTimeout(90_000);
+  await bootExploration(page);
+  await visit(page, 'restaurant', 7, 4);
+  await page.evaluate(() => {
+    const m = (window as any).mmDebug, g = m.game;
+    g.save.restaurant.level = 2; g.save.inventory = {};
+    g.addItem('tea_leaves', 2, 'test');
+    m.clock.resume();
+  });
+  await fromFridge(page, /té|te/i);
+  await stand(page, 11, 3);
+  await act(page, 'mixer', 'put');
+  await stand(page, 12, 3);
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.contextOffer.primary?.id)).toBe('gl:cups:cup');
+  await act(page, 'cups', 'cup');
+  await stand(page, 11, 3);
+  await act(page, 'mixer', 'put');
+  await act(page, 'mixer', 'start');
+  await page.evaluate(async () => (await import('/src/galley/index.ts' as string)).galley().tick(5));
+  await act(page, 'mixer', 'take');
+  expect(await page.evaluate(async () => (await import('/src/galley/index.ts' as string)).galley().held('player')[0].kind)).toBe('drink');
+  expect(await page.evaluate(() => (window as any).mmDebug.errorReports?.length ?? 0)).toBe(0);
+});

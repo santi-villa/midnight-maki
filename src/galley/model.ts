@@ -5,9 +5,10 @@
  * Layout: galley/layout.ts. Rules for dishes: galley/prep.ts. Design: docs/cocina-fisica.md.
  */
 import { ITEMS_BY_ID } from '../data/items';
+import { DRINKS, DRINK_BY_ID } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { STATION_BY_ID, STATIONS, effectiveKind, type StationDef } from './layout';
-import { COOKABLE, CUTTABLE, judgeDish, recipesFor, type DishItem, type Form, type GItem, type Grade, type IngItem, type Match } from './prep';
+import { COOKABLE, CUTTABLE, judgeDish, recipesFor, type DrinkItem, type DishItem, type Form, type GItem, type Grade, type IngItem, type Match } from './prep';
 import { VERDICT_GRADE, type CutVerdict } from './cut';
 
 export interface Stock {
@@ -21,8 +22,10 @@ export interface GalleyEnv {
   upgrades(): readonly string[];
   rng(): number;
   known(recipe: string): boolean;
+  /** drinks are on the menu (the restaurant reached level 2); missing means yes */
+  drinks?(): boolean;
   /** hands a finished dish to the service. `ok: false` keeps it in the hands. */
-  deliver(dish: DishItem, who: string): { ok: boolean; msg?: string };
+  deliver(dish: DishItem | DrinkItem, who: string): { ok: boolean; msg?: string };
 }
 
 /** Seconds a cooker takes, and when what it holds goes a little past (good → regular) and burns. */
@@ -31,9 +34,11 @@ export const COOK = {
   stove: { time: 9, over1: 5, over2: 10, burn: 16 },
 } as const;
 export const ASSEMBLE_SECONDS = 1.4;
+/** the blender: seconds to mix a drink */
+export const MIX_SECONDS = 3.5;
 export const PLAYER = 'player';
 
-export type Verb = 'open' | 'return' | 'put' | 'take' | 'start' | 'chop' | 'assemble' | 'deliver' | 'trash';
+export type Verb = 'open' | 'return' | 'put' | 'take' | 'start' | 'chop' | 'assemble' | 'deliver' | 'trash' | 'cup';
 
 export type GalleyEvent =
   | { t: 'take'; who: string; item: GItem; from: string }
@@ -46,9 +51,10 @@ export type GalleyEvent =
   | { t: 'cut'; station: string; verdict: CutVerdict; item: IngItem }
   | { t: 'assembling'; station: string; recipe: string }
   | { t: 'assembled'; station: string; dish: DishItem }
+  | { t: 'mixed'; station: string; drink: DrinkItem }
   | { t: 'trash'; who: string; item: GItem }
   | { t: 'refund'; who: string; item: IngItem }
-  | { t: 'delivered'; who: string; dish: DishItem };
+  | { t: 'delivered'; who: string; dish: DishItem | DrinkItem };
 
 export interface Result { ok: boolean; msg?: string; events: GalleyEvent[]; needsCut?: boolean; needsPick?: boolean }
 const fail = (msg: string): Result => ({ ok: false, msg, events: [] });
@@ -74,6 +80,8 @@ export interface GalleySnapshot {
 
 export const itemLabel = (i: GItem): string => {
   if (i.kind === 'dish') return RECIPES_BY_ID[i.recipe]?.name ?? 'Plato';
+  if (i.kind === 'cup') return 'Vaso';
+  if (i.kind === 'drink') return DRINK_BY_ID[i.drink]?.name ?? 'Bebida';
   const name = i.ing === 'nori' ? 'Alga' : ITEMS_BY_ID[i.ing]?.name ?? i.ing;
   const state = i.form === 'cut' ? ' cortado' : i.form === 'cooked' ? ' cocido' : i.form === 'cooked_cut' ? ' cocido y cortado' : '';
   return name + state;
@@ -116,6 +124,20 @@ export class Galley {
     return recipesFor(s.items.filter((i): i is IngItem => i.kind === 'ing'), this.env.known);
   }
 
+  /** The drink the mixer holds right now: one glass and exactly the ingredients of a drink. */
+  drinkIn(id = 'mixer'): string | null {
+    const s = this.st[id];
+    if (!s || s.work || !this.drinksOn()) return null;
+    const cups = s.items.filter((i) => i.kind === 'cup').length;
+    const ings = s.items.filter((i): i is IngItem => i.kind === 'ing');
+    if (cups !== 1 || s.items.length !== 1 + ings.length) return null;
+    return DRINKS.find((d) => {
+      const need = Object.entries(d.ingredients);
+      return need.length === new Set(ings.map((i) => i.ing)).size && need.every(([ing, n]) => ings.filter((i) => i.ing === ing).length === n);
+    })?.id ?? null;
+  }
+  drinksOn(): boolean { return this.env.drinks ? this.env.drinks() : true; }
+
   private accepts(id: string, item: GItem): boolean {
     const s = STATION_BY_ID[id];
     const kind = this.kind(id);
@@ -124,6 +146,7 @@ export class Galley {
       return true;
     }
     if (kind === 'assembly') return item.kind === 'ing';
+    if (kind === 'mixer') return item.kind === 'cup' ? !this.st[id].items.some((i) => i.kind === 'cup') : item.kind === 'ing' && item.form === 'raw' && DRINK_INGREDIENTS.has(item.ing);
     if (kind === 'cooker') {
       if (item.kind !== 'ing' || item.form !== 'raw') return false;
       return s.cooker === 'rice' ? item.ing === 'rice' : COOKABLE.has(item.ing);
@@ -161,8 +184,16 @@ export class Galley {
         if (this.preview(id).length) out.push('assemble');
         if (s.items.length && room) out.push('take');
       }
+    } else if (kind === 'mixer') {
+      if (!s.work) {
+        if (held && s.items.length < this.slots(id) && this.accepts(id, held)) out.push('put');
+        if (this.drinkIn(id)) out.push('start');
+        if (s.items.length && room) out.push('take');
+      }
+    } else if (kind === 'cups') {
+      if (room && this.drinksOn()) out.push('cup');
     } else if (kind === 'pass') {
-      if (held?.kind === 'dish') out.push('deliver');
+      if (held?.kind === 'dish' || held?.kind === 'drink') out.push('deliver');
     } else if (kind === 'bin') {
       if (held) out.push('trash');
     }
@@ -198,6 +229,14 @@ export class Galley {
       ev.push({ t: 'take', who, item, from: id });
       return { ok: true, events: ev };
     }
+    if (verb === 'cup') {
+      this.hands.set(who, [...hands, { kind: 'cup', uid: this.nextUid++ }]);
+      return { ok: true, events: [{ t: 'take', who, item: this.held(who)[this.held(who).length - 1], from: id }] };
+    }
+    if (verb === 'start' && this.kind(id) === 'mixer') {
+      s.work = { recipe: this.drinkIn(id)!, bonus: 0, t: 0, total: MIX_SECONDS };
+      return { ok: true, events: [{ t: 'cookStart', station: id }] };
+    }
     if (verb === 'start') {
       s.phase = 'cooking'; s.t = 0;
       return { ok: true, events: [{ t: 'cookStart', station: id }] };
@@ -220,7 +259,7 @@ export class Galley {
       return { ok: true, events: [{ t: 'assembling', station: id, recipe: pick.recipe.id }] };
     }
     if (verb === 'deliver') {
-      const dish = hands[0] as DishItem;
+      const dish = hands[0] as DishItem | DrinkItem;
       const res = this.env.deliver(dish, who);
       if (!res.ok) return { ok: false, msg: res.msg, events: [] };
       hands.shift();
@@ -281,7 +320,15 @@ export class Galley {
           if (st.t >= cfg.burn) { st.items = []; st.phase = 'idle'; st.t = 0; ev.push({ t: 'burnt', station: s.id }); }
         }
       }
-      if (st.work) {
+      if (st.work && kind === 'mixer') {
+        st.work.t += dt;
+        if (st.work.t >= st.work.total) {
+          const drink: DrinkItem = { kind: 'drink', uid: this.nextUid++, drink: st.work.recipe, dq: 1 };
+          st.items = [drink];
+          st.work = null;
+          ev.push({ t: 'mixed', station: s.id, drink });
+        }
+      } else if (st.work) {
         st.work.t += dt;
         if (st.work.t >= st.work.total) {
           const r = RECIPES_BY_ID[st.work.recipe];
@@ -325,7 +372,7 @@ export class Galley {
         items: (x.items ?? []).filter(validItem),
         phase: x.phase === 'cooking' || x.phase === 'done' ? x.phase : 'idle',
         t: Number.isFinite(x.t) ? Math.max(0, x.t as number) : 0,
-        work: x.work && RECIPES_BY_ID[x.work.recipe] ? { ...x.work } : null,
+        work: x.work && (RECIPES_BY_ID[x.work.recipe] || DRINK_BY_ID[x.work.recipe]) ? { ...x.work } : null,
         pending: !!x.pending,
       };
     }
@@ -356,25 +403,31 @@ export class Galley {
       const kind = this.kind(id);
       if (kind === 'cooker') return STATION_BY_ID[id].cooker === 'rice' ? 'La arrocera solo cocina arroz crudo.' : 'En el fogón se cocinan huevo, langostino y anguila.';
       if (id === 'hangiri') return 'El hangiri guarda arroz cocido.';
+      if (kind === 'mixer') return 'La licuadora lleva un vaso y los ingredientes de la bebida.';
       return 'Eso no va ahí.';
     }
     if (verb === 'chop') return 'Eso no se corta.';
-    if (verb === 'deliver') return 'Solo se entregan platos terminados.';
+    if (verb === 'deliver') return 'Solo se entregan platos y bebidas terminados.';
+    if (verb === 'cup') return this.drinksOn() ? 'Tenés las manos ocupadas.' : 'Las bebidas se habilitan al llegar al nivel 2.';
     return 'No se puede hacer eso ahora.';
   }
 }
 
 function rank(v: Verb): number {
-  return v === 'take' ? 0 : v === 'assemble' ? 1 : v === 'start' ? 2 : v === 'open' ? 3 : 4;
+  return v === 'take' ? 0 : v === 'assemble' ? 1 : v === 'start' ? 2 : v === 'open' || v === 'cup' ? 3 : 4;
 }
 
 function blank(): StationState { return { items: [], phase: 'idle', t: 0, work: null, pending: false }; }
 
+/** raw things a drink is made of */
+const DRINK_INGREDIENTS: ReadonlySet<string> = new Set(DRINKS.flatMap((d) => Object.keys(d.ingredients)));
 const FORMS: readonly Form[] = ['raw', 'cooked', 'cut', 'cooked_cut'];
 function validItem(i: unknown): i is GItem {
   const x = i as GItem | null;
   if (!x || typeof x !== 'object' || !Number.isFinite(x.uid)) return false;
   if (x.kind === 'dish') return !!RECIPES_BY_ID[x.recipe] && [0, 1, 2].includes(x.dq);
+  if (x.kind === 'cup') return true;
+  if (x.kind === 'drink') return !!DRINK_BY_ID[x.drink] && [0, 1, 2].includes(x.dq);
   if (x.kind === 'ing') return typeof x.ing === 'string' && !!ITEMS_BY_ID[x.ing] && FORMS.includes(x.form) && [0, 1, 2, 3].includes(x.q);
   return false;
 }

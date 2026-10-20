@@ -136,7 +136,7 @@ export function showTickets(list: Ticket[], visible: boolean, hint: string | nul
       h('span', { class: 'gl-qty' }, `${l.waiting + l.ready}×`),
       h('span', { class: 'gl-name' }, l.name),
       h('span', { class: 'gl-state' + (l.waiting ? '' : ' ok') }, l.waiting ? (l.ready ? `${l.ready} listo` : 'pendiente') : '✓ en el mostrador'),
-      h('div', { class: 'gl-needs' }, l.needs.map((n) => `${n.count > 1 ? n.count + '× ' : ''}${itemLabel({ kind: 'ing', uid: 0, ing: n.ing, form: n.form, q: 2 })}`).join(' · ')))),
+      h('div', { class: 'gl-needs' }, [...(l.cup ? ['Vaso'] : []), ...l.needs.map((n) => `${n.count > 1 ? n.count + '× ' : ''}${itemLabel({ kind: 'ing', uid: 0, ing: n.ing, form: n.form, q: 2 })}`)].join(' · ')))),
     h('div', { class: 'gl-patience', role: 'img', 'aria-label': `Paciencia ${Math.round(t.patience * 100)}%` }, h('i', { style: { width: `${Math.round(t.patience * 100)}%` } }))));
   const more = list.length > 3 ? [h('div', { class: 'gl-more' }, `+${list.length - 3} más`)] : [];
   ticketsEl.replaceChildren(...cards, ...more, ...(hint ? [h('div', { class: 'gl-hint paper' }, hint)] : []));

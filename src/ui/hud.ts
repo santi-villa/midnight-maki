@@ -11,7 +11,7 @@ import { inputMethod } from '../input/keys';
 import { dayOfSeason, WEEKDAYS, weekday } from '../core/balance';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
-import { idleOffer, needsMore, secondaryActions, type ContextAction, type ContextOffer } from '../world/contextActions';
+import { idleOffer, isTalk, needsMore, secondaryActions, type ContextAction, type ContextOffer } from '../world/contextActions';
 import { h, uiRoot } from './dom';
 import { skinIconEl } from './skin';
 import { formatHudTime, hudTime, paintHudClock } from './hudClock';
@@ -271,12 +271,13 @@ function buttonSpecs(offer: ContextOffer): BtnSpec[] {
       detail: menuOpen ? 'Cerrar acciones' : 'Más acciones',
       icon: 'act',
       cls: 'btn ctx-chip ctx-more',
-      keyAction: 'secondary',
+      keyAction: isTalk(offer.chip) ? 'contextAlt' : 'secondary',
       run: () => {
         menuOpen = !menuOpen;
         renderContext();
       },
     });
+    if (isTalk(offer.chip)) specs.push(actionSpec(offer.chip!, 'btn ctx-chip', false, 'secondary'));
   } else if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
   if (offer.primary) specs.push(actionSpec(offer.primary, 'hud-interact', true, 'interact'));
   return specs;

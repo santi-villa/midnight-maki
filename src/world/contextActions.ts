@@ -53,10 +53,25 @@ export interface ContextAction {
   intent: ContextIntent;
 }
 
-/** Every action except the main one (E). */
-export const secondaryActions = (o: ContextOffer): ContextAction[] => [...(o.chip ? [o.chip] : []), ...o.overflow];
-/** With more than two actions, F opens the list "Más acciones…" instead of running one of them. */
-export const needsMore = (o: ContextOffer): boolean => !!o.primary && secondaryActions(o).length > 1;
+/** Talking to someone (a character or a neighbour). */
+export const isTalk = (a: ContextAction | null | undefined): boolean => !!a && (a.id.startsWith('npc:') || a.id.startsWith('nb:'));
+
+/**
+ * E does things, F talks. When somebody is close the talk action is always the side action (F) and E keeps the best of the
+ * rest, so the main key never turns into a conversation by accident. With nobody to talk to nothing changes.
+ */
+export function arrange(o: ContextOffer): ContextOffer {
+  const all = [o.primary, o.chip, ...o.overflow].filter((a): a is ContextAction => !!a);
+  const talk = all.find(isTalk);
+  const rest = all.filter((a) => a !== talk);
+  if (!talk || !rest.length) return o;
+  return { ...o, primary: rest[0], chip: talk, overflow: rest.slice(1) };
+}
+
+/** Every action except the main one (E). With a talk side action (F) the list only holds the rest. */
+export const secondaryActions = (o: ContextOffer): ContextAction[] => (isTalk(o.chip) ? o.overflow : [...(o.chip ? [o.chip] : []), ...o.overflow]);
+/** With more than two actions the rest go in the list "Más acciones…" (F, or Space when F talks). */
+export const needsMore = (o: ContextOffer): boolean => !!o.primary && secondaryActions(o).length > (isTalk(o.chip) ? 0 : 1);
 
 export interface ContextOffer {
   primary: ContextAction | null;
@@ -199,7 +214,8 @@ function jobAction(job: TableJob): ContextAction | null {
     return { id: `cook:${todo.uid}`, label: `${todo.kind === 'drink' ? 'Preparar' : 'Cocinar'} · ${shortWho(who)}`, detail: `${made.name} para ${who}. Se hace con los ingredientes de tu amigo.`, icon: 'maki', intent: { type: 'cookOrder', uid: todo.uid } };
   }
   const order = game.save.orders.find(o => o.uid === job.orderUid);
-  if (galleyOn()) return { id: `order:${job.orderUid}`, label: `Pedido · ${shortWho(who)}`, detail: `${dish} para ${who}. Se prepara en la cocina.`, icon: 'clipboard', intent: { type: 'orders' } };
+  // in the physical kitchen nothing is cooked from the table: the ticket on screen says what is pending
+  if (galleyOn()) return null;
   const ready = !!job.orderUid && order?.kind !== 'drink' && canCook(job.recipe);
   return {
     id: ready ? `cook:${job.orderUid}` : `order:${job.orderUid}`,

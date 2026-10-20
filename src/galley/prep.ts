@@ -13,7 +13,10 @@ export type Grade = 0 | 1 | 2 | 3;
 
 export interface IngItem { kind: 'ing'; uid: number; ing: string; form: Form; q: Grade }
 export interface DishItem { kind: 'dish'; uid: number; recipe: string; dq: 0 | 1 | 2; variant?: string; bonus: number }
-export type GItem = IngItem | DishItem;
+/** an empty glass (free: the rack never runs out) and a finished drink in its glass */
+export interface CupItem { kind: 'cup'; uid: number }
+export interface DrinkItem { kind: 'drink'; uid: number; drink: string; dq: 0 | 1 | 2 }
+export type GItem = IngItem | DishItem | CupItem | DrinkItem;
 
 /** Fish, vegetables and fruit that are cut on the board before they go in a dish. */
 export const CUTTABLE: ReadonlySet<string> = new Set([

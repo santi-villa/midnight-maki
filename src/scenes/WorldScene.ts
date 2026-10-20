@@ -50,7 +50,7 @@ import { furnSize } from '../data/furniture';
 import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
-import { idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
+import { arrange, idleOffer, isPlayerRoom, isTalk, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
@@ -2053,6 +2053,8 @@ export class WorldScene extends Phaser.Scene {
 
   /** Space: the side action when one is showing, otherwise the main action. */
   tryAlternate() {
+    // with F talking, Space opens the rest of the actions
+    if (isTalk(this.contextOffer.chip) && needsMore(this.contextOffer)) { void import('../ui/hud').then((m) => m.toggleMoreMenu()); return; }
     if (this.contextOffer.chip) this.perform(this.contextOffer.chip);
     else this.tryInteract();
   }
@@ -2060,6 +2062,8 @@ export class WorldScene extends Phaser.Scene {
   /** F: the side action, or the first extra action, and nothing when the player is alone. */
   trySecondary() {
     const offer = this.contextOffer;
+    if (isTalk(offer.chip)) { this.perform(offer.chip!); return; }
+    if (isTalk(offer.primary) && !offer.chip) { this.perform(offer.primary!); return; }
     if (needsMore(offer)) { void import('../ui/hud').then((m) => m.toggleMoreMenu()); return; }
     const alt = offer.chip;
     if (alt) this.perform(alt);
@@ -2320,7 +2324,7 @@ export class WorldScene extends Phaser.Scene {
   private refreshContext() {
     const room = this.player && this.zone ? roomAt(this.zone.def, this.player.tx, this.player.ty) ?? null : null;
     const offer = this.player && this.zone && this.canAct() && !this.player.path.length
-      ? resolveContext(this.sense())
+      ? arrange(resolveContext(this.sense()))
       : idleOffer(isPlayerRoom(room) ? room!.name : null);
     const key = offerKey(offer);
     if (key === this.contextKey) return;
