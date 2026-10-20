@@ -82,7 +82,7 @@ export function openSettings(inGame: boolean) {
         if (game.loaded) game.setFlag('play_difficulty', v);
       }),
       sleepHoursSetting(),
-      choice('Cómo cocinar', [['act', 'En el restaurante'], ['board', 'Tablero de gestos (clásico)']], () => settings.cookStyle ?? 'act', (v) => updateSettings({ cookStyle: v })),
+      choice('Cómo cocinar', [['galley', 'Caminando por la cocina'], ['act', 'Cocina guiada'], ['board', 'Tablero de gestos (clásico)']], () => settings.cookStyle ?? 'galley', (v) => updateSettings({ cookStyle: v })),
       toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),
       ),
     section('Pantalla y comodidad', 'phone',

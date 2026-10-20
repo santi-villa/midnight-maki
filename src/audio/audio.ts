@@ -816,6 +816,22 @@ export class AudioEngine {
       case 'coin': tone(1318, 0, 0.08, 'square', 0.05); tone(1760, 0.06, 0.12, 'square', 0.045); tone(2637, 0.12, 0.28, 'sine', 0.05); break;
       case 'pickup': tone(784, 0, 0.07, 'triangle', 0.2); tone(1175, 0.06, 0.12, 'triangle', 0.18); break;
       case 'cut': noiseHit(0, 0.08, 3500, 0.5); tone(1400, 0, 0.04, 'sine', 0.08, 0.6); break;
+      // the physical kitchen: soft, short and wooden
+      case 'fridge_open': noiseHit(0, 0.1, 300, 0.18); tone(150, 0, 0.14, 'sine', 0.12, 0.8); tone(420, 0.09, 0.08, 'triangle', 0.06); break;
+      case 'fridge_close': noiseHit(0, 0.07, 260, 0.2); tone(120, 0, 0.1, 'sine', 0.14, 0.7); break;
+      case 'grab': tone(620, 0, 0.05, 'triangle', 0.1, 1.25); break;
+      case 'drop': tone(300, 0, 0.07, 'sine', 0.13, 0.75); noiseHit(0, 0.04, 700, 0.1); break;
+      case 'chop': noiseHit(0, 0.05, 2800, 0.45); tone(190, 0, 0.06, 'square', 0.1, 0.5); break;
+      case 'chop_perfect': noiseHit(0, 0.05, 3400, 0.5); tone(190, 0, 0.06, 'square', 0.1, 0.5); tone(1318, 0.04, 0.12, 'triangle', 0.12); tone(1975, 0.1, 0.2, 'sine', 0.08); break;
+      case 'chop_miss': noiseHit(0, 0.09, 900, 0.25); tone(140, 0, 0.12, 'sawtooth', 0.07, 0.6); break;
+      case 'cook_start': tone(440, 0, 0.06, 'square', 0.07); tone(660, 0.07, 0.09, 'square', 0.07); break;
+      case 'sizzle': noiseHit(0, 0.5, 5200, 0.1); noiseHit(0.1, 0.4, 3800, 0.08); break;
+      case 'ready': tone(1175, 0, 0.1, 'sine', 0.14); tone(1568, 0.12, 0.2, 'sine', 0.12); tone(1175, 0.5, 0.1, 'sine', 0.08); tone(1568, 0.62, 0.2, 'sine', 0.07); break;
+      case 'burnt': noiseHit(0, 0.4, 600, 0.3); tone(110, 0, 0.35, 'sawtooth', 0.08, 0.6); break;
+      case 'assemble': noiseHit(0, 0.12, 1500, 0.12); tone(520, 0.02, 0.06, 'sine', 0.06); noiseHit(0.5, 0.15, 800, 0.18); tone(392, 0.9, 0.08, 'triangle', 0.1); break;
+      case 'bell': tone(1568, 0, 0.5, 'sine', 0.14); tone(2349, 0, 0.35, 'sine', 0.06); break;
+      case 'plate_slide': noiseHit(0, 0.22, 1700, 0.14); tone(880, 0.16, 0.14, 'triangle', 0.07); break;
+      case 'trash': noiseHit(0, 0.12, 500, 0.22); tone(180, 0, 0.12, 'triangle', 0.1, 0.5); break;
       case 'place': tone(330, 0, 0.09, 'sine', 0.25, 0.7); noiseHit(0, 0.05, 900, 0.2); break;
       case 'rice': noiseHit(0, 0.07, 1400, 0.12); tone(520, 0, 0.05, 'sine', 0.04); break;
       case 'steam': tone(660, 0, 0.22, 'sine', 0.06, 1.4); noiseHit(0, 0.18, 1800, 0.08); break;

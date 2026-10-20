@@ -241,7 +241,7 @@ function quickResult(r: RecipeDef): Awaited<ReturnType<typeof cook>> {
   return { ok: true, quality: q, score: q === 2 ? 100 : 80, variantBonus: 0 };
 }
 
-function celebrate(r: RecipeDef, result: CookResult) {
+export function celebrate(r: RecipeDef, result: CookResult) {
   const collected = recordRecipeResult(r.id, result);
   if (collected.discovered) toast(`Variante descubierta: ${r.name} ${collected.discovered}. ¡Anotada en el recetario!`);
   const { before, after } = recordMastery(r.id, result.quality);
@@ -328,7 +328,7 @@ export async function presentPaidMeals(meals: PaidMeal[]) {
 }
 export async function presentPaidMeal(meal: PaidMeal) { await presentPaidMeals([meal]); }
 
-async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof serveOrder>>, quality: number, who: string, customer: string, variant?: string, tipOnTable = false) {
+export async function showServeResult(r: RecipeDef, out: NonNullable<ReturnType<typeof serveOrder>>, quality: number, who: string, customer: string, variant?: string, tipOnTable = false) {
   const generic = GENERIC_CUSTOMERS.find((c) => c.id === customer);
   if (!tipOnTable) await showPlate(r, quality, variant);
   await runScene('serve', async () => {
