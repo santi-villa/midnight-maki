@@ -32,6 +32,46 @@ export const TUTORIAL: readonly TutStep[] = [
   { id: 'n_serve', dish: 'Nigiri de salmón', text: 'Entregalo en el mostrador. ¡Listo!', done: (c) => c.served.has('sake_nigiri') },
 ];
 
+const heldIng = (c: TutCtx, ing: string, form?: (f: string) => boolean): boolean => {
+  const h = c.g.held(PLAYER)[0];
+  return !!h && h.kind === 'ing' && h.ing === ing && (!form || form(h.form));
+};
+const on = (c: TutCtx, station: string, ing: string, form?: (f: string) => boolean): boolean =>
+  c.g.station(station).items.some((i) => i.kind === 'ing' && i.ing === ing && (!form || form(i.form)));
+
+/**
+ * Where the arrow points at this step: the station to walk to next, given what the player is carrying and what is already
+ * on the tables (so the arrow follows the work: fridge, then cooker, then board…).
+ */
+export function tutorialStation(i: number, c: TutCtx): string | null {
+  const step = TUTORIAL[i];
+  if (!step) return null;
+  const held = c.g.held(PLAYER)[0];
+  switch (step.id) {
+    case 'k_rice': return 'fridge';
+    case 'k_cooker': return heldIng(c, 'rice') ? 'rice' : 'fridge';
+    case 'k_take': return 'rice';
+    case 'k_cut':
+    case 'n_cut':
+      if (held) return 'board_1';
+      return c.g.station('board_1').items.length ? 'board_1' : 'fridge';
+    case 'k_table':
+    case 'n_make': {
+      if (held) return 'assembly';
+      const fish = step.id === 'n_make' ? 'salmon' : 'cucumber';
+      const at = (ing: string, f?: (x: string) => boolean) => on(c, 'assembly', ing, f);
+      if (!at('rice', cooked)) return c.g.station('hangiri').items.length ? 'hangiri' : 'rice';
+      if (!at(fish, cut)) return on(c, 'board_1', fish, cut) ? 'board_1' : 'fridge';
+      if (step.id === 'k_table' && !at('nori')) return 'fridge';
+      return 'assembly';
+    }
+    case 'k_make': return 'assembly';
+    case 'k_serve':
+    case 'n_serve': return held?.kind === 'dish' ? 'pass' : 'assembly';
+    default: return null;
+  }
+}
+
 /** Moves forward over every finished step and returns the index of the current one (TUTORIAL.length when everything is done). */
 export function tutorialStep(from: number, c: TutCtx): number {
   let i = Math.max(0, Math.min(from, TUTORIAL.length));

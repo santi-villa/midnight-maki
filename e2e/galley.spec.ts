@@ -152,6 +152,8 @@ test('the first lesson shows a card for the first step and the practice orders e
   await expect(page.locator('.gl-tut')).toContainText('arroz');
   const recipes = await page.evaluate(() => (window as any).mmDebug.game.save.orders.map((o: any) => o.recipe).sort());
   expect(recipes).toEqual(['kappa', 'sake_nigiri']);
+  // the arrow points at the fridge for the first step
+  expect(await page.evaluate(() => (window as any).mmDebug.world.galleyView.guideGoal())).toEqual({ x: 1 * 16 + 8, y: 3 * 16 + 8 });
 });
 
 test('the hall can be edited when empty and pausing freezes the animations', async ({ page }) => {

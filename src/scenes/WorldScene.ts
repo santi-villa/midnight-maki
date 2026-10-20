@@ -3640,13 +3640,15 @@ export class WorldScene extends Phaser.Scene {
         // to daylight: the more lights overlap this one, the weaker it shines
         let overlaps = 0;
         for (const o of lit) if (o.l !== l && Math.hypot(o.l.x - l.x, o.l.y - l.y) < (o.l.r + l.r) * 0.7) overlaps++;
-        const crowd = 1 / (1 + 0.5 * overlaps);
+        const crowd = 1 / (1 + 0.8 * overlaps);
         g.setData('glowKind', l.kind ?? '');
         g.setVisible(true)
           .setPosition(l.x, l.y)
           .setTint(l.color ?? 0xffd27a)
-          .setScale(spill ? 1.05 : (l.r * 1.6 * ls.halo) / 64, spill ? 0.55 : (l.r * 1.6 * ls.halo) / 64)
-          .setAlpha(Math.min(spill ? 0.6 : 0.78, (l.glow ?? 0.5) * k * f * (spill ? 0.9 : 1.1) * crowd));
+          .setScale(spill ? 0.9 : (l.r * 1.25 * ls.halo) / 64, spill ? 0.45 : (l.r * 1.25 * ls.halo) / 64)
+          // soft on purpose: a strong additive glow turns a night street into daylight, and it popped in and out whenever the
+          // low-effects mode switched, which looked like the light changing as you walked
+          .setAlpha(Math.min(spill ? 0.3 : 0.42, (l.glow ?? 0.5) * k * f * (spill ? 0.6 : 0.7) * crowd));
         i++;
       }
     }
@@ -3695,8 +3697,10 @@ export class WorldScene extends Phaser.Scene {
     if (this.guideT <= 0) {
       this.guideT = 0.5;
       this.guideGoal = null;
+      const lesson = this.zoneId === 'restaurant' && settings.guide !== false && !this.inputLocked ? this.galleyView.guideGoal() : null;
       this.deliveryGoals = settings.guide !== false && !this.inputLocked ? this.findDeliveryGoals() : [];
-      const t = settings.guide !== false && !this.inputLocked && !this.deliveryGoals.length ? questTarget((id) => this.characterZone(id)) : null;
+      const t = settings.guide !== false && !this.inputLocked && !this.deliveryGoals.length && !lesson ? questTarget((id) => this.characterZone(id)) : null;
+      if (lesson) this.guideGoal = lesson;
       if (t) {
         if (t.zone === this.zoneId || (t.zone === 'home' && this.zoneId === 'home')) {
           if (t.npc) this.guideGoal = { x: 0, y: 0, npc: t.npc };

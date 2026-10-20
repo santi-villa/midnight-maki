@@ -43,7 +43,11 @@ html, body {
   font-size: calc(16px * var(--font-scale));
 }
 
-#game { position: fixed; inset: 0; }
+/* iPhone (home-screen app): the page itself never scrolls or rubber-bands, so nothing slides up and no strip shows below the game */
+html { position: fixed; inset: 0; overflow: hidden; background: #14121c; }
+body { position: fixed; inset: 0; overflow: hidden; background: #14121c; }
+/* the canvas runs into the home-indicator zone too (the UI on top keeps its own safe-area margins) */
+#game { position: fixed; top: 0; left: 0; right: 0; bottom: calc(-1 * env(safe-area-inset-bottom, 0px)); }
 #game canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
 
 #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }

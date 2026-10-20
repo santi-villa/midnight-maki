@@ -24,7 +24,7 @@ import { STATIONS, STATION_BY_ID, stationCentre, type StationDef } from '../gall
 import { COOK, PLAYER, itemLabel, type GalleyEvent, type Verb } from '../galley/model';
 import type { GItem, IngItem } from '../galley/prep';
 import { tickets } from '../galley/tickets';
-import { TUTORIAL, TUTORIAL_DISHES, TUTORIAL_STOCK, tutorialStep } from '../galley/tutorial';
+import { TUTORIAL, TUTORIAL_DISHES, TUTORIAL_STOCK, tutorialStation, tutorialStep } from '../galley/tutorial';
 import { bus } from '../core/events';
 import { closestRecipe } from '../galley/prep';
 import { targetFor } from '../galley/serve';
@@ -289,6 +289,16 @@ export class GalleyView {
       return;
     }
     showTutorial({ dish: TUTORIAL[i].dish, n: i + 1, of: TUTORIAL.length, text: TUTORIAL[i].text }, skip);
+  }
+
+  /** Where the lesson's arrow points right now (the standing tile of the next station), in pixels, or null. */
+  guideGoal(): { x: number; y: number } | null {
+    if (!this.active || !game.has('galley_tut') || game.has('galley_tut_done')) return null;
+    const i = Number(game.flag('galley_tut')) - 1;
+    const id = tutorialStation(i, { g: galley(), served: this.served });
+    const s = id && STATION_BY_ID[id];
+    if (!s) return null;
+    return { x: s.stand[0][0] * TILE + TILE / 2, y: s.stand[0][1] * TILE + TILE / 2 };
   }
 
   /** True while carrying a finished dish or drink: then the only things to do are with the plate. */
