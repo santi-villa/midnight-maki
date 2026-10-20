@@ -10,9 +10,9 @@ export interface UpgradeDef { id: string; name: string; desc: string; price: num
 /** Every upgrade changes something visible or tangible in the restaurant. */
 export const UPGRADES: UpgradeDef[] = [
   { id: 'tables2', name: 'Más mesas', desc: '+1 grupo simultáneo. Una mesa y silla para el salón; si el lugar está ocupado, quedan en el depósito.', price: 300, level: 2, items: { wood: 2 } },
-  { id: 'knife', name: 'Cuchillo de Spicy', desc: 'Un corte menos al rebanar ingredientes.', price: 350, level: 2, items: { stone: 1 } },
+  { id: 'knife', name: 'Cuchillo de Spicy', desc: 'Un golpe menos al cortar en la tabla (5 → 4) y la zona verde un poco más ancha.', price: 350, level: 2, items: { stone: 1 } },
   { id: 'knife2', name: 'Cuchillo afilado', desc: 'Otro corte menos al rebanar (3 en total) y zona de corte más grande.', price: 1400, level: 4, items: { stone: 3 }, needs: 'knife' },
-  { id: 'bamboo', name: 'Esterilla de bambú premium', desc: 'Enrollar requiere menos gestos.', price: 550, level: 3, items: { wood: 2 } },
+  { id: 'bamboo', name: 'Esterilla de bambú premium', desc: 'El armado de cada plato en la mesa de armado tarda 30% menos.', price: 550, level: 3, items: { wood: 2 } },
   { id: 'lights', name: 'Iluminación cálida', desc: 'Faroles en el salón. +encanto (mejores propinas).', price: 500, level: 3, items: { wood: 1, stone: 1 } },
   { id: 'display', name: 'Vitrina de sushi', desc: 'Una vitrina en el salón. +encanto.', price: 800, level: 4, items: { wood: 3 } },
   { id: 'pantry', name: 'Despensa ampliada', desc: 'Rigg te deja ingredientes básicos cada mañana.', price: 700, level: 4, items: { wood: 3 } },
