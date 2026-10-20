@@ -19,6 +19,7 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'rice_big', name: 'Arrocera grande', desc: 'La arrocera cocina 6 porciones por tanda en vez de 4.', price: 600, level: 4, items: { wood: 2, stone: 1 } },
   { id: 'galley_hands', name: 'Delantal con bolsillos', desc: 'Llevás dos cosas a la vez en la cocina.', price: 380, level: 3, items: { wood: 1 } },
   { id: 'rice_hand', name: 'Ayudante arrocero', desc: 'Un ayudante trabaja en la cocina: saca arroz de la heladera, lo cocina y lo deja listo en el hangiri.', price: 900, level: 5, items: { wood: 2 }, needs: 'rice_big' },
+  { id: 'service_bell', name: 'Timbre de servicio', desc: 'Tocás el timbre del mostrador de entrega y un empleado lleva los platos listos a sus mesas. Sin el timbre, el personal no retira platos de la cocina.', price: 250, level: 3, items: { wood: 1 } },
   { id: 'second_room', name: 'Segundo sector', desc: '+1 grupo simultáneo y muebles para el salón.', price: 1200, level: 5, items: { wood: 4, stone: 2 } },
   { id: 'garden_patio', name: 'Jardín exterior', desc: 'Macetas y faroles en la entrada del restaurante.', price: 900, level: 5, items: { wood: 3, stone: 2 } },
   { id: 'carry_tray', name: 'Bandeja de servicio', desc: 'Llevá dos pedidos a la vez, incluso de mesas diferentes.', price: 180, level: 2, items: { wood: 2 } },

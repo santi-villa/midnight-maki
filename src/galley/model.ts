@@ -30,15 +30,16 @@ export interface GalleyEnv {
 
 /** Seconds a cooker takes, and when what it holds goes a little past (good → regular) and burns. */
 export const COOK = {
-  rice: { time: 22, over1: 8, over2: 16, burn: 32 },
-  stove: { time: 9, over1: 5, over2: 10, burn: 16 },
+  rice: { time: 22, over1: 8, over2: 16, burn: 32, grace: 6 },
+  stove: { time: 9, over1: 5, over2: 10, burn: 16, grace: 4 },
 } as const;
 export const ASSEMBLE_SECONDS = 1.4;
 /** the blender: seconds to mix a drink */
 export const MIX_SECONDS = 3.5;
 export const PLAYER = 'player';
 
-export type Verb = 'open' | 'return' | 'put' | 'take' | 'start' | 'chop' | 'assemble' | 'deliver' | 'trash' | 'cup';
+export type Verb = 'open' | 'return' | 'put' | 'take' | 'chop' | 'assemble' | 'deliver' | 'trash' | 'cup';
+/** Machines start by themselves when loaded. The cooker keeps taking portions for a few seconds (`grace`) after the first one. */
 
 export type GalleyEvent =
   | { t: 'take'; who: string; item: GItem; from: string }
@@ -169,10 +170,11 @@ export class Galley {
       if (held && s.items.length < this.slots(id) && this.accepts(id, held)) out.push('put');
       if (s.items.length && room) out.push('take');
     } else if (kind === 'cooker') {
-      if (s.phase === 'idle') {
+      const cfg = COOK[STATION_BY_ID[id].cooker === 'rice' ? 'rice' : 'stove'];
+      const loading = s.phase === 'idle' || (s.phase === 'cooking' && s.t < cfg.grace);
+      if (loading) {
         if (held && s.items.length < this.slots(id) && this.accepts(id, held)) out.push('put');
-        if (s.items.length) out.push('start');
-        if (s.items.length && room) out.push('take'); // change of mind: take the raw portions back
+        if (s.items.length && room) out.push('take'); // change of mind while it is still loading
       } else if (s.phase === 'done' && s.items.length && room) out.push('take');
     } else if (kind === 'board') {
       if (s.items[0] && s.pending) out.push('chop');
@@ -187,7 +189,6 @@ export class Galley {
     } else if (kind === 'mixer') {
       if (!s.work) {
         if (held && s.items.length < this.slots(id) && this.accepts(id, held)) out.push('put');
-        if (this.drinkIn(id)) out.push('start');
         if (s.items.length && room) out.push('take');
       }
     } else if (kind === 'cups') {
@@ -219,12 +220,14 @@ export class Galley {
       this.hands.set(who, hands);
       s.items.push(item);
       ev.push({ t: 'put', who, item, at: id });
+      if (this.kind(id) === 'cooker' && s.phase === 'idle') { s.phase = 'cooking'; s.t = 0; ev.push({ t: 'cookStart', station: id }); }
+      if (this.kind(id) === 'mixer' && this.drinkIn(id)) { s.work = { recipe: this.drinkIn(id)!, bonus: 0, t: 0, total: MIX_SECONDS }; ev.push({ t: 'cookStart', station: id }); }
       return { ok: true, events: ev };
     }
     if (verb === 'take') {
       const item = s.items.pop()!;
       if (s.pending) s.pending = false;
-      if (!s.items.length && s.phase === 'done') { s.phase = 'idle'; s.t = 0; }
+      if (!s.items.length && s.phase !== 'idle' && this.kind(id) === 'cooker') { s.phase = 'idle'; s.t = 0; }
       this.hands.set(who, [...hands, item]);
       ev.push({ t: 'take', who, item, from: id });
       return { ok: true, events: ev };
@@ -232,14 +235,6 @@ export class Galley {
     if (verb === 'cup') {
       this.hands.set(who, [...hands, { kind: 'cup', uid: this.nextUid++ }]);
       return { ok: true, events: [{ t: 'take', who, item: this.held(who)[this.held(who).length - 1], from: id }] };
-    }
-    if (verb === 'start' && this.kind(id) === 'mixer') {
-      s.work = { recipe: this.drinkIn(id)!, bonus: 0, t: 0, total: MIX_SECONDS };
-      return { ok: true, events: [{ t: 'cookStart', station: id }] };
-    }
-    if (verb === 'start') {
-      s.phase = 'cooking'; s.t = 0;
-      return { ok: true, events: [{ t: 'cookStart', station: id }] };
     }
     if (verb === 'chop') {
       if (!s.items[0]) {
@@ -414,7 +409,7 @@ export class Galley {
 }
 
 function rank(v: Verb): number {
-  return v === 'take' ? 0 : v === 'assemble' ? 1 : v === 'start' ? 2 : v === 'open' || v === 'cup' ? 3 : 4;
+  return v === 'take' ? 0 : v === 'assemble' ? 1 : v === 'open' || v === 'cup' ? 3 : 4;
 }
 
 function blank(): StationState { return { items: [], phase: 'idle', t: 0, work: null, pending: false }; }

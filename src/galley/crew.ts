@@ -4,7 +4,7 @@
  * Only the rice-maker exists for now. The next roles (cutter, assistant, cook) are new entries in ROLES with their own `next`.
  */
 import { ITEMS_BY_ID } from '../data/items';
-import type { Galley, Verb } from './model';
+import { COOK, type Galley, type Verb } from './model';
 
 export type HandRole = 'rice';
 
@@ -44,10 +44,11 @@ function riceNext(g: Galley, who: string, stock: (id: string) => number): Step |
     return { station: 'bin', verb: 'trash', doing: 'Tira lo que sobra' };
   }
   if (cooker.phase === 'done' && cooker.items.length && roomInHangiri) return { station: 'rice', verb: 'take', doing: 'Saca el arroz' };
-  if (cooker.phase === 'cooking' || cooker.phase === 'done') return null;
+  if (cooker.phase === 'done') return null;
+  // loading: it starts by itself with the first portion, and takes more for a few seconds
+  const loading = cooker.phase === 'idle' || cooker.t < COOK.rice.grace - 3;
   const deficit = RICE_RESERVE - hangiri.items.length - cooker.items.length;
-  if (cooker.items.length < g.slots('rice') && deficit > 0 && stock('rice') > 0) return { station: 'fridge', verb: 'fetch', arg: 'rice', doing: 'Busca arroz' };
-  if (cooker.items.length) return { station: 'rice', verb: 'start', doing: 'Enciende la arrocera' };
+  if (loading && cooker.items.length < g.slots('rice') && deficit > 0 && stock('rice') > 0) return { station: 'fridge', verb: 'fetch', arg: 'rice', doing: 'Busca arroz' };
   return null;
 }
 

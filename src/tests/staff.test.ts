@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
+import { settings } from '../core/settings';
 import { playerBusy } from '../restaurant/claims';
 import { validateSave } from '../persistence/validate';
 import type { FurnPiece } from '../restaurant/floor';
@@ -35,6 +36,7 @@ function hireOne(role: 'waiter' | 'cook' = 'waiter') {
 }
 
 beforeEach(() => {
+  settings.cookStyle = 'act'; // the crew tests are about the classic tray; the bell has its own test below
   game.load(newSave('Salon'));
   game.setFlag('intro_done');
   game.save.recipesKnown = ['kappa'];
@@ -233,5 +235,15 @@ describe('restaurant crew', () => {
     expect(back.staff?.crew?.spicy?.on).toBe(true);
     const older = JSON.parse(JSON.stringify(game.save)); delete older.staff;
     expect(validateSave(older).staff).toBeUndefined();
+  });
+});
+
+describe('the pass bell', () => {
+  it('only works with the upgrade, a waiting plate and somebody free', async () => {
+    const { ringBell, hasBell } = await import('../restaurant/staff');
+    expect(hasBell()).toBe(false);
+    expect(ringBell().ok).toBe(false);
+    game.save.restaurant.upgrades.push('service_bell');
+    expect(ringBell().msg).toMatch(/platos/); // nothing waiting
   });
 });
