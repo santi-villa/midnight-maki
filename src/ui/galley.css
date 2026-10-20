@@ -31,7 +31,7 @@
 .gl-cut.done .gl-press { visibility: hidden; }
 @keyframes gl-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-.gl-tickets { position: fixed; right: calc(8px + var(--safe-r)); top: calc(66px + var(--safe-t)); width: min(176px, 46vw); align-items: flex-end; z-index: 22; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.gl-tickets { position: fixed; right: calc(3px + var(--safe-r)); top: calc(66px + var(--safe-t)); width: min(176px, 46vw); align-items: flex-end; z-index: 22; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
 .gl-tickets.hidden { display: none; }
 .gl-ticket { padding: 6px 8px 8px; border-radius: 10px; box-shadow: 0 3px 10px rgba(63, 46, 34, .25); font-size: .8em; }
 .gl-ticket.done { background: #f1f6e8; border-color: var(--ui-sage, #a9b89b); }

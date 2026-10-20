@@ -130,9 +130,9 @@ export function showTickets(list: Ticket[], visible: boolean, hint: string | nul
   const key = JSON.stringify(list.map((t) => [t.id, t.lines.map((l) => [l.recipe, l.waiting, l.ready]), Math.round(t.patience * 20), t.impatient])) + (hint ?? '') + ticketsOpen;
   if (!ticketsEl) { ticketsEl = h('div', { class: 'gl-tickets', 'aria-label': 'Pedidos de la cocina' }); root().append(ticketsEl); }
   ticketsEl.classList.remove('hidden');
-  // sit just under the top bar and the mission line, wherever they end up on this screen
-  const below = ['.hud-buttons', '.hud-quest', '.hud-status-wrap'].map((q) => document.querySelector<HTMLElement>(q)).filter((el): el is HTMLElement => !!el && el.offsetParent !== null).reduce((m, el) => Math.max(m, el.getBoundingClientRect().bottom), 0);
-  if (below > 0) ticketsEl.style.top = `${Math.round(below + 8)}px`;
+  // sit right under the round buttons (the mission line is on the other side), wherever they end up on this screen
+  const below = ['.hud-buttons'].map((q) => document.querySelector<HTMLElement>(q)).filter((el): el is HTMLElement => !!el && el.offsetParent !== null).reduce((m, el) => Math.max(m, el.getBoundingClientRect().bottom), 0);
+  if (below > 0) ticketsEl.style.top = `${Math.round(below + 3)}px`;
   if (key === ticketsKey) return;
   ticketsKey = key;
   const pending = list.filter((t) => !t.done).length;

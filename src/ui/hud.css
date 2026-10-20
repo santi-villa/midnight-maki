@@ -245,3 +245,12 @@ body.input-touch .game-hud .hud-phone { display: none; }
 .game-hud .hud-quest.mini span.step { display: inline; margin: 0; -webkit-line-clamp: unset; }
 .game-hud .hud-quest:not(.mini) .q-body { white-space: normal; }
 .game-hud .hud-quest b { color: #6b3a1e; }
+
+/* ---- tighter: buttons hug the right edge, the mission folds earlier and wraps downward ---- */
+.game-hud .hud-top { right: calc(3px + var(--safe-r)); }
+.game-hud .hud-quest, .game-hud .hud-quest.mini, .game-hud .hud-quest:not(.mini) {
+  width: min(250px, 44vw); max-width: min(250px, 44vw); font-size: 14px; min-height: 36px;
+}
+.game-hud .hud-quest .q-body { font-size: 14px; }
+.game-hud .hud-quest:not(.mini) { align-items: flex-start; }
+.game-hud .hud-quest:not(.mini) .q-body { overflow-wrap: anywhere; }
