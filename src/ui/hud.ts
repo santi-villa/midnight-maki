@@ -55,25 +55,17 @@ export function mountHud(hd: HudHandlers) {
   clockEl = h('canvas', { class: 'hud-clock', width: 32, height: 32, role: 'img', 'aria-label': 'Hora del juego' });
   digitalEl = h('time', { class: 'hud-digital' });
   energyEl = h('div', { class: 'hud-energy', role: 'img' }, h('i'));
-  const status = h('div', { class: 'hud-status' }, h('div', { class: 'hud-time-row' }, clockEl, digitalEl), h('div', { class: 'time' }, timeEl), dateEl, h('div', { class: 'hud-coins' }, iconElement({ type: 'coin' }), coinEl), energyEl);
-  const toggle = h('button', {
-    type: 'button', class: 'hud-status-toggle', 'aria-label': 'Contraer fecha y monedas', 'aria-expanded': 'true',
-    onclick: () => {
-      const collapsed = status.classList.toggle('is-collapsed');
-      root?.classList.toggle('hud-status-collapsed', collapsed);
-      toggle.setAttribute('aria-expanded', String(!collapsed));
-      toggle.setAttribute('aria-label', collapsed ? 'Mostrar fecha y monedas' : 'Contraer fecha y monedas');
-      toggle.textContent = collapsed ? '→' : '←';
-    },
-  }, '←');
-  const statusWrap = h('div', { class: 'hud-status-wrap' }, status, toggle);
+  // one compact strip: the clock with the hour and the day, and next to it the energy bar and the coins
+  const status = h('div', { class: 'hud-status' }, clockEl, h('div', { class: 'hud-time-col' }, digitalEl, h('div', { class: 'hud-sub' }, h('span', { class: 'time' }, timeEl), dateEl)));
+  const meters = h('div', { class: 'hud-meters' }, energyEl, h('div', { class: 'hud-coins' }, iconElement({ type: 'coin' }), coinEl));
+  const statusWrap = h('div', { class: 'hud-status-wrap' }, status, meters);
   const btn = (icon: string, label: string, action: GameAction, fn: () => void) => {
     const b = h('button', { type: 'button', class: 'icon-btn', onclick: () => { audio.sfxPlay('open'); fn(); } }, skinIconEl(icon));
     chrome.push({ el: b, action, name: label });
     return b;
   };
   chrome.length = 0;
-  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', 'inventory', () => handlers.bag()), btn('clipboard', 'Misiones', 'journal', () => handlers.journal()), btn('map', 'Mapa', 'map', () => import('./worldmap').then((m) => m.openWorldMap())), btn('pause', 'Pausa', 'cancel', () => { void import('./menus').then((m) => m.openPauseMenu()); }));
+  const buttons = h('div', { class: 'hud-buttons' }, btn('bag', 'Mochila', 'inventory', () => handlers.bag()), btn('clipboard', 'Misiones', 'journal', () => handlers.journal()), btn('map', 'Mapa', 'map', () => import('./worldmap').then((m) => m.openWorldMap())), btn('menu', 'Pausa', 'cancel', () => { void import('./menus').then((m) => m.openPauseMenu()); }));
   questEl = h('div', {
     class: 'hud-quest', role: 'button', tabindex: 0, title: 'Ver detalles de la misión',
     onclick: () => {
