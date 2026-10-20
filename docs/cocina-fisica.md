@@ -118,3 +118,10 @@ El modelo (`Galley`) expone las mismas operaciones para el jugador y para cualqu
 - **Corte**: 5 cortes seguidos al principio (4 con el Cuchillo de Spicy, 3 con el Cuchillo afilado `knife2`); el resultado es el promedio.
 - **Armado**: sobre la mesa un cartel dice «Listo: receta. ¡Armalo!» o «receta: falta X», y «Armar» pasa a ser la primera acción cuando se puede.
 - **Primera lección** (`src/galley/tutorial.ts`): tarjeta paso a paso con dos platos (Kappa maki y Nigiri de salmón), con sus pedidos de práctica; se puede omitir. Sumar platos = agregar pasos a `TUTORIAL`.
+
+## Salón, espera y pausa (añadido)
+
+- **Editar el salón**: «Editar salón» (en la lista Q, parado en el salón) abre el editor de decoración para mover mesas, sillas y adornos. Solo con el salón vacío de clientes.
+- **Clientes sin mesa**: la fila de espera tiene paciencia (barra sobre el cliente); al agotarse se van.
+- **Pausa**: con menús, celu o tablero de pausa abierto se congelan movimiento, tweens, partículas, lluvia y agua. Diálogos, escenas y transiciones siguen corriendo.
+- **Arroz/fogón**: la barra tiene menos margen tras estar listo (arroz: 4 s en su punto, 8 s amarillo, quema a los 12 s).

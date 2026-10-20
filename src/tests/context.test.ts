@@ -84,7 +84,7 @@ describe('player room', () => {
   it('refuses other characters rooms and rooms that are not yours', () => {
     expect(decorateBlockReason(pipRoom)).toMatch(/Cuarto de Pip/);
     expect(decorateBlockReason(hall)).toMatch(/tu habitación/i);
-    expect(decorateBlockReason({ id: 'dining', name: 'Salón' })).toMatch(/tu habitación/i);
+    expect(decorateBlockReason({ id: 'dining', name: 'Salón' })).toBeNull(); // the restaurant's own hall, empty
     expect(decorateBlockReason(undefined)).toMatch(/tu habitación/i);
 
     const nearPipBed = resolveContext(sense({

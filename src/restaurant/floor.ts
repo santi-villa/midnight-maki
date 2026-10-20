@@ -658,6 +658,8 @@ export class DiningFloor {
       party.patience = Math.min(...party.members.filter(m => !m.items.length || m.items.some(i => i.quality === null)).map(m => m.patience));
       if (!Number.isFinite(party.patience)) party.patience = 0;
       if (!party.impatient && party.members.some(m => m.impatient)) { party.impatient = true; events.push({ type: 'impatient', partyId: party.id }); }
+      // nobody waits forever for a table: when their patience runs out they leave
+      if (party.phase === 'queued' && party.patience <= 0) { this.dismiss(party, 'patience', events); return; }
     }
     if (party.phase === 'queued') return;
     if (this.physical && (party.phase === 'outside' || party.phase === 'reception' || party.phase === 'walking' || party.phase === 'leaving')) return;

@@ -151,3 +151,23 @@ test('the first lesson shows a card for the first step and the practice orders e
   const recipes = await page.evaluate(() => (window as any).mmDebug.game.save.orders.map((o: any) => o.recipe).sort());
   expect(recipes).toEqual(['kappa', 'sake_nigiri']);
 });
+
+test('the hall can be edited when empty and pausing freezes the animations', async ({ page }) => {
+  test.setTimeout(90_000);
+  await bootExploration(page);
+  await visit(page, 'restaurant', 9, 9);
+  await page.evaluate(() => (window as any).mmDebug.clock.resume());
+  await page.waitForTimeout(400);
+  const ids = await page.evaluate(() => (window as any).mmDebug.world.contextOffer.all?.map((a: any) => a.id) ?? []);
+  expect(ids).toContain('decorate');
+  await page.evaluate(async () => { (await import('/src/decoration/editor.ts' as string)).startDecor(); });
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.decorMode)).toBe(true);
+  await page.locator('.decor-sheet').waitFor();
+  // leave the editor and pause: the world freezes
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  await page.evaluate(() => (window as any).mmDebug.clock.pause());
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.animsFrozen)).toBe(true);
+  await page.evaluate(() => (window as any).mmDebug.clock.resume());
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.animsFrozen)).toBe(false);
+});

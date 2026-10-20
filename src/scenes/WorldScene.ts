@@ -185,6 +185,7 @@ export class WorldScene extends Phaser.Scene {
   cookActive = false;
   /** the player is busy at a station of the physical kitchen (the cutting bar, a short assembly) */
   galleyBusy = false;
+  private animsFrozen = false;
   private propImgs = new Map<string, Phaser.GameObjects.Image>();
   galleyView = new GalleyView({
     scene: this,
@@ -1253,6 +1254,19 @@ export class WorldScene extends Phaser.Scene {
           art.fillStyle(ready[i].kind === 'drink' ? 0x8ab9ad : 0xf6ecd6).fillRect(6 * TILE + i * 4, 4 * TILE + 10, 3, 3);
         }
         if (drinksUnlocked()) { art.fillStyle(0xe9d8b1).fillRect(2 * TILE + 4, 2 * TILE + 2, 5, 5); art.fillStyle(0x91ab69).fillRect(2 * TILE + 5, 2 * TILE + 3, 3, 2); }
+      }
+      // guests waiting for a free table show how much patience they have left; at zero they leave
+      for (const view of guestViews()) {
+        if (view.phase !== 'queued') continue;
+        const ratio = Math.max(0, Math.min(1, view.patience / Math.max(1, view.maxPatience)));
+        for (const [key, body] of this.guests) {
+          if (key !== view.id && !key.startsWith(view.id + ':')) continue;
+          const a = body.actor;
+          if (!a.sprite.visible) continue;
+          const bx = Math.round(a.x), by = Math.round(a.y - a.sprite.displayHeight - 6);
+          art.fillStyle(0x4a3029).fillRect(bx - 9, by, 18, 3);
+          art.fillStyle(settings.cookMode === 'relaxed' || ratio > .5 ? 0x91ab69 : ratio > .2 ? 0xf2c66d : 0xd77a76).fillRect(bx - 8, by + 1, Math.ceil(16 * (settings.cookMode === 'relaxed' ? 1 : ratio)), 1);
+        }
       }
       for (const job of tableJobs()) {
         const f = this.zone.furniture.find(fi => String(fi.f.uid) === job.tableId);
@@ -2540,7 +2554,14 @@ export class WorldScene extends Phaser.Scene {
   // ------------------------------------------------------------------ main loop
   update(_t: number, dms: number) {
     if (sampleFrame(dms)) this.enterLowFx(true);
-    const dt = Math.min(0.05, dms / 1000);
+    // Pausing from a menu, the phone or the pause board freezes the whole world: movement, tweens, particles, rain and water.
+    // Scripted scenes (dialogue, cutscenes, transitions) pause the clock too but must keep running.
+    const frozen = clock.paused && !this.inputLocked && !inDialogue() && !this.transitioning && !this.decorMode && !this.cookActive;
+    if (frozen !== this.animsFrozen) {
+      this.animsFrozen = frozen;
+      if (frozen) { this.tweens.pauseAll(); this.anims.pauseAll(); } else { this.tweens.resumeAll(); this.anims.resumeAll(); }
+    }
+    const dt = frozen ? 0 : Math.min(0.05, dms / 1000);
     if (!this.player || !this.zone) return;
     const raining = game.flag('weather') === 'rain';
     if (this.weatherKey !== String(raining)) {
