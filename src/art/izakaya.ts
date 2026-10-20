@@ -403,6 +403,81 @@ export const IZAKAYA_KINDS: Record<string, DrawFn> = {
     ellipse(c, W / 2, H - 20, 4, 1.4, '#f6f1e6');
     px(c, W / 2 - 6, H - 18, '#c9a24a', 12, 1);
   },
+  /** Rice cooker on its counter: a round cream pot with a lid, a steam vent, side handles and a little red lamp. */
+  ricepot(c, W, H) {
+    IZAKAYA_KINDS.kitchencounter(c, W, H, '', '', 0, Math.random);
+    const cx = W / 2;
+    px(c, 2, H - 27, INK, W - 4, 10);
+    px(c, 3, H - 26, '#f2ead8', W - 6, 8);
+    px(c, 3, H - 26, '#fff8e8', W - 6, 1);
+    px(c, 3, H - 19, '#cdbf9f', W - 6, 1);
+    // lid with vent
+    px(c, 4, H - 30, INK, W - 8, 4);
+    px(c, 5, H - 29, '#d9ccb0', W - 10, 2);
+    px(c, cx - 1, H - 31, INK, 2, 2);
+    px(c, cx - 1, H - 31, '#8f8571');
+    // handles and the lamp
+    px(c, 1, H - 24, INK, 2, 3);
+    px(c, W - 3, H - 24, INK, 2, 3);
+    px(c, 5, H - 22, '#d9485a', 2, 1);
+    px(c, 8, H - 22, '#6f9e5a', 2, 1);
+  },
+  /** Plain work counter: light top, wooden doors. Things are drawn on top of it by the kitchen view. */
+  workcounter(c, W, H) {
+    IZAKAYA_KINDS.kitchencounter(c, W, H, '', '', 0, Math.random);
+    px(c, 2, H - 17, shade(IZ.counter, 0.12), W - 4, 1);
+  },
+  /** Assembly table (two tiles): light top with a bamboo rolling mat laid on it. */
+  prepcounter(c, W, H) {
+    px(c, 0, H - 18, INK, W, 18);
+    px(c, 1, H - 17, IZ.counter, W - 2, 3);
+    px(c, 1, H - 17, shade(IZ.counter, 0.2), W - 2, 1);
+    px(c, 1, H - 13, IZ.cabinetD, W - 2, 12);
+    for (let x = 4; x < W - 4; x += W / 2) px(c, x, H - 11, IZ.cabinet, W / 2 - 8, 8);
+    // bamboo mat
+    const mx = Math.round(W / 2 - 9);
+    px(c, mx, H - 16, '#8d7a3d', 18, 3);
+    px(c, mx + 1, H - 16, '#cdb867', 16, 2);
+    for (let x = mx + 2; x < mx + 17; x += 2) px(c, x, H - 16, '#a89352', 1, 2);
+    px(c, 0, H - 3, shade(IZ.cabinetD, -0.3), W, 2);
+  },
+  /** Floor bin with a lid. */
+  bin(c, W, H) {
+    px(c, 3, H - 13, INK, W - 6, 13);
+    px(c, 4, H - 12, '#8f94a1', W - 8, 11);
+    px(c, 4, H - 12, '#b9bec9', W - 8, 1);
+    px(c, 4, H - 3, '#6b7080', W - 8, 2);
+    px(c, 2, H - 15, INK, W - 4, 3);
+    px(c, 3, H - 14, '#a7acb8', W - 6, 1);
+    px(c, W / 2 - 1, H - 17, INK, 2, 2);
+    for (let x = 6; x < W - 5; x += 3) px(c, x, H - 10, '#6b7080', 1, 7);
+  },
+  /** The pass (three tiles): low counter with slatted front and a service bell. Plates are drawn on top by the view. */
+  passcounter(c, W, H) {
+    px(c, 0, H - 14, INK, W, 14);
+    px(c, 1, H - 13, IZ.bar, W - 2, 11);
+    for (let x = 2; x < W - 1; x += 4) px(c, x, H - 12, shade(IZ.bar, -0.14), 1, 9);
+    px(c, 0, H - 17, INK, W, 5);
+    px(c, 1, H - 16, IZ.counter, W - 2, 3);
+    px(c, 1, H - 16, shade(IZ.counter, 0.2), W - 2, 1);
+    px(c, 0, H - 3, shade(IZ.bar, -0.35), W, 2);
+    // service bell at the right end
+    ellipse(c, W - 6, H - 19, 2.6, 1.8, INK);
+    ellipse(c, W - 6, H - 19.4, 2, 1.3, '#e8c25a');
+    px(c, W - 7, H - 21, '#fff2b0');
+  },
+  /** Tea and drinks corner: iron kettle, cups and ramune bottles on a counter. */
+  drinkstation(c, W, H) {
+    IZAKAYA_KINDS.kitchencounter(c, W, H, '', '', 0, Math.random);
+    ellipse(c, 6, H - 21, 4, 3, INK);
+    ellipse(c, 6, H - 21.5, 3.2, 2.4, '#4a4f5c');
+    px(c, 9, H - 23, INK, 3, 1);
+    px(c, 3, H - 25, INK, 6, 1);
+    px(c, 11, H - 21, INK, 2, 5);
+    px(c, 11, H - 21, '#78adb6', 1, 4);
+    px(c, 14, H - 20, INK, 2, 4);
+    px(c, 14, H - 20, '#f6ecd6', 1, 3);
+  },
   kitchencounter(c, W, H) {
     px(c, 0, H - 18, INK, W, 18);
     px(c, 1, H - 17, IZ.counter, W - 2, 3);
