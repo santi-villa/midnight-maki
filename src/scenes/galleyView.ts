@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/audio';
 import { settings } from '../core/settings';
+const settingsReduced = () => settings.reduceMotion;
 import { game } from '../core/state';
 import type { Dir } from '../core/types';
 import { lowFx } from '../core/perf';
@@ -26,6 +27,7 @@ import type { GItem, IngItem } from '../galley/prep';
 import { tickets } from '../galley/tickets';
 import { SUPPLY_GROUPS } from '../restaurant/supplies';
 import { trayOrders } from '../restaurant/service';
+import { hasBell, ringBell, waitingPlates } from '../restaurant/staff';
 import { clock } from '../systems/time';
 import { tooTiredToCook } from '../systems/fatigue';
 import type { ContextAction, Target } from '../world/contextActions';
@@ -38,13 +40,15 @@ export interface GalleyHost {
   player: Actor;
   zoneId: string;
   grid(): Grid;
+  /** the map prop standing on a tile (to make it shake) */
+  propAt(x: number, y: number): Phaser.GameObjects.Image | undefined;
   /** the player cannot walk or use anything while this is true (the reflex bar, a short assembly) */
   galleyBusy: boolean;
   floatAt(x: number, y: number, text: string, color?: string): void;
   onInteract: (t: Target) => void;
 }
 
-export type GalleyVerb = Verb | 'pantry';
+export type GalleyVerb = Verb | 'pantry' | 'bell';
 
 const slotY = (s: StationDef) => s.y * TILE + 2;
 
@@ -69,8 +73,10 @@ export class GalleyView {
   private gfx: Phaser.GameObjects.Graphics | null = null;
   private labels = new Map<string, Phaser.GameObjects.Text>();
   private steamT = 0;
+  private shaken = new Map<string, number>();
   private saveT = 0;
   private rack: Phaser.GameObjects.Image | null = null;
+  private bellImg: Phaser.GameObjects.Image | null = null;
   private fridgeDoor: Phaser.GameObjects.Image | null = null;
   private knife: Phaser.GameObjects.Image | null = null;
   private lastZone: number | undefined;
@@ -107,6 +113,9 @@ export class GalleyView {
     this.labels.clear();
     this.fridgeDoor?.destroy(); this.fridgeDoor = null;
     this.rack?.destroy(); this.rack = null;
+    this.bellImg?.destroy(); this.bellImg = null;
+    for (const [id, x] of this.shaken) { const st = STATION_BY_ID[id]; const img = this.host.propAt(st.x, st.y); if (img) img.x = x; }
+    this.shaken.clear();
     this.knife?.destroy(); this.knife = null;
     this.gfx?.destroy(); this.gfx = null;
     this.host.galleyBusy = false;
@@ -123,6 +132,7 @@ export class GalleyView {
     this.clock += dt;
     if (!clock.paused) this.onEvents(g.tick(dt));
     this.syncStations();
+    this.syncBell();
     this.updateHands(dt);
     this.syncHeld(PLAYER, this.host.player);
     for (const [id, w] of this.workers) this.syncHeld(id, w.actor);
@@ -182,6 +192,29 @@ export class GalleyView {
       this.pop(img, 0.72);
       return img;
     });
+  }
+
+  /** The service bell on the pass: there once the upgrade is bought. */
+  private syncBell() {
+    const own = hasBell();
+    if (!own) { this.bellImg?.destroy(); this.bellImg = null; return; }
+    if (this.bellImg?.active) return;
+    const scene = this.host.scene;
+    if (!scene.textures.exists('gl_bell')) {
+      const c = document.createElement('canvas'); c.width = 10; c.height = 10;
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#2b1d17'; g.fillRect(1, 3, 8, 6); g.fillRect(4, 1, 2, 2); g.fillRect(0, 8, 10, 2);
+      g.fillStyle = '#f2c66d'; g.fillRect(2, 4, 6, 4); g.fillStyle = '#fff2b0'; g.fillRect(3, 4, 1, 3);
+      scene.textures.addCanvas('gl_bell', c);
+    }
+    const pass = STATION_BY_ID.pass;
+    this.bellImg = scene.add.image((pass.x + pass.w) * TILE - 7, slotY(pass) + 4, 'gl_bell').setOrigin(0.5, 1).setDepth((pass.y + 1) * TILE + 0.6);
+  }
+
+  private ring() {
+    const img = this.bellImg;
+    if (!img || lowFx()) return;
+    this.host.scene.tweens.add({ targets: img, angle: { from: -18, to: 18 }, duration: 70, yoyo: true, repeat: 4, onComplete: () => img.setAngle(0) });
   }
 
   private pop(img: Phaser.GameObjects.Image, scale: number) {
@@ -259,7 +292,6 @@ export class GalleyView {
       const res = step.verb === 'fetch' ? g.takeFromFridge(who, step.arg ?? '') : g.perform(who, step.station, step.verb);
       if (res.ok) {
         w.actor.setAct('cook');
-        if (step.verb === 'start') audio.sfxPlay('cook_start');
         saveGalley();
       }
       w.wait = res.ok ? w.def.pace : 1.5;
@@ -278,7 +310,18 @@ export class GalleyView {
       const top = s.y * TILE - 9;
       const prog = g.progress(s.id);
       const cooker = g.kind(s.id) === 'cooker';
-      if (prog !== null) {
+      const cfgC = s.cooker ? COOK[s.cooker] : null;
+      if (cooker && cfgC && st.items.length && st.phase !== 'idle') {
+        // one bar for the whole life of the batch: green while it cooks and while it is perfect, yellow when it starts to go
+        // past (white smoke), red when it is about to burn (black smoke, the machine shakes)
+        const total = cfgC.time + cfgC.burn;
+        const pos = st.phase === 'cooking' ? st.t : cfgC.time + st.t;
+        const color = st.phase === 'cooking' || st.t < cfgC.over1 ? 0x8fb36a : st.t < cfgC.over2 ? 0xf2c66d : 0xd9524a;
+        gfx.fillStyle(0x3f2e22).fillRect(cx - 10, top, 20, 4);
+        gfx.fillStyle(0xfff8ec).fillRect(cx - 9, top + 1, 18, 2);
+        gfx.fillStyle(color).fillRect(cx - 9, top + 1, Math.max(1, Math.round(18 * Math.min(1, pos / total))), 2);
+        gfx.fillStyle(0x3f2e22).fillRect(cx - 9 + Math.round(18 * cfgC.time / total), top, 1, 4); // where it is ready
+      } else if (prog !== null) {
         gfx.fillStyle(0x3f2e22).fillRect(cx - 8, top, 16, 4);
         gfx.fillStyle(0xfff8ec).fillRect(cx - 7, top + 1, 14, 2);
         gfx.fillStyle(st.work ? 0xd7a46a : 0x8fb36a).fillRect(cx - 7, top + 1, Math.max(1, Math.round(14 * prog)), 2);
@@ -303,19 +346,42 @@ export class GalleyView {
     }
   }
 
+  /** 0 cooking or perfect, 1 going past (white smoke), 2 about to burn (black smoke, shaking) */
+  private stage(id: string): 0 | 1 | 2 {
+    const s = STATION_BY_ID[id];
+    const st = galley().station(id);
+    if (!s.cooker || st.phase !== 'done' || !st.items.length) return 0;
+    const cfg = COOK[s.cooker];
+    return st.t >= cfg.over2 ? 2 : st.t >= cfg.over1 ? 1 : 0;
+  }
+
   private steam(dt: number) {
+    const g = galley();
+    // the machine that is about to burn shakes
+    for (const s of STATIONS) {
+      const img = this.host.propAt(s.x, s.y);
+      if (!img) continue;
+      const st = g.station(s.id);
+      const hot = g.kind(s.id) === 'cooker' && st.items.length > 0 && this.stage(s.id) === 2 && !settingsReduced();
+      const base = this.shaken.get(s.id) ?? img.x;
+      if (hot) { this.shaken.set(s.id, base); img.x = base + (Math.sin(this.clock * 70) > 0 ? 1 : -1); }
+      else if (this.shaken.has(s.id)) { img.x = base; this.shaken.delete(s.id); }
+    }
     if (lowFx()) return;
     this.steamT -= dt;
     if (this.steamT > 0) return;
-    this.steamT = 0.3;
-    const g = galley();
+    this.steamT = 0.22;
     for (const s of STATIONS) {
       const st = g.station(s.id);
       if (g.kind(s.id) !== 'cooker' || !st.items.length || st.phase === 'idle') continue;
+      const stage = this.stage(s.id);
+      const chance = st.phase === 'cooking' ? 0.45 : stage === 0 ? 0.2 : 1;
+      if (Math.random() > chance) continue;
+      const black = stage === 2;
       const x = s.x * TILE + 8 + (Math.random() * 6 - 3);
       const y = s.y * TILE - 8;
-      const puff = this.host.scene.add.rectangle(x, y, 3, 3, st.phase === 'done' && s.cooker === 'rice' ? 0xffffff : 0xf0ead8, 0.75).setDepth(90400);
-      this.host.scene.tweens.add({ targets: puff, y: y - 12, x: x + (Math.random() * 6 - 3), alpha: 0, scale: 1.6, duration: 900, ease: 'Sine.out', onComplete: () => puff.destroy() });
+      const puff = this.host.scene.add.rectangle(x, y, black ? 4 : 3, black ? 4 : 3, black ? 0x2b2830 : 0xf0ead8, black ? 0.85 : 0.75).setDepth(90400);
+      this.host.scene.tweens.add({ targets: puff, y: y - (black ? 18 : 12), x: x + (Math.random() * 8 - 4), alpha: 0, scale: black ? 2.2 : 1.6, duration: black ? 1100 : 900, ease: 'Sine.out', onComplete: () => puff.destroy() });
     }
   }
 
@@ -333,11 +399,10 @@ export class GalleyView {
         ? { label: 'Cargar', detail: `Poner ${held ? itemLabel(held).toLowerCase() : 'ingrediente'} en ${station.name.toLowerCase()}`, icon: 'maki' }
         : { label: 'Dejar', detail: `Dejar ${held ? itemLabel(held).toLowerCase() : 'lo que llevás'} en ${station.name.toLowerCase()}`, icon: 'act' };
       case 'take': return { label: 'Tomar', detail: `Tomar ${top ? itemLabel(top).toLowerCase() : 'lo de la estación'}`, icon: 'act' };
-      case 'start': if (kind === 'mixer') return { label: 'Licuar', detail: 'Encender la licuadora', icon: 'serve' };
-        return { label: station.cooker === 'rice' ? 'Encender' : 'Cocinar', detail: `${station.cooker === 'rice' ? 'Encender la arrocera' : 'Poner a cocinar'} (${st.items.length} ${st.items.length === 1 ? 'porción' : 'porciones'})`, icon: 'maki' };
       case 'chop': return { label: 'Cortar', detail: 'Cortar en la tabla: frená la barra en la zona verde', icon: 'act' };
       case 'assemble': { const m = g.preview(station.id)[0]; return { label: m ? 'Armar' : 'Armar', detail: m ? `Armar ${m.recipe.name}${m.variant ? ' ' + m.variant.name : ''}` : 'Armar el plato', icon: 'maki' }; }
       case 'deliver': return { label: 'Entregar', detail: 'Dejar el plato en el mostrador de entrega', icon: 'serve' };
+      case 'bell': return { label: 'Timbre', detail: 'Tocar el timbre: un empleado lleva los platos a las mesas', icon: 'serve' };
       case 'cup': return { label: 'Tomar vaso', detail: 'Agarrar un vaso limpio', icon: 'serve' };
       case 'trash': return { label: 'Tirar', detail: 'Tirar lo que llevás al tacho', icon: 'act' };
       case 'pantry': return { label: 'Despensa', detail: 'Abrir la despensa del restaurante', icon: 'clipboard' };
@@ -358,6 +423,7 @@ export class GalleyView {
       const verbs: GalleyVerb[] = [...g.verbs(PLAYER, s.id)];
       const kind = g.kind(s.id);
       if (kind === 'fridge') verbs.push('pantry');
+      if (kind === 'pass' && hasBell() && waitingPlates() > 0) verbs.push('bell');
       verbs.forEach((verb, i) => {
         const v = this.verbName(s, verb);
         out.push({ action: { id: `gl:${s.id}:${verb}`, label: v.label, detail: v.detail, icon: v.icon, intent: { type: 'galley', station: s.id, verb } }, x, y, bias: i * 0.001 });
@@ -374,6 +440,13 @@ export class GalleyView {
     const p = this.host.player;
     const c = stationCentre(s);
     p.faceTowards(c.x * TILE, (s.y + 0.5) * TILE);
+    if (verb === 'bell') {
+      const r = ringBell();
+      toast(r.msg);
+      audio.sfxPlay(r.ok ? 'bell' : 'error');
+      if (r.ok) this.ring();
+      return;
+    }
     if (verb === 'pantry') {
       const action = 'pantry';
       this.host.onInteract({ kind: 'interact', def: { id: 'gl_' + action, x: s.x, y: s.y, label: s.name, action }, label: s.name });
@@ -544,7 +617,6 @@ export class GalleyView {
     const pass = STATION_BY_ID.pass;
     const scene = this.host.scene;
     audio.sfxPlay('plate_slide');
-    audio.sfxPlay('bell');
     if (lowFx()) return;
     const p = this.host.player;
     const img = scene.add.image(p.x, p.y - 10, this.tex(dish)).setOrigin(0.5, 1).setScale(0.75).setDepth(90800);

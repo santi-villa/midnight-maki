@@ -41,6 +41,13 @@ test('cook sushi in the physical kitchen from the fridge to the pass', async ({ 
   await expect(page.locator('.gl-fridge')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.gl-fridge')).toHaveCount(0);
+  // Space opens the numbered list and a number picks from it
+  await page.keyboard.press('Space');
+  await expect(page.locator('.ctx-row .ctx-num')).toHaveCount(2);
+  await page.keyboard.press('1');
+  await expect(page.locator('.gl-fridge')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.gl-fridge')).toHaveCount(0);
   await stand(page, 2, 4);
   expect(await page.evaluate(() => (window as any).mmDebug.world.galleyView.actions().map((a: any) => a.action.id))).toEqual([]);
 
@@ -50,7 +57,6 @@ test('cook sushi in the physical kitchen from the fridge to the pass', async ({ 
   if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/galley-1-carry.png` });
   await stand(page, 3, 3);
   await act(page, 'rice', 'put');
-  await act(page, 'rice', 'start');
   await page.evaluate(async () => (await import('/src/galley/index.ts' as string)).galley().tick(30));
   await act(page, 'rice', 'take');
   expect(await held(page)).toEqual(['rice:cooked']);
@@ -130,7 +136,6 @@ test('a drink is made at the blender with a glass and taken by hand', async ({ p
   await act(page, 'cups', 'cup');
   await stand(page, 11, 3);
   await act(page, 'mixer', 'put');
-  await act(page, 'mixer', 'start');
   await page.evaluate(async () => (await import('/src/galley/index.ts' as string)).galley().tick(5));
   await act(page, 'mixer', 'take');
   expect(await page.evaluate(async () => (await import('/src/galley/index.ts' as string)).galley().held('player')[0].kind)).toBe('drink');

@@ -104,3 +104,9 @@ El modelo (`Galley`) expone las mismas operaciones para el jugador y para cualqu
 - **Bebidas físicas**: estante de *Vasos* (gratis, nunca se agota) y *Licuadora*. Llevás los ingredientes de la heladera (té, leche, frutilla, ramune) y un vaso a la licuadora; con la mezcla exacta de una bebida aparece «Licuar» (3,5 s, barra de progreso). La bebida se retira a mano de la licuadora y se deja a mano en el mostrador de entrega: no se entrega sola.
 - **Mesa del cliente**: con la cocina física ya no ofrece «Cocinar»; el ticket en pantalla dice qué falta. El menú de pedidos no tiene botones de cocinar (solo informa).
 - **Teclas**: **E** hace cosas (la mejor acción disponible que no sea hablar), **F** habla con personajes y vecinos, **Espacio** abre «Más acciones…» cuando F está hablando. Sin nadie cerca todo sigue como antes.
+
+## Controles, máquinas automáticas y timbre (añadido)
+
+- **Controles**: E = mejor acción que no sea hablar; F = hablar; Espacio = lista numerada con todo (1, 2, 3… eligen). Compañía/Regalar/Acariciar nunca son la acción principal. Una acción nueva se agrega siempre al final de la lista.
+- **Máquinas automáticas**: arrocera, fogón y licuadora arrancan solas al cargar el primer ingrediente (la arrocera/fogón aceptan más porciones unos segundos, `COOK.*.grace`). Una sola barra por tanda: verde mientras cocina y en su punto, amarilla al pasarse (humo blanco), roja al estar por quemarse (humo negro y la máquina vibra); la marca indica cuándo está lista.
+- **Timbre de servicio** (mejora `service_bell`): en la cocina física el personal solo retira platos del mostrador cuando se toca el timbre (hace falta la mejora, un plato esperando y un empleado libre).

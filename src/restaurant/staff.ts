@@ -13,6 +13,7 @@ import { playerBusy } from './claims';
 import { ITEMS_BY_ID, PACKS, type PackDef } from '../data/items';
 import { canCook } from './orders';
 import { pantryFree } from './supplies';
+import { galleyOn } from '../galley/mode';
 import { claimPlate, collectTipAt, guestViews, plateState, stagePlate, staffDeliver, takeOrderAt, tableJobs } from './service';
 
 export type StaffRole = 'waiter' | 'cook' | 'cashier' | 'helper';
@@ -367,7 +368,8 @@ function pickJob(w: Worker, r: Runtime, env: StaffEnv): boolean {
       if (want && goTo(w, r, env, env.pantry(), 'toPantry', `Va a recibir ${ITEMS_BY_ID[want.item]?.name.toLowerCase() ?? 'suministros'}`)) { r.claim = { kind: 'restock', item: want.item }; return true; }
     } else if (kind === 'serve') {
       const waiting = new Set(guestViews().filter((g) => g.phase === 'waiting_food').map((g) => g.id));
-      const order = game.save.orders.find((o) => o.plate && o.service && plateState(o.uid) === 'plated' && !o.plate.claim && waiting.has(o.service.partyId) && !others.has('serve:' + o.uid));
+      // in the physical kitchen plates leave when somebody rings the bell (service_bell upgrade); otherwise staff carry them as always
+      const order = game.save.orders.find((o) => o.plate && o.service && plateState(o.uid) === 'plated' && !o.plate.claim && waiting.has(o.service.partyId) && !others.has('serve:' + o.uid) && (!galleyOn() || rung.has(o.uid)));
       if (order && claimPlate(order.uid, w.id)) {
         if (goTo(w, r, env, env.tray(), 'toTray', 'Va a buscar un plato')) { r.claim = { kind: 'serve', uid: order.uid, tableId: order.service!.tableId }; return true; }
         claimPlate(order.uid, null);
@@ -522,12 +524,38 @@ function step(w: Worker, r: Runtime, env: StaffEnv, dt: number) {
 }
 
 /** Runs the whole crew for `dt` seconds. */
+/** Plates the bell was rung for: staff only collect these in the physical kitchen. */
+const rung = new Set<number>();
+
+/** Employees that could carry a plate right now (hired waiters who are paid and not paused, Rigg when he is on). */
+export function availableServers(): number {
+  const s = staffSave();
+  if (s.paused) return 0;
+  return s.employees.filter((e) => e.role === 'waiter' && e.serve && !e.unpaid).length + (crew('rigg').on && crewUnlocked('rigg') ? 1 : 0);
+}
+
+/** Plates waiting on the pass that nobody has taken yet. */
+export const waitingPlates = (): number => game.save.orders.filter((o) => o.plate && o.service && plateState(o.uid) === 'plated' && !o.plate.claim).length;
+
+export function hasBell(): boolean { return game.save.restaurant.upgrades.includes('service_bell'); }
+
+/** The pass bell. Only works with the upgrade, a plate waiting and somebody free to carry it. */
+export function ringBell(): { ok: boolean; msg: string } {
+  if (!hasBell()) return { ok: false, msg: 'Todavía no tenés el timbre de servicio.' };
+  const plates = game.save.orders.filter((o) => o.plate && o.service && plateState(o.uid) === 'plated' && !o.plate.claim);
+  if (!plates.length) return { ok: false, msg: 'No hay platos esperando en el mostrador.' };
+  if (!availableServers()) return { ok: false, msg: 'No hay nadie disponible para llevar los platos.' };
+  for (const o of plates) rung.add(o.uid);
+  return { ok: true, msg: plates.length > 1 ? 'Tocaste el timbre: vienen a buscar los platos.' : 'Tocaste el timbre: vienen a buscar el plato.' };
+}
+
 export function tickStaff(dt: number, env: StaffEnv) {
   if (!game.has('intro_done') || !Number.isFinite(dt) || dt <= 0) return;
   if (sessionSave !== game.save) {
     // a loaded game: nobody is mid-task, so nothing stays reserved
     sessionSave = game.save;
     runtime.clear();
+    rung.clear();
     for (const o of game.save.orders) { if (o.plate?.claim) delete o.plate.claim; if (o.cook) delete o.cook; }
   }
   const active = new Set<string>();

@@ -74,6 +74,13 @@ function onKey(e: KeyboardEvent) {
   }
   if ((e.key === 'Enter' || e.key === ' ') && isControlTarget(e.target)) return;
 
+  // with the "Más acciones" list open, 1, 2, 3… choose from it
+  const digit = /^(Digit|Numpad)([1-9])$/.exec(e.code);
+  if (digit && !e.shiftKey && !actionForCode(e.code, bindingMap(settings.bindings))) {
+    e.preventDefault(); e.stopPropagation(); swallowCode(e.code);
+    void import('../ui/hud').then((m) => m.pickMoreAction(Number(digit[2])));
+    return;
+  }
   const action = actionForCode(e.code, bindingMap(settings.bindings));
   if (!action) return;
   e.preventDefault();

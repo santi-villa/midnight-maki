@@ -174,3 +174,7 @@ body.input-touch .game-hud .hud-phone { display: none; }
 @media (max-width: 600px) {
   .game-hud .hud-quest:not(.mini) { width: min(280px, 76vw); max-width: min(280px, 76vw); }
 }
+.game-hud .ctx-num {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 4px;
+  background: #4f3826; color: #fff4dc; font: inherit; font-size: 13px; line-height: 1;
+}
