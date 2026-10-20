@@ -142,3 +142,10 @@ El modelo (`Galley`) expone las mismas operaciones para el jugador y para cualqu
 - **Menú principal**: aparece directo, sin «tocar para entrar»; el primer toque o tecla inicia la música.
 - **iPhone (app en el inicio)**: la página queda fija (sin desplazamiento) y el lienzo cubre también la zona del indicador de inicio.
 - **Luces**: los halos aditivos son más suaves y se atenúan entre sí para que la noche no parezca de día.
+
+## HUD compacto (añadido)
+
+- Reloj, hora, período y día en una sola tira; debajo la barra de energía y las monedas. Ya no hay panel plegable.
+- Botones de arriba más chicos y redondeados; el último (☰) abre el menú de pausa.
+- Pedidos de la cocina: chip «Pedidos N ▾» plegado por defecto (se recuerda lo que elijas); en rojo parpadeante si algún cliente se impacienta.
+- Se dejaron como estaban: la tira de misión y el celu asomando abajo a la derecha.
