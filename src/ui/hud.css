@@ -223,3 +223,25 @@ body.input-touch .game-hud .hud-phone { display: none; }
 .game-hud .hud-status-wrap { flex-direction: column; align-items: flex-start; gap: 3px; }
 .game-hud .hud-meters { flex-direction: row; align-items: center; gap: 5px; min-width: 0; }
 .game-hud .hud-meters .hud-energy { width: 66px; flex: none; }
+
+/* the mission line runs under the whole top bar */
+.game-hud .hud-top { grid-template-areas: "status buttons" "quest quest"; }
+.game-hud .hud-quest { justify-self: start; }
+/* ---- Mission: a single cream line with a clipboard and an arrow (it opens to the full text when touched) ---- */
+.game-hud .hud-quest, .game-hud .hud-quest.mini {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 8px; min-height: 40px;
+  border: 2px solid #8b6a46; border-image: none; border-radius: 12px;
+  background: #fbf3dc; box-shadow: inset 0 0 0 2px #fff9ea, 0 2px 0 #8b6a46; color: #3a2a1e;
+  width: min(420px, calc(100vw - 24px)); max-width: min(420px, calc(100vw - 24px));
+}
+.game-hud .hud-quest::before { display: none; }
+.game-hud .hud-quest .q-ico { width: 22px; height: 22px; flex: none; margin: 0; }
+.game-hud .hud-quest .q-body { flex: 1; min-width: 0; font-size: 15px; line-height: 1.25; }
+.game-hud .hud-quest .q-chev { flex: none; font-size: 20px; color: #8b6a46; line-height: 1; transition: transform .2s; }
+.game-hud .hud-quest:not(.mini) .q-chev { transform: rotate(90deg); }
+.game-hud .hud-quest.mini { white-space: nowrap; }
+.game-hud .hud-quest.mini .q-body { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-hud .hud-quest.mini b { display: none; }
+.game-hud .hud-quest.mini span.step { display: inline; margin: 0; -webkit-line-clamp: unset; }
+.game-hud .hud-quest:not(.mini) .q-body { white-space: normal; }
+.game-hud .hud-quest b { color: #6b3a1e; }

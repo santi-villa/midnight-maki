@@ -34,6 +34,7 @@ let tagEl: HTMLElement | null = null;
 let menuEl: HTMLElement | null = null;
 let menuOpen = false;
 let overflowKey = '';
+let questKey = '';
 const actionBtns = new Map<string, HTMLButtonElement>();
 const chrome: { el: HTMLButtonElement; action: GameAction; name: string }[] = [];
 
@@ -96,6 +97,7 @@ export function mountHud(hd: HudHandlers) {
   actionBtns.clear();
   menuOpen = false;
   overflowKey = '';
+  questKey = '';
   root = h('div', { class: 'passthrough game-hud' }, h('div', { class: 'hud-top' }, statusWrap, buttons, questEl), tagEl, dock, corner);
   uiRoot().append(root);
   refresh();
@@ -128,7 +130,14 @@ export function refresh() {
   paintHudClock(clockEl, minute);
   const q = handlers.questText();
   questEl.style.display = q ? '' : 'none';
-  if (q && questEl.innerHTML !== q) questEl.innerHTML = q;
+  if (q && questKey !== q) {
+    questKey = q;
+    // a clipboard on the left and a small arrow on the right: one tidy line that opens on touch
+    questEl.innerHTML = '';
+    const body = h('div', { class: 'q-body' });
+    body.innerHTML = q;
+    questEl.append(skinIconEl('clipboard', 'skin-icon q-ico'), body, h('span', { class: 'q-chev', 'aria-hidden': 'true' }, '›'));
+  }
 }
 
 function refreshSuggestions() {
