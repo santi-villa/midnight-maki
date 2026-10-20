@@ -167,18 +167,26 @@ export async function showTitle(phaser: Phaser.Game) {
   const video = h('video', { class: 'tt-video', muted: '', loop: '', playsinline: '', 'aria-hidden': 'true', preload: 'auto', tabindex: '-1' }) as HTMLVideoElement;
   video.muted = true; video.loop = true; video.playsInline = true; video.disablePictureInPicture = true;
   let videoOn = false;
+  let stillTimer = 0;
+  const giveUp = () => { videoOn = false; window.clearTimeout(stillTimer); root.classList.remove('tt-video-on', 'tt-video-wait'); };
   const syncVideo = () => {
     const want = mode === 'horizontal' && !calm() && !lowFx();
     if (want && !videoOn) {
       videoOn = true;
-      if (!video.src) video.src = base + 'title/title-loop-v1.mp4';
-      video.addEventListener('playing', () => root.classList.add('tt-video-on'), { once: true });
-      video.addEventListener('error', () => { videoOn = false; root.classList.remove('tt-video-on'); }, { once: true });
-      void video.play().catch(() => { /* blocked until a gesture: the still picture stays */ });
+      if (!video.src) video.src = base + 'title/title-loop-v2.mp4';
+      // until the video runs the screen stays plain dark (no still picture flashing before it); if it cannot start
+      // in a few seconds the still picture fades in instead
+      root.classList.add('tt-video-wait');
+      window.clearTimeout(stillTimer);
+      stillTimer = window.setTimeout(giveUp, 3500);
+      video.addEventListener('playing', () => { window.clearTimeout(stillTimer); root.classList.add('tt-video-on'); root.classList.remove('tt-video-wait'); }, { once: true });
+      video.addEventListener('error', giveUp, { once: true });
+      void video.play().catch(() => { /* blocked until a gesture: the timer falls back to the still picture */ });
     } else if (!want && videoOn) {
       videoOn = false;
+      window.clearTimeout(stillTimer);
       video.pause();
-      root.classList.remove('tt-video-on');
+      root.classList.remove('tt-video-on', 'tt-video-wait');
     }
   };
   let mode: 'vertical' | 'horizontal' | '' = '';

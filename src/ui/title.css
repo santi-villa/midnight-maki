@@ -103,6 +103,9 @@
 .tt.tt-video-on .tt-video { opacity: 1; }
 .tt.tt-video-on .tt-frame, .tt.tt-video-on .tt-back { visibility: hidden; transition: visibility 0s linear .8s; }
 .tt.tt-video-on .tt-fx { display: none; }
+/* while the video is starting nothing of the still picture shows (it looked odd to see it and then the video) */
+.tt.tt-video-wait .tt-frame, .tt.tt-video-wait .tt-back { opacity: 0; }
+.tt .tt-frame, .tt .tt-back { transition: opacity .6s ease; }
 @media (orientation: landscape) {
   .tt { --logo-w: min(40vw, 430px); }
   .tt .tt-logo { top: calc(2.5vh + var(--safe-t)); }

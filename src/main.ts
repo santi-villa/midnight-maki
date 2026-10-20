@@ -10,6 +10,7 @@ import { errorReports, installErrorGuard, runTask } from './core/errors';
 import { registerSW } from './core/pwa';
 import { installAppShell, onBack } from './core/appShell';
 import { installMoveScrollGuard, installPcControls } from './input/shortcuts';
+import './ui/unify.css';
 
 installErrorGuard();
 installAppShell();
