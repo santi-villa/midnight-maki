@@ -7,6 +7,7 @@ import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import { plaza } from './plazaMap';
 import { houseDoorDef, houseEntrancePaths, housePropId, housesIn, houseZones } from './houses';
 import { arrangeOutdoors } from './outdoorLayout';
+import { KITCHEN, STATIONS } from '../galley/layout';
 export { Builder, treeBorder, zone, RESTAURANT_ENTRY };
 
 export interface PropPlace { id: string; x: number; y: number; cond?: string; }
@@ -48,15 +49,15 @@ function restaurant(): ZoneDef {
   const b = new Builder(18, 14, '#');
   b.room(0, 0, 18, 14, [11, 14]);
   b.rect(1, 0, 16, 1, 'U');
-  b.rect(1, 2, 6, 4, 'k');
+  b.rect(KITCHEN.x, KITCHEN.y, KITCHEN.w, KITCHEN.h, 'k');
   b.rect(12, 9, 5, 4, 't');
   b.set(8, 13, 'm').set(9, 13, 'm');
-  // fixed kitchen props are furniture-like props
-  b.prop('k_fridge', 1, 2).prop('k_stove', 2, 2).prop('k_sink', 3, 2).prop('k_rice', 4, 2).prop('k_board', 5, 2)
-    .prop('k_counter', 1, 5).prop('k_counter', 2, 5).prop('k_counter', 3, 5).prop('k_counter', 4, 5)
-    .prop('k_counter', 6, 4).prop('k_register', 7, 4).prop('k_register2', 8, 4)
-    .prop('bar_stool', 1, 6).prop('bar_stool', 2, 6).prop('bar_stool', 3, 6).prop('bar_stool', 4, 6)
-    .prop('stairs', 16, 2)
+  // the kitchen is a station table (galley/layout.ts): a spot that needs an upgrade is a plain work counter until then
+  for (const s of STATIONS) {
+    if (s.needs) b.prop(s.prop, s.x, s.y, 'upgrade:' + s.needs).prop('k_work', s.x, s.y, '!upgrade:' + s.needs);
+    else b.prop(s.prop, s.x, s.y);
+  }
+  b.prop('stairs', 16, 2)
     .prop('door_storage', 13, 1, '!storage_open')
     .prop('door_storage_open', 13, 1, 'storage_open')
     .prop('wallshelf', 1, 1)
@@ -74,7 +75,7 @@ function restaurant(): ZoneDef {
     .prop('crate', 1, 7, 'stage<1')
     .prop('sack', 1, 8, 'stage<1')
     .prop('barrel', 3, 12, 'stage<1')
-    .prop('andon', 12, 3, 'stage>=1')
+    .prop('andon', 14, 3, 'stage>=1')
     .prop('pot_cream', 3, 12, 'stage>=1')
     .prop('wall_lantern_cream', 8, 1, 'stage>=1')
     .prop('pot_rose', 4, 12, 'stage>=2')
@@ -92,12 +93,12 @@ function restaurant(): ZoneDef {
       { x: 13, y: 2, to: 'storage', tx: 4, ty: 6, dir: 'up', walk: false, label: 'Depósito', lock: { flag: 'storage_open', msg: 'La puerta del depósito está cerrada con llave.' } },
     ],
     interact: [
-      { id: 'cook', x: 5, y: 3, label: 'Cocinar', action: 'cook' },
-      { id: 'cook2', x: 4, y: 3, label: 'Cocinar', action: 'cook' },
+      // classic stations: kept for guests and for "Cómo cocinar: clásico"; the host's physical kitchen hides them (WorldScene.sense)
+      { id: 'cook', x: 7, y: 3, label: 'Cocinar', action: 'cook' },
       { id: 'orders', x: 7, y: 5, label: 'Pedidos', action: 'orders' },
       { id: 'orders2', x: 8, y: 5, label: 'Pedidos', action: 'orders' },
       { id: 'tray', x: 6, y: 5, label: 'Bandeja de salida', action: 'tray' },
-      { id: 'drinks', x: 2, y: 3, label: 'Bebidas', action: 'drinks' },
+      { id: 'drinks', x: 11, y: 3, label: 'Bebidas', action: 'drinks' },
       { id: 'fridge', x: 1, y: 3, label: 'Despensa', action: 'pantry' },
       { id: 'storage_door', x: 13, y: 2, label: 'Depósito', action: 'door:storage' },
     ],

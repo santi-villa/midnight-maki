@@ -20,6 +20,7 @@ import type { Dir } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
 import { ZONES, GARDEN_PLOT_POSITIONS } from '../data/zones';
+import { STATION_BY_ID } from '../galley/layout';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { bedtimeReason, settleBedtime } from '../systems/bedtime';
 import { closedLocalNotice, shopGate, stopFor } from '../systems/npcs';
@@ -326,11 +327,11 @@ export class WorldScene extends Phaser.Scene {
   private cookFrame(ms = 500) {
     const cam = this.cameras.main;
     const w = this.scale.width, h = this.scale.height;
-    const zoom = Math.max(2, Math.floor(Math.min(w / (TILE * 9.5), (h * 0.5) / (TILE * 5.5))));
+    const zoom = Math.max(2, Math.floor(Math.min(w / (TILE * 13.5), (h * 0.5) / (TILE * 5.5))));
     cam.removeBounds();
     if (ms) cam.zoomTo(zoom, ms); else cam.setZoom(zoom);
     const cy = 3.9 * TILE + (h * 0.23) / zoom;
-    if (ms) cam.pan(4.7 * TILE, cy, ms, 'Sine.easeInOut'); else cam.centerOn(4.7 * TILE, cy);
+    if (ms) cam.pan(6.5 * TILE, cy, ms, 'Sine.easeInOut'); else cam.centerOn(6.5 * TILE, cy);
   }
 
   /** Opens or closes the kitchen close-up. Only possible inside the restaurant. */
@@ -1010,8 +1011,8 @@ export class WorldScene extends Phaser.Scene {
         }
         return out;
       },
-      stove: () => { const [x, y] = near(5, 4); return { x, y }; },
-      pantry: () => { const [x, y] = near(1, 4); return { x, y }; },
+      stove: () => { const [x, y] = near(...STATION_BY_ID.stove.stand[0]); return { x, y }; },
+      pantry: () => { const [x, y] = near(...STATION_BY_ID.fridge.stand[0]); return { x, y }; },
       path: (a, b) => grid.path(a.x, a.y, b.x, b.y),
       crew: {
         where: (id) => {

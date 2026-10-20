@@ -23,7 +23,7 @@ const STEP_NAMES: Record<CookStep['t'], string> = {
   shape: 'Moldear', top: 'Cubrir', wrap: 'Envolver', cone: 'Cono', garnish: 'Decorar', cook: 'Cocinar', plate: 'Emplatar',
 };
 /** where Sofi stands for each station of the kitchen (the row in front of the wall equipment) */
-const SPOT: Record<Station, { x: number; y: number }> = { stove: { x: 2, y: 3 }, rice: { x: 4, y: 3 }, board: { x: 5, y: 3 }, plate: { x: 6, y: 3 } };
+const SPOT: Record<Station, { x: number; y: number }> = { stove: { x: 9, y: 3 }, rice: { x: 3, y: 3 }, board: { x: 5, y: 3 }, plate: { x: 7, y: 3 } };
 const VERDICT: Record<Verdict, string> = { perfect: '¡Perfecto!', good: '¡Bien!', ok: 'Casi', miss: 'Uy…' };
 const nameOf = (id: string) => (id === 'nori' ? 'Alga' : ITEMS_BY_ID[id]?.name ?? id);
 

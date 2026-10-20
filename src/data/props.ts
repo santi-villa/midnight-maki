@@ -119,6 +119,13 @@ export const PROPS: Record<string, PropDef> = {
   k_rice: P('hangiri', 1, 1, 16, 24),
   k_board: P('cuttingboard', 1, 1, 16, 22),
   k_counter: P('sushibar', 1, 1, 16, 28),
+  // the physical kitchen (docs/cocina-fisica.md; positions in galley/layout.ts)
+  k_work: P('workcounter', 1, 1, 16, 22),
+  k_ricepot: P('ricepot', 1, 1, 16, 32),
+  k_assembly: P('prepcounter', 2, 1, 32, 22),
+  k_bin: P('bin', 1, 1, 16, 20),
+  k_pass: P('passcounter', 3, 1, 48, 24),
+  k_drinks: P('drinkstation', 1, 1, 16, 28),
   k_register: P('sushibar', 1, 1, 16, 28, '', '', { variant: 1 }),
   k_register2: P('sushibar', 1, 1, 16, 28),
   // izakaya dressing

@@ -1,0 +1,62 @@
+/**
+ * The cutting-board reflex bar. An indicator bounces from end to end; the player stops it on the green zone.
+ * The zone moves every attempt. Pure maths: the view draws it and reads the clock.
+ */
+import type { Grade } from './prep';
+
+export type CutVerdict = 'perfect' | 'good' | 'regular' | 'fail';
+
+export interface CutSpec {
+  /** left edge and width of the green zone, as fractions of the bar (0..1) */
+  start: number;
+  width: number;
+  /** bar lengths per second (the indicator goes one way in 1/speed seconds) */
+  speed: number;
+  /** seconds before an unattended cut counts as a miss */
+  limit: number;
+}
+
+export interface CutDifficulty {
+  /** 0 (very easy) .. 1 (hard) */
+  level: number;
+  /** the knife upgrade widens the zone */
+  knife: boolean;
+}
+
+/** Zone width and speed for a difficulty. Wide and slow when relaxed, narrow and fast when hard. */
+export function cutSpec(d: CutDifficulty, rng: () => number, previousStart?: number): CutSpec {
+  const level = Math.max(0, Math.min(1, d.level));
+  const width = Math.max(0.1, 0.3 - 0.15 * level + (d.knife ? 0.05 : 0));
+  const speed = 0.8 + 0.9 * level;
+  // anywhere on the bar, but never the same place twice in a row
+  const lo = 0.04, hi = 0.96 - width;
+  let start = lo + rng() * (hi - lo);
+  for (let i = 0; i < 6 && previousStart !== undefined && Math.abs(start - previousStart) < 0.18; i++) start = lo + rng() * (hi - lo);
+  if (previousStart !== undefined && Math.abs(start - previousStart) < 0.18) start = previousStart < (lo + hi) / 2 ? hi : lo;
+  return { start, width, speed, limit: 3 };
+}
+
+/** Where the indicator is after `t` seconds: a triangle wave between 0 and 1, so it bounces. */
+export function indicatorAt(t: number, speed: number): number {
+  const phase = ((t * speed) % 2 + 2) % 2;
+  return phase <= 1 ? phase : 2 - phase;
+}
+
+/** Perfect in the middle of the zone, good in it, regular just outside, fail anywhere else. */
+export function judgeCut(pos: number, spec: CutSpec): CutVerdict {
+  const centre = spec.start + spec.width / 2;
+  const off = Math.abs(pos - centre);
+  if (off <= spec.width * 0.15) return 'perfect';
+  if (off <= spec.width / 2) return 'good';
+  if (off <= spec.width / 2 + 0.07) return 'regular';
+  return 'fail';
+}
+
+export const VERDICT_GRADE: Record<CutVerdict, Grade> = { perfect: 3, good: 2, regular: 1, fail: 0 };
+
+/** How hard the board is right now: the cooking mode and the time of day (the evening is busier). */
+export function cutLevel(mode: 'relaxed' | 'normal' | 'challenge', period: number): number {
+  const base = mode === 'relaxed' ? 0.1 : mode === 'challenge' ? 0.85 : 0.45;
+  const rush = period === 0 ? 0.1 : period === 3 ? 0.08 : 0;
+  return Math.max(0, Math.min(1, base + rush));
+}
