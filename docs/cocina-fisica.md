@@ -133,3 +133,12 @@ El modelo (`Galley`) expone las mismas operaciones para el jugador y para cualqu
 - **Cartel interior**: el cartel de la pared del salón muestra el nombre que eligió el jugador (dos líneas).
 - **Plaza**: gatos y perros recorren la plaza con más frecuencia (esperas de 4–13 s).
 - **Música**: al aire libre de noche no suena música (grillos/olas como ambiente); la música vuelve de día y en interiores.
+
+## Retoques (añadido)
+
+- **Flecha de la lección**: durante la primera lección una flecha señala la estación a la que ir en cada paso (`tutorialStation`); el objetivo de misión de «preparar el primer sushi» ya no apunta al mostrador viejo sino a la cocina.
+- **Playa**: `src/audio/beach-waves.mp3` (olas, viento, gaviotas) reemplaza el oleaje sintético; de noche suena más bajo.
+- **Perros**: se quitaron los dos perros de la plaza (el arte no era del estilo del juego).
+- **Menú principal**: aparece directo, sin «tocar para entrar»; el primer toque o tecla inicia la música.
+- **iPhone (app en el inicio)**: la página queda fija (sin desplazamiento) y el lienzo cubre también la zona del indicador de inicio.
+- **Luces**: los halos aditivos son más suaves y se atenúan entre sí para que la noche no parezca de día.

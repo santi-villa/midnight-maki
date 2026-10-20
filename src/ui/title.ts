@@ -225,11 +225,18 @@ export async function showTitle(phaser: Phaser.Game) {
   const prompt = h('button', { type: 'button', class: 'tt-prompt', onclick: () => reveal() }, 'Entrar a Villa Nori', h('span', { 'aria-hidden': 'true' }, ' ▸'));
 
   let revealed = false;
-  const reveal = () => {
+  let sounded = false;
+  /** Browsers only allow audio after a gesture: the first touch or key press starts the title music. */
+  const sound = () => {
+    if (sounded) return;
+    sounded = true;
+    audio.unlock();
+    audio.play('title');
+  };
+  const reveal = (auto = false) => {
     if (revealed || !root.classList.contains('ready') && !root.classList.contains('no-bg')) return;
     revealed = true;
-    audio.unlock(); // browsers only allow audio after a gesture
-    audio.play('title');
+    if (!auto) sound();
     root.classList.add('open');
     prompt.hidden = true;
     layout();
@@ -240,15 +247,16 @@ export async function showTitle(phaser: Phaser.Game) {
       buttons[0]?.focus({ preventScroll: true });
     }, 420);
   };
-  root.addEventListener('pointerdown', () => reveal());
+  root.addEventListener('pointerdown', () => { sound(); reveal(); });
   const onKey = (e: KeyboardEvent) => {
     if (!document.body.contains(root) || document.querySelector('.panel, .modal, .overlay')) return;
     if (!revealed) {
       if (['Escape', 'Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;
       e.preventDefault();
-      reveal();
+      sound(); reveal();
       return;
     }
+    sound();
     const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
     if (['ArrowDown', 'ArrowRight'].includes(e.key)) { e.preventDefault(); buttons[(i + 1 + buttons.length) % buttons.length].focus(); }
     if (['ArrowUp', 'ArrowLeft'].includes(e.key)) { e.preventDefault(); buttons[(i - 1 + buttons.length) % buttons.length].focus(); }
@@ -262,6 +270,8 @@ export async function showTitle(phaser: Phaser.Game) {
   layout(); // after mounting, so the menu's real height is known
   await artwork;
   hideBoot();
+  // the menu is simply there: no "tap to start" step. The first touch is what starts the music.
+  reveal(true);
   if (saved && takeResumeOnce()) void runTask('flow:resume', doContinue);
   // keep the calm / battery flags in sync with the settings panel
   offSettings = bus.on('settings:changed', () => { if (document.body.contains(root)) { refreshCalm(); layout(); } });

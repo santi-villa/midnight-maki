@@ -20,8 +20,7 @@ export interface PetSpot { zone: string; kind: 'cat_brown' | 'cat_white' | 'cat_
 export const PET_SPOTS: PetSpot[] = [
   { zone: 'plaza', kind: 'cat_brown', tx: 11, ty: 17, dx: 8, dy: 5, route: [[11, 18], [9, 18], [11, 16]] },
   { zone: 'plaza', kind: 'cat_white', tx: 21, ty: 14, dx: 8, dy: 5, route: [[21, 15], [23, 15], [23, 13]] },
-  { zone: 'plaza', kind: 'dog_sleep', tx: 9, ty: 15, dx: 8, dy: 14 },
-  { zone: 'plaza', kind: 'dog_golden', tx: 19, ty: 18, dx: 8, dy: 15, route: [[19, 18], [20, 20], [18, 20]] },
+  // (the two dogs were removed: their art did not match the pixel style of the game)
   { zone: 'garden', kind: 'cat_siamese', tx: 13, ty: 8, dx: 8, dy: 5, route: [[13, 9], [12, 11], [15, 9]] },
   { zone: 'restaurant', kind: 'cat_siamese', name: 'Miso', tx: 17, ty: 12, route: [[17, 12], [16, 8], [6, 10]] },
   { zone: 'garden', kind: 'frog', tx: 26, ty: 20, dx: 8, dy: 14, day: true },

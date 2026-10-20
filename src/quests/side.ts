@@ -106,7 +106,7 @@ defineQuests([
   side('sq_memory', 'pip', 'Revancha de memoria', 'Ganarle a la memoria.', 'En el Mercado Nocturno hay un juego de memoria. ¡Te reto! Si me ganás, te doy algo lindo.', after('market_visited'),
     [{ text: 'Ganá una partida de memoria en el Mercado Nocturno.', done: stat('memoryWins', 1), target: { kind: 'object', zone: 'market', x: 5, y: 12, label: 'Juego de memoria', interactId: 'mk_game' } }], { furniture: ['plush_cat'] }),
   side('sq_level3', 'spicy', 'Fama local', 'Llevar el restaurante al nivel 3.', 'Si llegamos al nivel 3, ¡colgamos una ristra de ajíes en la cocina! Es tradición. Mía. Desde hoy.', always,
-    [{ text: 'Llevá Midnight Maki al nivel 3.', done: () => game.save.restaurant.level >= 3, target: { kind: 'object', zone: 'restaurant', x: 7, y: 5, label: 'Mostrador de pedidos' } }], { furniture: ['chili_wreath'] }),
+    [{ text: 'Llevá Midnight Maki al nivel 3.', done: () => game.save.restaurant.level >= 3, target: { kind: 'object', zone: 'restaurant', x: 6, y: 3, label: 'Cocina' } }], { furniture: ['chili_wreath'] }),
   side('sq_star_flower', 'momo', 'La flor estrella', 'Un rumor botánico.', 'Dicen que si juntás macetas iguales en el banco del jardín, al final florece una flor estrella. ¿Lo probás?', after('unlock_garden'),
     [{ text: 'Conseguí una Flor estrella en el banco de macetas.', done: col('flowers', 'fl_star'), target: { kind: 'location', zone: 'garden', label: 'Banco de macetas' } }], { furniture: ['bonsai_sakura'] }),
   side('sq_kiki_stump', 'kiki', 'El tocón tallado', 'Un secreto del bosque.', 'En el bosque hay un tocón con símbolos tallados. Dicen que si repetís su canción, se abre. ¡Yo nunca pude!', after('unlock_forest'),
