@@ -254,7 +254,7 @@ export class WorldScene extends Phaser.Scene {
       }),
       bus.on('state:changed', () => {
         if (this.zoneId === 'restaurant') this.syncGuests();
-        if (this.zone && this.blockKey !== this.blockStamp() && !clock.paused) { this.blockKey = this.blockStamp(); this.refreshZone(); }
+        this.syncBlocks();
       }),
       bus.on('appearance:changed', () => this.refreshLooks()),
       bus.on('settings:changed', () => this.enterLowFx()),
@@ -490,6 +490,14 @@ export class WorldScene extends Phaser.Scene {
     if (!this.player || this.transitioning) return;
     void runTask('world:refresh-zone', () => this.enterZone(this.zoneId, this.player.tx, this.player.ty, this.player.dir, false, true));
   }
+
+  /** Opens or closes the obstacles whose flag changed (the market rope at nightfall, a cleared gate). Retried every half second until it can run. */
+  private syncBlocks() {
+    if (!this.zone || !this.player || this.transitioning || clock.paused || this.blockKey === this.blockStamp()) return;
+    this.blockKey = this.blockStamp();
+    this.refreshZone();
+  }
+  private blockCheckIn = 0;
 
   /** Flags that decide which obstacles stand in this zone right now. */
   private blockStamp(): string {
@@ -2644,6 +2652,8 @@ export class WorldScene extends Phaser.Scene {
     this.updateServiceArt();
     this.galleyView.update(dt);
     this.updateKitchenFade();
+    this.blockCheckIn -= dt;
+    if (this.blockCheckIn <= 0) { this.blockCheckIn = 0.5; this.syncBlocks(); }
     this.flushNpcWait();
     this.dust(dt);
     this.quirks(dt);
