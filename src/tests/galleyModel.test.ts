@@ -25,7 +25,7 @@ beforeEach(() => {
 
 const take = (ing: string) => { const r = g.takeFromFridge(PLAYER, ing); expect(r.ok, r.msg).toBe(true); };
 const act = (id: string, verb: Parameters<Galley['perform']>[2], who = PLAYER) => { const r = g.perform(who, id, verb); expect(r.ok, `${id} ${verb}: ${r.msg}`).toBe(true); return r; };
-const cookRice = (n: number) => { for (let i = 0; i < n; i++) { take('rice'); act('rice', 'put'); } act('rice', 'start'); g.tick(COOK.rice.time + 0.1); };
+const cookRice = (n: number) => { for (let i = 0; i < n; i++) { take('rice'); act('rice', 'put'); } g.tick(COOK.rice.time + 0.1); };
 const cut = (ing: string, verdict: 'perfect' | 'good' | 'regular' | 'fail', station = 'board_1') => {
   take(ing); const r = act(station, 'chop'); expect(r.needsCut).toBe(true);
   g.finishCut(station, verdict); act(station, 'take');
@@ -109,10 +109,12 @@ describe('rice cooker', () => {
     take('rice');
     expect(g.perform(PLAYER, 'rice', 'put').ok).toBe(false); // capacity 4
     act('counter_a', 'put');
-    act('rice', 'start');
-    expect(g.busy('rice')).toBe(true);
+   
+    expect(g.busy('rice')).toBe(true); // it started by itself with the first portion
+    expect(g.verbs(PLAYER, 'rice')).toEqual(['take']); // still loading: a change of mind is allowed
+    g.tick(COOK.rice.grace + 0.5);
     expect(g.verbs(PLAYER, 'rice')).toEqual([]);
-    g.tick(COOK.rice.time - 1);
+    g.tick(COOK.rice.time - COOK.rice.grace - 1.5);
     expect(g.progress('rice')).toBeGreaterThan(0.9);
     const ev = g.tick(2);
     expect(ev.some((e) => e.t === 'ready')).toBe(true);
@@ -149,7 +151,7 @@ describe('rice cooker', () => {
     take('salmon');
     expect(g.perform(PLAYER, 'stove', 'put').ok).toBe(false);
     act('counter_a', 'put');
-    take('egg'); act('stove', 'put'); act('stove', 'start');
+    take('egg'); act('stove', 'put');
     g.tick(COOK.stove.time + 0.1);
     act('stove', 'take');
     expect(g.held(PLAYER)[0]).toMatchObject({ ing: 'egg', form: 'cooked', q: 3 });
@@ -179,7 +181,7 @@ describe('cutting board', () => {
   });
 
   it('cooked eggs are cut into cooked_cut, ready for the tamago nigiri', () => {
-    take('egg'); act('stove', 'put'); act('stove', 'start'); g.tick(COOK.stove.time + 0.1); act('stove', 'take');
+    take('egg'); act('stove', 'put'); g.tick(COOK.stove.time + 0.1); act('stove', 'take');
     act('board_1', 'chop'); g.finishCut('board_1', 'good'); act('board_1', 'take');
     expect(g.held(PLAYER)[0]).toMatchObject({ ing: 'egg', form: 'cooked_cut', q: 2 });
   });
@@ -254,7 +256,7 @@ describe('assembly and the pass', () => {
 
 describe('saving', () => {
   it('survives a round trip with hands, cookers, the board and the assembly intact', () => {
-    take('rice'); act('rice', 'put'); act('rice', 'start'); g.tick(5);
+    take('rice'); act('rice', 'put'); g.tick(5);
     take('salmon'); act('board_1', 'chop');
     take('nori'); act('assembly', 'put');
     take('cucumber');
@@ -385,11 +387,10 @@ describe('drinks in the blender', () => {
     expect(g.perform(PLAYER, 'cups', 'cup').ok).toBe(false); // hands are busy
     act('mixer', 'put');
     take('berry'); act('mixer', 'put');
-    expect(g.verbs(PLAYER, 'mixer')).not.toContain('start'); // no glass yet
+    expect(g.busy('mixer')).toBe(false); // no glass yet
     act('cups', 'cup'); act('mixer', 'put');
-    expect(g.drinkIn()).toBe('strawberry_milk');
-    act('mixer', 'start');
-    expect(g.verbs(PLAYER, 'mixer')).toEqual([]); // busy
+    expect(g.busy('mixer')).toBe(true); // mixing started by itself
+    expect(g.verbs(PLAYER, 'mixer')).toEqual([]);
     g.tick(5);
     expect(g.station('mixer').items.map((i) => i.kind)).toEqual(['drink']);
     act('mixer', 'take');

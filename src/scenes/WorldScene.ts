@@ -50,7 +50,7 @@ import { furnSize } from '../data/furniture';
 import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
-import { arrange, idleOffer, isPlayerRoom, isTalk, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
+import { arrange, idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
@@ -163,6 +163,8 @@ export class WorldScene extends Phaser.Scene {
   target: Target | null = null;
   contextOffer: ContextOffer = idleOffer(null);
   private contextKey = '';
+  /** order in which each action first showed up, so the numbered list only grows at the bottom */
+  private seenActions = new Map<string, number>();
   /** When the notebook pose from taking an order should end. */
   private notingUntil = 0;
   inputLocked = 0; // cutscenes
@@ -183,11 +185,13 @@ export class WorldScene extends Phaser.Scene {
   cookActive = false;
   /** the player is busy at a station of the physical kitchen (the cutting bar, a short assembly) */
   galleyBusy = false;
+  private propImgs = new Map<string, Phaser.GameObjects.Image>();
   galleyView = new GalleyView({
     scene: this,
     get player() { return world.player; },
     get zoneId() { return world.zoneId; },
     grid: () => world.zone.grid,
+    propAt: (x, y) => world.propImgs.get(`${x},${y}`),
     get galleyBusy() { return world.galleyBusy; },
     set galleyBusy(v: boolean) { world.galleyBusy = v; },
     floatAt: (x, y, text, color) => this.floatAt(x, y, text, color),
@@ -591,6 +595,7 @@ export class WorldScene extends Phaser.Scene {
     this.lamps = [];
     this.occluders = [];
     // props
+    this.propImgs.clear();
     for (const p of this.zone.props) {
       // Outdoor puddles now grow and dry with the rain instead of being permanent prop stamps.
       if (def.outdoor && p.def.kind === 'puddle') continue;
@@ -619,6 +624,7 @@ export class WorldScene extends Phaser.Scene {
       }
       if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 76 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 0.62 : 0.5 });
       this.objs.push(img);
+      this.propImgs.set(`${p.x},${p.y}`, img);
       if (!onWall && !p.def.ground && p.def.sombra !== 'ninguna') {
         const contact = p.def.sombra === 'contacto';
         this.addShadow(p.def.kind, px, py, contact ? 8 : p.def.sw, p.def.w, contact);
@@ -2051,22 +2057,17 @@ export class WorldScene extends Phaser.Scene {
     if (primary) this.perform(primary);
   }
 
-  /** Space: the side action when one is showing, otherwise the main action. */
+  /** Space: the numbered list of everything on offer (or the only action when there is one). */
   tryAlternate() {
-    // with F talking, Space opens the rest of the actions
-    if (isTalk(this.contextOffer.chip) && needsMore(this.contextOffer)) { void import('../ui/hud').then((m) => m.toggleMoreMenu()); return; }
-    if (this.contextOffer.chip) this.perform(this.contextOffer.chip);
-    else this.tryInteract();
+    const offer = this.contextOffer;
+    if (needsMore(offer)) { void import('../ui/hud').then((m) => m.toggleMoreMenu()); return; }
+    const only = offer.primary ?? offer.chip;
+    if (only) this.perform(only);
   }
 
-  /** F: the side action, or the first extra action, and nothing when the player is alone. */
+  /** F: talk to whoever is close. */
   trySecondary() {
-    const offer = this.contextOffer;
-    if (isTalk(offer.chip)) { this.perform(offer.chip!); return; }
-    if (isTalk(offer.primary) && !offer.chip) { this.perform(offer.primary!); return; }
-    if (needsMore(offer)) { void import('../ui/hud').then((m) => m.toggleMoreMenu()); return; }
-    const alt = offer.chip;
-    if (alt) this.perform(alt);
+    if (this.contextOffer.chip) this.perform(this.contextOffer.chip);
   }
 
   /** Run one contextual action. Keyboard uses the primary; the HUD may pass any of them. */
@@ -2324,8 +2325,9 @@ export class WorldScene extends Phaser.Scene {
   private refreshContext() {
     const room = this.player && this.zone ? roomAt(this.zone.def, this.player.tx, this.player.ty) ?? null : null;
     const offer = this.player && this.zone && this.canAct() && !this.player.path.length
-      ? arrange(resolveContext(this.sense()))
+      ? arrange(resolveContext(this.sense()), this.seenActions)
       : idleOffer(isPlayerRoom(room) ? room!.name : null);
+    if (!offer.all) this.seenActions.clear();
     const key = offerKey(offer);
     if (key === this.contextKey) return;
     this.contextKey = key;

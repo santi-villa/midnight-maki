@@ -11,7 +11,7 @@ import { inputMethod } from '../input/keys';
 import { dayOfSeason, WEEKDAYS, weekday } from '../core/balance';
 import { world } from '../scenes/WorldScene';
 import { clock } from '../systems/time';
-import { idleOffer, isTalk, needsMore, secondaryActions, type ContextAction, type ContextOffer } from '../world/contextActions';
+import { idleOffer, needsMore, secondaryActions, type ContextAction, type ContextOffer } from '../world/contextActions';
 import { h, uiRoot } from './dom';
 import { skinIconEl } from './skin';
 import { formatHudTime, hudTime, paintHudClock } from './hudClock';
@@ -263,22 +263,21 @@ function renderContext() {
 
 function buttonSpecs(offer: ContextOffer): BtnSpec[] {
   const specs: BtnSpec[] = [];
-  // one action: E. Two: E and F. More: E is the main one and F opens "Más acciones…" (touch gets the same two buttons)
-  if (needsMore(offer)) {
-    specs.push({
-      id: '__more',
-      label: menuOpen ? 'Cerrar' : 'Más acciones…',
-      detail: menuOpen ? 'Cerrar acciones' : 'Más acciones',
-      icon: 'act',
-      cls: 'btn ctx-chip ctx-more',
-      keyAction: isTalk(offer.chip) ? 'contextAlt' : 'secondary',
-      run: () => {
-        menuOpen = !menuOpen;
-        renderContext();
-      },
-    });
-    if (isTalk(offer.chip)) specs.push(actionSpec(offer.chip!, 'btn ctx-chip', false, 'secondary'));
-  } else if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
+  // E: the main action. F: talk. Space: the numbered list of everything (1, 2, 3… pick one)
+  const more = (): BtnSpec => ({
+    id: '__more',
+    label: menuOpen ? 'Cerrar' : 'Más acciones…',
+    detail: menuOpen ? 'Cerrar acciones' : 'Más acciones',
+    icon: 'act',
+    cls: 'btn ctx-chip ctx-more',
+    keyAction: 'contextAlt',
+    run: () => {
+      menuOpen = !menuOpen;
+      renderContext();
+    },
+  });
+  if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
+  if (needsMore(offer)) specs.push(more());
   if (offer.primary) specs.push(actionSpec(offer.primary, 'hud-interact', true, 'interact'));
   return specs;
 }
@@ -360,9 +359,10 @@ function paintMenu(offer: ContextOffer) {
     if (menuEl.isConnected) menuEl.remove();
     return;
   }
-  menuEl.innerHTML = '';
-  for (const a of secondaryActions(offer)) {
-    menuEl.append(h('button', {
+  const list = menuEl;
+  list.innerHTML = '';
+  secondaryActions(offer).forEach((a, i) => {
+    list.append(h('button', {
       type: 'button',
       class: 'btn ctx-row' + (settings.reduceMotion ? '' : ' ctx-pop'),
       'aria-label': a.detail,
@@ -373,8 +373,8 @@ function paintMenu(offer: ContextOffer) {
         world?.perform(a);
         renderContext();
       },
-    }, skinIconEl(a.icon), h('span', null, a.detail)));
-  }
+    }, h('kbd', { class: 'ctx-num' }, String(i + 1)), skinIconEl(a.icon), h('span', null, a.detail)));
+  });
   dock.prepend(menuEl);
 }
 
@@ -493,6 +493,18 @@ export function toggleMoreMenu(): boolean {
   menuOpen = !menuOpen;
   renderContext();
   return menuOpen;
+}
+/** A number key while the list is open runs that action. Returns whether it did. */
+export function pickMoreAction(n: number): boolean {
+  const offer = world?.contextOffer;
+  if (!menuOpen || !offer) return false;
+  const a = secondaryActions(offer)[n - 1];
+  if (!a) return false;
+  audio.sfxPlay('tap');
+  menuOpen = false;
+  world?.perform(a);
+  renderContext();
+  return true;
 }
 /** Escape closes the list first. Returns whether something was closed. */
 export function closeMoreMenu(): boolean {

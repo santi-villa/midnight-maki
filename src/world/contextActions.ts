@@ -55,23 +55,28 @@ export interface ContextAction {
 
 /** Talking to someone (a character or a neighbour). */
 export const isTalk = (a: ContextAction | null | undefined): boolean => !!a && (a.id.startsWith('npc:') || a.id.startsWith('nb:'));
+/** Things you do with somebody besides talking (company, a gift, petting): never the main action. */
+const isSocial = (a: ContextAction): boolean => a.id.startsWith('company:') || a.id.startsWith('gift:') || a.id.startsWith('pet:');
 
 /**
- * E does things, F talks. When somebody is close the talk action is always the side action (F) and E keeps the best of the
- * rest, so the main key never turns into a conversation by accident. With nobody to talk to nothing changes.
+ * E does the best thing that is not a conversation, F talks, and the numbered list under Space holds everything in the order
+ * it was first seen, so a new action always lands at the bottom.
  */
-export function arrange(o: ContextOffer): ContextOffer {
-  const all = [o.primary, o.chip, ...o.overflow].filter((a): a is ContextAction => !!a);
-  const talk = all.find(isTalk);
-  const rest = all.filter((a) => a !== talk);
-  if (!talk || !rest.length) return o;
-  return { ...o, primary: rest[0], chip: talk, overflow: rest.slice(1) };
+export function arrange(o: ContextOffer, seen: Map<string, number>): ContextOffer {
+  const ranked = [o.primary, o.chip, ...o.overflow].filter((a): a is ContextAction => !!a);
+  if (!ranked.length) return o;
+  let next = seen.size ? Math.max(...seen.values()) + 1 : 0;
+  for (const a of ranked) if (!seen.has(a.id)) seen.set(a.id, next++);
+  const talk = ranked.find(isTalk) ?? null;
+  const main = ranked.find((a) => !isTalk(a) && !isSocial(a)) ?? null;
+  const all = [...ranked].sort((a, b) => (seen.get(a.id) ?? 0) - (seen.get(b.id) ?? 0));
+  return { ...o, primary: main, chip: talk, overflow: ranked.filter((a) => a !== main && a !== talk), all };
 }
 
-/** Every action except the main one (E). With a talk side action (F) the list only holds the rest. */
-export const secondaryActions = (o: ContextOffer): ContextAction[] => (isTalk(o.chip) ? o.overflow : [...(o.chip ? [o.chip] : []), ...o.overflow]);
-/** With more than two actions the rest go in the list "Más acciones…" (F, or Space when F talks). */
-export const needsMore = (o: ContextOffer): boolean => !!o.primary && secondaryActions(o).length > (isTalk(o.chip) ? 0 : 1);
+/** The numbered list (Space). Without `all` (an offer that was not arranged) it is the old "everything but E". */
+export const secondaryActions = (o: ContextOffer): ContextAction[] => o.all ?? [...(o.chip ? [o.chip] : []), ...o.overflow];
+/** The list is worth opening when there is more than one thing to choose from. */
+export const needsMore = (o: ContextOffer): boolean => (o.all ? o.all.length > 1 : !!o.primary && secondaryActions(o).length > 1);
 
 export interface ContextOffer {
   primary: ContextAction | null;
@@ -81,6 +86,8 @@ export interface ContextOffer {
   overflow: ContextAction[];
   /** Name plaque for the player's own room, otherwise null. */
   roomTag: string | null;
+  /** Everything on offer in a stable order (the numbered list under Space). Set once arranged. */
+  all?: ContextAction[];
 }
 
 export interface SenseFurniture {
@@ -137,7 +144,7 @@ export function idleOffer(roomTag: string | null): ContextOffer {
 
 export function offerKey(o: ContextOffer): string {
   const part = (a: ContextAction | null) => (a ? `${a.id}:${a.label}` : '');
-  return `${o.roomTag ?? ''}#${part(o.primary)}#${part(o.chip)}#${o.overflow.map(part).join(',')}`;
+  return `${o.roomTag ?? ''}#${part(o.primary)}#${part(o.chip)}#${o.overflow.map(part).join(',')}#${(o.all ?? []).map((a) => a.id).join(',')}`;
 }
 
 interface Scored { action: ContextAction; score: number; }
