@@ -30,8 +30,8 @@ export interface GalleyEnv {
 
 /** Seconds a cooker takes, and when what it holds goes a little past (good → regular) and burns. */
 export const COOK = {
-  rice: { time: 22, over1: 8, over2: 16, burn: 32, grace: 6 },
-  stove: { time: 9, over1: 5, over2: 10, burn: 16, grace: 4 },
+  rice: { time: 22, over1: 4, over2: 8, burn: 12, grace: 6 },
+  stove: { time: 9, over1: 3, over2: 6, burn: 10, grace: 4 },
 } as const;
 export const ASSEMBLE_SECONDS = 1.4;
 /** the blender: seconds to mix a drink */

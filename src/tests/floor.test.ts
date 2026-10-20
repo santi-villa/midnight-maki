@@ -174,9 +174,8 @@ describe('patience', () => {
     expect(svc.party('rush')?.patience).toBe(1);
     const left = svc.tick(1);
     expect(left.some((e) => e.type === 'impatient' && e.partyId === 'rush')).toBe(true);
-    expect(svc.party('rush')).toMatchObject({ phase: 'queued', patience: 0, impatient: true, tableId: null });
-    svc.tick(1);
-    expect(svc.party('rush')?.phase).toBe('queued');
+    // with no table coming, they give up and leave
+    expect(svc.party('rush')).toMatchObject({ phase: 'leaving', leftReason: 'patience', impatient: true, tableId: null });
     expect(svc.audit()).toEqual([]);
   });
 
