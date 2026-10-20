@@ -2,7 +2,7 @@
 import atlasURL from '../assets/village/atlas.png';
 import catalog from '../assets/village/catalog.json';
 import { ctx2d, makeCanvas, px, type Ctx } from './pixel';
-import { drawPlaque } from './pixfont';
+import { drawPlaque, pixTextWidth } from './pixfont';
 import { restaurantFacadeLayout } from './restaurantFacade';
 
 export const VILLAGE_ATLAS_KEY = 'village-source';
@@ -25,7 +25,14 @@ function frame(c: Ctx, name: Frame, x: number, y: number, w: number, h: number) 
   c.drawImage(source!, f.x, f.y, f.w, f.h, x, y, w, h);
 }
 
-export function villageObject(id: string, W: number, H: number, stage = 0, closed = false): HTMLCanvasElement | null {
+/** The name the player chose for the restaurant, upper-cased and cut to fit the facade's plaque. */
+export function restaurantSignText(name: string, W: number): string {
+  let t = name.trim().toUpperCase() || 'MIDNIGHT MAKI';
+  while (t.length > 1 && pixTextWidth(t) > W - 14) t = t.slice(0, -1);
+  return t;
+}
+
+export function villageObject(id: string, W: number, H: number, stage = 0, closed = false, sign = 'Midnight Maki'): HTMLCanvasElement | null {
   if (!source) return null;
   const restaurant = id === 'bld_restaurant' || /^bld_restaurant_s[0-3]$/.test(id);
   const name = VILLAGE_PROP_FRAMES[id];
@@ -41,7 +48,7 @@ export function villageObject(id: string, W: number, H: number, stage = 0, close
     }
     if (stage >= 3) frame(c, 'lanterns', Math.round(W / 2 - 26), L.sign.y - 14, 52, 14);
     // Keep the restaurant name and its two warm lanterns on the selected facade.
-    drawPlaque(c, L.sign.x, L.sign.y, 'MIDNIGHT MAKI', { wood: '#d9b482' });
+    drawPlaque(c, L.sign.x, L.sign.y, restaurantSignText(sign, W), { wood: '#d9b482' });
     for (const lamp of L.lanterns) {
       px(c, lamp.x, lamp.y - 4, '#79573c', 1, 5);
       frame(c, 'paperlamp', lamp.x - 4, lamp.y, 8, 9);
