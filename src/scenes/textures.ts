@@ -1,4 +1,5 @@
 /** Lazily converts generated canvases into Phaser textures (cached by key). */
+import { setPlaqueName } from '../art/izakaya';
 import Phaser from 'phaser';
 import { cozyObject } from '../art/cozyAssets';
 import { furnitureCanvas } from '../art/furniture';
@@ -138,8 +139,10 @@ export function propTexture(scene: Phaser.Scene, key: string, closed = false): s
   // the facade's sign shows the restaurant's name, so its texture is keyed by that name too
   const facade = /^bld_restaurant(_s[0-3])?$/.test(key);
   const sign = game.save.player.restaurantName || 'Midnight Maki';
-  const k = 'pr_' + key + (closed ? '_closed' : '') + (facade ? '_' + sign : '');
+  const plaque = key === 'mm_sign';
+  const k = 'pr_' + key + (closed ? '_closed' : '') + (facade || plaque ? '_' + sign : '');
   if (!scene.textures.exists(k)) {
+    if (plaque) setPlaqueName(sign);
     const d = PROPS[key];
     scene.textures.addCanvas(k, farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed, sign) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
   }

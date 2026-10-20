@@ -55,6 +55,7 @@ function restaurant(): ZoneDef {
   // the kitchen is a station table (galley/layout.ts): a spot that needs an upgrade is a plain work counter until then
   for (const s of STATIONS) {
     if (s.needs) b.prop(s.prop, s.x, s.y, 'upgrade:' + s.needs).prop('k_work', s.x, s.y, '!upgrade:' + s.needs);
+    else if (s.alt) b.prop(s.prop, s.x, s.y, '!upgrade:' + s.alt.needs).prop(s.alt.prop, s.x, s.y, 'upgrade:' + s.alt.needs);
     else b.prop(s.prop, s.x, s.y);
   }
   b.prop('stairs', 16, 2)
