@@ -10,6 +10,7 @@ import { RECIPES_BY_ID } from '../data/recipes';
 import { ZONES, type DoorDef, type InteractDef, type RoomDef } from '../data/zones';
 import { canCook, customerName } from '../restaurant/orders';
 import { carriedOrder, trayOrders, tableJobs, type TableJob } from '../restaurant/service';
+import { galleyOn } from '../galley/mode';
 import { hostHasIngredients, mirror } from '../restaurant/mirror';
 import type { GatherSpot } from '../systems/gather';
 
@@ -38,6 +39,7 @@ export type ContextIntent =
   | { type: 'tray' }
   | { type: 'takeOrder'; tableId: string }
   | { type: 'cookOrder'; uid: number }
+  | { type: 'galley'; station: string; verb: string }
   | { type: 'deliver'; tableId: string }
   | { type: 'tip'; tableId: string };
 
@@ -98,6 +100,8 @@ export interface ContextSense {
   blocked?: (x: number, y: number) => boolean;
   /** Seated customers, so an order can be taken from beside the person as well as the table. */
   guests?: { tableId: string; x: number; y: number }[];
+  /** What the physical kitchen's stations next to the player offer (already limited to the ones in reach). */
+  galley?: { action: ContextAction; x: number; y: number; bias: number }[];
 }
 
 export function isPlayerRoom(room: { id: string; owner?: string } | null | undefined): boolean {
@@ -195,6 +199,7 @@ function jobAction(job: TableJob): ContextAction | null {
     return { id: `cook:${todo.uid}`, label: `${todo.kind === 'drink' ? 'Preparar' : 'Cocinar'} · ${shortWho(who)}`, detail: `${made.name} para ${who}. Se hace con los ingredientes de tu amigo.`, icon: 'maki', intent: { type: 'cookOrder', uid: todo.uid } };
   }
   const order = game.save.orders.find(o => o.uid === job.orderUid);
+  if (galleyOn()) return { id: `order:${job.orderUid}`, label: `Pedido · ${shortWho(who)}`, detail: `${dish} para ${who}. Se prepara en la cocina.`, icon: 'clipboard', intent: { type: 'orders' } };
   const ready = !!job.orderUid && order?.kind !== 'drink' && canCook(job.recipe);
   return {
     id: ready ? `cook:${job.orderUid}` : `order:${job.orderUid}`,
@@ -364,6 +369,7 @@ export function resolveContext(sense: ContextSense): ContextOffer {
       intent: { type: 'target', target: { kind: 'bug', idx: b.idx, label: b.label } },
     }, b.x, b.y, 24, sense, 2);
   });
+  for (const g of sense.galley ?? []) consider(bag, g.action, g.x, g.y, 44, sense, 1, g.bias - TILE);
   addTables(bag, sense);
   if (isPlayerRoom(sense.room)) {
     keep(bag, {

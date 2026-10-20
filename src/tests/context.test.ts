@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
+import { settings } from '../core/settings';
 import { ZONES } from '../data/zones';
 import type { FurnPiece } from '../restaurant/floor';
 import { pickupPlate, resetService, spawnGuest, stagePlate, stepService, takeOrderAt } from '../restaurant/service';
@@ -213,6 +214,7 @@ describe('restaurant tables', () => {
   }
 
   beforeEach(() => {
+    settings.cookStyle = 'act';
     seatTourist();
   });
 
