@@ -12,6 +12,10 @@ import { lowFx } from '../core/perf';
 import { ITEMS_BY_ID } from '../data/items';
 import { RECIPES } from '../data/recipes';
 import { Actor, TILE } from '../entities/Actor';
+import { handsFor, type HandDef, type Step } from '../galley/crew';
+import { candidates } from '../restaurant/staff';
+import type { Grid } from '../world/grid';
+import { lookTexture } from './textures';
 import { cutLevel, cutSpec, type CutVerdict } from '../galley/cut';
 import { galley, galleyOn, saveGalley } from '../galley';
 import { fridgeOpenCanvas, galleyItemCanvas, itemKey, PIXEL_BITS } from '../galley/art';
@@ -32,6 +36,7 @@ export interface GalleyHost {
   scene: Phaser.Scene;
   player: Actor;
   zoneId: string;
+  grid(): Grid;
   /** the player cannot walk or use anything while this is true (the reflex bar, a short assembly) */
   galleyBusy: boolean;
   floatAt(x: number, y: number, text: string, color?: string): void;
@@ -51,11 +56,13 @@ function slotsFor(s: StationDef, n: number): { x: number; y: number; scale: numb
   return Array.from({ length: n }, (_, i) => ({ x: x0 + 4 + i * 8, y: slotY(s) + 1, scale: 0.5 }));
 }
 
+interface Worker { def: HandDef; actor: Actor; step: Step | null; arrived: boolean; wait: number; doing: string }
+
 export class GalleyView {
   private active = false;
   private stationSprites = new Map<string, { key: string; sprites: Phaser.GameObjects.Image[] }>();
-  private heldSprites: Phaser.GameObjects.Image[] = [];
-  private heldKey = '';
+  private heldDraw = new Map<string, { key: string; sprites: Phaser.GameObjects.Image[] }>();
+  private workers = new Map<string, Worker>();
   private passSprites: Phaser.GameObjects.Image[] = [];
   private passKey = '';
   private gfx: Phaser.GameObjects.Graphics | null = null;
@@ -86,7 +93,10 @@ export class GalleyView {
     removeGalleyUi();
     for (const { sprites } of this.stationSprites.values()) sprites.forEach((s) => s.destroy());
     this.stationSprites.clear();
-    this.heldSprites.forEach((s) => s.destroy()); this.heldSprites = []; this.heldKey = '';
+    for (const h of this.heldDraw.values()) h.sprites.forEach((s) => s.destroy());
+    this.heldDraw.clear();
+    for (const w of this.workers.values()) w.actor.destroy();
+    this.workers.clear();
     this.passSprites.forEach((s) => s.destroy()); this.passSprites = []; this.passKey = '';
     for (const t of this.labels.values()) t.destroy();
     this.labels.clear();
@@ -107,7 +117,9 @@ export class GalleyView {
     this.clock += dt;
     if (!clock.paused) this.onEvents(g.tick(dt));
     this.syncStations();
-    this.syncHeld();
+    this.updateHands(dt);
+    this.syncHeld(PLAYER, this.host.player);
+    for (const [id, w] of this.workers) this.syncHeld(id, w.actor);
     this.syncPass();
     this.drawProgress();
     this.steam(dt);
@@ -173,15 +185,16 @@ export class GalleyView {
   }
 
   // ------------------------------------------------------------------ the hands
-  private syncHeld() {
-    const p = this.host.player;
-    const held = galley().held(PLAYER);
+  private syncHeld(who: string, p: Actor) {
+    const held = galley().held(who);
     const sig = held.map((i) => `${i.uid}:${itemKey(i)}`).join(',');
-    if (sig !== this.heldKey) {
-      const fresh = sig.length > this.heldKey.length;
-      this.heldKey = sig;
-      this.heldSprites.forEach((s) => s.destroy());
-      this.heldSprites = held.map((item) => {
+    let draw = this.heldDraw.get(who);
+    if (!draw) { draw = { key: '', sprites: [] }; this.heldDraw.set(who, draw); }
+    if (sig !== draw.key) {
+      const fresh = sig.length > draw.key.length;
+      draw.key = sig;
+      draw.sprites.forEach((s) => s.destroy());
+      draw.sprites = held.map((item) => {
         const img = this.host.scene.add.image(0, 0, this.tex(item)).setOrigin(0.5, 1).setScale(0.75);
         if (fresh && !lowFx()) { img.setScale(0.3); this.host.scene.tweens.add({ targets: img, scale: 0.75, duration: 200, ease: 'Back.out' }); }
         return img;
@@ -189,12 +202,62 @@ export class GalleyView {
     }
     const dir: Dir = p.dir;
     const bob = p.moving ? Math.abs(Math.sin(this.clock * 10)) * 1.2 : 0;
-    this.heldSprites.forEach((img, i) => {
+    draw.sprites.forEach((img, i) => {
       const behind = dir === 'up';
       const side = dir === 'left' ? -5 : dir === 'right' ? 5 : 0;
       img.setPosition(Math.round(p.x + side + (i ? 6 : 0) * (dir === 'left' ? -1 : 1)), Math.round(p.y - 8 - bob - i * 2));
       img.setDepth(p.y + (behind ? -0.4 : 0.6));
     });
+  }
+
+  // ------------------------------------------------------------------ kitchen hands (employees)
+  private updateHands(dt: number) {
+    const g = galley();
+    const defs = handsFor(game.save.restaurant.upgrades);
+    for (const [id, w] of this.workers) {
+      if (defs.some((d) => d.role === id)) continue;
+      w.actor.destroy(); this.workers.delete(id);
+    }
+    for (const def of defs) {
+      let w = this.workers.get(def.role);
+      if (!w) {
+        const look = candidates('helper', 1)[0].look;
+        const [sx, sy] = STATION_BY_ID.fridge.stand[0];
+        const actor = new Actor(this.host.scene, 'hand_' + def.role, lookTexture(this.host.scene, look), sx + 1, sy + 1);
+        w = { def, actor, step: null, arrived: false, wait: 1, doing: '' };
+        this.workers.set(def.role, w);
+      }
+      if (clock.paused) continue;
+      w.actor.update(dt);
+      if (w.wait > 0) {
+        w.wait -= dt;
+        if (w.wait <= 0 && w.actor.act === 'cook') w.actor.setAct('idle');
+        continue;
+      }
+      const who = 'hand:' + def.role;
+      if (!w.step) {
+        w.step = def.next(g, who, (id) => game.countUsable(id));
+        if (!w.step) { w.wait = 0.8; continue; }
+        const s = STATION_BY_ID[w.step.station];
+        const stand = s.stand.reduce((best, c) => (Math.abs(c[0] - w.actor.tx) + Math.abs(c[1] - w.actor.ty) < Math.abs(best[0] - w.actor.tx) + Math.abs(best[1] - w.actor.ty) ? c : best));
+        w.arrived = false;
+        const ok = w.actor.walkTo(this.host.grid(), stand[0], stand[1], () => { w!.arrived = true; });
+        if (!ok) { w.step = null; w.wait = 1.5; }
+        continue;
+      }
+      if (!w.arrived) continue;
+      const step = w.step;
+      w.step = null;
+      const c = stationCentre(STATION_BY_ID[step.station]);
+      w.actor.faceTowards(c.x * TILE, (STATION_BY_ID[step.station].y + 0.5) * TILE);
+      const res = step.verb === 'fetch' ? g.takeFromFridge(who, step.arg ?? '') : g.perform(who, step.station, step.verb);
+      if (res.ok) {
+        w.actor.setAct('cook');
+        if (step.verb === 'start') audio.sfxPlay('cook_start');
+        saveGalley();
+      }
+      w.wait = res.ok ? w.def.pace : 1.5;
+    }
   }
 
   // ------------------------------------------------------------------ progress, steam, labels

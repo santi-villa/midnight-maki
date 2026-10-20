@@ -187,6 +187,7 @@ export class WorldScene extends Phaser.Scene {
     scene: this,
     get player() { return world.player; },
     get zoneId() { return world.zoneId; },
+    grid: () => world.zone.grid,
     get galleyBusy() { return world.galleyBusy; },
     set galleyBusy(v: boolean) { world.galleyBusy = v; },
     floatAt: (x, y, text, color) => this.floatAt(x, y, text, color),

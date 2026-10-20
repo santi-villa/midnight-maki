@@ -36,7 +36,7 @@ test('cook sushi in the physical kitchen from the fridge to the pass', async ({ 
 
   // the real controls: standing at the fridge, E opens it; at the assembly table only that table's actions show
   await stand(page, 1, 3);
-  await page.waitForTimeout(300);
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.contextOffer.primary?.id)).toBe('gl:fridge:open');
   await page.keyboard.press('e');
   await expect(page.locator('.gl-fridge')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -91,5 +91,23 @@ test('cook sushi in the physical kitchen from the fridge to the pass', async ({ 
   await act(page, 'pass', 'deliver');
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.game.coins)).toBeGreaterThan(coins0);
   expect(await held(page)).toEqual([]);
+  expect(await page.evaluate(() => (window as any).mmDebug.errorReports?.length ?? 0)).toBe(0);
+});
+
+test('the rice-maker employee walks and stocks the hangiri by itself', async ({ page }) => {
+  test.setTimeout(120_000);
+  await bootExploration(page);
+  await visit(page, 'restaurant', 7, 4);
+  await page.evaluate(() => {
+    const m = (window as any).mmDebug, g = m.game;
+    g.save.inventory = {};
+    g.addItem('rice', 8, 'test');
+    g.save.restaurant.upgrades.push('rice_big', 'rice_hand');
+    m.clock.resume();
+  });
+  await expect.poll(async () => {
+    await page.evaluate(async () => { const g = (await import('/src/galley/index.ts' as string)).galley(); const c = g.station('rice'); if (c.phase === 'cooking') g.tick(30); });
+    return page.evaluate(async () => (await import('/src/galley/index.ts' as string)).galley().station('hangiri').items.length);
+  }, { timeout: 90_000, intervals: [500] }).toBeGreaterThanOrEqual(1);
   expect(await page.evaluate(() => (window as any).mmDebug.errorReports?.length ?? 0)).toBe(0);
 });

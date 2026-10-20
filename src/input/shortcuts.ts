@@ -85,7 +85,7 @@ function onKey(e: KeyboardEvent) {
 function explorationActive(): boolean {
   if (!game.loaded || modalOpen() || inDialogue()) return false;
   if (!world?.sys?.isActive?.() || !world.player || !world.zone) return false;
-  if (document.querySelector('.letter-wrap, .book')) return false;
+  if (document.querySelector('.letter-wrap, .book, .gl-fridge')) return false;
   return world.canAct();
 }
 

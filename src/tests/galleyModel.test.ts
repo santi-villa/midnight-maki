@@ -358,3 +358,22 @@ describe('the reflex bar', () => {
     expect(cutLevel('normal', 0)).toBeGreaterThan(cutLevel('normal', 1));
   });
 });
+
+describe('the rice-maker', () => {
+  it('keeps the hangiri stocked by itself using the same verbs as the player', async () => {
+    const { HANDS } = await import('../galley/crew');
+    const who = 'hand:rice';
+    const brain = HANDS.rice;
+    let guard = 0;
+    while (g.station('hangiri').items.length < 4 && guard++ < 200) {
+      const step = brain.next(g, who, (id) => stock[id] ?? 0);
+      if (!step) { g.tick(COOK.rice.time + 0.1); continue; }
+      const r = step.verb === 'fetch' ? g.takeFromFridge(who, step.arg!) : g.perform(who, step.station, step.verb);
+      expect(r.ok, `${step.station} ${step.verb}: ${r.msg}`).toBe(true);
+    }
+    expect(g.station('hangiri').items.length).toBe(4);
+    expect(g.held(who)).toEqual([]);
+    expect(stock.rice).toBe(6);
+    expect(brain.next(g, who, (id) => stock[id] ?? 0)).toBeNull(); // reserve is full: it rests
+  });
+});

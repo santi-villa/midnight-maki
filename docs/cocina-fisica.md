@@ -83,3 +83,18 @@ El modelo (`Galley`) expone las mismas operaciones para el jugador y para cualqu
 
 - El tablero clásico y la cocina «por actos» siguen disponibles en Ajustes («Cómo cocinar») y los usa el invitado en el modo cooperativo (su cocina es el restaurante del anfitrión). Se actualizaron sus posiciones al nuevo mapa.
 - Sin campos obligatorios nuevos en el guardado: `game.save.galley` es opcional; las partidas viejas cargan con la cocina vacía.
+
+## Estado final (implementado)
+
+- **Mapa**: cocina rediseñada (`src/galley/layout.ts`, `src/data/zones.ts`): zona de almacén (heladera + despensa), cocción (arrocera, hangiri, fogón), preparación (tablas), armado (mesa de 2 casillas), entrega (mostrador de 3 plazas que da al salón) y apoyo (mesadas, tacho, bebidas, fregadero). Pasillos de 2 casillas; cada estación se usa desde su casilla de parada.
+- **Controles**: se camina libre; parado en la casilla de una estación aparecen sus acciones (E/F, «Más acciones…», botones táctiles): Abrir/Guardar, Dejar/Tomar, Cargar/Encender, Cortar, Armar, Entregar, Tirar. Solo se ven las acciones de la estación donde estás.
+- **Heladera**: animación de puerta, sonido, selector con los ingredientes que hay (los que piden los tickets primero). Cada ingrediente sale del inventario real; guardarlo lo devuelve.
+- **Manos**: 1 cosa a la vez (2 con la mejora «Delantal con bolsillos»). Lo que llevás se ve en pantalla y conserva su estado: crudo / cocido / cortado / plato.
+- **Arrocera**: tandas de hasta 4 porciones (6 con «Arrocera grande»), vapor, barra de progreso, aviso al quedar lista y se quema si te olvidás. Fogón: igual para ingredientes cocidos.
+- **Corte**: barra de reflejos con zona verde que cambia en cada intento; velocidad y tamaño según dificultad/momento del día y cuchillo. Resultados Perfecto / Bien / Regular / Fallo, con cuchillo, sacudida, partículas y destello.
+- **Armado**: la mesa combina las piezas preparadas según la receta (cantidades reales de `RECIPES`), con una pausa corta animada (menos con la esterilla de bambú); el plato resulta con calidad 0–2.
+- **Pedidos**: tarjetas con mesa/cliente, platos pendientes, ingredientes necesarios y paciencia (hasta 3 visibles). Entregar en el mostrador asigna el plato al pedido más urgente y sigue el flujo existente (bandeja → mesero/jugador → mesa, propinas, maestría, energía).
+- **Compatibilidad**: guardado opcional (`save.galley`); ajuste «Cómo cocinar» (cocina física / por actos / tablero); el invitado del modo cooperativo sigue con la cocina anterior.
+- **Mejoras nuevas**: `board2` (segunda tabla), `rice_big`, `galley_hands`, `rice_hand`; se suman a `knife` y `bamboo`.
+- **Empleados** (`src/galley/crew.ts`): cada rol es un cerebro que devuelve el siguiente paso (estación + verbo) y la vista lo ejecuta con las mismas reglas que el jugador. Implementado: **ayudante arrocero** (mejora `rice_hand`): busca arroz, lo cocina y mantiene 4 porciones listas en el hangiri. Para sumar cortador/asistente/cocinero: una entrada nueva en `HANDS`.
+- **Pendiente / límites**: los demás roles; la dificultad por hora del día usa la existente (velocidad del corte y demanda del salón) sin sistema nuevo de grupos; no se probó en un celular real.
