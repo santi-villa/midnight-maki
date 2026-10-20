@@ -22,6 +22,8 @@ import { ITEMS_BY_ID } from '../data/items';
 import { ZONES, GARDEN_PLOT_POSITIONS } from '../data/zones';
 import { STATION_BY_ID } from '../galley/layout';
 import { Actor, TILE, type Act } from '../entities/Actor';
+import { galleyOn } from '../galley/mode';
+import { GalleyView, type GalleyVerb } from './galleyView';
 import { bedtimeReason, settleBedtime } from '../systems/bedtime';
 import { closedLocalNotice, shopGate, stopFor } from '../systems/npcs';
 import { businessPhase, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
@@ -179,6 +181,17 @@ export class WorldScene extends Phaser.Scene {
   decorMode = false;
   /** the kitchen close-up is open: Sofi works in the kitchen and the camera frames it */
   cookActive = false;
+  /** the player is busy at a station of the physical kitchen (the cutting bar, a short assembly) */
+  galleyBusy = false;
+  galleyView = new GalleyView({
+    scene: this,
+    get player() { return world.player; },
+    get zoneId() { return world.zoneId; },
+    get galleyBusy() { return world.galleyBusy; },
+    set galleyBusy(v: boolean) { world.galleyBusy = v; },
+    floatAt: (x, y, text, color) => this.floatAt(x, y, text, color),
+    onInteract: (t) => this.onInteract(t),
+  });
   private cookSaved = { zoom: 2 };
   private cookProp: Phaser.GameObjects.Image | null = null;
   private questPin!: Phaser.GameObjects.Image;
@@ -1225,13 +1238,15 @@ export class WorldScene extends Phaser.Scene {
     const art = this.serviceArt; art.clear();
     if (this.zoneId === 'restaurant') {
       // A lacquer tray next to the register, plus a separate tea corner in the kitchen.
-      art.fillStyle(0x4a3029).fillRect(6 * TILE - 3, 4 * TILE + 8, 20, 8);
-      art.fillStyle(0xb78655).fillRect(6 * TILE - 2, 4 * TILE + 9, 18, 5);
-      const ready = trayOrders();
-      for (let i = 0; i < Math.min(4, ready.length); i++) {
-        art.fillStyle(ready[i].kind === 'drink' ? 0x8ab9ad : 0xf6ecd6).fillRect(6 * TILE + i * 4, 4 * TILE + 10, 3, 3);
+      if (!galleyOn()) {
+        art.fillStyle(0x4a3029).fillRect(6 * TILE - 3, 4 * TILE + 8, 20, 8);
+        art.fillStyle(0xb78655).fillRect(6 * TILE - 2, 4 * TILE + 9, 18, 5);
+        const ready = trayOrders();
+        for (let i = 0; i < Math.min(4, ready.length); i++) {
+          art.fillStyle(ready[i].kind === 'drink' ? 0x8ab9ad : 0xf6ecd6).fillRect(6 * TILE + i * 4, 4 * TILE + 10, 3, 3);
+        }
+        if (drinksUnlocked()) { art.fillStyle(0xe9d8b1).fillRect(2 * TILE + 4, 2 * TILE + 2, 5, 5); art.fillStyle(0x91ab69).fillRect(2 * TILE + 5, 2 * TILE + 3, 3, 2); }
       }
-      if (drinksUnlocked()) { art.fillStyle(0xe9d8b1).fillRect(2 * TILE + 4, 2 * TILE + 2, 5, 5); art.fillStyle(0x91ab69).fillRect(2 * TILE + 5, 2 * TILE + 3, 3, 2); }
       for (const job of tableJobs()) {
         const f = this.zone.furniture.find(fi => String(fi.f.uid) === job.tableId);
         if (!f) continue;
@@ -1944,7 +1959,7 @@ export class WorldScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ input & interaction
   canAct() {
-    return !this.transitioning && this.inputLocked === 0 && !clock.paused && !this.decorMode && !this.cookActive;
+    return !this.transitioning && this.inputLocked === 0 && !clock.paused && !this.decorMode && !this.cookActive && !this.galleyBusy;
   }
 
   private releaseSteer = () => {
@@ -1973,7 +1988,7 @@ export class WorldScene extends Phaser.Scene {
     const tx = Math.floor(wx / TILE);
     const ty = Math.floor(wy / TILE);
     if (tx < 0 || ty < 0 || tx >= this.zone.def.w || ty >= this.zone.def.h) return;
-    const it = this.zone.def.interact.find((i) => i.x === tx && i.y === ty && condOk(i.cond));
+    const it = this.zone.def.interact.find((i) => i.x === tx && i.y === ty && condOk(i.cond) && !this.galleyOwns(i));
     if (it) {
       this.approach(tx, ty, () => this.doInteract({ kind: 'interact', def: it, label: it.label }));
       return;
@@ -2080,6 +2095,7 @@ export class WorldScene extends Phaser.Scene {
       this.contextKey = '';
       return;
     }
+    if (intent.type === 'galley') { this.galleyView.act(intent.station, intent.verb as GalleyVerb); return; }
     if (intent.type === 'cookOrder') {
       void runTask('world:cook', () => import('../restaurant/kitchen').then((m) => m.cookOrder(intent.uid)));
       return;
@@ -2243,7 +2259,7 @@ export class WorldScene extends Phaser.Scene {
       })),
       pets: this.pets?.interactions,
       neighbors: [...this.neighborBodies.entries()].filter(([, b]) => b.actor.sprite.visible).map(([id, b]) => ({ id, name: NEIGHBOR_BY_ID[id]?.name ?? id, x: b.actor.x, y: b.actor.y - 4 })),
-      interacts: this.zone.def.interact.filter((i) => condOk(i.cond)).map((i) => {
+      interacts: this.zone.def.interact.filter((i) => condOk(i.cond) && !this.galleyOwns(i)).map((i) => {
         if (!i.action.startsWith('shop:')) return i;
         const label = shopButtonLabel(shopGate(i.action.slice(5)), i.label);
         return label === i.label ? i : { ...i, label };
@@ -2278,7 +2294,13 @@ export class WorldScene extends Phaser.Scene {
       }),
       blocked: (x: number, y: number) => this.zone.grid.isSolid(x, y),
       guests: this.zoneId === 'restaurant' ? this.senseGuests() : [],
+      galley: this.galleyView.actions(),
     };
+  }
+
+  /** In the physical kitchen the stations replace the old cook, drinks and pantry spots. */
+  private galleyOwns(i: { action: string }): boolean {
+    return this.zoneId === 'restaurant' && galleyOn() && (i.action === 'cook' || i.action === 'drinks' || i.action === 'pantry');
   }
 
   private senseGuests(): { tableId: string; x: number; y: number }[] {
@@ -2544,6 +2566,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateOccluders(dt);
     this.updateQuestMarker(dt);
     this.updateServiceArt();
+    this.galleyView.update(dt);
     this.flushNpcWait();
     this.dust(dt);
     this.quirks(dt);

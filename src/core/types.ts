@@ -160,6 +160,8 @@ export interface SaveData {
   restaurant: { level: number; xp: number; totalXp?: number; reputation: number; upgrades: string[]; served: number };
   orders: Order[];
   dining?: DiningSave;
+  /** the physical kitchen: hands, cookers, boards and what lies on the counters (galley/model.ts). Optional: older saves start with an empty kitchen. */
+  galley?: import('../galley/model').GalleySnapshot;
   nextUid: number;
   relationships: Record<string, RelationState>;
   flags: Record<string, number | string | boolean>;
@@ -193,7 +195,8 @@ export interface Settings {
   joystick: boolean;
   cookMode: 'relaxed' | 'normal' | 'challenge';
   /** how a dish is cooked inside the restaurant: the act in the kitchen (default) or the gesture board */
-  cookStyle?: 'act' | 'board';
+  /** `galley`: walk the kitchen (default); `act`: the guided close-up; `board`: the classic board */
+  cookStyle?: 'galley' | 'act' | 'board';
   /** how long she sleeps by default (hours) */
   sleepHours?: number;
   settingsVersion?: number;

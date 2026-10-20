@@ -1,0 +1,53 @@
+/* The physical kitchen's screen bits: fridge picker, cutting bar, order tickets. Paper cards, never a full-screen window. */
+.paper { background: var(--ui-paper, #fff8ec); border: 2px solid var(--ui-line-strong, #b9a385); border-radius: 14px; box-shadow: 0 6px 18px rgba(63, 46, 34, .3); color: var(--ui-ink, #3f2e22); }
+
+.gl-fridge { position: fixed; left: 50%; bottom: calc(96px + var(--safe-b)); transform: translateX(-50%); width: min(420px, calc(100vw - 16px)); z-index: 26; padding: 8px 10px 10px; }
+.gl-fridge-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; color: var(--ui-brown, #765c47); }
+.gl-x { width: 32px; height: 32px; border: 2px solid #d8a993; border-radius: 10px; background: #f6e3dc; color: inherit; font: inherit; cursor: pointer; }
+.gl-fridge-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-height: 38vh; overflow-y: auto; }
+.gl-choice { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px 4px; min-height: 64px; border: 1px solid var(--ui-line, #d3c09f); border-radius: 10px; background: #fffdf6; color: inherit; font: inherit; font-size: .78em; cursor: pointer; }
+.gl-choice:hover, .gl-choice:focus-visible { background: var(--ui-accent-soft, #f3e0c0); outline: 2px solid var(--ui-sage-dark, #536b58); outline-offset: 1px; }
+.gl-choice.wanted::after { content: ''; position: absolute; top: 4px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--ui-accent, #d7a46a); box-shadow: 0 0 0 1px #fff8ec; }
+.gl-choice-icon canvas { width: 28px; height: 28px; image-rendering: pixelated; }
+.gl-choice-name { line-height: 1.05; text-align: center; overflow-wrap: anywhere; }
+.gl-choice-n { color: var(--ui-brown, #765c47); font-weight: 700; }
+.gl-choice kbd { position: absolute; top: 2px; left: 4px; font-size: .7em; color: #a39482; }
+.gl-empty { margin: 8px 4px; text-align: center; color: var(--ui-brown, #765c47); }
+
+.gl-cut { position: fixed; left: 50%; bottom: calc(110px + var(--safe-b)); transform: translateX(-50%); width: min(320px, calc(100vw - 20px)); z-index: 26; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; touch-action: none; }
+.gl-cut-title { text-align: center; font-weight: 700; color: var(--ui-brown, #765c47); }
+.gl-bar { position: relative; height: 26px; border: 2px solid var(--ui-line-strong, #b9a385); border-radius: 8px; background: var(--ui-beige, #e8d8be); overflow: hidden; }
+.gl-zone { position: absolute; top: 0; bottom: 0; background: rgba(120, 170, 100, .55); border-left: 2px solid #4f7a43; border-right: 2px solid #4f7a43; }
+.gl-zone-core { position: absolute; top: 0; bottom: 0; left: 35%; width: 30%; background: rgba(240, 214, 110, .7); }
+.gl-ind { position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; background: #3f2e22; border-radius: 2px; box-shadow: 0 0 0 1px #fff8ec; }
+.gl-press { width: 100%; min-height: 48px; font-size: 1.15em; }
+.gl-verdict { min-height: 0; height: 0; text-align: center; font-weight: 700; overflow: visible; }
+.gl-verdict.show { height: auto; min-height: 1.4em; animation: gl-pop .3s ease-out; }
+.gl-verdict.perfect { color: #b9871a; font-size: 1.3em; text-shadow: 0 0 6px #fff2b0; }
+.gl-verdict.good { color: #4f7a43; }
+.gl-verdict.regular { color: #8a7a60; }
+.gl-verdict.fail { color: #b0524a; }
+.gl-cut.done { opacity: .95; }
+.gl-cut.done .gl-press { visibility: hidden; }
+@keyframes gl-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.gl-tickets { position: fixed; right: calc(8px + var(--safe-r)); top: calc(84px + var(--safe-t)); width: min(176px, 46vw); z-index: 22; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.gl-tickets.hidden { display: none; }
+.gl-ticket { padding: 6px 8px 8px; border-radius: 10px; box-shadow: 0 3px 10px rgba(63, 46, 34, .25); font-size: .8em; }
+.gl-ticket.done { background: #f1f6e8; border-color: var(--ui-sage, #a9b89b); }
+.gl-ticket.late { border-color: #d98a7a; }
+.gl-ticket-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.gl-ticket-head .hint { font-size: .85em; opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-line { display: grid; grid-template-columns: auto 1fr; column-gap: 5px; margin-top: 3px; }
+.gl-qty { font-weight: 700; color: var(--ui-brown, #765c47); }
+.gl-name { font-weight: 600; }
+.gl-state { grid-column: 2; font-size: .85em; color: #8a7a60; }
+.gl-state.ok { color: #4f7a43; font-weight: 700; }
+.gl-needs { grid-column: 1 / -1; font-size: .74em; color: #8a7a60; line-height: 1.15; }
+.gl-patience { height: 5px; margin-top: 5px; border-radius: 3px; background: var(--ui-beige, #e8d8be); overflow: hidden; }
+.gl-patience i { display: block; height: 100%; background: var(--ui-sage, #a9b89b); }
+.gl-ticket.late .gl-patience i { background: #d98a7a; }
+.gl-more { text-align: center; font-size: .75em; color: var(--ui-brown, #765c47); }
+.gl-hint { padding: 5px 8px; font-size: .78em; border-radius: 10px; }
+@media (max-width: 520px) { .gl-tickets { top: calc(78px + var(--safe-t)); width: min(150px, 42vw); } .gl-fridge-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .gl-verdict.show { animation: none; } }
