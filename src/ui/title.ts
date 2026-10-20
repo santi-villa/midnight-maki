@@ -183,7 +183,8 @@ export async function showTitle(phaser: Phaser.Game) {
       build(m);
     }
     const L = LAYOUTS[m];
-    const reserved = root.classList.contains('open') ? menu.getBoundingClientRect().height + 36 : 0;
+    // the room for the menu is kept from the start, so the picture does not shift when it appears
+    const reserved = menu.getBoundingClientRect().height + 36;
     root.style.setProperty('--title-menu-space', reserved + 'px');
     const k = Math.min(vw / L.w, Math.max(150, vh - reserved) / L.h);
     frame.style.width = Math.floor(L.w * k) + 'px';
@@ -257,8 +258,8 @@ export async function showTitle(phaser: Phaser.Game) {
 
   root.append(h('div', { class: 'tt-bg' }, back, frame), logo, fallback, prompt, menu, h('div', { class: 'tt-version', 'aria-label': 'Versión del juego' }, versionLabel()));
   refreshCalm();
-  layout();
   uiRoot().append(root);
+  layout(); // after mounting, so the menu's real height is known
   await artwork;
   hideBoot();
   if (saved && takeResumeOnce()) void runTask('flow:resume', doContinue);
