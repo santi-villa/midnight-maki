@@ -41,13 +41,6 @@ test('cook sushi in the physical kitchen from the fridge to the pass', async ({ 
   await expect(page.locator('.gl-fridge')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.gl-fridge')).toHaveCount(0);
-  // Space opens the numbered list and a number picks from it
-  await page.keyboard.press('Space');
-  await expect(page.locator('.ctx-row .ctx-num')).toHaveCount(2);
-  await page.keyboard.press('1');
-  await expect(page.locator('.gl-fridge')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.gl-fridge')).toHaveCount(0);
   await stand(page, 2, 4);
   expect(await page.evaluate(() => (window as any).mmDebug.world.galleyView.actions().map((a: any) => a.action.id))).toEqual([]);
 
@@ -69,8 +62,14 @@ test('cook sushi in the physical kitchen from the fridge to the pass', async ({ 
   await act(page, 'board_1', 'chop');
   await expect(page.locator('.gl-cut')).toBeVisible();
   if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/galley-2-cut.png` });
-  await page.keyboard.press('Space');
-  await expect(page.locator('.gl-verdict.show')).toBeVisible();
+  // five cuts in a row at the start
+  await expect(page.locator('.gl-cut-step')).toContainText('1 de 5');
+  for (let n = 1; n <= 5; n++) {
+    await expect(page.locator('.gl-cut-step')).toContainText(`${n} de 5`);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(400);
+  }
+  await expect(page.locator('.gl-cut')).toHaveCount(0, { timeout: 5000 });
   await page.waitForTimeout(600);
   await act(page, 'board_1', 'take');
   expect((await held(page))[0]).toMatch(/cucumber:cut/);
@@ -140,4 +139,15 @@ test('a drink is made at the blender with a glass and taken by hand', async ({ p
   await act(page, 'mixer', 'take');
   expect(await page.evaluate(async () => (await import('/src/galley/index.ts' as string)).galley().held('player')[0].kind)).toBe('drink');
   expect(await page.evaluate(() => (window as any).mmDebug.errorReports?.length ?? 0)).toBe(0);
+});
+
+test('the first lesson shows a card for the first step and the practice orders exist', async ({ page }) => {
+  test.setTimeout(90_000);
+  await bootExploration(page);
+  await page.evaluate(() => { const m = (window as any).mmDebug; m.game.setFlag('tut_spicy'); m.game.save.orders = []; });
+  await visit(page, 'restaurant', 7, 4);
+  await page.evaluate(() => (window as any).mmDebug.clock.resume());
+  await expect(page.locator('.gl-tut')).toContainText('arroz');
+  const recipes = await page.evaluate(() => (window as any).mmDebug.game.save.orders.map((o: any) => o.recipe).sort());
+  expect(recipes).toEqual(['kappa', 'sake_nigiri']);
 });

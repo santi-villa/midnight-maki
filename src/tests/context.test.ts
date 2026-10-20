@@ -307,17 +307,19 @@ describe('E/F actions', () => {
   });
 });
 
-describe('E does things, F talks, the list keeps its order', () => {
+describe('E and F do things, Space talks, the list keeps its order', () => {
   const act = (id: string, label = id): import('../world/contextActions').ContextAction => ({ id, label, detail: label, icon: 'act', intent: { type: 'orders' } });
   it('never makes Company the main action and puts newcomers at the bottom', async () => {
     const { arrange } = await import('../world/contextActions');
     const seen = new Map<string, number>();
     const one = arrange({ primary: act('npc:a', 'Hablar'), chip: act('company:a'), overflow: [act('gift:a')], roomTag: null }, seen);
     expect(one.primary).toBeNull();
-    expect(one.chip?.id).toBe('npc:a');
+    expect(one.talk?.id).toBe('npc:a');
+    expect(one.chip).toBeNull();
     expect(one.all?.map((a) => a.id)).toEqual(['npc:a', 'company:a', 'gift:a']);
     const two = arrange({ primary: act('gl:fridge:open'), chip: act('npc:a'), overflow: [act('company:a'), act('gift:a')], roomTag: null }, seen);
     expect(two.primary?.id).toBe('gl:fridge:open');
+    expect(two.talk?.id).toBe('npc:a');
     expect(two.all?.map((a) => a.id)).toEqual(['npc:a', 'company:a', 'gift:a', 'gl:fridge:open']);
   });
 });

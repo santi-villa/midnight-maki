@@ -405,3 +405,35 @@ describe('drinks in the blender', () => {
     expect(g.drinkIn()).toBeNull();
   });
 });
+
+describe('cuts, hints and the lesson', () => {
+  it('needs 5 cuts at first, fewer with better knives, and averages them', async () => {
+    const { cutsNeeded, combineVerdicts } = await import('../galley/cut');
+    expect(cutsNeeded([])).toBe(5);
+    expect(cutsNeeded(['knife'])).toBe(4);
+    expect(cutsNeeded(['knife', 'knife2'])).toBe(3);
+    expect(combineVerdicts(['perfect', 'perfect', 'perfect', 'good', 'perfect'])).toBe('perfect');
+    expect(combineVerdicts(['good', 'good', 'regular', 'good', 'good'])).toBe('good');
+    expect(combineVerdicts(['fail', 'fail', 'regular', 'fail', 'fail'])).toBe('fail');
+  });
+  it('says what the assembly table is still missing', async () => {
+    const { closestRecipe } = await import('../galley/prep');
+    const piece = (ing: string, form: 'raw' | 'cooked' | 'cut'): IngItem => ({ kind: 'ing', uid: 1, ing, form, q: 2 });
+    const near = closestRecipe([piece('rice', 'cooked'), piece('cucumber', 'cut')], (id) => id === 'kappa');
+    expect(near?.recipe.id).toBe('kappa');
+    expect(near?.ready).toBe(false);
+    expect(near?.missing.map((n) => n.ing)).toEqual(['nori']);
+    expect(closestRecipe([piece('rice', 'cooked'), piece('cucumber', 'cut'), piece('nori', 'raw')], (id) => id === 'kappa')?.ready).toBe(true);
+    expect(closestRecipe([piece('salmon', 'raw')], (id) => id === 'kappa')).toBeNull();
+  });
+  it('the lesson only moves forward', async () => {
+    const { tutorialStep, TUTORIAL } = await import('../galley/tutorial');
+    const served = new Set<string>();
+    expect(tutorialStep(0, { g, served })).toBe(0);
+    take('rice');
+    expect(tutorialStep(0, { g, served })).toBe(1);
+    act('rice', 'put');
+    expect(tutorialStep(1, { g, served })).toBe(2);
+    expect(tutorialStep(TUTORIAL.length, { g, served })).toBe(TUTORIAL.length);
+  });
+});

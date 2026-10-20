@@ -68,14 +68,14 @@ export function cutting(): boolean { return !!cutEl; }
  * Shows the reflex bar. The indicator bounces until the player presses (Space, E, Enter, a tap on the card or the button),
  * or the limit passes (that counts as a miss). `onDone` fires once, immediately, with the verdict.
  */
-export function runCutBar(spec: CutSpec, label: string, onDone: (verdict: CutVerdict) => void): CutRun {
+export function runCutBar(spec: CutSpec, label: string, onDone: (verdict: CutVerdict) => void, step?: { n: number; of: number }): CutRun {
   cutStop?.();
   const indicator = h('i', { class: 'gl-ind' });
   const zone = h('i', { class: 'gl-zone', style: { left: `${spec.start * 100}%`, width: `${spec.width * 100}%` } }, h('i', { class: 'gl-zone-core' }));
   const verdict = h('div', { class: 'gl-verdict', 'aria-live': 'assertive' }, '');
   const press = h('button', { type: 'button', class: 'btn primary gl-press' }, '¡Cortar!');
   cutEl = h('div', { class: 'gl-cut paper', role: 'dialog', 'aria-label': `Cortar ${label}` },
-    h('div', { class: 'gl-cut-title' }, `Cortar ${label}`),
+    h('div', { class: 'gl-cut-title' }, `Cortar ${label}`, step ? h('span', { class: 'gl-cut-step' }, ` · corte ${step.n} de ${step.of}`) : null),
     h('div', { class: 'gl-bar' }, zone, indicator),
     verdict, press);
   root().append(cutEl);
@@ -93,7 +93,7 @@ export function runCutBar(spec: CutSpec, label: string, onDone: (verdict: CutVer
     indicator.style.left = `${pos * 100}%`;
     el.classList.add('done');
     onDone(v);
-    window.setTimeout(() => { el.remove(); if (cutEl === el) cutEl = null; }, 420);
+    window.setTimeout(() => { el.remove(); if (cutEl === el) cutEl = null; }, step && step.n < step.of ? 220 : 420);
   };
   const frame = () => {
     const t = (performance.now() - t0) / 1000;
@@ -142,7 +142,26 @@ export function showTickets(list: Ticket[], visible: boolean, hint: string | nul
   ticketsEl.replaceChildren(...cards, ...more, ...(hint ? [h('div', { class: 'gl-hint paper' }, hint)] : []));
 }
 
+// ------------------------------------------------------------------ tutorial card
+let tutEl: HTMLElement | null = null;
+let tutKey = '';
+
+/** The lesson card: which dish, which step of how many, and what to do now. `null` hides it. */
+export function showTutorial(card: { dish: string; n: number; of: number; text: string; done?: boolean } | null, onSkip: () => void) {
+  if (!card) { tutEl?.remove(); tutEl = null; tutKey = ''; return; }
+  const key = `${card.dish}|${card.n}|${card.text}`;
+  if (tutEl && key === tutKey) return;
+  tutKey = key;
+  tutEl?.remove();
+  tutEl = h('div', { class: 'gl-tut paper', role: 'status', 'aria-live': 'polite' },
+    h('div', { class: 'gl-tut-head' }, h('b', null, card.done ? 'Primera lección' : `Lección · ${card.dish}`), h('span', { class: 'hint' }, card.done ? '' : `${card.n} / ${card.of}`)),
+    h('p', null, card.text),
+    card.done ? null : h('button', { type: 'button', class: 'btn small', onclick: onSkip }, 'Omitir lección'));
+  root().append(tutEl);
+}
+
 export function removeGalleyUi() {
+  showTutorial(null, () => {});
   closeFridgePicker();
   cutStop?.();
   cutEl?.remove(); cutEl = null;

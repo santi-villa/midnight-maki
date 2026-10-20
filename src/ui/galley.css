@@ -51,3 +51,9 @@
 .gl-hint { padding: 5px 8px; font-size: .78em; border-radius: 10px; }
 @media (max-width: 520px) { .gl-tickets { top: calc(78px + var(--safe-t)); width: min(150px, 42vw); } .gl-fridge-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .gl-verdict.show { animation: none; } }
+.gl-tut { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(148px + var(--safe-b)); width: min(300px, 56vw); z-index: 23; padding: 8px 10px; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; }
+.gl-tut p { margin: 0; font-size: .86em; line-height: 1.25; }
+.gl-tut-head { display: flex; justify-content: space-between; gap: 8px; font-size: .8em; }
+.gl-tut .btn { align-self: flex-end; min-height: 32px; padding: 2px 10px; }
+.gl-cut-step { font-weight: 400; opacity: .8; }
+@media (max-width: 520px) { .gl-tut { width: min(260px, 52vw); bottom: calc(176px + var(--safe-b)); } }

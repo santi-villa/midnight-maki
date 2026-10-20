@@ -59,8 +59,8 @@ export const isTalk = (a: ContextAction | null | undefined): boolean => !!a && (
 const isSocial = (a: ContextAction): boolean => a.id.startsWith('company:') || a.id.startsWith('gift:') || a.id.startsWith('pet:');
 
 /**
- * E does the best thing that is not a conversation, F talks, and the numbered list under Space holds everything in the order
- * it was first seen, so a new action always lands at the bottom.
+ * E and F are the two best things to do, Space talks, and the numbered list (Q) holds everything in the order it was first
+ * seen, so a new action always lands at the bottom. Company, gifts and petting only live in the list.
  */
 export function arrange(o: ContextOffer, seen: Map<string, number>): ContextOffer {
   const ranked = [o.primary, o.chip, ...o.overflow].filter((a): a is ContextAction => !!a);
@@ -68,15 +68,16 @@ export function arrange(o: ContextOffer, seen: Map<string, number>): ContextOffe
   let next = seen.size ? Math.max(...seen.values()) + 1 : 0;
   for (const a of ranked) if (!seen.has(a.id)) seen.set(a.id, next++);
   const talk = ranked.find(isTalk) ?? null;
-  const main = ranked.find((a) => !isTalk(a) && !isSocial(a)) ?? null;
+  const deeds = ranked.filter((a) => !isTalk(a) && !isSocial(a));
+  const [main = null, second = null] = deeds;
   const all = [...ranked].sort((a, b) => (seen.get(a.id) ?? 0) - (seen.get(b.id) ?? 0));
-  return { ...o, primary: main, chip: talk, overflow: ranked.filter((a) => a !== main && a !== talk), all };
+  return { ...o, primary: main, chip: second, talk, overflow: ranked.filter((a) => a !== main && a !== second && a !== talk), all };
 }
 
 /** The numbered list (Space). Without `all` (an offer that was not arranged) it is the old "everything but E". */
 export const secondaryActions = (o: ContextOffer): ContextAction[] => o.all ?? [...(o.chip ? [o.chip] : []), ...o.overflow];
-/** The list is worth opening when there is more than one thing to choose from. */
-export const needsMore = (o: ContextOffer): boolean => (o.all ? o.all.length > 1 : !!o.primary && secondaryActions(o).length > 1);
+/** The list is worth opening when something does not fit on E, F and Space. */
+export const needsMore = (o: ContextOffer): boolean => (o.all ? o.overflow.length > 0 : !!o.primary && secondaryActions(o).length > 1);
 
 export interface ContextOffer {
   primary: ContextAction | null;
@@ -86,8 +87,10 @@ export interface ContextOffer {
   overflow: ContextAction[];
   /** Name plaque for the player's own room, otherwise null. */
   roomTag: string | null;
-  /** Everything on offer in a stable order (the numbered list under Space). Set once arranged. */
+  /** Everything on offer in a stable order (the numbered list). Set once arranged. */
   all?: ContextAction[];
+  /** Whoever is close to talk to (Space). Set once arranged. */
+  talk?: ContextAction | null;
 }
 
 export interface SenseFurniture {
@@ -144,7 +147,7 @@ export function idleOffer(roomTag: string | null): ContextOffer {
 
 export function offerKey(o: ContextOffer): string {
   const part = (a: ContextAction | null) => (a ? `${a.id}:${a.label}` : '');
-  return `${o.roomTag ?? ''}#${part(o.primary)}#${part(o.chip)}#${o.overflow.map(part).join(',')}#${(o.all ?? []).map((a) => a.id).join(',')}`;
+  return `${o.roomTag ?? ''}#${part(o.primary)}#${part(o.chip)}#${o.overflow.map(part).join(',')}#${(o.all ?? []).map((a) => a.id).join(',')}#${o.talk?.id ?? ''}`;
 }
 
 interface Scored { action: ContextAction; score: number; }

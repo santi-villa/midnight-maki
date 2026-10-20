@@ -263,21 +263,31 @@ function renderContext() {
 
 function buttonSpecs(offer: ContextOffer): BtnSpec[] {
   const specs: BtnSpec[] = [];
-  // E: the main action. F: talk. Space: the numbered list of everything (1, 2, 3… pick one)
-  const more = (): BtnSpec => ({
-    id: '__more',
-    label: menuOpen ? 'Cerrar' : 'Más acciones…',
-    detail: menuOpen ? 'Cerrar acciones' : 'Más acciones',
-    icon: 'act',
-    cls: 'btn ctx-chip ctx-more',
-    keyAction: 'contextAlt',
-    run: () => {
-      menuOpen = !menuOpen;
-      renderContext();
-    },
-  });
-  if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
-  if (needsMore(offer)) specs.push(more());
+  // E and F: the two best actions. Space: talk. Q: the numbered list with everything (1, 2, 3… choose)
+  if (offer.all) {
+    if (offer.talk) specs.push(actionSpec(offer.talk, 'btn ctx-chip', false, 'contextAlt'));
+    if (needsMore(offer)) specs.push({
+      id: '__more',
+      label: menuOpen ? 'Cerrar' : 'Más acciones…',
+      detail: menuOpen ? 'Cerrar acciones' : 'Más acciones',
+      icon: 'act',
+      cls: 'btn ctx-chip ctx-more',
+      keyAction: 'more',
+      run: () => {
+        menuOpen = !menuOpen;
+        renderContext();
+      },
+    });
+    if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
+    if (offer.primary) specs.push(actionSpec(offer.primary, 'hud-interact', true, 'interact'));
+    return specs;
+  }
+  if (needsMore(offer)) {
+    specs.push({
+      id: '__more', label: menuOpen ? 'Cerrar' : 'Más acciones…', detail: menuOpen ? 'Cerrar acciones' : 'Más acciones', icon: 'act', cls: 'btn ctx-chip ctx-more', keyAction: 'secondary',
+      run: () => { menuOpen = !menuOpen; renderContext(); },
+    });
+  } else if (offer.chip) specs.push(actionSpec(offer.chip, 'btn ctx-chip', false, 'secondary'));
   if (offer.primary) specs.push(actionSpec(offer.primary, 'hud-interact', true, 'interact'));
   return specs;
 }
