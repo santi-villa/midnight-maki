@@ -7,6 +7,7 @@ import { iconCanvas } from '../art/icons';
 import { ctx2d, ellipse, makeCanvas, px } from '../art/pixel';
 import { ITEMS_BY_ID } from '../data/items';
 import { RECIPES_BY_ID } from '../data/recipes';
+import { DRINK_BY_ID } from '../restaurant/drinkData';
 import type { GItem } from './prep';
 
 export const ITEM_W = 18;
@@ -15,6 +16,8 @@ const INK = '#2b1d17';
 const cache = new Map<string, HTMLCanvasElement>();
 
 export function itemKey(i: GItem): string {
+  if (i.kind === 'cup') return 'cup';
+  if (i.kind === 'drink') return `k|${i.drink}`;
   return i.kind === 'dish' ? `d|${i.recipe}|${i.dq}` : `i|${i.ing}|${i.form}|${i.q >= 3 ? 3 : 2}`;
 }
 
@@ -72,13 +75,26 @@ function plate(dish: Extract<GItem, { kind: 'dish' }>): HTMLCanvasElement {
   return c;
 }
 
+/** A glass; with `fill` it holds a drink of that colour (a straw and a highlight). */
+function glass(fill?: string): HTMLCanvasElement {
+  const c = makeCanvas(ITEM_W, ITEM_H);
+  const g = ctx2d(c);
+  px(g, 5, 4, INK, 8, 10); px(g, 6, 13, INK, 6, 1);
+  px(g, 6, 4, 'rgba(230,242,248,0.9)', 6, 9);
+  if (fill) { px(g, 6, 7, fill, 6, 6); px(g, 6, 6, '#fffaf0', 6, 1); px(g, 11, 1, '#c94a3f', 1, 6); px(g, 10, 1, '#c94a3f', 2, 1); }
+  px(g, 7, 5, '#ffffff', 1, 3);
+  return c;
+}
+
 /** The sprite of a thing in somebody's hands or on a surface. */
 export function galleyItemCanvas(item: GItem): HTMLCanvasElement {
   const key = itemKey(item);
   const hit = cache.get(key);
   if (hit) return hit;
   let c: HTMLCanvasElement;
-  if (item.kind === 'dish') c = plate(item);
+  if (item.kind === 'cup') c = glass();
+  else if (item.kind === 'drink') c = glass(DRINK_BY_ID[item.drink]?.icon.c1 ?? '#91ab69');
+  else if (item.kind === 'dish') c = plate(item);
   else if (item.ing === 'rice' && (item.form === 'cooked' || item.form === 'cooked_cut')) c = bowl();
   else {
     const src = base(item.ing);

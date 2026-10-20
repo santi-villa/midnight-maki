@@ -14,7 +14,8 @@ import { customerName, serveOrder } from '../restaurant/orders';
 import type { CookResult } from '../restaurant/cooking';
 import { guestViews, plateState, stagePlate } from '../restaurant/service';
 import { addEnergy, DISH_COST } from '../systems/fatigue';
-import type { DishItem } from './prep';
+import type { DishItem, DrinkItem } from './prep';
+import { DRINK_BY_ID } from '../restaurant/drinkData';
 import { runTask } from '../core/errors';
 
 /** Food orders still waiting for their dish: nobody is cooking them and no plate is staged. */
@@ -33,7 +34,24 @@ export function orderFor(recipe: string): Order | null {
   return cookableOrders().filter((o) => o.recipe === recipe).map((o) => ({ o, u: urgency(o) })).filter((x) => x.u !== Infinity).sort((a, b) => a.u - b.u || a.o.uid - b.o.uid)[0]?.o ?? null;
 }
 
-export function deliverDish(dish: DishItem): { ok: boolean; msg?: string; uid?: number } {
+/** The drink order of this kind that is waiting at a table, the most impatient first. */
+export function drinkOrderFor(drink: string): Order | null {
+  const views = guestViews();
+  return game.save.orders.filter((o) => o.kind === 'drink' && o.recipe === drink && !o.plate && o.service && plateState(o.uid) === 'cooking')
+    .map((o) => { const v = views.find((x) => x.id === o.service!.partyId); return { o, u: v && v.phase === 'waiting_food' ? v.patience / Math.max(1, v.maxPatience) : Infinity }; })
+    .filter((x) => x.u !== Infinity).sort((a, b) => a.u - b.u || a.o.uid - b.o.uid)[0]?.o ?? null;
+}
+
+export function deliverDish(dish: DishItem | DrinkItem): { ok: boolean; msg?: string; uid?: number } {
+  if (dish.kind === 'drink') {
+    const d = DRINK_BY_ID[dish.drink];
+    const o = d && drinkOrderFor(dish.drink);
+    if (!d || !o) return { ok: false, msg: `Nadie pidió ${d?.name.toLowerCase() ?? 'eso'} ahora. Dejalo en una mesada o tiralo.` };
+    if (!stagePlate(o.uid, 1)) return { ok: false, msg: 'El pedido cambió. Probá de nuevo.' };
+    game.stat('drinksPrepared'); game.stat('drink_' + d.id); game.touch('drink');
+    audio.sfxPlay('plate_slide');
+    return { ok: true, uid: o.uid };
+  }
   const r = RECIPES_BY_ID[dish.recipe];
   if (!r) return { ok: false, msg: 'Ese plato ya no existe.' };
   const o = orderFor(dish.recipe);

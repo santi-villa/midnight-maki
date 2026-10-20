@@ -4,6 +4,7 @@
  */
 import { game } from '../core/state';
 import { RECIPES_BY_ID } from '../data/recipes';
+import { DRINK_BY_ID } from '../restaurant/drinkData';
 import { billOfMaterials, type Need } from './prep';
 import { guestViews, plateState, tableLabel } from '../restaurant/service';
 import { customerName } from '../restaurant/orders';
@@ -16,6 +17,8 @@ export interface TicketLine {
   ready: number;
   /** what each needs on the assembly table, e.g. "Salmón cortado" */
   needs: Need[];
+  /** a drink: it also needs a glass in the blender */
+  cup?: boolean;
 }
 
 export interface Ticket {
@@ -36,9 +39,10 @@ function lines(uids: number[]): TicketLine[] {
   const byRecipe = new Map<string, TicketLine>();
   for (const uid of uids) {
     const o = game.save.orders.find((x) => x.uid === uid);
-    const r = o && RECIPES_BY_ID[o.recipe];
+    const r = o && (o.kind === 'drink' ? DRINK_BY_ID[o.recipe] : RECIPES_BY_ID[o.recipe]);
     if (!o || !r) continue;
-    const line = byRecipe.get(r.id) ?? { recipe: r.id, name: r.name, waiting: 0, ready: 0, needs: billOfMaterials(r) };
+    const needs: Need[] = o.kind === 'drink' ? Object.entries(DRINK_BY_ID[o.recipe].ingredients).map(([ing, count]) => ({ ing, form: 'raw' as const, count })) : billOfMaterials(r as import('../data/recipes').RecipeDef);
+    const line = byRecipe.get(r.id) ?? { recipe: r.id, name: r.name, waiting: 0, ready: 0, needs, cup: o.kind === 'drink' };
     const state = plateState(uid);
     if (state === 'plated' || state === 'carried' || state === 'delivered') line.ready++; else line.waiting++;
     byRecipe.set(r.id, line);
@@ -51,7 +55,7 @@ export function tickets(): Ticket[] {
   const out: Ticket[] = [];
   for (const view of guestViews()) {
     if (view.phase !== 'waiting_food') continue;
-    const uids = view.members.flatMap((m) => m.items).filter((i) => i.kind === 'food' && i.orderUid != null && i.quality === null).map((i) => i.orderUid as number);
+    const uids = view.members.flatMap((m) => m.items).filter((i) => (i.kind === 'food' || i.kind === 'drink') && i.orderUid != null && i.quality === null).map((i) => i.orderUid as number);
     const ls = lines(uids);
     if (!ls.length) continue;
     out.push({

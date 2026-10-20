@@ -1,6 +1,7 @@
 /** Restaurant UI: order board, kitchen station, free cooking, experiments, upgrades. */
 import { DRINK_BY_ID, canPrepareDrink } from './drinkData';
 import { prepareDrink, openDrinks } from './drinks';
+import { galleyOn } from '../galley/mode';
 import { runTask } from '../core/errors';
 import './tray';
 import './cornerPanel';
@@ -111,7 +112,7 @@ export function openOrders() {
             h('span', { class: 'coin' }, `${o.reward} ●`)),
           !special && customerAsk(o.customer, o.uid) ? h('div', { class: 'order-ask' }, `“${customerAsk(o.customer, o.uid)}”`) : null,
           cooked ? h('div', { class: 'hint' }, held === 'carried' ? 'Lo estás llevando a su mesa.' : held === 'delivered' ? 'Entregado. El grupo está comiendo o esperando el resto.' : 'Listo en la bandeja de salida.') : ingList(r),
-          h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
+          galleyOn() ? (cooked ? null : h('div', { class: 'hint' }, o.kind === 'drink' ? 'Se prepara en la licuadora de la cocina.' : 'Se prepara en las estaciones de la cocina.')) : h('div', { class: 'row', style: { justifyContent: 'flex-end', flexWrap: 'wrap' } },
             !cooked && !ready ? h('span', { class: 'hint', style: { textAlign: 'right' } }, `Faltan: ${shortageText(r)}`) : null,
             !cooked && o.kind !== 'drink' && ready && quickQuality(recipeStars(r.id))
               ? h('button', { class: 'btn small', title: 'Receta dominada: se prepara en un toque', onclick: async () => {

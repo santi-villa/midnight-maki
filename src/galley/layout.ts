@@ -4,7 +4,7 @@
  * Design and reasons: docs/cocina-fisica.md. DOM-free and Phaser-free.
  */
 
-export type StationKind = 'fridge' | 'counter' | 'cooker' | 'board' | 'assembly' | 'pass' | 'bin' | 'drinks' | 'sink';
+export type StationKind = 'fridge' | 'counter' | 'cooker' | 'board' | 'assembly' | 'pass' | 'bin' | 'mixer' | 'cups';
 /** what a surface takes: anything, or only cooked rice (the hangiri) */
 export type Accept = 'any' | 'rice';
 
@@ -43,8 +43,8 @@ export const STATIONS: readonly StationDef[] = [
   { id: 'board_1', kind: 'board', name: 'Tabla de cortar', x: 5, y: 2, w: 1, h: 1, stand: [[5, 3]], prop: 'k_board', slots: 1 },
   { id: 'stove', kind: 'cooker', cooker: 'stove', name: 'Fogón', x: 9, y: 2, w: 1, h: 1, stand: [[9, 3]], prop: 'k_stove', slots: 2 },
   { id: 'board_2', kind: 'board', name: 'Segunda tabla', x: 10, y: 2, w: 1, h: 1, stand: [[10, 3]], prop: 'k_board', slots: 1, needs: 'board2' },
-  { id: 'drinks', kind: 'drinks', name: 'Bebidas', x: 11, y: 2, w: 1, h: 1, stand: [[11, 3]], prop: 'k_drinks', slots: 0 },
-  { id: 'sink', kind: 'sink', name: 'Fregadero', x: 12, y: 2, w: 1, h: 1, stand: [[12, 3]], prop: 'k_sink', slots: 0 },
+  { id: 'mixer', kind: 'mixer', name: 'Licuadora', x: 11, y: 2, w: 1, h: 1, stand: [[11, 3]], prop: 'k_drinks', slots: 3 },
+  { id: 'cups', kind: 'cups', name: 'Vasos', x: 12, y: 2, w: 1, h: 1, stand: [[12, 3]], prop: 'k_work', slots: 0 },
   // ---- front row (y=5): assembly and what you need next to it
   { id: 'counter_b', kind: 'counter', name: 'Mesada de apoyo', x: 1, y: 5, w: 1, h: 1, stand: [[1, 4]], prop: 'k_work', slots: 2 },
   { id: 'assembly', kind: 'assembly', name: 'Mesa de armado', x: 2, y: 5, w: 2, h: 1, stand: [[2, 4], [3, 4]], prop: 'k_assembly', slots: 6 },

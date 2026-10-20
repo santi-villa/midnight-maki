@@ -15,7 +15,7 @@ const env = (): GalleyEnv => ({
   upgrades: () => upgrades,
   rng: () => 0.5,
   known: () => true,
-  deliver: (dish) => (accept ? (delivered.push(dish.recipe), { ok: true }) : { ok: false, msg: 'Nadie pidió eso.' }),
+  deliver: (dish) => (accept ? (delivered.push(dish.kind === 'dish' ? dish.recipe : dish.drink), { ok: true }) : { ok: false, msg: 'Nadie pidió eso.' }),
 });
 beforeEach(() => {
   stock = { rice: 10, nori: 5, cucumber: 4, salmon: 3, egg: 2, sesame: 2, avocado: 2, crab: 1 };
@@ -375,5 +375,32 @@ describe('the rice-maker', () => {
     expect(g.held(who)).toEqual([]);
     expect(stock.rice).toBe(6);
     expect(brain.next(g, who, (id) => stock[id] ?? 0)).toBeNull(); // reserve is full: it rests
+  });
+});
+
+describe('drinks in the blender', () => {
+  it('a glass plus the ingredients make the drink, which is taken by hand and handed over at the pass', () => {
+    stock.milk = 2; stock.berry = 2;
+    take('milk');
+    expect(g.perform(PLAYER, 'cups', 'cup').ok).toBe(false); // hands are busy
+    act('mixer', 'put');
+    take('berry'); act('mixer', 'put');
+    expect(g.verbs(PLAYER, 'mixer')).not.toContain('start'); // no glass yet
+    act('cups', 'cup'); act('mixer', 'put');
+    expect(g.drinkIn()).toBe('strawberry_milk');
+    act('mixer', 'start');
+    expect(g.verbs(PLAYER, 'mixer')).toEqual([]); // busy
+    g.tick(5);
+    expect(g.station('mixer').items.map((i) => i.kind)).toEqual(['drink']);
+    act('mixer', 'take');
+    expect(g.held(PLAYER)[0].kind).toBe('drink');
+    act('pass', 'deliver');
+    expect(delivered).toEqual(['strawberry_milk']);
+    expect(stock.milk).toBe(1);
+  });
+  it('a wrong mix does not start', () => {
+    stock.milk = 1;
+    take('milk'); act('mixer', 'put'); act('cups', 'cup'); act('mixer', 'put');
+    expect(g.drinkIn()).toBeNull();
   });
 });

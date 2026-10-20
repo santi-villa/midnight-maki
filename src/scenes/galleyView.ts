@@ -11,6 +11,7 @@ import type { Dir } from '../core/types';
 import { lowFx } from '../core/perf';
 import { ITEMS_BY_ID } from '../data/items';
 import { RECIPES } from '../data/recipes';
+import { DRINKS } from '../restaurant/drinkData';
 import { Actor, TILE } from '../entities/Actor';
 import { handsFor, type HandDef, type Step } from '../galley/crew';
 import { candidates } from '../restaurant/staff';
@@ -43,7 +44,7 @@ export interface GalleyHost {
   onInteract: (t: Target) => void;
 }
 
-export type GalleyVerb = Verb | 'pantry' | 'drinks';
+export type GalleyVerb = Verb | 'pantry';
 
 const slotY = (s: StationDef) => s.y * TILE + 2;
 
@@ -69,6 +70,7 @@ export class GalleyView {
   private labels = new Map<string, Phaser.GameObjects.Text>();
   private steamT = 0;
   private saveT = 0;
+  private rack: Phaser.GameObjects.Image | null = null;
   private fridgeDoor: Phaser.GameObjects.Image | null = null;
   private knife: Phaser.GameObjects.Image | null = null;
   private lastZone: number | undefined;
@@ -83,6 +85,9 @@ export class GalleyView {
     if (this.active) return;
     this.active = true;
     this.gfx = this.host.scene.add.graphics().setDepth(90500);
+    // the rack of glasses is always full
+    const cups = STATION_BY_ID.cups;
+    this.rack = this.host.scene.add.image(cups.x * TILE + 8, cups.y * TILE + 4, this.tex({ kind: 'cup', uid: 0 })).setOrigin(0.5, 1).setScale(0.8).setDepth((cups.y + 1) * TILE + 0.5);
     galley();
   }
 
@@ -101,6 +106,7 @@ export class GalleyView {
     for (const t of this.labels.values()) t.destroy();
     this.labels.clear();
     this.fridgeDoor?.destroy(); this.fridgeDoor = null;
+    this.rack?.destroy(); this.rack = null;
     this.knife?.destroy(); this.knife = null;
     this.gfx?.destroy(); this.gfx = null;
     this.host.galleyBusy = false;
@@ -165,13 +171,13 @@ export class GalleyView {
 
   private syncPass() {
     const pass = STATION_BY_ID.pass;
-    const plates = trayOrders().filter((o) => o.plate && o.kind !== 'drink').slice(0, 3);
+    const plates = trayOrders().filter((o) => o.plate).slice(0, 3);
     const sig = plates.map((o) => `${o.uid}:${o.plate!.quality}`).join(',');
     if (sig === this.passKey) return;
     this.passKey = sig;
     this.passSprites.forEach((s) => s.destroy());
     this.passSprites = plates.map((o, i) => {
-      const dish: GItem = { kind: 'dish', uid: o.uid, recipe: o.recipe, dq: o.plate!.quality, bonus: 0 };
+      const dish: GItem = o.kind === 'drink' ? { kind: 'drink', uid: o.uid, drink: o.recipe, dq: o.plate!.quality } : { kind: 'dish', uid: o.uid, recipe: o.recipe, dq: o.plate!.quality, bonus: 0 };
       const img = this.host.scene.add.image(pass.x * TILE + 8 + i * TILE, slotY(pass) + 2, this.tex(dish)).setOrigin(0.5, 1).setScale(0.72).setDepth((pass.y + 1) * TILE + 0.5);
       this.pop(img, 0.72);
       return img;
@@ -327,13 +333,15 @@ export class GalleyView {
         ? { label: 'Cargar', detail: `Poner ${held ? itemLabel(held).toLowerCase() : 'ingrediente'} en ${station.name.toLowerCase()}`, icon: 'maki' }
         : { label: 'Dejar', detail: `Dejar ${held ? itemLabel(held).toLowerCase() : 'lo que llevás'} en ${station.name.toLowerCase()}`, icon: 'act' };
       case 'take': return { label: 'Tomar', detail: `Tomar ${top ? itemLabel(top).toLowerCase() : 'lo de la estación'}`, icon: 'act' };
-      case 'start': return { label: station.cooker === 'rice' ? 'Encender' : 'Cocinar', detail: `${station.cooker === 'rice' ? 'Encender la arrocera' : 'Poner a cocinar'} (${st.items.length} ${st.items.length === 1 ? 'porción' : 'porciones'})`, icon: 'maki' };
+      case 'start': if (kind === 'mixer') return { label: 'Licuar', detail: 'Encender la licuadora', icon: 'serve' };
+        return { label: station.cooker === 'rice' ? 'Encender' : 'Cocinar', detail: `${station.cooker === 'rice' ? 'Encender la arrocera' : 'Poner a cocinar'} (${st.items.length} ${st.items.length === 1 ? 'porción' : 'porciones'})`, icon: 'maki' };
       case 'chop': return { label: 'Cortar', detail: 'Cortar en la tabla: frená la barra en la zona verde', icon: 'act' };
       case 'assemble': { const m = g.preview(station.id)[0]; return { label: m ? 'Armar' : 'Armar', detail: m ? `Armar ${m.recipe.name}${m.variant ? ' ' + m.variant.name : ''}` : 'Armar el plato', icon: 'maki' }; }
       case 'deliver': return { label: 'Entregar', detail: 'Dejar el plato en el mostrador de entrega', icon: 'serve' };
+      case 'cup': return { label: 'Tomar vaso', detail: 'Agarrar un vaso limpio', icon: 'serve' };
       case 'trash': return { label: 'Tirar', detail: 'Tirar lo que llevás al tacho', icon: 'act' };
       case 'pantry': return { label: 'Despensa', detail: 'Abrir la despensa del restaurante', icon: 'clipboard' };
-      default: return { label: 'Bebidas', detail: 'Preparar bebidas', icon: 'serve' };
+      default: return { label: 'Acción', detail: 'Usar la estación', icon: 'act' };
     }
   }
 
@@ -350,7 +358,6 @@ export class GalleyView {
       const verbs: GalleyVerb[] = [...g.verbs(PLAYER, s.id)];
       const kind = g.kind(s.id);
       if (kind === 'fridge') verbs.push('pantry');
-      if (kind === 'drinks') verbs.push('drinks');
       verbs.forEach((verb, i) => {
         const v = this.verbName(s, verb);
         out.push({ action: { id: `gl:${s.id}:${verb}`, label: v.label, detail: v.detail, icon: v.icon, intent: { type: 'galley', station: s.id, verb } }, x, y, bias: i * 0.001 });
@@ -367,8 +374,8 @@ export class GalleyView {
     const p = this.host.player;
     const c = stationCentre(s);
     p.faceTowards(c.x * TILE, (s.y + 0.5) * TILE);
-    if (verb === 'pantry' || verb === 'drinks') {
-      const action = verb === 'pantry' ? 'pantry' : 'drinks';
+    if (verb === 'pantry') {
+      const action = 'pantry';
       this.host.onInteract({ kind: 'interact', def: { id: 'gl_' + action, x: s.x, y: s.y, label: s.name, action }, label: s.name });
       return;
     }
@@ -387,7 +394,7 @@ export class GalleyView {
     const g = galley();
     const wanted = new Set(tickets().flatMap((t) => t.lines.flatMap((l) => l.needs.map((n) => n.ing))));
     const order = new Map<string, number>(SUPPLY_GROUPS.flatMap((grp, gi) => grp.items.map((id, i) => [id, gi * 20 + i] as const)));
-    const ids = new Set<string>([...RECIPES.flatMap((r) => Object.keys(r.ingredients)), ...SUPPLY_GROUPS.flatMap((x) => x.items)]);
+    const ids = new Set<string>([...RECIPES.flatMap((r) => Object.keys(r.ingredients)), ...(g.drinksOn() ? DRINKS.flatMap((d) => Object.keys(d.ingredients)) : []), ...SUPPLY_GROUPS.flatMap((x) => x.items)]);
     const choices: FridgeChoice[] = [...ids].map((id) => ITEMS_BY_ID[id] && { id, name: ITEMS_BY_ID[id].name, icon: ITEMS_BY_ID[id].icon, have: game.countUsable(id), wanted: wanted.has(id) })
       .filter((c): c is FridgeChoice => !!c && c.have > 0)
       .sort((a, b) => Number(b.wanted) - Number(a.wanted) || (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999));
@@ -456,12 +463,13 @@ export class GalleyView {
           const s = STATION_BY_ID[e.station];
           audio.sfxPlay('cook_start');
           if (s.cooker === 'stove') audio.sfxPlay('sizzle');
-          this.say(s, s.cooker === 'rice' ? 'A cocinar' : 'Cocinando', '#f6ecd6');
+          this.say(s, s.kind === 'mixer' ? 'Licuando' : s.cooker === 'rice' ? 'A cocinar' : 'Cocinando', '#f6ecd6');
           break;
         }
         case 'ready': { const s = STATION_BY_ID[e.station]; audio.sfxPlay('ready'); this.sparkle(s.x * TILE + 8, s.y * TILE - 4, 5); break; }
         case 'over': audio.sfxPlay('error'); this.say(STATION_BY_ID[e.station], 'Se pasa…', '#f2c66d'); break;
         case 'burnt': audio.sfxPlay('burnt'); this.say(STATION_BY_ID[e.station], 'Se quemó', '#e0766a'); toast('Se quemó lo que estaba en la cocción.'); break;
+        case 'mixed': { const s = STATION_BY_ID[e.station]; audio.sfxPlay('ready'); this.sparkle(s.x * TILE + 8, s.y * TILE - 2, 4); this.say(s, 'Lista', '#f6ecd6'); break; }
         case 'assembling': audio.sfxPlay('assemble'); break;
         case 'assembled': {
           const s = STATION_BY_ID[e.station];

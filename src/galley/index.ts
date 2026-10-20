@@ -5,6 +5,7 @@
 import { game } from '../core/state';
 import { Galley, type GalleyEnv } from './model';
 import { deliverDish } from './serve';
+import { drinksUnlocked } from '../restaurant/drinkData';
 
 const env: GalleyEnv = {
   stock: {
@@ -15,6 +16,7 @@ const env: GalleyEnv = {
   upgrades: () => game.save.restaurant.upgrades,
   rng: () => Math.random(),
   known: (id) => game.save.recipesKnown.includes(id),
+  drinks: () => drinksUnlocked(),
   deliver: (dish) => deliverDish(dish),
 };
 

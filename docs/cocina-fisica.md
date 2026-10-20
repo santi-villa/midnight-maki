@@ -98,3 +98,9 @@ El modelo (`Galley`) expone las mismas operaciones para el jugador y para cualqu
 - **Mejoras nuevas**: `board2` (segunda tabla), `rice_big`, `galley_hands`, `rice_hand`; se suman a `knife` y `bamboo`.
 - **Empleados** (`src/galley/crew.ts`): cada rol es un cerebro que devuelve el siguiente paso (estación + verbo) y la vista lo ejecuta con las mismas reglas que el jugador. Implementado: **ayudante arrocero** (mejora `rice_hand`): busca arroz, lo cocina y mantiene 4 porciones listas en el hangiri. Para sumar cortador/asistente/cocinero: una entrada nueva en `HANDS`.
 - **Pendiente / límites**: los demás roles; la dificultad por hora del día usa la existente (velocidad del corte y demanda del salón) sin sistema nuevo de grupos; no se probó en un celular real.
+
+## Bebidas y controles (añadido)
+
+- **Bebidas físicas**: estante de *Vasos* (gratis, nunca se agota) y *Licuadora*. Llevás los ingredientes de la heladera (té, leche, frutilla, ramune) y un vaso a la licuadora; con la mezcla exacta de una bebida aparece «Licuar» (3,5 s, barra de progreso). La bebida se retira a mano de la licuadora y se deja a mano en el mostrador de entrega: no se entrega sola.
+- **Mesa del cliente**: con la cocina física ya no ofrece «Cocinar»; el ticket en pantalla dice qué falta. El menú de pedidos no tiene botones de cocinar (solo informa).
+- **Teclas**: **E** hace cosas (la mejor acción disponible que no sea hablar), **F** habla con personajes y vecinos, **Espacio** abre «Más acciones…» cuando F está hablando. Sin nadie cerca todo sigue como antes.
