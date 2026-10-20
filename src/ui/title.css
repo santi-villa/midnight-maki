@@ -97,3 +97,64 @@
 .tt-utilities { border-top: 2px solid #b79a70; }
 .tt-utilities .tt-btn { background: #d8c4a2; box-shadow: inset 0 -2px 0 #bda37a; font-weight: 500; }
 .tt .tt-btn:disabled { opacity: .6; }
+
+/* ---- Looping video background (landscape), slim logo that floats, "press any key" prompt and the cream menu ---- */
+.tt-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 60% 50%; opacity: 0; transition: opacity .7s ease; pointer-events: none; background: #0e1236; }
+.tt.tt-video-on .tt-video { opacity: 1; }
+.tt.tt-video-on .tt-frame, .tt.tt-video-on .tt-back { visibility: hidden; transition: visibility 0s linear .8s; }
+.tt.tt-video-on .tt-fx { display: none; }
+@media (orientation: landscape) {
+  .tt { --logo-w: min(40vw, 430px); }
+  .tt .tt-logo { top: calc(2.5vh + var(--safe-t)); }
+}
+/* the title bobs slowly up and down (reduced-motion keeps it still, see above) */
+@keyframes tt-logo-bob { from { transform: translate(-50%, 0); } to { transform: translate(-50%, 7px); } }
+.tt .tt-logo { animation: tt-logo-bob 4.2s ease-in-out infinite alternate; }
+.tt.tt-calm .tt-logo, .reduce-motion .tt .tt-logo { animation: none; }
+
+.tt .tt-prompt {
+  top: auto; bottom: calc(9vh + var(--safe-b)); left: 50%; transform: translateX(-50%);
+  min-height: 46px; padding: 8px 22px; border: 2px solid #e8cfa0; border-radius: 12px;
+  background: rgba(58, 38, 24, .78); color: #fff4dc; font-size: clamp(16px, 2.4vw, 22px); letter-spacing: .6px;
+  text-shadow: 0 2px 0 #1d130d; box-shadow: 0 4px 0 rgba(20, 12, 8, .55);
+  animation: ttprompt 2.4s ease-in-out infinite;
+}
+.tt-calm .tt-prompt, .reduce-motion .tt .tt-prompt { animation: none; }
+
+/* the menu: a cream card with tan buttons, icons on the right of every label */
+.tt .tt-menu, .tt.open .tt-menu {
+  width: min(500px, calc(100vw - 28px)); padding: 14px 14px 12px; gap: 10px;
+  border: 3px solid #b98d5a; border-image: none; border-radius: 12px;
+  background: linear-gradient(#f8eed3, #f1e1bd) padding-box;
+  box-shadow: inset 0 0 0 2px #fff6e0, inset 0 0 0 4px #dcc08e, 0 5px 0 #6f4c2f, 0 16px 30px rgba(6, 8, 24, .6);
+  color: #3a2a1e;
+}
+.tt-main-actions, .tt-main-actions:has(> :nth-child(3)) { grid-template-columns: 1fr; gap: 9px; }
+.tt-main-actions .tt-btn, .tt-utilities .tt-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px; position: relative;
+  border: 2px solid #8b6a46; border-radius: 8px; background: #efd9a8; color: #3a2a1e; text-shadow: none; font-weight: 600;
+  box-shadow: inset 0 2px 0 #f8e8c2, inset 0 -3px 0 #d3b377, 0 3px 0 #8b6a46;
+}
+.tt-main-actions .tt-btn { min-height: 54px; font-size: clamp(18px, 3vw, 22px); }
+.tt-main-actions .tt-btn.primary { background: #ecc983; box-shadow: inset 0 2px 0 #f7dc9e, inset 0 -3px 0 #cfa24f, 0 3px 0 #7a5530; }
+.tt-main-actions .tt-btn.rose { background: #efd9a8; }
+.tt-main-actions .tt-btn:hover, .tt-utilities .tt-btn:hover, .tt .tt-btn:focus-visible { background: #e6c88f; }
+.tt-main-actions .tt-btn:active { transform: translateY(2px); box-shadow: inset 0 -1px 0 #d3b377, 0 1px 0 #8b6a46; }
+.tt-btn-icon { width: 22px; height: 22px; flex: none; margin: 0; image-rendering: pixelated; }
+.tt-main-actions .tt-btn .tt-btn-icon { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; }
+.tt-utilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 2px solid #d3b377; padding-top: 9px; }
+.tt-utilities .tt-btn { flex-direction: column; gap: 3px; min-height: 58px; font-size: 14px; letter-spacing: 0; padding: 6px 4px; }
+.tt-utilities .tt-btn-label { order: 2; }
+.tt-utilities .tt-btn-icon { order: 1; position: static; transform: none; }
+/* on a landscape screen the card sits in the middle of the picture; on a tall one it stays at the bottom */
+@media (orientation: landscape) {
+  .tt .tt-menu, .tt.open .tt-menu { top: 60%; bottom: auto; transform: translate(-50%, -50%); max-height: calc(100dvh - 24px - var(--safe-t) - var(--safe-b)); }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .tt .tt-menu, .tt.open .tt-menu { top: 58%; padding: 8px 10px; gap: 6px; }
+  .tt-main-actions { gap: 5px; }
+  .tt-main-actions .tt-btn { min-height: 40px; font-size: 17px; }
+  .tt-utilities .tt-btn { min-height: 44px; }
+  .tt-utilities .tt-btn-icon { width: 18px; height: 18px; }
+  .tt { --logo-w: min(32vw, 330px); }
+}

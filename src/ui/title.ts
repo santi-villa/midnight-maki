@@ -10,6 +10,7 @@ import { continueTarget, hasSave, importSaveFile, installSave, saveFromCode, set
 import { openCreator } from './creator';
 import { versionLabel } from '../core/version';
 import { confirmBox, h, hideBoot, panel, toast, uiRoot } from './dom';
+import { skinIconEl } from './skin';
 import { loadChoiceList, resumeSnapshot, slotChoiceList, slotTitle } from './saves';
 import { openSettings } from './settingsPanel';
 import './title.css';
@@ -161,6 +162,25 @@ export async function showTitle(phaser: Phaser.Game) {
   const artwork = new Promise<void>(resolve => { artworkReady = resolve; });
   const fx = h('div', { class: 'tt-fx' });
   const frame = h('div', { class: 'tt-frame' }, img, fx);
+  // In landscape the background is a short looping video (fireflies, smoke, lanterns, clouds). The still picture stays under it
+  // and is what shows while it loads, when it cannot play, in portrait, and in the calm / battery modes.
+  const video = h('video', { class: 'tt-video', muted: '', loop: '', playsinline: '', 'aria-hidden': 'true', preload: 'auto', tabindex: '-1' }) as HTMLVideoElement;
+  video.muted = true; video.loop = true; video.playsInline = true; video.disablePictureInPicture = true;
+  let videoOn = false;
+  const syncVideo = () => {
+    const want = mode === 'horizontal' && !calm() && !lowFx();
+    if (want && !videoOn) {
+      videoOn = true;
+      if (!video.src) video.src = base + 'title/title-loop-v1.mp4';
+      video.addEventListener('playing', () => root.classList.add('tt-video-on'), { once: true });
+      video.addEventListener('error', () => { videoOn = false; root.classList.remove('tt-video-on'); }, { once: true });
+      void video.play().catch(() => { /* blocked until a gesture: the still picture stays */ });
+    } else if (!want && videoOn) {
+      videoOn = false;
+      video.pause();
+      root.classList.remove('tt-video-on');
+    }
+  };
   let mode: 'vertical' | 'horizontal' | '' = '';
   const build = (m: 'vertical' | 'horizontal') => {
     const L = LAYOUTS[m];
@@ -184,15 +204,17 @@ export async function showTitle(phaser: Phaser.Game) {
     }
     const L = LAYOUTS[m];
     // the room for the menu is kept from the start, so the picture does not shift when it appears
-    const reserved = menu.getBoundingClientRect().height + 36;
+    // (in landscape the card floats over the picture, so the picture needs no room of its own)
+    const reserved = m === 'vertical' ? menu.getBoundingClientRect().height + 36 : 0;
     root.style.setProperty('--title-menu-space', reserved + 'px');
     const k = Math.min(vw / L.w, Math.max(150, vh - reserved) / L.h);
     frame.style.width = Math.floor(L.w * k) + 'px';
     frame.style.height = Math.floor(L.h * k) + 'px';
     frame.style.setProperty('--u', k + 'px');
     root.classList.toggle('tt-portrait', m === 'vertical');
+    syncVideo();
   };
-  const calm = () => settings.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const calm = (): boolean => settings.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const refreshCalm = () => {
     root.classList.toggle('tt-calm', calm());
     root.classList.toggle('tt-low', lowFx());
@@ -210,19 +232,20 @@ export async function showTitle(phaser: Phaser.Game) {
   const fallback = brandLogo('title-logo mm-logo tt-brand');
 
   // ---- menu, revealed after the first tap
-  const btn = (label: string, cls: string, fn: () => void) =>
-    h('button', { type: 'button', class: 'btn tt-btn ' + cls, onclick: fn }, label) as HTMLButtonElement;
+  const btn = (label: string, cls: string, fn: () => void, icon?: string) =>
+    h('button', { type: 'button', class: 'btn tt-btn ' + cls, onclick: fn }, h('span', { class: 'tt-btn-label' }, label), icon ? skinIconEl(icon, 'skin-icon tt-btn-icon') : null) as HTMLButtonElement;
   const buttons: HTMLButtonElement[] = [];
-  if (saved) buttons.push(btn('Continuar', 'primary', () => void runTask('flow:continue', doContinue)));
-  buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', () => void runTask('flow:new-menu', doNew)));
-  buttons.push(btn('Cargar partida', '', () => void runTask('flow:load-menu', doLoad)), btn('Opciones', '', () => openSettings(false)), btn('Créditos', '', credits));
-  buttons.push(btn('Cuenta y nube', '', () => void import('./account').then((m) => m.openAccount())));
+  if (saved) buttons.push(btn('Continuar', 'primary', () => void runTask('flow:continue', doContinue), 'maki'));
+  buttons.push(btn('Nueva partida', saved ? 'rose' : 'primary', () => void runTask('flow:new-menu', doNew), 'heart'));
+  buttons.push(btn('Cargar partida', '', () => void runTask('flow:load-menu', doLoad), 'disk'), btn('Opciones', '', () => openSettings(false), 'gear'), btn('Créditos', '', credits, 'clipboard'));
+  buttons.push(btn('Cuenta y nube', '', () => void import('./account').then((m) => m.openAccount()), 'cloud'));
   const mainCount = saved ? 3 : 2;
   const menu = h('nav', { class: 'tt-menu', 'aria-label': 'Menú principal' },
     h('div', { class: 'tt-main-actions' }, ...buttons.slice(0, mainCount)),
     h('div', { class: 'tt-utilities' }, ...buttons.slice(mainCount)), imp);
   menu.inert = true;
-  const prompt = h('button', { type: 'button', class: 'tt-prompt', onclick: () => reveal() }, 'Entrar a Villa Nori', h('span', { 'aria-hidden': 'true' }, ' ▸'));
+  const touchy = window.matchMedia('(pointer: coarse)').matches;
+  const prompt = h('button', { type: 'button', class: 'tt-prompt', onclick: () => reveal() }, touchy ? 'Tocá para empezar' : 'Presioná una tecla para empezar');
 
   let revealed = false;
   let sounded = false;
@@ -264,14 +287,12 @@ export async function showTitle(phaser: Phaser.Game) {
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', layout);
 
-  root.append(h('div', { class: 'tt-bg' }, back, frame), logo, fallback, prompt, menu, h('div', { class: 'tt-version', 'aria-label': 'Versión del juego' }, versionLabel()));
+  root.append(h('div', { class: 'tt-bg' }, back, frame, video), logo, fallback, prompt, menu, h('div', { class: 'tt-version', 'aria-label': 'Versión del juego' }, versionLabel()));
   refreshCalm();
   uiRoot().append(root);
   layout(); // after mounting, so the menu's real height is known
   await artwork;
   hideBoot();
-  // the menu is simply there: no "tap to start" step. The first touch is what starts the music.
-  reveal(true);
   if (saved && takeResumeOnce()) void runTask('flow:resume', doContinue);
   // keep the calm / battery flags in sync with the settings panel
   offSettings = bus.on('settings:changed', () => { if (document.body.contains(root)) { refreshCalm(); layout(); } });
