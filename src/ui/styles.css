@@ -1515,3 +1515,102 @@ b, strong, h1, h2, h3, .panel-title, .card > b:first-child, .hud-quest b, .tab.a
 .coop-sign { pointer-events: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; background: var(--tx-planks) 0 0 / 48px 48px, #8a5a36; color: #fff4dc; text-shadow: var(--outline, 0 1px 0 #2b1d17); border: 3px solid #2b1d17; border-radius: 8px; padding: 8px 14px; font-size: 1em; box-shadow: 0 3px 0 rgba(43, 29, 23, .55); animation: fadein .2s; }
 .coop-sign .cs-icon { font-size: 1.3em; }
 .coop-sign .btn { margin: 0; }
+
+/* ===================================================================== Etapa 4: lenguaje cozy
+   Menus (panels, buttons, tabs, cards, selectors) are flat paper and cream with soft edges and
+   sage/gold accents. Wood stays in the world, the HUD and the dialogue box. Declared last so it wins. */
+:root {
+  --ui-paper: #fff8ec;
+  --ui-cream: #f5ebdd;
+  --ui-beige: #e8d8be;
+  --ui-brown: #765c47;
+  --ui-ink: #3f2e22;
+  --ui-line: #d3c09f;
+  --ui-line-strong: #b9a385;
+  --ui-sage: #a9b89b;
+  --ui-sage-soft: #dfe6d3;
+  --ui-sage-dark: #536b58;
+  --ui-accent: #d7a46a;
+  --ui-accent-soft: #f3e0c0;
+  --ui-shadow: 0 1px 0 rgba(118, 92, 71, .22), 0 8px 22px rgba(63, 46, 34, .14);
+}
+
+/* panels: a light sheet with a fine warm edge, instead of a log frame over planks */
+.panel {
+  border: 2px solid var(--ui-line-strong); border-radius: 16px; border-image: none;
+  background: var(--ui-cream); box-shadow: 0 10px 28px rgba(63, 46, 34, .28);
+}
+.panel-head h2 { color: var(--ui-brown); text-shadow: none; font-weight: 700; letter-spacing: .3px; }
+.panel-head { padding: 10px 14px 6px; }
+.panel-body { background: var(--ui-paper); border: 1px solid var(--ui-line); border-radius: 12px; box-shadow: none; }
+.panel-foot { border-top: 1px solid var(--ui-line); margin-top: 6px; padding-top: 10px; }
+.panel-foot .btn, .panel-head .btn { margin: 0; }
+
+/* buttons: rounded, flat, one soft shadow line */
+.btn {
+  border: 2px solid var(--ui-line-strong); border-radius: 10px; border-image: none;
+  background: var(--ui-paper); color: var(--ui-ink); text-shadow: none;
+  box-shadow: 0 2px 0 var(--ui-line-strong); padding: 6px 14px; min-height: 40px; font-weight: 600;
+}
+.btn:hover { background: #fffdf7; }
+.btn:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--ui-line-strong); }
+.btn.primary { background: var(--ui-accent-soft); border-color: var(--ui-accent); box-shadow: 0 2px 0 #b98a52; color: #4a3220; }
+.btn.primary:hover { background: #f7e7cd; }
+.btn.rose { background: #f6e3dc; border-color: #d8a993; box-shadow: 0 2px 0 #d8a993; }
+.btn.sage { background: var(--ui-sage-soft); border-color: var(--ui-sage); box-shadow: 0 2px 0 var(--ui-sage); }
+.btn.ghost { border: 1px solid var(--ui-line); background: transparent; box-shadow: none; }
+.btn:disabled { background: #efe7d8; border-color: var(--ui-line); color: #a39482; box-shadow: none; opacity: 1; }
+.btn:focus-visible { outline: 2px solid var(--ui-sage-dark); outline-offset: 2px; }
+.close-x {
+  border: 2px solid #d8a993; border-radius: 10px; border-image: none; background: #f6e3dc; color: var(--ui-ink);
+  box-shadow: 0 2px 0 #d8a993;
+}
+
+/* tabs: quiet text, the active one sits on a sage or warm pill */
+.tabs { background: transparent; border-bottom: 1px solid var(--ui-line); padding: 0 0 8px; }
+.tab {
+  border: 1px solid transparent; border-radius: 10px; border-image: none; background: transparent; color: var(--ui-brown);
+  box-shadow: none; padding: 0 10px; min-height: 36px; font-weight: 600;
+}
+.tab.active { background: var(--ui-sage-soft); border-color: var(--ui-sage); color: var(--ui-sage-dark); transform: none; }
+.tab:hover { background: #f3ead8; }
+
+/* cards and item slots: paper tiles */
+.card, .slot { background: var(--ui-paper); border: 1px solid var(--ui-line); border-radius: 12px; box-shadow: none; }
+.slot.selected { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
+.card.ready { border-color: var(--ui-sage); background: #f4f7ee; }
+
+/* selectors: a soft segmented control */
+.seg { border: 1px solid var(--ui-line-strong); border-radius: 12px; background: var(--ui-beige); box-shadow: none; }
+.seg button { border: 0; box-shadow: inset -1px 0 0 var(--ui-line); background: transparent; color: var(--ui-brown); font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--ui-sage-soft); color: var(--ui-sage-dark); box-shadow: inset 0 -3px 0 var(--ui-sage); }
+
+/* chips and pills */
+.chip { border: 1px solid var(--ui-line); background: var(--ui-paper); color: var(--ui-brown); }
+.pill { background: var(--ui-beige); color: var(--ui-brown); }
+.pill.ok { background: var(--ui-sage-soft); color: var(--ui-sage-dark); }
+
+/* pause board and its tiles */
+.pause-sheet .panel-head h2 { color: var(--ui-brown); }
+.pause-item { border: 1px solid var(--ui-line-strong); border-radius: 12px; background: var(--ui-paper); color: var(--ui-ink); box-shadow: 0 2px 0 var(--ui-line); }
+.pause-page h3 { color: var(--ui-brown); }
+.pause-hint { color: var(--ui-brown); }
+.pause-exit { border-radius: 12px; }
+
+/* progress bars and small frames */
+.bar { border: 1px solid var(--ui-line); background: var(--ui-beige); border-radius: 8px; }
+.bar i { background: var(--ui-sage); }
+
+/* the title menu: a soft sheet under the artwork, not a log board */
+.tt .tt-menu, .tt.open .tt-menu {
+  background: rgba(255, 248, 236, .94); border: 2px solid var(--ui-line-strong); border-radius: 18px;
+  border-image: none; box-shadow: 0 10px 26px rgba(20, 16, 40, .35); padding: 12px;
+}
+.tt .tt-btn { border-radius: 12px; }
+.tt-utilities { border-top: 1px solid var(--ui-line); }
+.tt-utilities .tt-btn { background: var(--ui-cream); border: 1px solid var(--ui-line); box-shadow: none; }
+.tt .tt-prompt {
+  background: rgba(255, 248, 236, .94); border: 2px solid var(--ui-accent); border-radius: 14px; color: var(--ui-brown);
+  text-shadow: none; box-shadow: 0 6px 16px rgba(20, 16, 40, .3);
+}
+.btn:focus-visible, .tab:focus-visible, .seg button:focus-visible, .switch:focus-visible, .slot:focus-visible, .pause-item:focus-visible { outline: 2px solid var(--ui-sage-dark); outline-offset: 2px; }
