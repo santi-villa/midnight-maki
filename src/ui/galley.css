@@ -31,7 +31,7 @@
 .gl-cut.done .gl-press { visibility: hidden; }
 @keyframes gl-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-.gl-tickets { position: fixed; right: calc(8px + var(--safe-r)); top: calc(84px + var(--safe-t)); width: min(176px, 46vw); z-index: 22; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.gl-tickets { position: fixed; right: calc(8px + var(--safe-r)); top: calc(66px + var(--safe-t)); width: min(176px, 46vw); align-items: flex-end; z-index: 22; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
 .gl-tickets.hidden { display: none; }
 .gl-ticket { padding: 6px 8px 8px; border-radius: 10px; box-shadow: 0 3px 10px rgba(63, 46, 34, .25); font-size: .8em; }
 .gl-ticket.done { background: #f1f6e8; border-color: var(--ui-sage, #a9b89b); }
@@ -49,7 +49,7 @@
 .gl-ticket.late .gl-patience i { background: #d98a7a; }
 .gl-more { text-align: center; font-size: .75em; color: var(--ui-brown, #765c47); }
 .gl-hint { padding: 5px 8px; font-size: .78em; border-radius: 10px; }
-@media (max-width: 520px) { .gl-tickets { top: calc(78px + var(--safe-t)); width: min(150px, 42vw); } .gl-fridge-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .gl-tickets { top: calc(62px + var(--safe-t)); width: min(150px, 42vw); } .gl-fridge-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .gl-verdict.show { animation: none; } }
 .gl-tut { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(148px + var(--safe-b)); width: min(300px, 56vw); z-index: 23; padding: 8px 10px; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; }
 .gl-tut p { margin: 0; font-size: .86em; line-height: 1.25; }
@@ -57,3 +57,12 @@
 .gl-tut .btn { align-self: flex-end; min-height: 32px; padding: 2px 10px; }
 .gl-cut-step { font-weight: 400; opacity: .8; }
 @media (max-width: 520px) { .gl-tut { width: min(260px, 52vw); bottom: calc(176px + var(--safe-b)); } }
+
+@media (min-width: 900px) and (min-height: 560px) { .gl-tickets { top: calc(88px + var(--safe-t)); } }
+.gl-tickets > .gl-ticket, .gl-tickets > .gl-hint { align-self: stretch; }
+.gl-orders-chip { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 3px 10px; border-radius: 12px; border: 2px solid #5b3b26; background: #fff8ec; color: #3a2a1e; font: inherit; font-size: .9em; box-shadow: 0 2px 0 #5b3b26; cursor: pointer; }
+.gl-orders-chip .gl-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #c8483f; color: #fff; font-size: .85em; font-weight: 700; }
+.gl-orders-chip.late .gl-count { animation: gl-late 1s ease-in-out infinite alternate; }
+.gl-orders-chip .gl-caret { font-size: .8em; opacity: .75; }
+@keyframes gl-late { to { transform: scale(1.18); } }
+.reduce-motion .gl-orders-chip.late .gl-count { animation: none; }

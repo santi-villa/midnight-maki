@@ -122,24 +122,37 @@ export function runCutBar(spec: CutSpec, label: string, onDone: (verdict: CutVer
 // ------------------------------------------------------------------ tickets
 let ticketsEl: HTMLElement | null = null;
 let ticketsKey = '';
+/** The orders fold into a small chip ("Pedidos 3 ▾") so they do not cover the kitchen; the choice is remembered. */
+let ticketsOpen = (() => { try { return localStorage.getItem('mm_ticketsopen') === '1'; } catch { return false; } })();
 
 export function showTickets(list: Ticket[], visible: boolean, hint: string | null) {
   if (!visible || (!list.length && !hint)) { ticketsEl?.classList.add('hidden'); return; }
-  const key = JSON.stringify(list.map((t) => [t.id, t.lines.map((l) => [l.recipe, l.waiting, l.ready]), Math.round(t.patience * 20), t.impatient])) + (hint ?? '');
+  const key = JSON.stringify(list.map((t) => [t.id, t.lines.map((l) => [l.recipe, l.waiting, l.ready]), Math.round(t.patience * 20), t.impatient])) + (hint ?? '') + ticketsOpen;
   if (!ticketsEl) { ticketsEl = h('div', { class: 'gl-tickets', 'aria-label': 'Pedidos de la cocina' }); root().append(ticketsEl); }
   ticketsEl.classList.remove('hidden');
   if (key === ticketsKey) return;
   ticketsKey = key;
-  const cards = list.slice(0, 3).map((t) => h('div', { class: 'gl-ticket paper' + (t.done ? ' done' : '') + (t.impatient ? ' late' : '') },
+  const pending = list.filter((t) => !t.done).length;
+  const late = list.some((t) => t.impatient && !t.done);
+  const chip = list.length ? h('button', {
+    type: 'button', class: 'gl-orders-chip paper' + (late ? ' late' : ''), 'aria-expanded': String(ticketsOpen), 'aria-label': `Pedidos: ${pending} pendientes`,
+    onclick: () => {
+      ticketsOpen = !ticketsOpen;
+      try { localStorage.setItem('mm_ticketsopen', ticketsOpen ? '1' : '0'); } catch { /* ignore */ }
+      ticketsKey = '';
+      showTickets(list, visible, hint);
+    },
+  }, h('b', null, 'Pedidos'), h('span', { class: 'gl-count' }, String(pending || list.length)), h('span', { class: 'gl-caret', 'aria-hidden': 'true' }, ticketsOpen ? '▴' : '▾')) : null;
+  const cards = ticketsOpen ? list.slice(0, 3).map((t) => h('div', { class: 'gl-ticket paper' + (t.done ? ' done' : '') + (t.impatient ? ' late' : '') },
     h('div', { class: 'gl-ticket-head' }, h('b', null, t.label), h('span', { class: 'hint' }, t.who)),
     ...t.lines.map((l) => h('div', { class: 'gl-line' },
       h('span', { class: 'gl-qty' }, `${l.waiting + l.ready}×`),
       h('span', { class: 'gl-name' }, l.name),
       h('span', { class: 'gl-state' + (l.waiting ? '' : ' ok') }, l.waiting ? (l.ready ? `${l.ready} listo` : 'pendiente') : '✓ en el mostrador'),
       h('div', { class: 'gl-needs' }, [...(l.cup ? ['Vaso'] : []), ...l.needs.map((n) => `${n.count > 1 ? n.count + '× ' : ''}${itemLabel({ kind: 'ing', uid: 0, ing: n.ing, form: n.form, q: 2 })}`)].join(' · ')))),
-    h('div', { class: 'gl-patience', role: 'img', 'aria-label': `Paciencia ${Math.round(t.patience * 100)}%` }, h('i', { style: { width: `${Math.round(t.patience * 100)}%` } }))));
-  const more = list.length > 3 ? [h('div', { class: 'gl-more' }, `+${list.length - 3} más`)] : [];
-  ticketsEl.replaceChildren(...cards, ...more, ...(hint ? [h('div', { class: 'gl-hint paper' }, hint)] : []));
+    h('div', { class: 'gl-patience', role: 'img', 'aria-label': `Paciencia ${Math.round(t.patience * 100)}%` }, h('i', { style: { width: `${Math.round(t.patience * 100)}%` } })))) : [];
+  const more = ticketsOpen && list.length > 3 ? [h('div', { class: 'gl-more' }, `+${list.length - 3} más`)] : [];
+  ticketsEl.replaceChildren(...(chip ? [chip] : []), ...cards, ...more, ...(hint ? [h('div', { class: 'gl-hint paper' }, hint)] : []));
 }
 
 // ------------------------------------------------------------------ tutorial card

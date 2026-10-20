@@ -30,7 +30,7 @@ test('time and buttons fit PC and small phones in both orientations', async ({ p
     await page.setViewportSize({ width, height });
     const rects = await page.locator('.hud-status-wrap, .hud-buttons, .hud-digital, .hud-clock, .hud-quest').evaluateAll(els => els.map(el => el.getBoundingClientRect().toJSON()));
     const quest = rects[rects.length - 1];
-    const pair = await page.locator('.hud-time-row').boundingBox();
+    const pair = await page.locator('.hud-status').boundingBox();
     expect(pair).toBeTruthy();
     for (const r of rects) { expect(r.left).toBeGreaterThanOrEqual(0); expect(r.right).toBeLessThanOrEqual(width); expect(r.bottom).toBeLessThanOrEqual(height); }
     const s = await page.locator('.hud-status-wrap').boundingBox();
@@ -42,7 +42,7 @@ test('time and buttons fit PC and small phones in both orientations', async ({ p
     expect(quest.top).toBeGreaterThan(pair!.y + pair!.height);
     await page.screenshot({ path: info.outputPath(`hud-${width}.png`) });
   }
-  await page.getByRole('button', { name: 'Contraer fecha y monedas' }).click();
+  // the strip, the energy bar and the coins are all there (there is no folding any more)
   await expect(page.locator('.hud-digital')).toBeVisible(); await expect(page.locator('.hud-clock')).toBeVisible();
-  await expect(page.locator('.hud-date')).toBeHidden();
+  await expect(page.locator('.hud-energy')).toBeVisible(); await expect(page.locator('.hud-meters .coin')).toBeVisible();
 });
