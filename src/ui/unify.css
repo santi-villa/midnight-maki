@@ -1,0 +1,34 @@
+/* One look for every menu: the cozy cream card of the title screen. Loaded last, so it wins over the older panel styles. */
+body {
+  --cream: #f8eed3; --cream-2: #efdcb0; --wood: #b98d5a; --wood-2: #8b6a46; --wood-dark: #8b6a46; --ink: #3a2a1e; --ink-soft: #7a6247;
+}
+body .panel {
+  background: linear-gradient(#f8eed3, #f1e1bd); border: 3px solid #b98d5a; border-radius: 14px;
+  box-shadow: inset 0 0 0 2px #dcc08e, 0 5px 0 #8b6a46, 0 14px 30px rgba(20, 12, 8, .45); color: #3a2a1e;
+}
+body .panel-head { background: #e8cf9d; color: #3a2a1e; border-bottom: 2px solid #b98d5a; border-radius: 11px 11px 0 0; }
+body .panel-head h2 { text-shadow: none; }
+body .panel-foot { border-top: 2px solid #dcc08e; }
+body .tabs { background: #ecd8a8; border-bottom: 2px solid #b98d5a; }
+body .tab { border: 2px solid #b98d5a; border-bottom: none; background: #e3c98f; color: #3a2a1e; }
+body .tab.active { background: #f8eed3; }
+body .btn {
+  border: 2px solid #8b6a46; border-radius: 8px; background: #efd9a8; color: #3a2a1e; font-weight: 600;
+  box-shadow: inset 0 2px 0 #f8e8c2, inset 0 -3px 0 #d3b377, 0 3px 0 #8b6a46;
+}
+body .btn:hover:not(:disabled) { background: #e6c88f; }
+body .btn:active { transform: translateY(2px); box-shadow: inset 0 -1px 0 #d3b377, 0 1px 0 #8b6a46; }
+body .btn.primary { background: #ecc983; box-shadow: inset 0 2px 0 #f7dc9e, inset 0 -3px 0 #cfa24f, 0 3px 0 #7a5530; }
+body .btn.rose { background: #eab9a8; }
+body .btn.sage { background: #c5d3a6; }
+body .btn.ghost { background: transparent; color: #f8eed3; border-color: #dcc08e; box-shadow: none; }
+body .icon-btn { border: 2px solid #8b6a46; background: #efd9a8; box-shadow: inset 0 2px 0 #f8e8c2, 0 3px 0 #8b6a46; }
+body .close-x { border: 2px solid #8b6a46; background: #eab9a8; color: #3a2a1e; box-shadow: 0 2px 0 #8b6a46; }
+body .card, body .slot { background: #fbf3dc; border: 2px solid #dcc08e; border-radius: 10px; }
+body .slot.selected { border-color: #c9923c; background: #f7e3b0; }
+body .pill { background: #ecd8a8; color: #3a2a1e; }
+body .bar { border: 2px solid #8b6a46; background: #ecd8a8; }
+body .dlg, body .pause-board, body .pause-card {
+  background: linear-gradient(#f8eed3, #f1e1bd); border: 3px solid #b98d5a; border-radius: 14px; color: #3a2a1e;
+  box-shadow: inset 0 0 0 2px #dcc08e, 0 5px 0 #8b6a46, 0 14px 30px rgba(20, 12, 8, .45);
+}

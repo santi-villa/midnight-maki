@@ -23,6 +23,7 @@ import { ZONES, GARDEN_PLOT_POSITIONS } from '../data/zones';
 import { STATION_BY_ID } from '../galley/layout';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { galleyOn } from '../galley/mode';
+import { KITCHEN } from '../galley/layout';
 import { GalleyView, type GalleyVerb } from './galleyView';
 import { bedtimeReason, settleBedtime } from '../systems/bedtime';
 import { closedLocalNotice, shopGate, stopFor } from '../systems/npcs';
@@ -1440,7 +1441,37 @@ export class WorldScene extends Phaser.Scene {
     return this.npcs.get(id)?.actor ?? this.extras.get(id) ?? null;
   }
 
+  /** The player is working in the physical kitchen: nobody chatters over the stations. */
+  private inKitchen(): boolean {
+    return this.zoneId === 'restaurant' && !!this.player && galleyOn()
+      && this.player.tx >= KITCHEN.x && this.player.tx < KITCHEN.x + KITCHEN.w && this.player.ty >= KITCHEN.y && this.player.ty < KITCHEN.y + KITCHEN.h;
+  }
+
+  private faded = new Set<Actor>();
+  /** In the kitchen, whoever stands close to the player turns see-through, so the stations and the player stay readable. */
+  private updateKitchenFade() {
+    const bodies: Actor[] = [];
+    if (this.inKitchen()) {
+      for (const n of this.npcs.values()) bodies.push(n.actor);
+      for (const b of this.staffBodies.values()) bodies.push(b.actor);
+      for (const g of this.guests.values()) bodies.push(g.actor);
+    }
+    const near = new Set<Actor>();
+    for (const a of bodies) {
+      if (!a.sprite?.active || !a.sprite.visible) continue;
+      const d = Math.hypot(a.x - this.player.x, (a.y - this.player.y) * 1.2);
+      if (d < 26) near.add(a);
+    }
+    for (const a of near) { a.sprite.setAlpha(0.38); this.faded.add(a); }
+    for (const a of [...this.faded]) {
+      if (near.has(a)) continue;
+      if (a.sprite?.active) a.sprite.setAlpha(1);
+      this.faded.delete(a);
+    }
+  }
+
   private pumpSpeech(dt: number) {
+    if (this.inKitchen()) { this.stopSpeech(); return; }
     if (this.transitioning || this.decorMode || this.inputLocked) {
       this.stopSpeech();
       return;
@@ -2612,6 +2643,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateQuestMarker(dt);
     this.updateServiceArt();
     this.galleyView.update(dt);
+    this.updateKitchenFade();
     this.flushNpcWait();
     this.dust(dt);
     this.quirks(dt);
