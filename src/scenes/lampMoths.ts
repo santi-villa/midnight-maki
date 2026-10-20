@@ -38,9 +38,14 @@ export const mothLamps = (lamps: LampSpot[]) => lamps.filter((l) => !l.kind && !
 export class LampMoths {
   private moths: Moth[] = [];
   private t = 0;
+  /** only two or three lamps have visitors at a time; the company moves on every so often */
+  private active = new Set<LampSpot>();
+  private rotateIn = 0;
+  private lamps: LampSpot[] = [];
   constructor(scene: Phaser.Scene, lamps: LampSpot[], rng: () => number = Math.random) {
     ensureTextures(scene);
     const spots = mothLamps(lamps);
+    this.lamps = spots;
     for (const lamp of spots) {
       const n = 1 + Math.floor(rng() * PER_LAMP); // one to three per lamp, never none
       for (let i = 0; i < n && this.moths.length < MAX_MOTHS; i++) {
@@ -54,8 +59,15 @@ export class LampMoths {
 
   update(dt: number, view: Phaser.Geom.Rectangle) {
     this.t += dt;
+    this.rotateIn -= dt;
+    if (this.rotateIn <= 0) {
+      this.rotateIn = 25 + Math.random() * 35;
+      const inView = this.lamps.filter((l) => Phaser.Geom.Rectangle.Contains(view, l.x, l.y));
+      const pool = inView.length ? inView : this.lamps;
+      this.active = new Set(Phaser.Utils.Array.Shuffle([...pool]).slice(0, 2 + Math.floor(Math.random() * 2)));
+    }
     for (const m of this.moths) {
-      const near = Phaser.Geom.Rectangle.Contains(view, m.lamp.x, m.lamp.y) || Phaser.Geom.Rectangle.Contains(view, m.s.x, m.s.y);
+      const near = this.active.has(m.lamp) && (Phaser.Geom.Rectangle.Contains(view, m.lamp.x, m.lamp.y) || Phaser.Geom.Rectangle.Contains(view, m.s.x, m.s.y));
       m.s.setVisible(near);
       if (!near) continue;
       // an irregular loop around the light, now and then turning the other way, as moths do

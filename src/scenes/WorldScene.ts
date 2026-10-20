@@ -1976,7 +1976,7 @@ export class WorldScene extends Phaser.Scene {
         speedX: { min: -8, max: 8 },
         speedY: { min: -5, max: 5 },
         lifespan: 5200,
-        frequency: 110,
+        frequency: 260,
         alpha: { start: 0, end: 1, ease: 'Sine.easeInOut', yoyo: true } as any,
       });
       em.setDepth(210000);
