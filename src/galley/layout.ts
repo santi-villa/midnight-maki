@@ -27,6 +27,8 @@ export interface StationDef {
   slots: number;
   cooker?: 'rice' | 'stove';
   accepts?: Accept;
+  /** a bigger look once an upgrade is owned (the same station, a different prop) */
+  alt?: { needs: string; prop: string };
 }
 
 /** The kitchen floor. The hall (`dining` room) starts right below at y=6 and is not touched. */
@@ -38,7 +40,7 @@ export const STATIONS: readonly StationDef[] = [
   // ---- back wall (y=2): storage, rice, cutting, cooking
   { id: 'fridge', kind: 'fridge', name: 'Heladera', x: 1, y: 2, w: 1, h: 1, stand: [[1, 3]], prop: 'k_fridge', slots: 0 },
   { id: 'counter_a', kind: 'counter', name: 'Mesada de apoyo', x: 2, y: 2, w: 1, h: 1, stand: [[2, 3]], prop: 'k_work', slots: 2 },
-  { id: 'rice', kind: 'cooker', cooker: 'rice', name: 'Arrocera', x: 3, y: 2, w: 1, h: 1, stand: [[3, 3]], prop: 'k_ricepot', slots: 4 },
+  { id: 'rice', kind: 'cooker', cooker: 'rice', name: 'Arrocera', x: 3, y: 2, w: 1, h: 1, stand: [[3, 3]], prop: 'k_ricepot', slots: 4, alt: { needs: 'rice_big', prop: 'k_ricepot2' } },
   { id: 'hangiri', kind: 'counter', name: 'Hangiri (reserva de arroz)', x: 4, y: 2, w: 1, h: 1, stand: [[4, 3]], prop: 'k_rice', slots: 6, accepts: 'rice' },
   { id: 'board_1', kind: 'board', name: 'Tabla de cortar', x: 5, y: 2, w: 1, h: 1, stand: [[5, 3]], prop: 'k_board', slots: 1 },
   { id: 'stove', kind: 'cooker', cooker: 'stove', name: 'Fogón', x: 9, y: 2, w: 1, h: 1, stand: [[9, 3]], prop: 'k_stove', slots: 2 },

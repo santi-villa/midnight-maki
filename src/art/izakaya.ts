@@ -4,6 +4,25 @@
  * neta case, red stools, bamboo, sake barrels, paper lamps and the restaurant's hanging sign.
  */
 import { ctx2d, ellipse, makeCanvas, px, shade, type Ctx } from './pixel';
+import { drawPixText, pixTextWidth } from './pixfont';
+
+/** The name painted on the hanging plaque inside (the player's restaurant). Set before the sprite is drawn. */
+let plaqueName = 'MIDNIGHT MAKI';
+export function setPlaqueName(name: string) { plaqueName = name.trim().toUpperCase() || 'MIDNIGHT MAKI'; }
+
+/** Two balanced lines that fit `max` pixels each (cut with no ellipsis when a word is too long). */
+function plaqueLines(name: string, max: number): string[] {
+  const words = name.split(/\s+/).filter(Boolean);
+  let best: string[] = [name];
+  let score = Infinity;
+  for (let i = 0; i <= words.length; i++) {
+    const lines = [words.slice(0, i).join(' '), words.slice(i).join(' ')].filter(Boolean);
+    if (lines.length > 2) continue;
+    const worst = Math.max(...lines.map(pixTextWidth));
+    if (worst < score) { score = worst; best = lines; }
+  }
+  return best.map((l) => { let t = l; while (t.length > 1 && pixTextWidth(t) > max) t = t.slice(0, -1); return t; });
+}
 
 const INK = '#2b1d17';
 export const IZ = {
@@ -158,45 +177,6 @@ function maki(c: Ctx, x: number, y: number, col: string) {
   px(c, x + 1, y + 1, col);
 }
 
-function glyphs(): Record<string, string[]> {
-  return {
-    M: ['X...X', 'XX.XX', 'X.X.X', 'X.X.X', 'X...X', 'X...X', 'X...X'],
-    I: ['XXX', '.X.', '.X.', '.X.', '.X.', '.X.', 'XXX'],
-    D: ['XXXX.', 'X...X', 'X...X', 'X...X', 'X...X', 'X...X', 'XXXX.'],
-    N: ['X...X', 'XX..X', 'X.X.X', 'X.X.X', 'X..XX', 'X...X', 'X...X'],
-    G: ['.XXX.', 'X...X', 'X....', 'X.XXX', 'X...X', 'X...X', '.XXX.'],
-    H: ['X...X', 'X...X', 'X...X', 'XXXXX', 'X...X', 'X...X', 'X...X'],
-    T: ['XXXXX', '..X..', '..X..', '..X..', '..X..', '..X..', '..X..'],
-    A: ['.XXX.', 'X...X', 'X...X', 'XXXXX', 'X...X', 'X...X', 'X...X'],
-    K: ['X...X', 'X..X.', 'X.X..', 'XX...', 'X.X..', 'X..X.', 'X...X'],
-  };
-}
-
-function word(c: Ctx, text: string, x: number, y: number, col: string, shadow: string) {
-  const G = glyphs();
-  let cx = x;
-  for (const ch of text) {
-    const g = G[ch];
-    if (!g) {
-      cx += 4;
-      continue;
-    }
-    g.forEach((row, j) =>
-      [...row].forEach((v, i) => {
-        if (v !== 'X') return;
-        px(c, cx + i, y + j + 1, shadow);
-        px(c, cx + i, y + j, col);
-      }),
-    );
-    cx += g[0].length + 1;
-  }
-}
-
-export function wordWidth(text: string): number {
-  const G = glyphs();
-  return [...text].reduce((w, ch) => w + (G[ch] ? G[ch][0].length + 1 : 4), -1);
-}
-
 export const IZAKAYA_KINDS: Record<string, DrawFn> = {
   /** Sushi counter: slatted front, light top, glass neta case. rot 1 = bar end with register and lucky cat. */
   sushibar(c, W, H, c1, c2, rot, r) {
@@ -298,11 +278,12 @@ export const IZAKAYA_KINDS: Record<string, DrawFn> = {
     px(c, 3, top + 4, '#e2c08c', W - 6, 21);
     px(c, 3, top + 4, '#f0d7a8', W - 6, 1);
     px(c, 3, top + 24, '#c9a06a', W - 6, 1);
-    const l1 = 'MIDNIGHT';
-    const l2 = 'MAKI';
     const area = W - 26;
-    word(c, l1, 6 + Math.floor((area - wordWidth(l1)) / 2), top + 7, '#3a2418', '#c9a06a');
-    word(c, l2, 6 + Math.floor((area - wordWidth(l2)) / 2), top + 16, '#3a2418', '#c9a06a');
+    const lines = plaqueLines(plaqueName, area);
+    lines.forEach((t, i) => {
+      const y = lines.length === 1 ? top + 11 : top + 7 + i * 9;
+      drawPixText(c, t, 6 + Math.floor((area - pixTextWidth(t)) / 2), y, '#3a2418', '#c9a06a');
+    });
     // maki roll and chopsticks
     const mx = W - 13;
     const my = top + 15;
@@ -421,6 +402,17 @@ export const IZAKAYA_KINDS: Record<string, DrawFn> = {
     px(c, W - 3, H - 24, INK, 2, 3);
     px(c, 5, H - 22, '#d9485a', 2, 1);
     px(c, 8, H - 22, '#6f9e5a', 2, 1);
+  },
+  /** The big rice cooker (upgrade): the same pot taller, with golden bands, a second steam vent and two lamps. */
+  ricepot2(c, W, H, c1, c2, rot, r) {
+    IZAKAYA_KINDS.ricepot(c, W, H, c1, c2, rot, r);
+    px(c, 2, H - 29, INK, W - 4, 2);
+    px(c, 3, H - 29, '#e9c46a', W - 6, 1);
+    px(c, 3, H - 23, '#e9c46a', W - 6, 1);
+    px(c, 3, H - 20, '#e9c46a', W - 6, 1);
+    px(c, 4, H - 33, INK, 3, 3); px(c, 5, H - 32, '#8f8571');
+    px(c, W - 7, H - 33, INK, 3, 3); px(c, W - 6, H - 32, '#8f8571');
+    px(c, 11, H - 22, '#fff2b0', 2, 1);
   },
   /** Plain work counter: light top, wooden doors. Things are drawn on top of it by the kitchen view. */
   workcounter(c, W, H) {
