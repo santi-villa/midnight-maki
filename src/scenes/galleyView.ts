@@ -14,10 +14,9 @@ import { ITEMS_BY_ID } from '../data/items';
 import { RECIPES } from '../data/recipes';
 import { DRINKS } from '../restaurant/drinkData';
 import { Actor, TILE } from '../entities/Actor';
-import { handsFor, type HandDef, type Step } from '../galley/crew';
-import { candidates } from '../restaurant/staff';
+import { CUT_SECONDS, handsFor, type HandDef, type Step } from '../galley/crew';
+import type { Need } from '../galley/prep';
 import type { Grid } from '../world/grid';
-import { lookTexture } from './textures';
 import { combineVerdicts, cutLevel, cutsNeeded, cutSpec, type CutVerdict } from '../galley/cut';
 import { galley, galleyOn, saveGalley } from '../galley';
 import { fridgeOpenCanvas, galleyItemCanvas, itemKey, PIXEL_BITS } from '../galley/art';
@@ -44,6 +43,13 @@ export interface GalleyHost {
   player: Actor;
   zoneId: string;
   grid(): Grid;
+  /** the crew members who work in the kitchen move with the town's own movement */
+  crew: {
+    ready(id: string): boolean;
+    where(id: string): { zone: string; x: number; y: number; settled: boolean } | null;
+    move(id: string, tile: { x: number; y: number } | null): void;
+    actor(id: string): Actor | null;
+  };
   /** the map prop standing on a tile (to make it shake) */
   propAt(x: number, y: number): Phaser.GameObjects.Image | undefined;
   /** the player cannot walk or use anything while this is true (the reflex bar, a short assembly) */
@@ -65,7 +71,7 @@ function slotsFor(s: StationDef, n: number): { x: number; y: number; scale: numb
   return Array.from({ length: n }, (_, i) => ({ x: x0 + 4 + i * 8, y: slotY(s) + 1, scale: 0.5 }));
 }
 
-interface Worker { def: HandDef; actor: Actor; step: Step | null; arrived: boolean; wait: number; doing: string }
+interface Worker { def: HandDef; step: Step | null; moving: boolean; wait: number; timer: number; after: (() => void) | null; lost: number }
 
 export class GalleyView {
   private active = false;
@@ -117,7 +123,7 @@ export class GalleyView {
     this.stationSprites.clear();
     for (const h of this.heldDraw.values()) h.sprites.forEach((s) => s.destroy());
     this.heldDraw.clear();
-    for (const w of this.workers.values()) w.actor.destroy();
+    for (const id of this.workers.keys()) this.host.crew.move(id, null);
     this.workers.clear();
     this.passSprites.forEach((s) => s.destroy()); this.passSprites = []; this.passKey = '';
     for (const t of this.labels.values()) t.destroy();
@@ -149,7 +155,7 @@ export class GalleyView {
     this.syncBell();
     this.updateHands(dt);
     this.syncHeld(PLAYER, this.host.player);
-    for (const [id, w] of this.workers) this.syncHeld(id, w.actor);
+    for (const id of this.workers.keys()) { const a = this.host.crew.actor(id); if (a) this.syncHeld('hand:' + id, a); }
     this.syncPass();
     this.drawProgress();
     this.updateLabels(dt);
@@ -347,52 +353,69 @@ export class GalleyView {
     });
   }
 
-  // ------------------------------------------------------------------ kitchen hands (employees)
+  // ------------------------------------------------------------------ kitchen hands (Spicy)
+  private wantedCuts(): Need[] {
+    const sum = new Map<string, number>();
+    for (const t of tickets()) for (const l of t.lines) for (const n of l.needs) if (n.form === 'cut' && l.waiting > 0) sum.set(n.ing, (sum.get(n.ing) ?? 0) + n.count * l.waiting);
+    return [...sum.entries()].map(([ing, count]) => ({ ing, form: 'cut' as const, count }));
+  }
+
+  /** Spicy walks (with the town's own movement) to a station, uses it, and goes on to the next thing. */
   private updateHands(dt: number) {
     const g = galley();
-    const defs = handsFor(game.save.restaurant.upgrades);
-    for (const [id, w] of this.workers) {
-      if (defs.some((d) => d.role === id)) continue;
-      w.actor.destroy(); this.workers.delete(id);
+    const ups = game.save.restaurant.upgrades;
+    const defs = handsFor(ups);
+    const crew = this.host.crew;
+    for (const id of [...this.workers.keys()]) {
+      if (defs.some((d) => d.crew === id)) continue;
+      crew.move(id, null); this.workers.delete(id);
     }
     for (const def of defs) {
-      let w = this.workers.get(def.role);
-      if (!w) {
-        const look = candidates('helper', 1)[0].look;
-        const [sx, sy] = STATION_BY_ID.fridge.stand[0];
-        const actor = new Actor(this.host.scene, 'hand_' + def.role, lookTexture(this.host.scene, look), sx + 1, sy + 1);
-        w = { def, actor, step: null, arrived: false, wait: 1, doing: '' };
-        this.workers.set(def.role, w);
+      let w = this.workers.get(def.crew);
+      if (!w) { w = { def, step: null, moving: false, wait: 1, timer: 0, after: null, lost: 0 }; this.workers.set(def.crew, w); }
+      const pos = crew.ready(def.crew) ? crew.where(def.crew) : null;
+      if (!pos || pos.zone !== 'restaurant') {
+        if (w.step || w.moving) { w.step = null; w.moving = false; w.timer = 0; w.after = null; crew.move(def.crew, null); }
+        continue;
       }
       if (clock.paused) continue;
-      w.actor.update(dt);
-      if (w.wait > 0) {
-        w.wait -= dt;
-        if (w.wait <= 0 && w.actor.act === 'cook') w.actor.setAct('idle');
+      if (w.timer > 0) {
+        w.timer -= dt;
+        if (w.timer <= 0) { w.after?.(); w.after = null; w.wait = def.pace; }
         continue;
       }
-      const who = 'hand:' + def.role;
+      if (w.wait > 0) { w.wait -= dt; continue; }
+      const who = 'hand:' + def.crew;
       if (!w.step) {
-        w.step = def.next(g, who, (id) => game.countUsable(id));
+        w.step = def.next(g, who, { stock: (id) => game.countUsable(id), ups, wanted: this.wantedCuts() });
         if (!w.step) { w.wait = 0.8; continue; }
-        const s = STATION_BY_ID[w.step.station];
-        const stand = s.stand.reduce((best, c) => (Math.abs(c[0] - w.actor.tx) + Math.abs(c[1] - w.actor.ty) < Math.abs(best[0] - w.actor.tx) + Math.abs(best[1] - w.actor.ty) ? c : best));
-        w.arrived = false;
-        const ok = w.actor.walkTo(this.host.grid(), stand[0], stand[1], () => { w!.arrived = true; });
-        if (!ok) { w.step = null; w.wait = 1.5; }
+        w.moving = false;
+      }
+      const s = STATION_BY_ID[w.step.station];
+      const stand = s.stand.reduce((best, c) => (Math.hypot(c[0] - pos.x, c[1] - pos.y) < Math.hypot(best[0] - pos.x, best[1] - pos.y) ? c : best));
+      if (!w.moving) { crew.move(def.crew, { x: stand[0], y: stand[1] }); w.moving = true; w.lost = 0; continue; }
+      if (Math.hypot(pos.x - stand[0], pos.y - stand[1]) > 0.7 || !pos.settled) {
+        w.lost += dt;
+        if (w.lost > 40) { w.step = null; w.moving = false; w.wait = 2; } // stuck: start over
         continue;
       }
-      if (!w.arrived) continue;
+      w.moving = false;
       const step = w.step;
       w.step = null;
-      const c = stationCentre(STATION_BY_ID[step.station]);
-      w.actor.faceTowards(c.x * TILE, (STATION_BY_ID[step.station].y + 0.5) * TILE);
       const res = step.verb === 'fetch' ? g.takeFromFridge(who, step.arg ?? '') : g.perform(who, step.station, step.verb);
-      if (res.ok) {
-        w.actor.setAct('cook');
-        saveGalley();
-      }
-      w.wait = res.ok ? w.def.pace : 1.5;
+      if (!res.ok) { w.wait = 1.5; continue; }
+      saveGalley();
+      if (res.needsCut) {
+        const item = g.station(step.station).items[0] as IngItem | undefined;
+        w.timer = CUT_SECONDS;
+        w.after = () => {
+          if (!item) return;
+          const verdict: CutVerdict = Math.random() < 0.3 ? 'perfect' : 'good';
+          this.slash(STATION_BY_ID[step.station], verdict, item);
+          this.onEvents(g.finishCut(step.station, verdict).events);
+          saveGalley();
+        };
+      } else w.wait = def.pace;
     }
   }
 

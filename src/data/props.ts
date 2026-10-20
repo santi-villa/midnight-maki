@@ -122,6 +122,7 @@ export const PROPS: Record<string, PropDef> = {
   // the physical kitchen (docs/cocina-fisica.md; positions in galley/layout.ts)
   k_work: P('workcounter', 1, 1, 16, 22),
   k_ricepot: P('ricepot', 1, 1, 16, 32),
+  k_ricepot2: P('ricepot2', 1, 1, 16, 36),
   k_assembly: P('prepcounter', 2, 1, 32, 22),
   k_bin: P('bin', 1, 1, 16, 20),
   k_pass: P('passcounter', 3, 1, 48, 24),

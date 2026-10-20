@@ -35,7 +35,7 @@ import { LampMoths } from './lampMoths';
 import { Pets } from './pets';
 import { CROP_ART, cropStage } from '../art/farm';
 import { nextDoor, questTarget } from '../world/guide';
-import { employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type StaffEnv } from '../restaurant/staff';
+import { crew, crewUnlocked, employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type CrewId, type StaffEnv } from '../restaurant/staff';
 import { NeighborLife } from '../systems/neighbors';
 import { facingTable, seatDrawOffset, standApart } from '../restaurant/seating';
 import { planWaitSpots, scanWaitSpots, RECEPTION_SPOTS, WAITING_SPOTS, type WaitTile } from '../restaurant/waiting';
@@ -192,6 +192,19 @@ export class WorldScene extends Phaser.Scene {
     get player() { return world.player; },
     get zoneId() { return world.zoneId; },
     grid: () => world.zone.grid,
+    crew: {
+      ready: (id) => crew(id as CrewId).on && crewUnlocked(id as CrewId) && ['open', 'closing'].includes(restaurantPhase(clock.period, game.save.time.minutes)),
+      where: (id) => {
+        const res = world.town.residents.get(id);
+        if (!res || typeof game.flag('at_' + id) === 'string') return null;
+        return { zone: res.trip.position.zone, x: res.trip.position.x, y: res.trip.position.y, settled: res.trip.settled };
+      },
+      move: (id, tile) => {
+        if (tile) world.rememberResidents();
+        world.town.duty(id, tile ? { zone: 'restaurant', x: tile.x, y: tile.y, wander: 0, act: 'work' } : null);
+      },
+      actor: (id) => world.npcs.get(id)?.actor ?? null,
+    },
     propAt: (x, y) => world.propImgs.get(`${x},${y}`),
     get galleyBusy() { return world.galleyBusy; },
     set galleyBusy(v: boolean) { world.galleyBusy = v; },
@@ -1869,6 +1882,8 @@ export class WorldScene extends Phaser.Scene {
     let track = (this.zone.def.music || 'town') as Track;
     if (track === 'restaurant' && clock.period >= 2) track = 'restaurant_night';
     if (game.flag('festival_today') && this.zone.def.outdoor && this.zoneId === 'plaza') track = 'festival';
+    // outdoors at night the crickets (and the sea) are the music: nothing on top, so the night feels like night
+    if (this.zone.def.outdoor && clock.isNight() && track !== 'festival' && this.zoneId !== 'market') track = 'none' as Track;
     audio.play(track);
     const rain = game.flag('weather') === 'rain';
     audio.ambience(rain ? (this.zone.def.outdoor ? 'rain' : 'rain_inside') : this.zoneId === 'beach' ? (clock.isNight() ? 'waves_night' : 'waves') : clock.isNight() && this.zone.def.outdoor ? 'night' : 'none');
@@ -3621,12 +3636,17 @@ export class WorldScene extends Phaser.Scene {
         }
         const f = flick(l);
         const spill = l.kind === 'spill';
+        // additive glows pile up where several lights are close (a row of lamps, windows beside a lamp) and wash the night out
+        // to daylight: the more lights overlap this one, the weaker it shines
+        let overlaps = 0;
+        for (const o of lit) if (o.l !== l && Math.hypot(o.l.x - l.x, o.l.y - l.y) < (o.l.r + l.r) * 0.7) overlaps++;
+        const crowd = 1 / (1 + 0.5 * overlaps);
         g.setData('glowKind', l.kind ?? '');
         g.setVisible(true)
           .setPosition(l.x, l.y)
           .setTint(l.color ?? 0xffd27a)
           .setScale(spill ? 1.05 : (l.r * 1.6 * ls.halo) / 64, spill ? 0.55 : (l.r * 1.6 * ls.halo) / 64)
-          .setAlpha(Math.min(spill ? 0.6 : 0.78, (l.glow ?? 0.5) * k * f * (spill ? 0.9 : 1.1)));
+          .setAlpha(Math.min(spill ? 0.6 : 0.78, (l.glow ?? 0.5) * k * f * (spill ? 0.9 : 1.1) * crowd));
         i++;
       }
     }

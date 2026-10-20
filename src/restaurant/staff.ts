@@ -374,7 +374,8 @@ function pickJob(w: Worker, r: Runtime, env: StaffEnv): boolean {
         if (goTo(w, r, env, env.tray(), 'toTray', 'Va a buscar un plato')) { r.claim = { kind: 'serve', uid: order.uid, tableId: order.service!.tableId }; return true; }
         claimPlate(order.uid, null);
       }
-    } else if (kind === 'cook') {
+    } else if (kind === 'cook' && !galleyOn()) {
+      // (in the physical kitchen Spicy cooks with his hands, see galley/crew.ts)
       const waiting = new Set(guestViews().filter((g) => g.phase === 'waiting_food').map((g) => g.id));
       const order = game.save.orders.find((o) => o.kind !== 'drink' && o.service && !o.plate && !o.cook && !playerBusy.has(o.uid) && waiting.has(o.service.partyId) && RECIPES_BY_ID[o.recipe] && canCook(o.recipe) && !others.has('cook:' + o.uid));
       if (order) {

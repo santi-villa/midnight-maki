@@ -361,22 +361,38 @@ describe('the reflex bar', () => {
   });
 });
 
-describe('the rice-maker', () => {
-  it('keeps the hangiri stocked by itself using the same verbs as the player', async () => {
-    const { HANDS } = await import('../galley/crew');
-    const who = 'hand:rice';
-    const brain = HANDS.rice;
+describe('Spicy in the kitchen', () => {
+  const ctx = (ups: string[], wanted: { ing: string; form: 'cut'; count: number }[] = []) => ({ stock: (id: string) => stock[id] ?? 0, ups, wanted });
+  const run = async (until: () => boolean, ups: string[], wanted: { ing: string; form: 'cut'; count: number }[] = []) => {
+    const { HANDS, CUT_SECONDS } = await import('../galley/crew');
+    const who = 'hand:spicy';
     let guard = 0;
-    while (g.station('hangiri').items.length < 4 && guard++ < 200) {
-      const step = brain.next(g, who, (id) => stock[id] ?? 0);
+    while (!until() && guard++ < 300) {
+      const step = HANDS.spicy.next(g, who, ctx(ups, wanted));
       if (!step) { g.tick(COOK.rice.time + 0.1); continue; }
       const r = step.verb === 'fetch' ? g.takeFromFridge(who, step.arg!) : g.perform(who, step.station, step.verb);
       expect(r.ok, `${step.station} ${step.verb}: ${r.msg}`).toBe(true);
+      if (r.needsCut) { g.tick(CUT_SECONDS); g.finishCut(step.station, 'good'); }
     }
+    return who;
+  };
+  it('keeps the hangiri stocked with cooked rice', async () => {
+    const who = await run(() => g.station('hangiri').items.length >= 4, ['rice_hand']);
     expect(g.station('hangiri').items.length).toBe(4);
     expect(g.held(who)).toEqual([]);
     expect(stock.rice).toBe(6);
-    expect(brain.next(g, who, (id) => stock[id] ?? 0)).toBeNull(); // reserve is full: it rests
+    const { HANDS } = await import('../galley/crew');
+    expect(HANDS.spicy.next(g, who, ctx(['rice_hand']))).toBeNull(); // reserve is full: he rests
+  });
+  it('cuts what the tickets need once he has the cutting upgrade, and leaves it on a counter', async () => {
+    await run(() => g.station('counter_a').items.length >= 2, ['cut_hand'], [{ ing: 'cucumber', form: 'cut', count: 2 }]);
+    expect(g.station('counter_a').items.map((i) => (i.kind === 'ing' ? `${i.ing}:${i.form}` : i.kind))).toEqual(['cucumber:cut', 'cucumber:cut']);
+    expect(stock.cucumber).toBe(2);
+  });
+  it('does nothing without his upgrades', async () => {
+    const { handsFor } = await import('../galley/crew');
+    expect(handsFor([])).toEqual([]);
+    expect(handsFor(['cut_hand'])).toHaveLength(1);
   });
 });
 

@@ -125,3 +125,11 @@ El modelo (`Galley`) expone las mismas operaciones para el jugador y para cualqu
 - **Clientes sin mesa**: la fila de espera tiene paciencia (barra sobre el cliente); al agotarse se van.
 - **Pausa**: con menús, celu o tablero de pausa abierto se congelan movimiento, tweens, partículas, lluvia y agua. Diálogos, escenas y transiciones siguen corriendo.
 - **Arroz/fogón**: la barra tiene menos margen tras estar listo (arroz: 4 s en su punto, 8 s amarillo, quema a los 12 s).
+
+## Spicy en la cocina, mejoras visibles y cartel (añadido)
+
+- **Quién hace qué**: Spicy es el cocinero: con `rice_hand` camina por la cocina y mantiene arroz cocido listo; con `cut_hand` (necesita `rice_hand`) también corta lo que piden los tickets y lo deja en las mesadas de apoyo (5 s por pieza). Rigg lleva los platos con el timbre (`service_bell`) y Pip recibe a los clientes. Spicy usa el movimiento del pueblo (`town.duty`), no un cuerpo aparte; trabaja durante el servicio y solo si está en el equipo. En la cocina física el «cocinar» abstracto del personal queda apagado.
+- **Mejoras caras y visibles**: `rice_big` cambia el prop de la arrocera por una más grande y dorada (`k_ricepot2`, ver `alt` en `galley/layout.ts`), `board2` agrega la segunda tabla. Precios 900–3200.
+- **Cartel interior**: el cartel de la pared del salón muestra el nombre que eligió el jugador (dos líneas).
+- **Plaza**: gatos y perros recorren la plaza con más frecuencia (esperas de 4–13 s).
+- **Música**: al aire libre de noche no suena música (grillos/olas como ambiente); la música vuelve de día y en interiores.

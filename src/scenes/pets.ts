@@ -66,7 +66,7 @@ export class Pets {
       s.play(`pet_${spot.kind}_idle`);
       const home = this.safe(spot.route?.[0] ?? [spot.tx, spot.ty]);
       const z = scene.add.text(x + 5, y - 18, 'z', { fontFamily: 'Pixelify Sans', fontSize: '7px', color: '#e7dcc2', stroke: '#362e36', strokeThickness: 1 }).setDepth(y + 2).setVisible(false);
-      this.pets.push({ spot, s, hopping: false, cool: 0, barking: false, path: [], pause: 18 + this.pets.length * 4, point: 0, home, sleeping: false, z });
+      this.pets.push({ spot, s, hopping: false, cool: 0, barking: false, path: [], pause: 3 + this.pets.length * 2, point: 0, home, sleeping: false, z });
     }
   }
 
@@ -116,7 +116,7 @@ export class Pets {
         if ([player, ...occupants].some(a => Math.hypot(a.x - x, a.y - y) < 10)) continue;
         const dx = x - p.s.x, dy = y - p.s.y, distance = Math.hypot(dx, dy), step = dt * (p.spot.name ? 15 : 12);
         if (Math.abs(dx) > 0.1) p.s.setFlipX(k.startsWith('cat') ? dx < 0 : dx > 0);
-        if (distance <= step) { p.s.setPosition(x, y); p.path.shift(); if (!p.path.length) p.pause = 18 + Math.random() * 22; }
+        if (distance <= step) { p.s.setPosition(x, y); p.path.shift(); if (!p.path.length) p.pause = 4 + Math.random() * 9; }
         else p.s.setPosition(p.s.x + dx / distance * step, p.s.y + dy / distance * step);
         p.s.setDepth(p.s.y + 1); p.z.setVisible(false);
         if (this.feet.sample(p.s, p.s.x, p.s.y, dt, false, true)) this.onStep?.(p.s.x, p.s.y);
@@ -132,9 +132,11 @@ export class Pets {
       if (p.spot.route && p.pause <= 0 && !p.hopping) {
         p.point = (p.point + 1) % p.spot.route.length;
         let at = p.spot.route[p.point];
+        // half the time they wander a few tiles around the spot instead of repeating the same corners
+        if (!p.spot.name && Math.random() < 0.5) at = [at[0] + Math.round(Math.random() * 8 - 4), at[1] + Math.round(Math.random() * 6 - 3)];
         const guest = p.spot.name && guests.length ? guests[p.point % guests.length] : null;
         if (guest) at = [Math.floor(guest.x / 16) + 1, Math.floor(guest.y / 16)];
-        this.walk(p, at); p.pause = 22;
+        this.walk(p, at); p.pause = 6 + Math.random() * 6;
         if (p.path.length) continue;
       }
       if (SHEETS[k].hop && !p.hopping && p.cool <= 0 && d < 30) {

@@ -1,3 +1,4 @@
+import { STATIONS } from '../galley/layout';
 import { game } from '../core/state';
 import { CHARACTERS, type RoutineStop } from '../data/characters';
 import { buildZone } from '../world/zoneRuntime';
@@ -53,7 +54,8 @@ export class TownLife {
     const origin = resident?.trip.position.zone === wanted.zone ? resident.trip.position : entry;
     const free = (x: number, y: number) => !grid.isSolid(x, y) &&
       !ZONES[wanted.zone].doors.some(d => Math.abs(d.x - x) + Math.abs(d.y - y) <= 1) &&
-      !ZONES[wanted.zone].interact.some(i => i.x === x && i.y === y) &&
+      // the kitchen's standing tiles hold an old interact spot, but they are exactly where crew work
+      (!ZONES[wanted.zone].interact.some(i => i.x === x && i.y === y) || wanted.zone === 'restaurant' && STATIONS.some(st => st.stand.some(([sx, sy]) => sx === x && sy === y))) &&
       !(wanted.zone === 'restaurant' && [8, 9].includes(x) && y >= 10) &&
       !this.occupied.some(p => p.zone === wanted.zone && p.x === x && p.y === y) &&
       ![...this.residents.values()].some(r => r.id !== id && (r.stop.zone === wanted.zone && r.stop.x === x && r.stop.y === y || r.trip.position.zone === wanted.zone && Math.round(r.trip.position.x) === x && Math.round(r.trip.position.y) === y)) &&
