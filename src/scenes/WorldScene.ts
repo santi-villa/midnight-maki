@@ -3236,7 +3236,7 @@ export class WorldScene extends Phaser.Scene {
       if (this.shopFacades.some(f => f.shop === spot.shopId)) continue;
       const status = shopGate(spot.shopId);
       const text = shopSignText(status);
-      if (!text) continue;
+      if (!text || text === 'CERRADO') continue; // a closed shop already shows its shutter; no loose plaques
       const x = spot.x * TILE;
       const y = spot.y * TILE + TILE - 2;
       // Service plaques, like the quest arrow, stay readable above the night multiply layer.

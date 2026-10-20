@@ -60,9 +60,22 @@
 
 @media (min-width: 900px) and (min-height: 560px) { .gl-tickets { top: calc(88px + var(--safe-t)); } }
 .gl-tickets > .gl-ticket, .gl-tickets > .gl-hint { align-self: stretch; }
+.gl-tickets > .gl-orders-chip { align-self: flex-end; }
 .gl-orders-chip { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 3px 10px; border-radius: 12px; border: 2px solid #5b3b26; background: #fff8ec; color: #3a2a1e; font: inherit; font-size: .9em; box-shadow: 0 2px 0 #5b3b26; cursor: pointer; }
 .gl-orders-chip .gl-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #c8483f; color: #fff; font-size: .85em; font-weight: 700; }
 .gl-orders-chip.late .gl-count { animation: gl-late 1s ease-in-out infinite alternate; }
 .gl-orders-chip .gl-caret { font-size: .8em; opacity: .75; }
 @keyframes gl-late { to { transform: scale(1.18); } }
 .reduce-motion .gl-orders-chip.late .gl-count { animation: none; }
+
+/* orders: compact cards that open on touch; ingredients read as small tags */
+.gl-ticket { pointer-events: auto; cursor: pointer; padding: 5px 8px 6px; }
+.gl-ticket-head { align-items: center; }
+.gl-ticket-head .hint { flex: 1; text-align: right; }
+.gl-ticket-head .gl-caret { font-size: .8em; opacity: .6; }
+.gl-line { align-items: baseline; }
+.gl-line .gl-state { grid-column: 2; }
+.gl-needs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; line-height: 1.1; font-size: .78em; color: #3a2a1e; }
+.gl-need { padding: 1px 6px; border-radius: 8px; background: #efdcb0; border: 1px solid #dcc08e; white-space: nowrap; }
+.gl-need.cup { background: #d9ecf2; border-color: #a8cdd8; }
+.gl-ticket.open { box-shadow: 0 4px 14px rgba(63, 46, 34, .35); }

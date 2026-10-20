@@ -148,7 +148,7 @@ export async function chatMenu(who: string, ctx: TalkCtx, free: () => Promise<vo
   const topics: Topic[] = ['how', 'doing', 'town', 'news', 'restaurant'];
   for (;;) {
     const labels = ['Charlar de lo que sea', ...topics.map((t) => TOPIC_LABEL[t]), 'Volver'];
-    const c = await choose(labels, 'player', 'Charlar…');
+    const c = await choose(labels, 'player', 'Charlar…', { cancel: labels.length - 1, away: await awayFrom(who) });
     if (c === labels.length - 1) return;
     if (c === 0) { await free(); continue; }
     const topic = topics[c - 1];
@@ -162,7 +162,7 @@ export async function chatMenu(who: string, ctx: TalkCtx, free: () => Promise<vo
 export async function giftMenu(id: string): Promise<boolean> {
   const hasFurn = RACCOONS.includes(id) && Object.values(game.save.furnitureOwned).some((n) => n > 0);
   const opts = ['Un objeto de la mochila', ...(hasFurn ? ['Un mueble guardado'] : []), 'Volver'];
-  const c = opts[await choose(opts, 'player', 'Regalar…')];
+  const c = opts[await choose(opts, 'player', 'Regalar…', { cancel: opts.length - 1, away: await awayFrom(id) })];
   if (c === 'Un objeto de la mochila') {
     const item = await pickGift();
     if (item) { await giveGift(id, item); return true; }
@@ -187,7 +187,7 @@ async function moreMenu(id: string, ctx: TalkCtx, raccoon: boolean): Promise<(()
   const company = raccoon && world.canKeepCompany(id);
   const opts = ['Sacarnos una foto', 'Contarle un chiste', ...(company ? ['Sentarnos juntos', 'Compartir una merienda', 'Jugar', 'Acariciar'] : []),
     ...(raccoon && game.friendLevel(id) >= 1 ? ['Cambiar su atuendo'] : []), 'Volver'];
-  const pick = opts[await choose(opts, 'player', 'Más acciones…')];
+  const pick = opts[await choose(opts, 'player', 'Más acciones…', { cancel: opts.length - 1, away: await awayFrom(id) })];
   if (pick === 'Contarle un chiste') {
     const l = topicLine('joke', ctx);
     await say('player', l.joke!);

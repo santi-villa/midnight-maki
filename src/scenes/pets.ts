@@ -14,12 +14,12 @@ export const PETS_ATLAS_URL = atlasURL;
 type Sheet = { y: number; w: number; h: number; frames: number };
 const sheets = catalog as unknown as Record<string, Sheet>;
 
-export interface PetSpot { zone: string; kind: 'cat_brown' | 'cat_white' | 'cat_siamese' | 'dog_sleep' | 'dog_golden' | 'frog'; tx: number; ty: number; dx?: number; dy?: number; day?: boolean; name?: string; route?: [number, number][] }
+export interface PetSpot { zone: string; kind: 'cat_brown' | 'cat_white' | 'cat_siamese' | 'dog_sleep' | 'dog_golden' | 'frog'; tx: number; ty: number; dx?: number; dy?: number; day?: boolean; name?: string; roam?: boolean; route?: [number, number][] }
 
 /** where each pet lives (tile of a bench or a reed bed, plus a pixel offset) */
 export const PET_SPOTS: PetSpot[] = [
-  { zone: 'plaza', kind: 'cat_brown', tx: 11, ty: 17, dx: 8, dy: 5, route: [[11, 18], [9, 18], [11, 16]] },
-  { zone: 'plaza', kind: 'cat_white', tx: 21, ty: 14, dx: 8, dy: 5, route: [[21, 15], [23, 15], [23, 13]] },
+  { zone: 'plaza', kind: 'cat_brown', roam: true, tx: 11, ty: 17, dx: 8, dy: 5, route: [[11, 18], [9, 18], [11, 16]] },
+  { zone: 'plaza', kind: 'cat_white', roam: true, tx: 21, ty: 14, dx: 8, dy: 5, route: [[21, 15], [23, 15], [23, 13]] },
   // (the two dogs were removed: their art did not match the pixel style of the game)
   { zone: 'garden', kind: 'cat_siamese', tx: 13, ty: 8, dx: 8, dy: 5, route: [[13, 9], [12, 11], [15, 9]] },
   { zone: 'restaurant', kind: 'cat_siamese', name: 'Miso', tx: 17, ty: 12, route: [[17, 12], [16, 8], [6, 10]] },
@@ -133,9 +133,12 @@ export class Pets {
         let at = p.spot.route[p.point];
         // half the time they wander a few tiles around the spot instead of repeating the same corners
         if (!p.spot.name && Math.random() < 0.5) at = [at[0] + Math.round(Math.random() * 8 - 4), at[1] + Math.round(Math.random() * 6 - 3)];
+        // the plaza cats are village cats: they walk to a far corner of the whole town now and then
+        if (p.spot.roam && this.grid && Math.random() < 0.7) at = [1 + Math.floor(Math.random() * (this.grid.w - 2)), 1 + Math.floor(Math.random() * (this.grid.h - 2))];
         const guest = p.spot.name && guests.length ? guests[p.point % guests.length] : null;
         if (guest) at = [Math.floor(guest.x / 16) + 1, Math.floor(guest.y / 16)];
         this.walk(p, at); p.pause = 6 + Math.random() * 6;
+        if (p.spot.roam && p.path.length > 90) p.path.length = 90; // long trips happen in a few legs
         if (p.path.length) continue;
       }
       if (SHEETS[k].hop && !p.hopping && p.cool <= 0 && d < 30) {

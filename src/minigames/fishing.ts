@@ -213,8 +213,10 @@ export function fish(kind: 'sea' | 'lake'): Promise<string | null> {
         const s = Math.sin(t / 25) * 2;
         g.fillStyle = '#ffe08a'; g.fillRect(W / 2 - 2 + s, SURFACE - 14, 4, 8); g.fillRect(W / 2 - 2 + s, SURFACE - 4, 4, 3);
         // time left to react
-        g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(14, H - 12, W - 28, 4);
-        g.fillStyle = '#ffe08a'; g.fillRect(14, H - 12, (W - 28) * Math.max(0, biteT / biteLeft), 4);
+        // a small bar under the fish: when it empties, the fish swims away
+        const left = Math.max(0, biteT / biteLeft);
+        g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(W / 2 - 15, SURFACE + 7, 30, 5);
+        g.fillStyle = left > 0.35 ? '#ffe08a' : '#f08a7a'; g.fillRect(W / 2 - 14, SURFACE + 8, 28 * left, 3);
         if (biteT <= 0) { startWait(true); }
       } else if (state === 'reel' || state === 'won') {
         const reeling = state === 'reel';

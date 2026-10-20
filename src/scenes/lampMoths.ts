@@ -10,7 +10,7 @@ export interface LampSpot { x: number; y: number; r: number; kind?: string; faca
 interface Moth { s: Phaser.GameObjects.Image; lamp: LampSpot; a: number; w: number; base: number; phase: number; flap: number; hop: number }
 
 const KEY = 'lamp_moth';
-const MAX_MOTHS = 28;
+const MAX_MOTHS = 160; // every lamp of the town gets company; sprites far from the camera are hidden and cost nothing
 const PER_LAMP = 3;
 
 /** two frames of a 5×4 moth: wings open, wings folded */
@@ -42,8 +42,8 @@ export class LampMoths {
     ensureTextures(scene);
     const spots = mothLamps(lamps);
     for (const lamp of spots) {
-      for (let i = 0; i < PER_LAMP && this.moths.length < MAX_MOTHS; i++) {
-        if (rng() < 0.3) continue; // not every lamp has the same company
+      const n = 1 + Math.floor(rng() * PER_LAMP); // one to three per lamp, never none
+      for (let i = 0; i < n && this.moths.length < MAX_MOTHS; i++) {
         const s = scene.add.image(lamp.x, lamp.y, KEY, 0).setDepth(210001).setAlpha(0.92);
         this.moths.push({ s, lamp, a: rng() * Math.PI * 2, w: (1.4 + rng() * 1.8) * (rng() < 0.5 ? -1 : 1), base: 6 + rng() * 8, phase: rng() * 6, flap: rng() * 1, hop: 1 + rng() * 3 });
       }

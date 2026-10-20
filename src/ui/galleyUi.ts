@@ -122,17 +122,25 @@ export function runCutBar(spec: CutSpec, label: string, onDone: (verdict: CutVer
 // ------------------------------------------------------------------ tickets
 let ticketsEl: HTMLElement | null = null;
 let ticketsKey = '';
+/** tickets the player opened to read the ingredients */
+const ticketsExpanded = new Set<string>();
 /** The orders fold into a small chip ("Pedidos 3 ▾") so they do not cover the kitchen; the choice is remembered. */
 let ticketsOpen = (() => { try { return localStorage.getItem('mm_ticketsopen') === '1'; } catch { return false; } })();
 
 export function showTickets(list: Ticket[], visible: boolean, hint: string | null) {
   if (!visible || (!list.length && !hint)) { ticketsEl?.classList.add('hidden'); return; }
-  const key = JSON.stringify(list.map((t) => [t.id, t.lines.map((l) => [l.recipe, l.waiting, l.ready]), Math.round(t.patience * 20), t.impatient])) + (hint ?? '') + ticketsOpen;
+  const key = JSON.stringify(list.map((t) => [t.id, t.lines.map((l) => [l.recipe, l.waiting, l.ready]), Math.round(t.patience * 20), t.impatient])) + (hint ?? '') + ticketsOpen + [...ticketsExpanded].join(',');
   if (!ticketsEl) { ticketsEl = h('div', { class: 'gl-tickets', 'aria-label': 'Pedidos de la cocina' }); root().append(ticketsEl); }
   ticketsEl.classList.remove('hidden');
   // sit right under the round buttons (the mission line is on the other side), wherever they end up on this screen
   const below = ['.hud-buttons'].map((q) => document.querySelector<HTMLElement>(q)).filter((el): el is HTMLElement => !!el && el.offsetParent !== null).reduce((m, el) => Math.max(m, el.getBoundingClientRect().bottom), 0);
   if (below > 0) ticketsEl.style.top = `${Math.round(below + 3)}px`;
+  // as wide as the round buttons: from the bag to the pause button
+  const btns = [...document.querySelectorAll<HTMLElement>('.hud-buttons .icon-btn')].filter((el) => el.offsetParent !== null);
+  if (btns.length) {
+    const left = Math.min(...btns.map((b) => b.getBoundingClientRect().left)), right = Math.max(...btns.map((b) => b.getBoundingClientRect().right));
+    ticketsEl.style.left = `${Math.round(left)}px`; ticketsEl.style.width = `${Math.round(right - left)}px`; ticketsEl.style.right = 'auto';
+  }
   if (key === ticketsKey) return;
   ticketsKey = key;
   const pending = list.filter((t) => !t.done).length;
@@ -146,14 +154,22 @@ export function showTickets(list: Ticket[], visible: boolean, hint: string | nul
       showTickets(list, visible, hint);
     },
   }, h('b', null, 'Pedidos'), h('span', { class: 'gl-count' }, String(pending || list.length)), h('span', { class: 'gl-caret', 'aria-hidden': 'true' }, ticketsOpen ? '▴' : '▾')) : null;
-  const cards = ticketsOpen ? list.slice(0, 3).map((t) => h('div', { class: 'gl-ticket paper' + (t.done ? ' done' : '') + (t.impatient ? ' late' : '') },
-    h('div', { class: 'gl-ticket-head' }, h('b', null, t.label), h('span', { class: 'hint' }, t.who)),
-    ...t.lines.map((l) => h('div', { class: 'gl-line' },
-      h('span', { class: 'gl-qty' }, `${l.waiting + l.ready}×`),
-      h('span', { class: 'gl-name' }, l.name),
-      h('span', { class: 'gl-state' + (l.waiting ? '' : ' ok') }, l.waiting ? (l.ready ? `${l.ready} listo` : 'pendiente') : '✓ en el mostrador'),
-      h('div', { class: 'gl-needs' }, [...(l.cup ? ['Vaso'] : []), ...l.needs.map((n) => `${n.count > 1 ? n.count + '× ' : ''}${itemLabel({ kind: 'ing', uid: 0, ing: n.ing, form: n.form, q: 2 })}`)].join(' · ')))),
-    h('div', { class: 'gl-patience', role: 'img', 'aria-label': `Paciencia ${Math.round(t.patience * 100)}%` }, h('i', { style: { width: `${Math.round(t.patience * 100)}%` } })))) : [];
+  const needChips = (l: Ticket['lines'][number]) => [...(l.cup ? [h('span', { class: 'gl-need cup' }, 'Vaso')] : []),
+    ...l.needs.map((n) => h('span', { class: 'gl-need' }, `${n.count > 1 ? n.count + '× ' : ''}${itemLabel({ kind: 'ing', uid: 0, ing: n.ing, form: n.form, q: 2 })}`))];
+  const cards = ticketsOpen ? list.slice(0, 3).map((t) => {
+    const open = ticketsExpanded.has(t.id);
+    return h('div', {
+      class: 'gl-ticket paper' + (t.done ? ' done' : '') + (t.impatient ? ' late' : '') + (open ? ' open' : ''), role: 'button', tabindex: '0', 'aria-expanded': String(open),
+      onclick: () => { if (open) ticketsExpanded.delete(t.id); else ticketsExpanded.add(t.id); ticketsKey = ''; showTickets(list, visible, hint); },
+    },
+      h('div', { class: 'gl-ticket-head' }, h('b', null, t.label), h('span', { class: 'hint' }, t.who), h('span', { class: 'gl-caret', 'aria-hidden': 'true' }, open ? '▴' : '▾')),
+      ...t.lines.map((l) => h('div', { class: 'gl-line' },
+        h('span', { class: 'gl-qty' }, `${l.waiting + l.ready}×`),
+        h('span', { class: 'gl-name' }, l.name),
+        h('span', { class: 'gl-state' + (l.waiting ? '' : ' ok') }, l.waiting ? (l.ready ? `${l.ready} listo` : 'pendiente') : '✓ en el mostrador'),
+        open ? h('div', { class: 'gl-needs' }, ...needChips(l)) : null)),
+      h('div', { class: 'gl-patience', role: 'img', 'aria-label': `Paciencia ${Math.round(t.patience * 100)}%` }, h('i', { style: { width: `${Math.round(t.patience * 100)}%` } })));
+  }) : [];
   const more = ticketsOpen && list.length > 3 ? [h('div', { class: 'gl-more' }, `+${list.length - 3} más`)] : [];
   ticketsEl.replaceChildren(...(chip ? [chip] : []), ...cards, ...more, ...(hint ? [h('div', { class: 'gl-hint paper' }, hint)] : []));
 }
