@@ -452,4 +452,21 @@ describe('cuts, hints and the lesson', () => {
     expect(tutorialStep(1, { g, served })).toBe(2);
     expect(tutorialStep(TUTORIAL.length, { g, served })).toBe(TUTORIAL.length);
   });
+  it('the arrow follows the work: fridge, then cooker, then the board', async () => {
+    const { tutorialStation } = await import('../galley/tutorial');
+    const served = new Set<string>();
+    expect(tutorialStation(0, { g, served })).toBe('fridge');
+    take('rice');
+    expect(tutorialStation(1, { g, served })).toBe('rice');
+    act('rice', 'put');
+    g.tick(COOK.rice.time + 0.1);
+    expect(tutorialStation(2, { g, served })).toBe('rice');
+    act('rice', 'take');
+    act('hangiri', 'put');
+    expect(tutorialStation(3, { g, served })).toBe('fridge'); // the cucumber is still in the fridge
+    take('cucumber');
+    expect(tutorialStation(3, { g, served })).toBe('board_1');
+    expect(tutorialStation(5, { g, served })).toBe('assembly');
+    expect(tutorialStation(6, { g, served })).toBe('assembly'); // not carrying the dish yet: fetch it
+  });
 });

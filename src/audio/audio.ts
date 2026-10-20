@@ -93,6 +93,8 @@ const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
  */
 const MUSIC_FILES = import.meta.glob('../music/*.{mp3,ogg,m4a,wav,webm,opus}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const NIGHT_FILES = import.meta.glob('./*night-ambience*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+/** The sea on the beach: waves, wind and gulls (`beach-waves.mp3`). Without it the synthesized waves play. */
+const BEACH_FILES = import.meta.glob('./beach-waves*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 /** Real rain recordings: `rain-outside.mp3` and `rain-inside.mp3` (the muffled one indoors). Without them the synthesized rain plays. */
 const RAIN_FILES = import.meta.glob('./rain-*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const rainUrl = (inside: boolean) => Object.entries(RAIN_FILES).find(([name]) => name.includes(inside ? 'inside' : 'outside'))?.[1];
@@ -137,6 +139,7 @@ export class AudioEngine {
   private requestedAmbience = 'none';
   private windowDropTimer: number | null = null;
   private gullTimer: number | null = null;
+  private nightBedUrl = '';
   private nightBed: { el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode } | null = null;
   private rainBeds: Partial<Record<'inside' | 'outside', { el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode }>> = {};
   private rainKind: 'inside' | 'outside' | null = null;
@@ -537,18 +540,20 @@ export class AudioEngine {
   }
 
   /** Wind and crickets, quieter than the generated bed. Falls back to soft noise if the file cannot play. */
-  private startNightBed(): boolean {
-    const url = Object.values(NIGHT_FILES)[0];
+  private startNightBed(file?: string, volume = 0.1): boolean {
+    const url = file ?? Object.values(NIGHT_FILES)[0];
     const c = this.ctx;
     if (!c || !url || typeof Audio === 'undefined') return false;
-    if (this.nightBed) { this.tryNightBed(); return true; }
+    if (this.nightBed && this.nightBedUrl === url) { this.tryNightBed(); return true; }
+    if (this.nightBed) this.stopNightBed();
+    this.nightBedUrl = url;
     const el = new Audio();
     el.src = url;
     el.loop = true;
     el.preload = 'auto';
     const node = c.createMediaElementSource(el);
     const gain = c.createGain();
-    gain.gain.value = 0.1;
+    gain.gain.value = volume;
     node.connect(gain).connect(this.amb);
     this.nightBed = { el, node, gain };
     this.tryNightBed();
@@ -648,9 +653,11 @@ export class AudioEngine {
       return;
     }
     this.retireAmbience();
-    if (kind !== 'night') this.stopNightBed();
+    const beach = Object.values(BEACH_FILES)[0];
+    if (kind !== 'night' && !(waves && beach)) this.stopNightBed();
     if (kind === 'none') return;
     if (kind === 'night' && this.startNightBed()) return;
+    if (waves && beach && this.startNightBed(beach, kind === 'waves' ? 0.4 : 0.26)) { if (kind === 'waves') this.queueGull(); return; }
     const f = c.createBiquadFilter();
     const g = c.createGain();
     const bed: AmbienceBed = { sources: [], nodes: [f, g], gain: g, filter: f, rain, waves };
