@@ -12,7 +12,7 @@ import { playerBusy } from '../restaurant/claims';
 import { celebrate, showServeResult } from '../restaurant/kitchen';
 import { customerName, serveOrder } from '../restaurant/orders';
 import type { CookResult } from '../restaurant/cooking';
-import { guestViews, plateState, stagePlate } from '../restaurant/service';
+import { guestViews, plateState, stagePlate, tableLabel } from '../restaurant/service';
 import { addEnergy, DISH_COST } from '../systems/fatigue';
 import type { DishItem, DrinkItem } from './prep';
 import { DRINK_BY_ID } from '../restaurant/drinkData';
@@ -40,6 +40,13 @@ export function drinkOrderFor(drink: string): Order | null {
   return game.save.orders.filter((o) => o.kind === 'drink' && o.recipe === drink && !o.plate && o.service && plateState(o.uid) === 'cooking')
     .map((o) => { const v = views.find((x) => x.id === o.service!.partyId); return { o, u: v && v.phase === 'waiting_food' ? v.patience / Math.max(1, v.maxPatience) : Infinity }; })
     .filter((x) => x.u !== Infinity).sort((a, b) => a.u - b.u || a.o.uid - b.o.uid)[0]?.o ?? null;
+}
+
+/** Who a finished dish or drink would go to right now (the same pick `deliverDish` makes). */
+export function targetFor(item: DishItem | DrinkItem): { label: string; table: string | null } | null {
+  const o = item.kind === 'drink' ? drinkOrderFor(item.drink) : orderFor(item.recipe);
+  if (!o) return null;
+  return o.service ? { label: `${tableLabel(o.service.tableId)} · ${customerName(o.customer)}`, table: tableLabel(o.service.tableId) } : { label: `Mostrador · ${customerName(o.customer)}`, table: 'Mostrador' };
 }
 
 export function deliverDish(dish: DishItem | DrinkItem): { ok: boolean; msg?: string; uid?: number } {

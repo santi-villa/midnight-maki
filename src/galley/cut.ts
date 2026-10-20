@@ -33,7 +33,7 @@ export function cutSpec(d: CutDifficulty, rng: () => number, previousStart?: num
   let start = lo + rng() * (hi - lo);
   for (let i = 0; i < 6 && previousStart !== undefined && Math.abs(start - previousStart) < 0.18; i++) start = lo + rng() * (hi - lo);
   if (previousStart !== undefined && Math.abs(start - previousStart) < 0.18) start = previousStart < (lo + hi) / 2 ? hi : lo;
-  return { start, width, speed, limit: 3 };
+  return { start, width, speed, limit: 2.4 };
 }
 
 /** Where the indicator is after `t` seconds: a triangle wave between 0 and 1, so it bounces. */
@@ -53,6 +53,19 @@ export function judgeCut(pos: number, spec: CutSpec): CutVerdict {
 }
 
 export const VERDICT_GRADE: Record<CutVerdict, Grade> = { perfect: 3, good: 2, regular: 1, fail: 0 };
+
+/** Cuts in a row at the start; the knives bring it down (Cuchillo de Spicy: 4, Cuchillo afilado: 3). */
+export const BASE_CUTS = 5;
+export function cutsNeeded(upgrades: readonly string[]): number {
+  return BASE_CUTS - (upgrades.includes('knife') ? 1 : 0) - (upgrades.includes('knife2') ? 1 : 0);
+}
+
+/** The result of a whole series of cuts: the average of their grades, rounded to the nearest verdict. */
+export function combineVerdicts(vs: readonly CutVerdict[]): CutVerdict {
+  if (!vs.length) return 'fail';
+  const mean = vs.reduce((n, v) => n + VERDICT_GRADE[v], 0) / vs.length;
+  return mean >= 2.6 ? 'perfect' : mean >= 1.7 ? 'good' : mean >= 0.8 ? 'regular' : 'fail';
+}
 
 /** How hard the board is right now: the cooking mode and the time of day (the evening is busier). */
 export function cutLevel(mode: 'relaxed' | 'normal' | 'challenge', period: number): number {

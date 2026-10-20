@@ -352,12 +352,13 @@ async function meetRaccoons() {
 
 async function tutSpicy() {
   await say('spicy', '¡Ah, mi aprendiz! Primera lección: el sushi no se apura. Se acompaña.', 'happy');
-  await say('spicy', 'Los pedidos aparecen en el mostrador. Elegís uno, venís a la tabla de cocina y lo preparamos juntos.');
-  await say('spicy', 'Rigg dejó un pedido de práctica: un Kappa maki. Pepino, arroz, alga. Simple, honesto, crocante.');
-  await say('spicy', 'En la cocina vas a arrastrar ingredientes, esparcir arroz, enrollar y cortar. No hay apuro: modo relajado. Siempre podés cambiarlo en Ajustes.');
-  await say('spicy', 'El arroz, el alga y el pepino de hoy ya están en tu mochila. Cuando se acaben, se compran en lo de Taro y se guardan en la despensa, al lado de esta tabla.');
+  await say('spicy', 'Los pedidos aparecen en unas tarjetitas en pantalla. Los preparás vos, caminando por la cocina.');
+  await say('spicy', 'Rigg dejó dos pedidos de práctica: un Kappa maki y un Nigiri de salmón. Dos platos distintos para aprender los dos caminos.');
+  await say('spicy', 'En la cocina caminás de estación en estación: sacás los ingredientes de la heladera, cocinás el arroz en la arrocera, cortás en la tabla y armás en la mesa. Yo te voy guiando paso a paso con una tarjeta en pantalla.');
+  await say('spicy', 'El arroz, el alga, el pepino y el salmón de hoy ya están en tu mochila. Cuando se acaben, se compran en lo de Taro y se guardan en la despensa, al lado de esta tabla.');
   game.save.orders = game.save.orders.filter((o) => o.special !== 'tutorial');
   game.addOrder({ recipe: 'kappa', customer: 'rigg', reward: 20, special: 'tutorial' });
+  game.addOrder({ recipe: 'sake_nigiri', customer: 'rigg', reward: 24, special: 'tutorial' });
   game.setFlag('tut_spicy');
 }
 

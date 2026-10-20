@@ -200,6 +200,9 @@ export class Galley {
     }
     // with an empty hand the useful verb comes first; with something in the hand, putting it down does
     if (!held) out.sort((a, b) => rank(a) - rank(b));
+    // a dish that is ready to be put together is what the table is for: it comes first
+    const at = out.indexOf('assemble');
+    if (at > 0) { out.splice(at, 1); out.unshift('assemble'); }
     return out;
   }
 

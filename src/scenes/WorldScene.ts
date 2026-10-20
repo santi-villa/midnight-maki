@@ -2057,17 +2057,19 @@ export class WorldScene extends Phaser.Scene {
     if (primary) this.perform(primary);
   }
 
-  /** Space: the numbered list of everything on offer (or the only action when there is one). */
+  /** Space: talk to whoever is close. */
   tryAlternate() {
-    const offer = this.contextOffer;
-    if (needsMore(offer)) { void import('../ui/hud').then((m) => m.toggleMoreMenu()); return; }
-    const only = offer.primary ?? offer.chip;
-    if (only) this.perform(only);
+    if (this.contextOffer.talk) this.perform(this.contextOffer.talk);
   }
 
-  /** F: talk to whoever is close. */
+  /** F: the second action. */
   trySecondary() {
     if (this.contextOffer.chip) this.perform(this.contextOffer.chip);
+  }
+
+  /** Q: the numbered list of everything on offer. */
+  tryMore() {
+    if (needsMore(this.contextOffer)) void import('../ui/hud').then((m) => m.toggleMoreMenu());
   }
 
   /** Run one contextual action. Keyboard uses the primary; the HUD may pass any of them. */
@@ -2265,12 +2267,12 @@ export class WorldScene extends Phaser.Scene {
       })),
       pets: this.pets?.interactions,
       neighbors: [...this.neighborBodies.entries()].filter(([, b]) => b.actor.sprite.visible).map(([id, b]) => ({ id, name: NEIGHBOR_BY_ID[id]?.name ?? id, x: b.actor.x, y: b.actor.y - 4 })),
-      interacts: this.zone.def.interact.filter((i) => condOk(i.cond) && !this.galleyOwns(i)).map((i) => {
+      interacts: this.galleyView.holdingPlate() ? [] : this.zone.def.interact.filter((i) => condOk(i.cond) && !this.galleyOwns(i)).map((i) => {
         if (!i.action.startsWith('shop:')) return i;
         const label = shopButtonLabel(shopGate(i.action.slice(5)), i.label);
         return label === i.label ? i : { ...i, label };
       }),
-      doors: this.zone.def.doors,
+      doors: this.galleyView.holdingPlate() ? [] : this.zone.def.doors,
       gathers: this.gatherSprites.map((g) => ({
         x: g.spot.x * TILE + 8,
         y: g.spot.y * TILE + 10,
