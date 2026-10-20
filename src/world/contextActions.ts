@@ -9,7 +9,7 @@ import { DRINK_BY_ID } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { ZONES, type DoorDef, type InteractDef, type RoomDef } from '../data/zones';
 import { canCook, customerName } from '../restaurant/orders';
-import { carriedOrder, trayOrders, tableJobs, type TableJob } from '../restaurant/service';
+import { carriedOrder, guestViews, trayOrders, tableJobs, type TableJob } from '../restaurant/service';
 import { galleyOn } from '../galley/mode';
 import { hostHasIngredients, mirror } from '../restaurant/mirror';
 import type { GatherSpot } from '../systems/gather';
@@ -56,7 +56,7 @@ export interface ContextAction {
 /** Talking to someone (a character or a neighbour). */
 export const isTalk = (a: ContextAction | null | undefined): boolean => !!a && (a.id.startsWith('npc:') || a.id.startsWith('nb:'));
 /** Things you do with somebody besides talking (company, a gift, petting): never the main action. */
-const isSocial = (a: ContextAction): boolean => a.id.startsWith('company:') || a.id.startsWith('gift:') || a.id.startsWith('pet:');
+const isSocial = (a: ContextAction): boolean => a.id.startsWith('company:') || a.id.startsWith('gift:') || a.id.startsWith('pet:') || a.id === 'decorate';
 
 /**
  * E and F are the two best things to do, Space talks, and the numbered list (Q) holds everything in the order it was first
@@ -135,8 +135,10 @@ export function isPlayerRoom(room: { id: string; owner?: string } | null | undef
 
 /** Why decoration is refused, or null when this room may be edited. */
 export function decorateBlockReason(room: { id: string; name: string; owner?: string } | null | undefined): string | null {
-  if (!room || room.id === 'hall') return 'Para decorar, entrá a tu habitación.';
+  if (!room || room.id === 'hall') return 'Para decorar, entrá a tu habitación o al salón del restaurante.';
   if (isPlayerRoom(room)) return null;
+  // the dining room is the restaurant's own: tables and chairs can be moved while nobody is being served
+  if (room.id === 'dining') return guestViews().length ? 'Hay clientes en el salón. Editalo cuando esté vacío (antes de abrir o al cerrar).' : null;
   if (room.owner) return `No podés cambiar ${room.name}. La decoración es solo de tu habitación.`;
   return 'Solo podés decorar tu habitación.';
 }
@@ -397,11 +399,12 @@ export function resolveContext(sense: ContextSense): ContextOffer {
   });
   for (const g of sense.galley ?? []) consider(bag, g.action, g.x, g.y, 44, sense, 1, g.bias - TILE);
   addTables(bag, sense);
-  if (isPlayerRoom(sense.room)) {
+  if (isPlayerRoom(sense.room) || sense.room?.id === 'dining') {
+    const hall = sense.room?.id === 'dining';
     keep(bag, {
       id: 'decorate',
-      label: 'Decorar',
-      detail: 'Decorar tu habitación',
+      label: hall ? 'Editar salón' : 'Decorar',
+      detail: hall ? 'Mover mesas, sillas y decoración del salón' : 'Decorar tu habitación',
       icon: 'decor',
       intent: { type: 'decorate' },
     }, 40);
