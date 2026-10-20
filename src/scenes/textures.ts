@@ -5,6 +5,7 @@ import { furnitureCanvas } from '../art/furniture';
 import { interiorObject } from '../art/interiors';
 import { farmObject, farmPiece } from '../art/farm';
 import { hasVillageAtlas, villageObject } from '../art/villageAssets';
+import { game } from '../core/state';
 import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { drawPlaque, pixTextWidth } from '../art/pixfont';
 import type { ShopPhase } from '../systems/schedule';
@@ -134,10 +135,13 @@ export function customerTexture(scene: Phaser.Scene, id: CustomerId, seed = '', 
 }
 
 export function propTexture(scene: Phaser.Scene, key: string, closed = false): string {
-  const k = 'pr_' + key + (closed ? '_closed' : '');
+  // the facade's sign shows the restaurant's name, so its texture is keyed by that name too
+  const facade = /^bld_restaurant(_s[0-3])?$/.test(key);
+  const sign = game.save.player.restaurantName || 'Midnight Maki';
+  const k = 'pr_' + key + (closed ? '_closed' : '') + (facade ? '_' + sign : '');
   if (!scene.textures.exists(k)) {
     const d = PROPS[key];
-    scene.textures.addCanvas(k, farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
+    scene.textures.addCanvas(k, farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed, sign) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
   }
   return k;
 }
