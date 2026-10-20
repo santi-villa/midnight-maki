@@ -110,3 +110,11 @@ El modelo (`Galley`) expone las mismas operaciones para el jugador y para cualqu
 - **Controles**: E = mejor acción que no sea hablar; F = hablar; Espacio = lista numerada con todo (1, 2, 3… eligen). Compañía/Regalar/Acariciar nunca son la acción principal. Una acción nueva se agrega siempre al final de la lista.
 - **Máquinas automáticas**: arrocera, fogón y licuadora arrancan solas al cargar el primer ingrediente (la arrocera/fogón aceptan más porciones unos segundos, `COOK.*.grace`). Una sola barra por tanda: verde mientras cocina y en su punto, amarilla al pasarse (humo blanco), roja al estar por quemarse (humo negro y la máquina vibra); la marca indica cuándo está lista.
 - **Timbre de servicio** (mejora `service_bell`): en la cocina física el personal solo retira platos del mostrador cuando se toca el timbre (hace falta la mejora, un plato esperando y un empleado libre).
+
+## Ajustes de uso (añadido)
+
+- **Teclas**: E y F = las dos mejores acciones; **Espacio** = hablar; **Q** = lista numerada con todo (1, 2, 3… eligen). Compañía/Regalar/Acariciar solo están en la lista.
+- **Para quién es cada plato**: el plato (en la mesa de armado, en la licuadora, en las manos o en el mostrador) muestra «Para Mesa N»; el cartel de arriba dice «Llevás: plato → Mesa N · cliente». Con un plato en las manos solo hay acciones del plato (dejar, entregar, tirar).
+- **Corte**: 5 cortes seguidos al principio (4 con el Cuchillo de Spicy, 3 con el Cuchillo afilado `knife2`); el resultado es el promedio.
+- **Armado**: sobre la mesa un cartel dice «Listo: receta. ¡Armalo!» o «receta: falta X», y «Armar» pasa a ser la primera acción cuando se puede.
+- **Primera lección** (`src/galley/tutorial.ts`): tarjeta paso a paso con dos platos (Kappa maki y Nigiri de salmón), con sus pedidos de práctica; se puede omitir. Sumar platos = agregar pasos a `TUTORIAL`.

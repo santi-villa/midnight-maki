@@ -18,13 +18,17 @@ import { handsFor, type HandDef, type Step } from '../galley/crew';
 import { candidates } from '../restaurant/staff';
 import type { Grid } from '../world/grid';
 import { lookTexture } from './textures';
-import { cutLevel, cutSpec, type CutVerdict } from '../galley/cut';
+import { combineVerdicts, cutLevel, cutsNeeded, cutSpec, type CutVerdict } from '../galley/cut';
 import { galley, galleyOn, saveGalley } from '../galley';
 import { fridgeOpenCanvas, galleyItemCanvas, itemKey, PIXEL_BITS } from '../galley/art';
 import { STATIONS, STATION_BY_ID, stationCentre, type StationDef } from '../galley/layout';
 import { COOK, PLAYER, itemLabel, type GalleyEvent, type Verb } from '../galley/model';
 import type { GItem, IngItem } from '../galley/prep';
 import { tickets } from '../galley/tickets';
+import { TUTORIAL, TUTORIAL_DISHES, TUTORIAL_STOCK, tutorialStep } from '../galley/tutorial';
+import { bus } from '../core/events';
+import { closestRecipe } from '../galley/prep';
+import { targetFor } from '../galley/serve';
 import { SUPPLY_GROUPS } from '../restaurant/supplies';
 import { trayOrders } from '../restaurant/service';
 import { hasBell, ringBell, waitingPlates } from '../restaurant/staff';
@@ -32,7 +36,7 @@ import { clock } from '../systems/time';
 import { tooTiredToCook } from '../systems/fatigue';
 import type { ContextAction, Target } from '../world/contextActions';
 import { toast } from '../ui/dom';
-import { closeFridgePicker, cutting, fridgeOpen, openFridgePicker, removeGalleyUi, runCutBar, showTickets, type FridgeChoice } from '../ui/galleyUi';
+import { closeFridgePicker, cutting, fridgeOpen, openFridgePicker, removeGalleyUi, runCutBar, showTickets, showTutorial, type FridgeChoice } from '../ui/galleyUi';
 
 /** What the view needs from the world scene (kept as an interface so this file does not import it). */
 export interface GalleyHost {
@@ -74,6 +78,12 @@ export class GalleyView {
   private labels = new Map<string, Phaser.GameObjects.Text>();
   private steamT = 0;
   private shaken = new Map<string, number>();
+  private labelTexts = new Map<string, Phaser.GameObjects.Text>();
+  private labelT = 0;
+  private served = new Set<string>();
+  private offServed: (() => void) | null = null;
+  private tutT = 0;
+  private tutDoneAt = 0;
   private saveT = 0;
   private rack: Phaser.GameObjects.Image | null = null;
   private bellImg: Phaser.GameObjects.Image | null = null;
@@ -95,6 +105,7 @@ export class GalleyView {
     const cups = STATION_BY_ID.cups;
     this.rack = this.host.scene.add.image(cups.x * TILE + 8, cups.y * TILE + 4, this.tex({ kind: 'cup', uid: 0 })).setOrigin(0.5, 1).setScale(0.8).setDepth((cups.y + 1) * TILE + 0.5);
     galley();
+    this.offServed = bus.on('galley:served', (e) => { this.served.add(e.recipe); });
   }
 
   detach() {
@@ -114,6 +125,9 @@ export class GalleyView {
     this.fridgeDoor?.destroy(); this.fridgeDoor = null;
     this.rack?.destroy(); this.rack = null;
     this.bellImg?.destroy(); this.bellImg = null;
+    this.offServed?.(); this.offServed = null;
+    for (const t of this.labelTexts.values()) t.destroy();
+    this.labelTexts.clear();
     for (const [id, x] of this.shaken) { const st = STATION_BY_ID[id]; const img = this.host.propAt(st.x, st.y); if (img) img.x = x; }
     this.shaken.clear();
     this.knife?.destroy(); this.knife = null;
@@ -138,6 +152,8 @@ export class GalleyView {
     for (const [id, w] of this.workers) this.syncHeld(id, w.actor);
     this.syncPass();
     this.drawProgress();
+    this.updateLabels(dt);
+    this.updateTutorial(dt);
     this.steam(dt);
     this.saveT += dt;
     if (this.saveT > 4) { this.saveT = 0; saveGalley(); }
@@ -147,7 +163,8 @@ export class GalleyView {
       if (Math.hypot(this.host.player.x - c.x * TILE, this.host.player.y - 6 - c.y * TILE) > 34) closeFridgePicker();
     }
     const held = g.held(PLAYER)[0];
-    showTickets(tickets(), true, held ? `Llevás: ${itemLabel(held)}` : null);
+    const to = held && (held.kind === 'dish' || held.kind === 'drink') ? targetFor(held) : null;
+    showTickets(tickets(), true, held ? `Llevás: ${itemLabel(held)}${held.kind === 'dish' || held.kind === 'drink' ? (to ? ' → ' + to.label : ' · nadie lo pidió todavía') : ''}` : null);
   }
 
   // ------------------------------------------------------------------ station contents
@@ -192,6 +209,87 @@ export class GalleyView {
       this.pop(img, 0.72);
       return img;
     });
+  }
+
+  /** Small text over things that need explaining: who a plate is for, what the assembly table is waiting for. */
+  private text(key: string, text: string, color: string, x: number, y: number) {
+    let t = this.labelTexts.get(key);
+    if (!t?.active) {
+      t = this.host.scene.add.text(x, y, text, { fontFamily: 'Pixelify Sans, sans-serif', fontSize: '20px', color, stroke: '#2a2230', strokeThickness: 4, resolution: 2, align: 'center' }).setOrigin(0.5, 1).setScale(0.3).setDepth(90650);
+      this.labelTexts.set(key, t);
+    }
+    if (t.text !== text) t.setText(text);
+    t.setColor(color).setPosition(Math.round(x), Math.round(y));
+    return t;
+  }
+
+  private updateLabels(dt: number) {
+    const g = galley();
+    const p = this.host.player;
+    const held = g.held(PLAYER)[0];
+    const live = new Set<string>();
+    if (held && (held.kind === 'dish' || held.kind === 'drink')) {
+      const to = targetFor(held);
+      this.text('held', to ? `→ ${to.label}` : 'Nadie lo pidió', to ? '#ffe08a' : '#c9bfae', p.x, p.y - 22).setDepth(p.y + 1);
+      live.add('held');
+    }
+    this.labelT -= dt;
+    if (this.labelT <= 0) {
+      this.labelT = 0.4;
+      for (const s of STATIONS) {
+        const st = g.station(s.id);
+        const c = stationCentre(s);
+        for (const i of st.items) {
+          if (i.kind !== 'dish' && i.kind !== 'drink') continue;
+          const to = targetFor(i);
+          this.text(`${s.id}:${i.uid}`, to ? `Para ${to.table}` : 'Sin pedido', to ? '#ffe08a' : '#c9bfae', c.x * TILE, s.y * TILE - 4);
+          live.add(`${s.id}:${i.uid}`);
+        }
+        if (g.kind(s.id) === 'assembly' && !st.work) {
+          const near = closestRecipe(st.items.filter((i): i is IngItem => i.kind === 'ing'), (id) => game.save.recipesKnown.includes(id));
+          if (near) {
+            const miss = near.missing.map((n) => itemLabel({ kind: 'ing', uid: 0, ing: n.ing, form: n.form, q: 2 }).toLowerCase()).join(', ');
+            this.text('asm', near.ready ? `Listo: ${near.recipe.name}. ¡Armalo!` : `${near.recipe.name}: falta ${miss}`, near.ready ? '#bfe3a0' : '#f6ecd6', c.x * TILE, s.y * TILE - 4);
+            live.add('asm');
+          }
+        }
+      }
+    } else for (const k of this.labelTexts.keys()) if (k !== 'held') live.add(k);
+    for (const [k, t] of this.labelTexts) if (!live.has(k)) { t.destroy(); this.labelTexts.delete(k); }
+    if (!held || !(held.kind === 'dish' || held.kind === 'drink')) { const t = this.labelTexts.get('held'); if (t) { t.destroy(); this.labelTexts.delete('held'); } }
+  }
+
+  /** The first lesson: two dishes, one step at a time. It starts once Spicy has introduced the kitchen. */
+  private updateTutorial(dt: number) {
+    this.tutT -= dt;
+    if (this.tutT > 0) return;
+    this.tutT = 0.5;
+    if (game.has('galley_tut_done') || !game.has('tut_spicy')) { showTutorial(null, () => {}); return; }
+    if (!game.has('galley_tut')) {
+      // somebody who already served before this lesson existed does not need it
+      if (game.save.restaurant.served > 0) { game.setFlag('galley_tut_done'); return; }
+      for (const [id, n] of Object.entries(TUTORIAL_STOCK)) { const have = game.countUsable(id); if (have < n) game.addItem(id, n - have, 'tutorial'); }
+      for (const recipe of TUTORIAL_DISHES) if (!game.save.orders.some((o) => o.special === 'tutorial' && o.recipe === recipe)) game.addOrder({ recipe, customer: 'rigg', reward: 20, special: 'tutorial' });
+      game.setFlag('galley_tut', 1);
+    }
+    const from = Number(game.flag('galley_tut')) - 1;
+    const i = tutorialStep(from, { g: galley(), served: this.served });
+    if (i !== from) game.setFlag('galley_tut', i + 1);
+    const skip = () => { game.setFlag('galley_tut_done'); showTutorial(null, () => {}); };
+    if (i >= TUTORIAL.length) {
+      if (!this.tutDoneAt) this.tutDoneAt = performance.now();
+      showTutorial({ dish: '', n: i, of: TUTORIAL.length, text: '¡Ya sabés cocinar dos platos! Seguí los pedidos del salón: los tickets te dicen qué falta. Después vamos a sumar más recetas.', done: true }, skip);
+      if (performance.now() - this.tutDoneAt > 9000) skip();
+      return;
+    }
+    showTutorial({ dish: TUTORIAL[i].dish, n: i + 1, of: TUTORIAL.length, text: TUTORIAL[i].text }, skip);
+  }
+
+  /** True while carrying a finished dish or drink: then the only things to do are with the plate. */
+  holdingPlate(): boolean {
+    if (!this.active) return false;
+    const h = galley().held(PLAYER)[0];
+    return !!h && (h.kind === 'dish' || h.kind === 'drink');
   }
 
   /** The service bell on the pass: there once the upgrade is bought. */
@@ -398,7 +496,7 @@ export class GalleyView {
       case 'put': return kind === 'cooker'
         ? { label: 'Cargar', detail: `Poner ${held ? itemLabel(held).toLowerCase() : 'ingrediente'} en ${station.name.toLowerCase()}`, icon: 'maki' }
         : { label: 'Dejar', detail: `Dejar ${held ? itemLabel(held).toLowerCase() : 'lo que llevás'} en ${station.name.toLowerCase()}`, icon: 'act' };
-      case 'take': return { label: 'Tomar', detail: `Tomar ${top ? itemLabel(top).toLowerCase() : 'lo de la estación'}`, icon: 'act' };
+      case 'take': { const to = top && (top.kind === 'dish' || top.kind === 'drink') ? targetFor(top) : null; return { label: 'Tomar', detail: `Tomar ${top ? itemLabel(top).toLowerCase() : 'lo de la estación'}${to ? ' (para ' + to.label + ')' : ''}`, icon: 'act' }; }
       case 'chop': return { label: 'Cortar', detail: 'Cortar en la tabla: frená la barra en la zona verde', icon: 'act' };
       case 'assemble': { const m = g.preview(station.id)[0]; return { label: m ? 'Armar' : 'Armar', detail: m ? `Armar ${m.recipe.name}${m.variant ? ' ' + m.variant.name : ''}` : 'Armar el plato', icon: 'maki' }; }
       case 'deliver': return { label: 'Entregar', detail: 'Dejar el plato en el mostrador de entrega', icon: 'serve' };
@@ -420,9 +518,10 @@ export class GalleyView {
       const c = stationCentre(s);
       const x = c.x * TILE, y = s.y * TILE + 10;
       if (!s.stand.some(([sx, sy]) => sx === p.tx && sy === p.ty)) continue;
-      const verbs: GalleyVerb[] = [...g.verbs(PLAYER, s.id)];
+      const plate = this.holdingPlate();
+      const verbs: GalleyVerb[] = [...g.verbs(PLAYER, s.id)].filter((v) => !plate || v === 'put' || v === 'deliver' || v === 'trash');
       const kind = g.kind(s.id);
-      if (kind === 'fridge') verbs.push('pantry');
+      if (kind === 'fridge' && !plate) verbs.push('pantry');
       if (kind === 'pass' && hasBell() && waitingPlates() > 0) verbs.push('bell');
       verbs.forEach((verb, i) => {
         const v = this.verbName(s, verb);
@@ -497,23 +596,34 @@ export class GalleyView {
     audio.sfxPlay('fridge_open');
   }
 
+  /** A series of reflex cuts (5 at first, fewer with better knives); the result is their average. */
   private startCut(stationId: string) {
     const g = galley();
     const item = g.station(stationId).items[0] as IngItem | undefined;
     if (!item) return;
     const s = STATION_BY_ID[stationId];
-    const spec = cutSpec({ level: cutLevel(settings.cookMode, clock.period), knife: game.save.restaurant.upgrades.includes('knife') }, Math.random, this.lastZone);
-    this.lastZone = spec.start;
+    const ups = game.save.restaurant.upgrades;
+    const total = cutsNeeded(ups);
+    const level = cutLevel(settings.cookMode, clock.period);
+    const verdicts: CutVerdict[] = [];
     this.host.galleyBusy = true;
     this.host.player.stop();
     this.host.player.setAct('cook');
-    runCutBar(spec, itemLabel(item).toLowerCase(), (verdict) => {
-      this.slash(s, verdict, item);
-      const res = g.finishCut(stationId, verdict);
-      this.onEvents(res.events);
-      saveGalley();
-      this.host.scene.time.delayedCall(420, () => { this.host.galleyBusy = false; this.host.player.setAct('idle'); });
-    });
+    const next = () => {
+      const spec = cutSpec({ level, knife: ups.includes('knife') || ups.includes('knife2') }, Math.random, this.lastZone);
+      this.lastZone = spec.start;
+      runCutBar(spec, itemLabel(item).toLowerCase(), (verdict) => {
+        verdicts.push(verdict);
+        this.slash(s, verdict, item);
+        if (verdicts.length < total) { this.host.scene.time.delayedCall(240, next); return; }
+        const final = combineVerdicts(verdicts);
+        const res = g.finishCut(stationId, final);
+        this.onEvents(res.events);
+        saveGalley();
+        this.host.scene.time.delayedCall(420, () => { this.host.galleyBusy = false; this.host.player.setAct('idle'); });
+      }, { n: verdicts.length + 1, of: total });
+    };
+    next();
   }
 
   /** a short pose at the counter (assembling) that releases the player by itself */

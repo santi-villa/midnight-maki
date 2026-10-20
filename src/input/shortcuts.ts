@@ -116,6 +116,10 @@ function run(action: GameAction) {
     world.tryAlternate();
     return;
   }
+  if (action === 'more') {
+    world.tryMore();
+    return;
+  }
   if (action === 'secondary') {
     world.trySecondary();
     return;

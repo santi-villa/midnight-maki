@@ -79,6 +79,27 @@ export function recipesFor(pieces: readonly IngItem[], known: (id: string) => bo
   return out;
 }
 
+/**
+ * What is still missing for the recipe the pieces on the table are closest to (every piece must belong to it).
+ * `ready` when the pieces make it already. Null when the pieces fit no known recipe.
+ */
+export function closestRecipe(pieces: readonly IngItem[], known: (id: string) => boolean = () => true, recipes: readonly RecipeDef[] = Object.values(RECIPES_BY_ID)): { recipe: RecipeDef; missing: Need[]; ready: boolean } | null {
+  if (!pieces.length) return null;
+  const have = new Map<string, number>();
+  for (const p of pieces) have.set(key(p), (have.get(key(p)) ?? 0) + 1);
+  let best: { recipe: RecipeDef; missing: Need[]; ready: boolean; score: number } | null = null;
+  for (const r of recipes) {
+    if (!known(r.id)) continue;
+    const bom = billOfMaterials(r);
+    const allowed = new Set(bom.map(key));
+    if ([...have.keys()].some((k) => !allowed.has(k))) continue;
+    const missing = bom.map((n) => ({ ...n, count: n.count - Math.min(n.count, have.get(key(n)) ?? 0) })).filter((n) => n.count > 0);
+    const score = bom.length - missing.length;
+    if (!best || missing.length < best.missing.length || (missing.length === best.missing.length && score > best.score)) best = { recipe: r, missing, ready: !missing.length, score };
+  }
+  return best ? { recipe: best.recipe, missing: best.missing, ready: best.ready } : null;
+}
+
 /** Quality of the finished dish from the preparations that went into it. */
 export function judgeDish(r: RecipeDef, used: readonly IngItem[]): 0 | 1 | 2 {
   const graded = used.filter((i) => prepFor(r, i.ing) !== 'none');
