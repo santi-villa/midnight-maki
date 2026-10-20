@@ -32,3 +32,16 @@ body .dlg, body .pause-board, body .pause-card {
   background: linear-gradient(#f8eed3, #f1e1bd); border: 3px solid #b98d5a; border-radius: 14px; color: #3a2a1e;
   box-shadow: inset 0 0 0 2px #dcc08e, 0 5px 0 #8b6a46, 0 14px 30px rgba(20, 12, 8, .45);
 }
+
+/* zone-change loading card: same cream card as the boot screen */
+body .fade { background: radial-gradient(ellipse at 50% 40%, #3a2a22 0%, #1a1424 55%, #100e16 100%); }
+body .load-card {
+  color: #3a2a1e; min-width: min(300px, 80vw); padding: 20px 26px 18px;
+  background: linear-gradient(#f8eed3, #f1e1bd); border: 3px solid #b98d5a; border-radius: 14px;
+  box-shadow: inset 0 0 0 2px #dcc08e, 0 5px 0 #8b6a46, 0 22px 40px rgba(0, 0, 0, .45);
+}
+body .load-name { color: #3a2a1e; text-shadow: none; }
+body .load-tip { opacity: 1; color: #7a6247; }
+body .load-paws i { background: #c27f86; }
+body .load-paws i:nth-child(2) { background: #e0a94f; }
+body .load-paws i:nth-child(3) { background: #7f9f7c; }
