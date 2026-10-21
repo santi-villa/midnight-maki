@@ -79,3 +79,9 @@
 .gl-need { padding: 1px 6px; border-radius: 8px; background: #efdcb0; border: 1px solid #dcc08e; white-space: nowrap; }
 .gl-need.cup { background: #d9ecf2; border-color: #a8cdd8; }
 .gl-ticket.open { box-shadow: 0 4px 14px rgba(63, 46, 34, .35); }
+
+.gl-need.ready { background: #dfe8c6; border-color: #a9b88a; }
+.gl-need.part { background: #f4e6bd; border-color: #d3b377; }
+.gl-pin { min-width: 40px; min-height: 28px; padding: 0 8px; border: 1px solid #b98d5a; border-radius: 8px; background: #fbf3dc; color: #3a2a1e; font: inherit; font-size: .9em; cursor: pointer; }
+.gl-pin.on { background: #ecc983; border-color: #8b6a46; font-weight: 700; }
+.gl-ticket.pinned { border-color: #c9923c; }

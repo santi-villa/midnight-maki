@@ -23,7 +23,7 @@ import { fridgeOpenCanvas, galleyItemCanvas, itemKey, PIXEL_BITS } from '../gall
 import { STATIONS, STATION_BY_ID, stationCentre, type StationDef } from '../galley/layout';
 import { COOK, PLAYER, itemLabel, type GalleyEvent, type Verb } from '../galley/model';
 import type { GItem, IngItem } from '../galley/prep';
-import { tickets } from '../galley/tickets';
+import { allocateStaged, stagedPieces, tickets } from '../galley/tickets';
 import { TUTORIAL, TUTORIAL_DISHES, TUTORIAL_STOCK, tutorialStation, tutorialStep } from '../galley/tutorial';
 import { bus } from '../core/events';
 import { closestRecipe } from '../galley/prep';
@@ -173,7 +173,9 @@ export class GalleyView {
     }
     const held = g.held(PLAYER)[0];
     const to = held && (held.kind === 'dish' || held.kind === 'drink') ? targetFor(held) : null;
-    showTickets(tickets(), true, held ? `Llevás: ${itemLabel(held)}${held.kind === 'dish' || held.kind === 'drink' ? (to ? ' → ' + to.label : ' · nadie lo pidió todavía') : ''}` : null);
+    const list = tickets();
+    allocateStaged(list, stagedPieces(g));
+    showTickets(list, true, held ? `Llevás: ${itemLabel(held)}${held.kind === 'dish' || held.kind === 'drink' ? (to ? ' → ' + to.label : ' · nadie lo pidió todavía') : ''}` : null);
   }
 
   // ------------------------------------------------------------------ station contents
@@ -671,7 +673,10 @@ export class GalleyView {
 
   private pickFromFridge() {
     const g = galley();
-    const wanted = new Set(tickets().flatMap((t) => t.lines.flatMap((l) => l.needs.map((n) => n.ing))));
+    // with a pinned ticket the fridge highlights only what that one needs
+    const all = tickets();
+    const first = all.find((t) => t.pinned);
+    const wanted = new Set((first ? [first] : all).flatMap((t) => t.lines.flatMap((l) => l.needs.map((n) => n.ing))));
     const order = new Map<string, number>(SUPPLY_GROUPS.flatMap((grp, gi) => grp.items.map((id, i) => [id, gi * 20 + i] as const)));
     const ids = new Set<string>([...RECIPES.flatMap((r) => Object.keys(r.ingredients)), ...(g.drinksOn() ? DRINKS.flatMap((d) => Object.keys(d.ingredients)) : []), ...SUPPLY_GROUPS.flatMap((x) => x.items)]);
     const choices: FridgeChoice[] = [...ids].map((id) => ITEMS_BY_ID[id] && { id, name: ITEMS_BY_ID[id].name, icon: ITEMS_BY_ID[id].icon, have: game.countUsable(id), wanted: wanted.has(id) })

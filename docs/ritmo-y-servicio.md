@@ -39,3 +39,18 @@
 
 **Comprobación:** navegador con la cocina física (texto de Personal y de Mejoras) y `staff.test.ts` (cocinero conserva nivel, no cobra, no se contrata; vuelve a cobrar en la clásica).
 **Limitaciones:** los cocineros contratados siguen sin función en la cocina física (decisión de producto pendiente: darles una tarea propia).
+
+## E3 · Decisiones durante el servicio
+
+**Ya existía:** reserva de arroz en el hangiri (anticipar), mesadas de apoyo, urgencia de los tickets por paciencia, timbre que despierta a Rigg/meseros, Spicy arrocero/cortador y modo Relajado sin penalización por paciencia. La paciencia no corre en pausa (`pumpFloor` y `galley.tick` salen con `clock.paused`).
+
+**Faltaba:** el ticket no decía *qué ya estaba preparado*, y no había forma de elegir el orden.
+
+**Cambios**
+- Cada ticket indica lo ya listo en la cocina (mesa de armado, mesadas, tablas con corte terminado, hangiri y arroz hecho en la arrocera): chip `✓ Arroz…`, `½`/`n/m` parcial y, sin abrir la tarjeta, `· 2/3 piezas`. Una pieza cuenta para **un solo** ticket, en el orden de la lista (`allocateStaged`). No se guarda nada nuevo: se calcula del estado de la cocina.
+- Botón **☆ / ★ Primero** en cada ticket: lo fija arriba y la heladera resalta solo lo que ese ticket necesita; Spicy cortador atiende primero los cortes de ese ticket (usa el mismo orden de `tickets()`). Es una pista de la sesión, no se guarda, se limpia al servirse o irse los clientes.
+- Ninguna mejora quita participación: Spicy sigue manteniendo solo 4 porciones de arroz y corta solo lo que piden los tickets, nunca arma ni entrega.
+
+**Comprobación:** recorrido real en navegador (arroz con `E` desde la despensa, espera real de la cocción, alga y arroz en la mesa): el ticket muestra `✓ Arroz` `✓ Alga`, `2/3 piezas`, y el botón fija el ticket. Test de reparto en `galleyModel.test.ts`.
+
+**Limitaciones:** con un solo ticket el orden no se nota; la coordinación con Pip y Rigg sigue siendo la existente (Pip recibe, Rigg lleva platos al sonar el timbre).

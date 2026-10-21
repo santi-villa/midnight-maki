@@ -6,7 +6,7 @@ import { iconElement, type IconSpec } from '../art/icons';
 import { h } from './dom';
 import { indicatorAt, judgeCut, type CutSpec, type CutVerdict } from '../galley/cut';
 import { itemLabel } from '../galley/model';
-import type { Ticket } from '../galley/tickets';
+import { pinTicket, type Ticket } from '../galley/tickets';
 import { settings } from '../core/settings';
 import { normalizeUiScale } from '../core/uiScale';
 import './galley.css';
@@ -131,7 +131,7 @@ let ticketsOpen = (() => { try { return localStorage.getItem('mm_ticketsopen') =
 
 export function showTickets(list: Ticket[], visible: boolean, hint: string | null) {
   if (!visible || (!list.length && !hint)) { ticketsEl?.classList.add('hidden'); return; }
-  const key = JSON.stringify(list.map((t) => [t.id, t.lines.map((l) => [l.recipe, l.waiting, l.ready]), Math.round(t.patience * 20), t.impatient])) + (hint ?? '') + ticketsOpen + [...ticketsExpanded].join(',');
+  const key = JSON.stringify(list.map((t) => [t.id, t.lines.map((l) => [l.recipe, l.waiting, l.ready]), Math.round(t.patience * 20), t.impatient, !!t.pinned, t.lines.map((l) => l.needs.map((n) => n.have ?? 0))])) + (hint ?? '') + ticketsOpen + [...ticketsExpanded].join(',');
   if (!ticketsEl) { ticketsEl = h('div', { class: 'gl-tickets', 'aria-label': 'Pedidos de la cocina' }); root().append(ticketsEl); }
   ticketsEl.classList.remove('hidden');
   // sit right under the round buttons (the mission line is on the other side), wherever they end up on this screen
@@ -157,19 +157,33 @@ export function showTickets(list: Ticket[], visible: boolean, hint: string | nul
       showTickets(list, visible, hint);
     },
   }, h('b', null, 'Pedidos'), h('span', { class: 'gl-count' }, String(pending || list.length)), h('span', { class: 'gl-caret', 'aria-hidden': 'true' }, ticketsOpen ? '▴' : '▾')) : null;
+  /** " · 3/4 piezas" when part of what the line needs is already prepared in the kitchen */
+  const prepared = (l: Ticket['lines'][number]) => {
+    let have = 0, total = 0;
+    for (const n of l.needs) { total += n.count * Math.max(1, l.waiting); have += Math.min(n.have ?? 0, n.count * Math.max(1, l.waiting)); }
+    return have > 0 ? ` · ${have}/${total} piezas` : '';
+  };
   const needChips = (l: Ticket['lines'][number]) => [...(l.cup ? [h('span', { class: 'gl-need cup' }, 'Vaso')] : []),
-    ...l.needs.map((n) => h('span', { class: 'gl-need' }, `${n.count > 1 ? n.count + '× ' : ''}${itemLabel({ kind: 'ing', uid: 0, ing: n.ing, form: n.form, q: 2 })}`))];
+    ...l.needs.map((n) => {
+      const total = n.count * Math.max(1, l.waiting), have = Math.min(n.have ?? 0, total);
+      const label = `${n.count > 1 ? n.count + '× ' : ''}${itemLabel({ kind: 'ing', uid: 0, ing: n.ing, form: n.form, q: 2 })}`;
+      // ✓ ready / ½ part ready: a mark as well as a tone, so it reads without colour
+      return h('span', { class: 'gl-need' + (have >= total ? ' ready' : have ? ' part' : ''), title: have >= total ? 'Ya está preparado' : have ? `Preparado ${have} de ${total}` : 'Falta preparar' }, (have >= total ? '✓ ' : have ? `${have}/${total} ` : '') + label);
+    })];
   const cards = ticketsOpen ? list.slice(0, 3).map((t) => {
     const open = ticketsExpanded.has(t.id);
     return h('div', {
-      class: 'gl-ticket paper' + (t.done ? ' done' : '') + (t.impatient ? ' late' : '') + (open ? ' open' : ''), role: 'button', tabindex: '0', 'aria-expanded': String(open),
+      class: 'gl-ticket paper' + (t.pinned ? ' pinned' : '') + (t.done ? ' done' : '') + (t.impatient ? ' late' : '') + (open ? ' open' : ''), role: 'button', tabindex: '0', 'aria-expanded': String(open),
       onclick: () => { if (open) ticketsExpanded.delete(t.id); else ticketsExpanded.add(t.id); ticketsKey = ''; showTickets(list, visible, hint); },
     },
-      h('div', { class: 'gl-ticket-head' }, h('b', null, t.label), h('span', { class: 'hint' }, t.who), h('span', { class: 'gl-caret', 'aria-hidden': 'true' }, open ? '▴' : '▾')),
+      h('div', { class: 'gl-ticket-head' }, h('b', null, t.label), h('span', { class: 'hint' }, t.who),
+        t.done ? null : h('button', { type: 'button', class: 'gl-pin' + (t.pinned ? ' on' : ''), 'aria-pressed': String(!!t.pinned), title: t.pinned ? 'Dejar de priorizar' : 'Cocinar este primero',
+          onclick: (e: Event) => { e.stopPropagation(); pinTicket(t.id); ticketsKey = ''; showTickets(list, visible, hint); } }, t.pinned ? '★ Primero' : '☆'),
+        h('span', { class: 'gl-caret', 'aria-hidden': 'true' }, open ? '▴' : '▾')),
       ...t.lines.map((l) => h('div', { class: 'gl-line' },
         h('span', { class: 'gl-qty' }, `${l.waiting + l.ready}×`),
         h('span', { class: 'gl-name' }, l.name),
-        h('span', { class: 'gl-state' + (l.waiting ? '' : ' ok') }, l.waiting ? (l.ready ? `${l.ready} listo` : 'pendiente') : '✓ en el mostrador'),
+        h('span', { class: 'gl-state' + (l.waiting ? '' : ' ok') }, l.waiting ? (l.ready ? `${l.ready} listo` : 'pendiente') + prepared(l) : '✓ en el mostrador'),
         open ? h('div', { class: 'gl-needs' }, ...needChips(l)) : null)),
       h('div', { class: 'gl-patience', role: 'img', 'aria-label': `Paciencia ${Math.round(t.patience * 100)}%` }, h('i', { style: { width: `${Math.round(t.patience * 100)}%` } })));
   }) : [];

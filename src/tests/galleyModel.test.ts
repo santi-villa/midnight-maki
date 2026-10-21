@@ -55,6 +55,27 @@ describe('rice straight from the stock', () => {
   });
 });
 
+describe('tickets know what is already prepared', () => {
+  it('counts staged pieces once, in ticket order, and ignores pieces still waiting for the knife', async () => {
+    const { allocateStaged, stagedPieces } = await import('../galley/tickets');
+    const piece = (ing: string, form: 'raw' | 'cut' | 'cooked'): IngItem => ({ kind: 'ing', uid: Math.random(), ing, form, q: 2 });
+    g.station('counter_a').items.push(piece('cucumber', 'cut'), piece('rice', 'cooked'));
+    g.station('assembly').items.push(piece('nori', 'raw'));
+    // a cucumber that has not been cut yet does not count
+    (g.station('board_1') as { items: IngItem[]; pending: boolean }).items.push(piece('cucumber', 'raw'));
+    (g.station('board_1') as { pending: boolean }).pending = true;
+    const pool = stagedPieces(g);
+    expect(pool.get('cucumber|cut')).toBe(1);
+    expect(pool.get('cucumber|raw')).toBeUndefined();
+    const line = (id: string) => ({ recipe: 'kappa', name: 'Kappa', waiting: 1, ready: 0, needs: [{ ing: 'rice', form: 'cooked' as const, count: 1 }, { ing: 'cucumber', form: 'cut' as const, count: 1 }, { ing: 'nori', form: 'raw' as const, count: 1 }] }) && { recipe: id, name: id, waiting: 1, ready: 0, needs: [{ ing: 'rice', form: 'cooked' as const, count: 1 }, { ing: 'cucumber', form: 'cut' as const, count: 1 }, { ing: 'nori', form: 'raw' as const, count: 1 }] };
+    const t = (id: string) => ({ id, label: id, who: '', lines: [line(id)], patience: 1, impatient: false, done: false });
+    const list = [t('A'), t('B')];
+    allocateStaged(list, pool);
+    expect(list[0].lines[0].needs.map((n) => n.have)).toEqual([1, 1, 1]);
+    expect(list[1].lines[0].needs.map((n) => n.have)).toEqual([0, 0, 0]);
+  });
+});
+
 describe('fridge and hands', () => {
   it('takes real stock, one thing at a time, and gives it back', () => {
     take('salmon');
