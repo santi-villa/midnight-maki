@@ -9,6 +9,7 @@ import { billOfMaterials, type Need } from './prep';
 import type { Galley } from './model';
 import { guestViews, plateState, tableLabel } from '../restaurant/service';
 import { customerName } from '../restaurant/orders';
+import { favouriteOf, emptyClients } from '../restaurant/townClients';
 
 export interface TicketLine {
   recipe: string;
@@ -34,6 +35,8 @@ export interface Ticket {
   done: boolean;
   /** the player chose to cook this one first */
   pinned?: boolean;
+  /** a regular who is waiting for their favourite dish: the recipe id */
+  favourite?: string;
 }
 
 export const MAX_TICKETS = 3;
@@ -96,6 +99,7 @@ export function tickets(): Ticket[] {
     out.push({
       id: view.id, label: view.tableId ? tableLabel(view.tableId) : 'Mesa', who: customerName(view.customerId) + (view.size > 1 ? ` y ${view.size - 1} más` : ''),
       lines: ls, patience: Math.max(0, Math.min(1, view.patience / Math.max(1, view.maxPatience))), impatient: view.impatient,
+      favourite: ((fav) => (fav && ls.some((l) => l.recipe === fav) ? fav : undefined))(favouriteOf(game.save.clients ?? emptyClients(), view.customerId)),
       done: ls.every((l) => l.waiting === 0),
     });
   }

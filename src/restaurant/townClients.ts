@@ -24,6 +24,8 @@ export interface Regular {
   waits: number;
   /** last day the player invited them */
   invited?: number;
+  /** the visit count of the last "thank you" gift they brought (optional: older saves have none) */
+  gifted?: number;
 }
 export interface PlannedVisit { id: string; day: number; period: number }
 export interface ClientsSave { regulars: Record<string, Regular>; planned: PlannedVisit[] }
@@ -116,15 +118,44 @@ export function recordInvite(s: ClientsSave, id: string, day: number) {
   r.invited = day;
 }
 
-/** One finished meal: a good dish is remembered, a bad dish or a long wait too. `waited` is true when they got impatient. */
-export function recordMeal(s: ClientsSave, customer: string, recipe: string, quality: 0 | 1 | 2, waited: boolean, day: number) {
+/** The dish a regular liked most so far (needs a couple of liked servings to count as a favourite), or null. */
+export function favouriteOf(s: ClientsSave, customer: string): string | null {
   const n = neighborOf(customer);
-  if (!n) return;
+  const r = n && s.regulars[n.id];
+  if (!r) return null;
+  const top = Object.entries(r.likes).sort((a, b) => b[1] - a[1])[0];
+  return top && top[1] >= 2 ? top[0] : null;
+}
+
+/** One finished meal: a good dish is remembered, a bad dish or a long wait too. `waited` is true when they got impatient.
+ *  Returns true when this was their favourite dish and it came out well (the table can show it). */
+export function recordMeal(s: ClientsSave, customer: string, recipe: string, quality: 0 | 1 | 2, waited: boolean, day: number): boolean {
+  const n = neighborOf(customer);
+  if (!n) return false;
+  const wasFavourite = quality >= 1 && favouriteOf(s, customer) === recipe;
   const r = (s.regulars[n.id] ??= { visits: 0, likes: {}, mood: 0, last: 0, waits: 0 });
   r.last = day;
   if (quality >= 1) r.likes[recipe] = (r.likes[recipe] ?? 0) + (quality === 2 ? 2 : 1);
   r.mood = Math.max(-3, Math.min(6, r.mood + (quality === 2 ? 1 : quality === 1 ? 0.5 : -0.5) + (waited ? -1 : 0)));
   if (waited) r.waits++;
+  return wasFavourite;
+}
+
+/** A small thing each neighbour brings the fifth and the tenth time they leave happy (furniture the game already has). */
+export const OCCASION_GIFTS: Record<string, string> = {
+  ren: 'stool', mika: 'windchime', haru: 'bookstack', tomo: 'telescope', nene: 'vase_tulips', goro: 'radio',
+  fuyu: 'tea_set', sato: 'clock', mame: 'plant_herbs', kai: 'photo_frame', rin: 'cactus', oto: 'lamp_table',
+};
+export const OCCASION_VISITS = [5, 10] as const;
+
+/** After a happy visit: the gift for this milestone, once. `null` when it is not a milestone, they were not happy, or it was already given. */
+export function takeOccasion(s: ClientsSave, customer: string): { id: string; furniture: string; visit: number } | null {
+  const n = neighborOf(customer);
+  const r = n && s.regulars[n.id];
+  const furniture = n && OCCASION_GIFTS[n.id];
+  if (!n || !r || !furniture || r.mood < 1 || !(OCCASION_VISITS as readonly number[]).includes(r.visits) || (r.gifted ?? 0) >= r.visits) return null;
+  r.gifted = r.visits;
+  return { id: n.id, furniture, visit: r.visits };
 }
 
 export function recordVisit(s: ClientsSave, customer: string, day: number, leftHappy: boolean) {
