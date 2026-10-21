@@ -48,6 +48,12 @@ describe('rice straight from the stock', () => {
     stock = { ...stock, rice: 0 };
     expect(g.verbs(PLAYER, 'rice')).not.toContain('scoop'); // nothing left to scoop
   });
+  it('with raw rice in the hands, setting it down comes before scooping more', () => {
+    take('rice');
+    expect(g.verbs(PLAYER, 'rice')).toEqual(['put', 'scoop']);
+    act('rice', 'put');
+    expect(g.verbs(PLAYER, 'rice')[0]).toBe('scoop');
+  });
   it('does not consume anything when it cannot scoop', () => {
     stock.rice = 0;
     expect(g.perform(PLAYER, 'rice', 'scoop').ok).toBe(false);
@@ -507,6 +513,23 @@ describe('cuts, hints and the lesson', () => {
     act('rice', 'put');
     expect(tutorialStep(1, { g, served })).toBe(2);
     expect(tutorialStep(TUTORIAL.length, { g, served })).toBe(TUTORIAL.length);
+  });
+  it('after the two dishes the lesson offers three small practice tasks, one at a time, each done by doing it', async () => {
+    const { tutorialStep, tutorialStation, TUTORIAL } = await import('../galley/tutorial');
+    const first = TUTORIAL.findIndex((t) => t.id === 'p_scoop');
+    expect(first).toBe(10);
+    const served = new Set(['kappa', 'sake_nigiri']);
+    const did = new Set<string>();
+    expect(tutorialStep(first, { g, served, did })).toBe(first);
+    expect(tutorialStation(first, { g, served, did })).toBe('rice');
+    did.add('trash'); // doing a later task early does not skip the one in front
+    expect(tutorialStep(first, { g, served, did })).toBe(first);
+    did.add('scoop');
+    expect(tutorialStep(first, { g, served, did })).toBe(first + 1);
+    did.add('return');
+    expect(tutorialStep(first, { g, served, did })).toBe(TUTORIAL.length);
+    take('salmon');
+    expect(tutorialStation(TUTORIAL.findIndex((t) => t.id === 'p_trash'), { g, served, did })).toBe('bin');
   });
   it('the arrow follows the work: fridge, then cooker, then the board', async () => {
     const { tutorialStation } = await import('../galley/tutorial');
