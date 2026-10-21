@@ -67,8 +67,9 @@ describe('tickets know what is already prepared', () => {
     const pool = stagedPieces(g);
     expect(pool.get('cucumber|cut')).toBe(1);
     expect(pool.get('cucumber|raw')).toBeUndefined();
-    const line = (id: string) => ({ recipe: 'kappa', name: 'Kappa', waiting: 1, ready: 0, needs: [{ ing: 'rice', form: 'cooked' as const, count: 1 }, { ing: 'cucumber', form: 'cut' as const, count: 1 }, { ing: 'nori', form: 'raw' as const, count: 1 }] }) && { recipe: id, name: id, waiting: 1, ready: 0, needs: [{ ing: 'rice', form: 'cooked' as const, count: 1 }, { ing: 'cucumber', form: 'cut' as const, count: 1 }, { ing: 'nori', form: 'raw' as const, count: 1 }] };
-    const t = (id: string) => ({ id, label: id, who: '', lines: [line(id)], patience: 1, impatient: false, done: false });
+    type Needs = { ing: string; form: 'raw' | 'cooked' | 'cut'; count: number; have?: number }[];
+    const needs = (): Needs => [{ ing: 'rice', form: 'cooked', count: 1 }, { ing: 'cucumber', form: 'cut', count: 1 }, { ing: 'nori', form: 'raw', count: 1 }];
+    const t = (id: string) => ({ id, label: id, who: '', lines: [{ recipe: id, name: id, waiting: 1, ready: 0, needs: needs() }], patience: 1, impatient: false, done: false });
     const list = [t('A'), t('B')];
     allocateStaged(list, pool);
     expect(list[0].lines[0].needs.map((n) => n.have)).toEqual([1, 1, 1]);

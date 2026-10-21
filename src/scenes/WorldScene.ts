@@ -32,6 +32,7 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { dayMinutes } from '../systems/daytime';
 import { lowFx, sampleFrame } from '../core/perf';
+import { FURN_BY_ID } from '../data/furniture';
 import { LampMoths } from './lampMoths';
 import { Pets } from './pets';
 import { CROP_ART, cropStage } from '../art/farm';
@@ -1174,7 +1175,7 @@ export class WorldScene extends Phaser.Scene {
         const owner = [...this.visitors.values()].find((v) => v.customers.includes(meal.customer));
         if (owner && neighborOf(meal.customer)) {
           this.ateParties.add(owner.id);
-          noteTownMeal(meal.customer, meal.recipe, meal.quality, this.impatientParties.has(owner.id));
+          if (noteTownMeal(meal.customer, meal.recipe, meal.quality, this.impatientParties.has(owner.id))) this.favouriteMeals.add(`${meal.customer}:${meal.recipe}`);
         }
         if (this.zoneId === 'restaurant') this.enqueueMeal(meal);
       }
@@ -1223,7 +1224,13 @@ export class WorldScene extends Phaser.Scene {
       if (v.stage === 'dining' && !g && v.phase) this.sendVisitorHome(v);
       if (v.stage === 'departing' && v.trips.every((t) => t.settled)) {
         v.customers.forEach((c, i) => { const n = neighborOf(c); if (n) this.neighborLife.release(n.id, v.trips[i].position); });
-        for (const c of v.customers) if (neighborOf(c)) noteTownLeft(c, this.ateParties.has(v.id) && !this.impatientParties.has(v.id));
+        for (const c of v.customers) {
+          const nb = neighborOf(c);
+          if (!nb) continue;
+          const gift = noteTownLeft(c, this.ateParties.has(v.id) && !this.impatientParties.has(v.id));
+          // the fifth and the tenth happy visit: a small thank-you, once (see OCCASION_GIFTS)
+          if (gift) bus.emit('toast', { text: `${nb.name} te dejó ${FURN_BY_ID[gift.furniture]?.name ?? 'un regalo'} para agradecerte (visita ${gift.visit}). Está en tu depósito.` });
+        }
         this.ateParties.delete(v.id); this.impatientParties.delete(v.id);
         this.visitors.delete(v.id);
       }
@@ -1675,12 +1682,18 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /** `customer:recipe` of dishes that were a regular's favourite, until their comment is shown */
+  private favouriteMeals = new Set<string>();
+
   private mealReceipt(meal: PaidMeal) {
     const owner = [...this.visitors.values()].find((v) => v.customers.includes(meal.customer));
     const body = owner ? this.guests.get(`${owner.id}:${owner.customers.indexOf(meal.customer)}`) : undefined;
     const a = body?.actor;
     if (!owner || !a?.sprite.active) return;
-    this.sayLine(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, mealComment(meal.customer, meal.quality), 4.5);
+    const favKey = `${meal.customer}:${meal.recipe}`;
+    const favourite = this.favouriteMeals.delete(favKey);
+    this.sayLine(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, favourite ? '¡Mi favorito de siempre!' : mealComment(meal.customer, meal.quality), 4.5);
+    if (favourite && !lowFx()) this.floatAt(a.x, a.y - 52, '♥', '#f08a9a');
     const total = meal.result.coins;
     if (total > 0) { this.floatAt(a.x, a.y - 44, `+${total}`); this.coopLink?.say(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, '', 1, undefined, total); }
   }

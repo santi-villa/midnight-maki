@@ -54,3 +54,15 @@
 **Comprobación:** recorrido real en navegador (arroz con `E` desde la despensa, espera real de la cocción, alga y arroz en la mesa): el ticket muestra `✓ Arroz` `✓ Alga`, `2/3 piezas`, y el botón fija el ticket. Test de reparto en `galleyModel.test.ts`.
 
 **Limitaciones:** con un solo ticket el orden no se nota; la coordinación con Pip y Rigg sigue siendo la existente (Pip recibe, Rigg lleva platos al sonar el timbre).
+
+## E4 · Clientes habituales
+
+**Ya existía** (`docs/clientes-del-pueblo.md`): memoria por vecino (visitas, platos queridos, ánimo, esperas), el habitual repite su favorito el 65 % de las veces, frase de llegada según lo que recuerda, invitaciones y visitas planificadas.
+
+**Cambios pequeños, sin monedas ni medidores nuevos**
+- **Reconocer el favorito**: un plato es favorito tras ≥ 2 servicios buenos (`favouriteOf`). En el ticket aparece `♥` junto al plato y «su favorito» junto al cliente; al cobrarse bien, el cliente dice «¡Mi favorito de siempre!» con un ♥ flotante (en efectos bajos, solo el texto). Es solo un reconocimiento, no cambia la paga.
+- **Visita anunciada**: al despertar, una línea de la mañana avisa de las visitas que invitaste para ese día («Hoy pasa por Midnight Maki: Kai (a la tarde)…»). No es una obligación: si no abrís, la visita queda pendiente.
+- **Ocasión especial**: la 5.ª y la 10.ª visita contenta de un vecino dejan un pequeño regalo propio de su oficio (`OCCASION_GIFTS`: p. ej. Kai, fotógrafo → portarretrato; Tomo, pescador → telescopio) en el depósito de muebles y un aviso. Una sola vez por hito (`Regular.gifted`, campo opcional: los guardados viejos cargan igual).
+
+**Comprobación:** `townClients.test.ts` (favorito, regalos por hito sin repetir, guardado sin `gifted`); en navegador, el ticket con ♥ y «su favorito» (ticket sintético: UI únicamente). **No verificado en un recorrido completo**: el comentario ♥ en la mesa y el regalo al irse (requieren varias visitas reales).
+**Limitaciones:** los regalos son muebles existentes elegidos por oficio, no arte nuevo; no hay conversación obligatoria al recibirlos.
