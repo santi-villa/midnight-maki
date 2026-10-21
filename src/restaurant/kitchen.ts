@@ -515,6 +515,7 @@ async function experiment(sel: string[]) {
 // ------------------------------------------------------------------ upgrades
 export function openUpgrades(onClose?: () => void) {
   const body = h('div', { class: 'col' });
+  const feedback = h('div', { class: 'up-feedback' });
   const resources = (coins: number, items: Record<string, number>) => `${coins} ●${Object.entries(items).map(([id, q]) => ` · ${ITEMS_BY_ID[id]?.name ?? id} ${game.count(id)}/${q}`).join('')}`;
   const render = () => {
     body.innerHTML = '';
@@ -548,13 +549,14 @@ export function openUpgrades(onClose?: () => void) {
           h('b', null, u.name), h('div', { class: 'hint' }, u.desc), upgradePreview(u.id),
           owned ? h('span', { class: 'pill' }, 'Comprada') : h('div', { class: 'col' }, h('span', { class: missing.length ? 'pill' : 'pill ok' }, missing.length ? 'Bloqueada' : 'Disponible'), h('span', { class: 'hint' }, resources(u.price, u.items ?? {})),
             missing.length ? h('span', { class: 'hint' }, `Falta: ${missing.join(' · ')}${materialHint(missing)}`) : null,
-            h('button', { class: 'btn primary', disabled: !!missing.length, onclick: () => { if (buyUpgrade(u.id)) { audio.sfxPlay('coin'); celebrateUpgrade(u); render(); } else { toast('No se pudo construir: revisá los recursos o el espacio libre del cuarto. No se cobró nada.'); render(); } } }, 'Construir'))),
+            h('button', { class: 'btn primary', disabled: !!missing.length, onclick: () => { if (buyUpgrade(u.id)) { audio.sfxPlay('coin'); render(); celebrateUpgrade(u, feedback); } else { toast('No se pudo construir: revisá los recursos o el espacio libre del cuarto. No se cobró nada.'); render(); } } }, 'Construir'))),
       );
     }
   };
   render();
   const off = bus.on('state:changed', render);
   const p = panel({ title: 'Mejoras del restaurante', body, onClose: () => { off(); onClose?.(); } });
+  p.root.insertBefore(feedback, p.body);
 }
 
 registerAction('orders', () => openOrders());
