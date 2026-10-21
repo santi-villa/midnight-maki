@@ -74,3 +74,14 @@ Carpeta `docs/img/entrega-visual/`:
 - La celebración de compra se solapa con el panel de mejoras en pantallas muy angostas.
 - Las pistas de forma de los ítems miden ~9 px en el mapa; en cocina con 6 piezas en la mesa de armado quedan apretadas.
 - Las reacciones de los mapaches dependen de poses ya existentes (no hay poses nuevas dibujadas).
+
+## Cierre de pulido (21/10/2026)
+
+- La posición del mensaje de entrada distingue el encuadre del video del de la ilustración fija. Se mantiene opaco para leerlo sin fases de bajo contraste.
+- El resultado de compra ocupa una franja propia dentro de Mejoras, por encima de la lista: no flota sobre las siguientes acciones. El texto dice «Mejora comprada» si hubo muebles enviados al depósito y «Mejora lista» en los demás casos. Se agregó un botón de cierre accesible con teclado.
+- Las etiquetas Antes/Después tienen mayor tamaño y contraste; los destinos válidos de cocina tienen contorno más definido.
+- Las reacciones breves esperan hasta seis segundos si el personaje está caminando u ocupado hablando. Así la llegada de un grupo no pierde automáticamente el saludo de Pip. Se conserva el enfriamiento y no se interrumpen rutas; los eventos viejos caducan y se descartan al salir del restaurante.
+- Comprobación de pantalla con Playwright: portada con video, compra sin espacio en 360×640, UI al 70 % con movimiento reducido y cierre del aviso mediante teclado. Sin ejecutar tests automatizados ni suite E2E. TypeScript comprobado por separado.
+- En una nueva partida de comprobación, una llegada por el recorrido de recepción dejó la reacción de Pip pendiente mientras caminaba/hablaba y finalmente activó `wave` al quedar disponible. No se llamó directamente al saludo para darlo por verificado.
+
+Estos cambios resuelven la posición del mensaje con video y la superposición de la celebración descritas en las limitaciones anteriores. La prueba en teléfono físico sigue pendiente.
