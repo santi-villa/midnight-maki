@@ -66,3 +66,21 @@
 
 **Comprobación:** `townClients.test.ts` (favorito, regalos por hito sin repetir, guardado sin `gifted`); en navegador, el ticket con ♥ y «su favorito» (ticket sintético: UI únicamente). **No verificado en un recorrido completo**: el comentario ♥ en la mesa y el regalo al irse (requieren varias visitas reales).
 **Limitaciones:** los regalos son muebles existentes elegidos por oficio, no arte nuevo; no hay conversación obligatoria al recibirlos.
+
+## E5 · Encargos con consecuencias
+
+**Ya existía**: motor de misiones secundarias (`quests/side.ts`, `side()`), tablón, recompensas (monedas, objetos, muebles, ropa, recetas, amistad), convivencia con los mapaches (`systems/companionship.ts`: «Compartir una merienda») y contadores en `stats`.
+
+**Nuevo (cuatro encargos pequeños, todos opcionales, sin plazos ni rachas)**
+| Encargo | Quién | Qué pide | Recompensa visible |
+|---|---|---|---|
+| Merienda para tres | Pip | compartir una merienda con Pip, Spicy y Rigg | Chabudai + zabuton rosa |
+| Una torta para Pip | Spicy (nivel 2) | 3 platos perfectos servidos | guirnalda + peluche de mapache |
+| Una reunión en la mesa larga | Rigg (amistad 2) | servir bien a 3 vecinos del pueblo | mesa larga + té |
+| Té de la tarde en Midnight Maki | Ume (tras «Té para la abuela») | servir 2 bebidas | kotatsu + 60 ● |
+
+- Los muebles van al depósito (se ubican desde la edición del salón). Se suman `friend +25` con quien los pide (como el resto de los encargos).
+- Contadores nuevos en `serveOrder` (un único punto para ambos modos de cocina): `perfectServed` y `neighborsServed`. Los pedidos nuevos cuentan **desde que se aceptan** (`since()` fija la línea base la primera vez que se evalúa el paso; un total viejo no los completa).
+- Cada dador sigue teniendo un encargo a la vez (`giverBusy`): estos quedan detrás de los existentes de Pip, Spicy, Rigg y Ume, no los reemplazan ni tocan capítulos.
+
+**Comprobación:** `quests.test.ts` (línea base, avance, recompensa una sola vez, ida y vuelta de guardado) y navegador: aparecen en el tablón, se aceptan y avanzan con `serveOrder` real; guirnalda entregada una vez. **Limitación:** la comprobación del servicio usó el camino real de `serveOrder`, pero sin una partida completa de cocina física con calidad perfecta; no se probó en el diálogo de cada dador.
