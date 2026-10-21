@@ -43,6 +43,11 @@ const VISUAL: Record<string, [string, number, number, number?][]> = {
 };
 
 const purchasing = new Set<string>();
+
+/** What the last purchase did, for the celebration: furniture that went into the room and furniture kept in storage for lack of space. */
+export interface PurchaseReport { id: string; placed: string[]; stored: string[] }
+let lastReport: PurchaseReport | null = null;
+export const lastPurchase = (): PurchaseReport | null => lastReport;
 export function upgradeMissing(u: UpgradeDef): string[] {
   const missing: string[] = [];
   if (game.save.restaurant.level < u.level) missing.push(`Nivel ${u.level}`);
@@ -84,6 +89,7 @@ export function buyUpgrade(id: string): boolean {
         else game.save.furnitureOwned[f.id] = (game.save.furnitureOwned[f.id] ?? 0) + 1;
       }
       if (id === 'garden_patio') game.save.flags.patio = true;
+      lastReport = { id, placed: visual.filter((f) => f.placed).map((f) => f.id), stored: visual.filter((f) => !f.placed).map((f) => f.id) };
     })) return false;
     game.touch('upgrade');
     bus.emit('decor:changed', { room: cornerForUpgrade(id) ? 'room_' + cornerForUpgrade(id)!.id : 'dining' });
