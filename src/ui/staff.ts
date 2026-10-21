@@ -3,8 +3,9 @@ import { game } from '../core/state';
 import { audio } from '../audio/audio';
 import {
   COOK_SECONDS, CREW_INFO, LEVEL_NAMES, MAX_LEVEL, TRAITS, candidates, crew, crewUnlocked, employees, fire, hire, hireCost, roleLimit, runtime, setCrew, setRestock, setStaff,
-  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, type CrewId, type Employee, type StaffRole,
+  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, payableWage, cookRests, SPICY_HANDS_JOB, type CrewId, type Employee, type StaffRole,
 } from '../restaurant/staff';
+import { galleyOn } from '../galley/mode';
 import { h, panel, toast } from './dom';
 import { previewCanvas } from './creator';
 import { ITEMS_BY_ID } from '../data/items';
@@ -24,6 +25,7 @@ const ROLE_JOB = {
   cashier: 'Recoge las propinas de las mesas.',
   helper: 'Mantiene la despensa: recibe paquetes de los proveedores (los paga el restaurante).',
 } as const;
+const COOK_REST_TEXT = 'Descansa: en la cocina física cocinás vos con Spicy; los cocineros trabajan en la cocina clásica. Conserva su nivel y no cobra.';
 const RESTOCK_ITEMS = ['rice', 'nori', 'salmon', 'cucumber', 'egg', 'sesame'];
 const RESTOCK_STEPS = [0, 6, 12, 20];
 
@@ -35,7 +37,7 @@ export function openStaff() {
     const s = staffSave();
     const lvl = game.save.restaurant.level;
     const list = employees();
-    const wages = list.reduce((n, e) => n + wageOf(e), 0);
+    const wages = list.reduce((n, e) => n + payableWage(e), 0);
     body.append(
       h('div', { class: 'card row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' } },
         h('div', null, h('b', null, 'Equipo del restaurante'), h('div', { class: 'hint' }, `Sueldos por día: ${wages} ●. Los mapaches ayudan sin cobrar.`)),
@@ -45,11 +47,11 @@ export function openStaff() {
     );
     for (const id of ['pip', 'rigg', 'spicy'] as CrewId[]) {
       const info = CREW_INFO[id], m = crew(id), ok = crewUnlocked(id);
-      const speed = id === 'spicy' ? `Un plato cada ${COOK_SECONDS.crew[m.level]} s` : id === 'rigg' ? `Lleva ${riggCapacity()} plato${riggCapacity() > 1 ? 's' : ''} por viaje` : 'Recibe un grupo a la vez';
+      const speed = id === 'spicy' ? (galleyOn() ? 'Cocina física: ver mejoras de Spicy' : `Un plato cada ${COOK_SECONDS.crew[m.level]} s`) : id === 'rigg' ? `Lleva ${riggCapacity()} plato${riggCapacity() > 1 ? 's' : ''} por viaje` : 'Recibe un grupo a la vez';
       body.append(
         h('div', { class: 'card col', style: { gap: '6px', opacity: ok ? '1' : '.7' } },
           h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, info.name), h('span', { class: 'hint' }, `${LEVEL_NAMES[m.level]} ${stars(m.level)}`)),
-          h('div', { class: 'hint' }, info.job),
+          h('div', { class: 'hint' }, id === 'spicy' && galleyOn() ? SPICY_HANDS_JOB : info.job),
           ok ? h('div', { class: 'hint' }, speed) : h('div', { class: 'hint' }, `Necesita amistad nivel ${info.unlock} con ${info.name}.`),
           ok && id !== 'pip' ? h('div', { class: 'staff-doing' }, m.on ? runtime.get(id)?.doing ?? 'Esperando' : 'Descansando (no ayuda hoy)') : null,
           h('div', { class: 'row', style: { gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' } },
@@ -68,8 +70,8 @@ export function openStaff() {
         h('div', { class: 'card col', style: { gap: '6px' } },
           h('div', { class: 'row', style: { gap: '10px' } }, face(e),
             h('div', { style: { flex: '1' } }, h('b', null, `${e.name} · ${ROLE[e.role]}`), h('div', { class: 'hint' }, `${TRAITS[e.trait].name}: ${TRAITS[e.trait].line}`),
-              h('div', { class: 'hint' }, `${LEVEL_NAMES[e.level]} ${stars(e.level)} · ${wageOf(e)} ● por día${e.role === 'cook' ? ` · un plato cada ${COOK_SECONDS.hired[e.level]} s` : ''}`),
-              h('div', { class: 'staff-doing' }, e.unpaid ? 'No cobró: no trabaja hasta que se le pague.' : r?.doing ?? 'Esperando'))),
+              h('div', { class: 'hint' }, `${LEVEL_NAMES[e.level]} ${stars(e.level)} · ${cookRests(e) ? 'sin sueldo mientras descansa' : wageOf(e) + ' ● por día'}${e.role === 'cook' ? ` · un plato cada ${COOK_SECONDS.hired[e.level]} s en cocina clásica` : ''}`),
+              h('div', { class: 'staff-doing' }, cookRests(e) ? COOK_REST_TEXT : e.unpaid ? 'No cobró: no trabaja hasta que se le pague.' : r?.doing ?? 'Esperando'))),
           e.role === 'waiter' ? h('div', { class: 'row', style: { gap: '6px', flexWrap: 'wrap' } },
             h('button', { class: 'btn small' + (e.takeOrders ? ' primary' : ''), onclick: () => { e.takeOrders = !e.takeOrders; game.touch('staff'); render(); } }, e.takeOrders ? '✓ Toma pedidos' : 'Toma pedidos'),
             h('button', { class: 'btn small' + (e.serve ? ' primary' : ''), onclick: () => { e.serve = !e.serve; game.touch('staff'); render(); } }, e.serve ? '✓ Sirve platos' : 'Sirve platos'),
@@ -88,6 +90,7 @@ export function openStaff() {
       const limit = roleLimit(role, lvl);
       if (!limit || list.filter((e) => e.role === role).length >= limit) continue;
       body.append(h('b', null, `Buscan trabajo: ${ROLE[role].toLowerCase()}`), h('p', { class: 'hint' }, `${ROLE_JOB[role]} Contratar cuesta ${hireCost(role)} ●. Al principio trabajan despacio. Sin monedas para el sueldo, no trabajan.`));
+      if (role === 'cook' && galleyOn()) { body.append(h('p', { class: 'hint' }, 'Con la cocina física un cocinero nuevo no tendría tareas: la contratación está en pausa. Se habilita al cambiar a la cocina clásica en Ajustes.')); continue; }
       for (const c of candidates(role)) {
         body.append(h('div', { class: 'card row', style: { gap: '10px' } }, face(c),
           h('div', { style: { flex: '1' } }, h('b', null, c.name), h('div', { class: 'hint' }, `${TRAITS[c.trait].name}: ${TRAITS[c.trait].line}`), h('div', { class: 'hint' }, `${ROLE[role]} · ${wageOf(c)} ● por día`)),
@@ -108,7 +111,8 @@ function updateDoing(body: HTMLElement) {
   cards.forEach((el, i) => {
     const w = all[i] as { id: string; on: boolean; e?: Employee } | undefined;
     if (!w) return;
-    if (w.e?.unpaid) el.textContent = 'No cobró: no trabaja hasta que se le pague.';
+    if (w.e && cookRests(w.e)) el.textContent = COOK_REST_TEXT;
+    else if (w.e?.unpaid) el.textContent = 'No cobró: no trabaja hasta que se le pague.';
     else if (!w.on) el.textContent = 'Descansando (no ayuda hoy)';
     else el.textContent = runtime.get(w.id)?.doing ?? 'Esperando';
   });
