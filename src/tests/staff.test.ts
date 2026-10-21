@@ -246,4 +246,18 @@ describe('the pass bell', () => {
     game.save.restaurant.upgrades.push('service_bell');
     expect(ringBell().msg).toMatch(/platos/); // nothing waiting
   });
+
+  it('a hired cook keeps level and place but rests, unpaid, while the kitchen is the physical one', () => {
+    const cook = hireOne('cook');
+    cook.level = 2;
+    const coins = game.save.coins;
+    settings.cookStyle = 'galley';
+    expect(payWages(game.save.time.day + 1)).toEqual({ paid: 0, unpaid: [] });
+    expect(game.save.coins).toBe(coins);
+    expect(employees()).toContain(cook);
+    expect(cook.level).toBe(2);
+    expect(hire(candidates('cook')[1] ?? candidates('cook')[0])).toMatch(/cocina física/);
+    settings.cookStyle = 'act';
+    expect(payWages(game.save.time.day + 2).paid).toBeGreaterThan(0);
+  });
 });
