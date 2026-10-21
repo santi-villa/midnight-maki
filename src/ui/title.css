@@ -164,3 +164,8 @@
 
 /* landscape: the prompt sits on the path between the three raccoons and the restaurant, not on top of the sleeper */
 @media (orientation: landscape) { .tt .tt-prompt { top: 58%; bottom: auto; } }
+/* The video has a different crop: its path is above the sleeping raccoon. */
+@media (orientation: landscape) {
+  .tt.tt-video-on .tt-prompt { top: 47%; transform: translate(-50%, -50%); }
+}
+.tt .tt-prompt { animation: none; background: rgba(58, 38, 24, .94); }

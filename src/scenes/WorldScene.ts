@@ -1453,6 +1453,7 @@ export class WorldScene extends Phaser.Scene {
   // ------------------------------------------------------------------ the raccoons react (no dialogue, no movement)
   private crewSeen = { orders: -1, guests: -1, served: 0, tick: 0 };
   private crewCool = new Map<string, number>();
+  private crewPending = new Map<string, { act: Act; seconds: number; glyph: string; until: number }>();
   private crewServed = 0;
   private crewOff: (() => void) | null = null;
 
@@ -1462,28 +1463,39 @@ export class WorldScene extends Phaser.Scene {
    * never twice in a row, and the routine goes on afterwards (it reuses the villagers' small-gesture state).
    */
   private watchCrew(dt: number) {
-    if (this.zoneId !== 'restaurant' || clock.paused || this.inputLocked || this.transitioning) return;
+    if (this.zoneId !== 'restaurant') { this.crewPending.clear(); return; }
+    if (clock.paused || this.inputLocked || this.transitioning) return;
     if (!this.crewOff) this.crewOff = bus.on('galley:served', (e) => { if (e.quality >= 1) this.crewServed++; });
     this.crewSeen.tick -= dt;
     if (this.crewSeen.tick > 0) return;
     this.crewSeen.tick = 0.6;
     const orders = game.save.orders.length, guests = guestViews().length;
     const prev = this.crewSeen;
-    if (prev.orders >= 0 && orders > prev.orders) this.crewReact('rigg', 'look', 1.8, '✎');
-    if (prev.guests >= 0 && guests > prev.guests) this.crewReact('pip', 'wave', 1.4, '♪');
-    if (this.crewServed > prev.served) this.crewReact('spicy', 'happy', 1.4, '♪');
+    if (prev.orders >= 0 && orders > prev.orders) this.queueCrewReaction('rigg', 'look', 1.8, '✎');
+    if (prev.guests >= 0 && guests > prev.guests) this.queueCrewReaction('pip', 'wave', 1.4, '♪');
+    if (this.crewServed > prev.served) this.queueCrewReaction('spicy', 'happy', 1.4, '♪');
     prev.orders = orders; prev.guests = guests; prev.served = this.crewServed;
+    for (const [id, r] of this.crewPending) {
+      if (performance.now() > r.until || this.crewReact(id, r.act, r.seconds, r.glyph)) this.crewPending.delete(id);
+    }
   }
 
-  private crewReact(id: string, act: Act, seconds: number, glyph: string) {
+  private queueCrewReaction(id: string, act: Act, seconds: number, glyph: string) {
+    if (performance.now() < (this.crewCool.get(id) ?? 0)) return;
+    // Reception can make Pip walk on the very frame the guests arrive. Wait briefly for a safe pose.
+    if (!this.crewPending.has(id)) this.crewPending.set(id, { act, seconds, glyph, until: performance.now() + 6000 });
+  }
+
+  private crewReact(id: string, act: Act, seconds: number, glyph: string): boolean {
     const n = this.npcs.get(id);
-    if (!n || n.leaving || n.traveling || n.social || n.actor.moving || n.actor.act === 'sleep') return;
+    if (!n || n.leaving || n.traveling || n.social || n.actor.moving || n.actor.bubble || n.actor.act === 'sleep') return false;
     const now = performance.now();
-    if (now < (this.crewCool.get(id) ?? 0)) return;
+    if (now < (this.crewCool.get(id) ?? 0)) return true;
     this.crewCool.set(id, now + 9000);
     n.micro = true; n.t = seconds;
     n.actor.setAct(act);
     if (!n.actor.bubble) n.actor.emote(glyph, seconds);
+    return true;
   }
 
   private inKitchen(): boolean {

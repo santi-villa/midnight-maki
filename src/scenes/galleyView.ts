@@ -472,8 +472,8 @@ export class GalleyView {
         const ok = usable(s.id).some((v) => v === 'put' || v === 'deliver' || v === 'trash' || v === 'return' || (v === 'chop' && !g.station(s.id).items.length));
         if (!ok) continue;
         const cx = s.x * TILE + (s.w * TILE) / 2, y = s.y * TILE - 3;
-        gfx.fillStyle(INKC, 0.8).fillTriangle(cx - 4, y - 1, cx + 4, y - 1, cx, y + 4);
-        gfx.fillStyle(CREAM, 0.85).fillTriangle(cx - 3, y, cx + 3, y, cx, y + 3);
+        gfx.fillStyle(INKC).fillTriangle(cx - 5, y - 2, cx + 5, y - 2, cx, y + 5);
+        gfx.fillStyle(CREAM).fillTriangle(cx - 3, y, cx + 3, y, cx, y + 3);
       }
     }
     if (!here) return;
