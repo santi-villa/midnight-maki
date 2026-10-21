@@ -1450,6 +1450,42 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** The player is working in the physical kitchen: nobody chatters over the stations. */
+  // ------------------------------------------------------------------ the raccoons react (no dialogue, no movement)
+  private crewSeen = { orders: -1, guests: -1, served: 0, tick: 0 };
+  private crewCool = new Map<string, number>();
+  private crewServed = 0;
+  private crewOff: (() => void) | null = null;
+
+  /**
+   * Short body reactions while the restaurant works: Pip waves when a party arrives, Rigg looks up and jots a note when a ticket
+   * comes in, Spicy cheers when a plate is served well. A pose and a one-glyph bubble for about a second; never while they walk,
+   * never twice in a row, and the routine goes on afterwards (it reuses the villagers' small-gesture state).
+   */
+  private watchCrew(dt: number) {
+    if (this.zoneId !== 'restaurant' || clock.paused || this.inputLocked || this.transitioning) return;
+    if (!this.crewOff) this.crewOff = bus.on('galley:served', (e) => { if (e.quality >= 1) this.crewServed++; });
+    this.crewSeen.tick -= dt;
+    if (this.crewSeen.tick > 0) return;
+    this.crewSeen.tick = 0.6;
+    const orders = game.save.orders.length, guests = guestViews().length;
+    const prev = this.crewSeen;
+    if (prev.orders >= 0 && orders > prev.orders) this.crewReact('rigg', 'look', 1.8, '✎');
+    if (prev.guests >= 0 && guests > prev.guests) this.crewReact('pip', 'wave', 1.4, '♪');
+    if (this.crewServed > prev.served) this.crewReact('spicy', 'happy', 1.4, '♪');
+    prev.orders = orders; prev.guests = guests; prev.served = this.crewServed;
+  }
+
+  private crewReact(id: string, act: Act, seconds: number, glyph: string) {
+    const n = this.npcs.get(id);
+    if (!n || n.leaving || n.traveling || n.social || n.actor.moving || n.actor.act === 'sleep') return;
+    const now = performance.now();
+    if (now < (this.crewCool.get(id) ?? 0)) return;
+    this.crewCool.set(id, now + 9000);
+    n.micro = true; n.t = seconds;
+    n.actor.setAct(act);
+    if (!n.actor.bubble) n.actor.emote(glyph, seconds);
+  }
+
   private inKitchen(): boolean {
     return this.zoneId === 'restaurant' && !!this.player && galleyOn()
       && this.player.tx >= KITCHEN.x && this.player.tx < KITCHEN.x + KITCHEN.w && this.player.ty >= KITCHEN.y && this.player.ty < KITCHEN.y + KITCHEN.h;
@@ -2652,6 +2688,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateServiceArt();
     this.galleyView.update(dt);
     this.updateKitchenFade();
+    this.watchCrew(dt);
     this.blockCheckIn -= dt;
     if (this.blockCheckIn <= 0) { this.blockCheckIn = 0.5; this.syncBlocks(); }
     this.flushNpcWait();
