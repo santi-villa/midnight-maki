@@ -62,12 +62,11 @@ test('cook sushi in the physical kitchen from the fridge to the pass', async ({ 
   await act(page, 'board_1', 'chop');
   await expect(page.locator('.gl-cut')).toBeVisible();
   if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/galley-2-cut.png` });
-  // five cuts in a row at the start
-  await expect(page.locator('.gl-cut-step')).toContainText('1 de 5');
-  for (let n = 1; n <= 5; n++) {
-    await expect(page.locator('.gl-cut-step')).toContainText(`${n} de 5`);
+  // a series of cuts in a row (5 in Normal and Difficult, 4 in Relaxed, fewer with better knives)
+  await expect(page.locator('.gl-cut-step')).toContainText('1 de');
+  for (let n = 1; n <= 5 && await page.locator('.gl-cut').count(); n++) {
     await page.keyboard.press('Space');
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(450);
   }
   await expect(page.locator('.gl-cut')).toHaveCount(0, { timeout: 5000 });
   await page.waitForTimeout(600);
