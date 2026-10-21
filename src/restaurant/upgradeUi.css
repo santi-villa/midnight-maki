@@ -1,0 +1,26 @@
+/* thumbnail of what an upgrade adds, and the purchase celebration */
+.up-prev { display: flex; align-items: flex-end; gap: 6px; min-height: 34px; padding: 4px 8px; border-radius: 8px; background: #efdcb0; border: 2px solid #dcc08e; width: max-content; max-width: 100%; }
+.up-prev-img { height: 32px; width: auto; image-rendering: pixelated; display: block; }
+.up-prev figure { margin: 0; display: grid; justify-items: center; gap: 2px; }
+.up-prev figcaption { font-size: .62em; color: #7a6247; letter-spacing: .3px; }
+.up-prev .up-arrow { align-self: center; color: #8b6a46; font-weight: 700; }
+.up-prev.fallback .skin-icon { width: 28px; height: 28px; image-rendering: pixelated; }
+.card .up-prev { margin: 4px 0; }
+
+.up-cele {
+  position: fixed; left: 50%; top: calc(18% + var(--safe-t, 0px)); transform: translateX(-50%); z-index: 80; width: min(320px, calc(100vw - 24px));
+  padding: 10px 12px 12px; border: 3px solid #b98d5a; border-radius: 14px; background: linear-gradient(#f8eed3, #f1e1bd); color: #3a2a1e;
+  box-shadow: inset 0 0 0 2px #dcc08e, 0 5px 0 #8b6a46, 0 14px 30px rgba(20, 12, 8, .45); cursor: pointer; pointer-events: auto;
+}
+.up-cele.fun { animation: up-in .28s cubic-bezier(.2, .9, .3, 1.3) both; }
+.up-cele-tag { position: absolute; top: -13px; left: 14px; padding: 1px 10px; border-radius: 8px; background: #ecc983; border: 2px solid #8b6a46; font-weight: 700; font-size: .85em; }
+.up-cele-body { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+.up-cele-body p { margin: 3px 0 0; font-size: .82em; line-height: 1.25; }
+.up-cele-body .up-note { color: #7a4a2a; }
+.up-bit { position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; background: #f2c66d; opacity: 0; animation: up-bit .8s ease-out both; animation-delay: calc(var(--i) * 30ms); }
+.up-bit:nth-of-type(2n) { background: #d9a3a6; }
+.up-bit:nth-of-type(3n) { background: #9bb59a; }
+@keyframes up-in { from { opacity: 0; transform: translate(-50%, 14px) scale(.9); } to { opacity: 1; transform: translateX(-50%); } }
+@keyframes up-bit { 0% { opacity: 1; transform: translate(0, 0); } 100% { opacity: 0; transform: translate(calc((var(--i) - 2.5) * 44px), -46px); } }
+.reduce-motion .up-cele, .reduce-motion .up-bit { animation: none; }
+.reduce-motion .up-bit { display: none; }

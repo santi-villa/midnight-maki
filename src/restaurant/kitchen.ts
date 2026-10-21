@@ -22,6 +22,8 @@ import { WANT_TEXT, canCook, customerAsk, customerName, GENERIC_CUSTOMERS, learn
 import { mirror } from './mirror';
 import { plateState, serviceBoardNote, stagePlate, servingName, tableLabel, type PaidMeal } from './service';
 import { UPGRADES, buyUpgrade, upgradeMissing, type UpgradeDef } from './upgrades';
+import { upgradePreview } from './upgradePreview';
+import { celebrateUpgrade } from './upgradeCelebration';
 
 /** Where to get wood and stone, shown next to whatever is missing. */
 const materialHint = (missing: string[]) => (missing.some((m) => /^(Madera|Piedra)/.test(m)) ? '. La madera y la piedra se compran en la Carpintería de Ren (plaza) o se juntan por el pueblo.' : '');
@@ -543,10 +545,10 @@ export function openUpgrades(onClose?: () => void) {
       const missing = upgradeMissing(u);
       body.append(
         h('div', { class: 'card col' },
-          h('b', null, u.name), h('div', { class: 'hint' }, u.desc),
+          h('b', null, u.name), h('div', { class: 'hint' }, u.desc), upgradePreview(u.id),
           owned ? h('span', { class: 'pill' }, 'Comprada') : h('div', { class: 'col' }, h('span', { class: missing.length ? 'pill' : 'pill ok' }, missing.length ? 'Bloqueada' : 'Disponible'), h('span', { class: 'hint' }, resources(u.price, u.items ?? {})),
             missing.length ? h('span', { class: 'hint' }, `Falta: ${missing.join(' · ')}${materialHint(missing)}`) : null,
-            h('button', { class: 'btn primary', disabled: !!missing.length, onclick: () => { if (buyUpgrade(u.id)) { audio.sfxPlay('coin'); toast(`¡${u.name}!`); render(); } else { toast('No se pudo construir: revisá los recursos o el espacio libre del cuarto. No se cobró nada.'); render(); } } }, 'Construir'))),
+            h('button', { class: 'btn primary', disabled: !!missing.length, onclick: () => { if (buyUpgrade(u.id)) { audio.sfxPlay('coin'); celebrateUpgrade(u); render(); } else { toast('No se pudo construir: revisá los recursos o el espacio libre del cuarto. No se cobró nada.'); render(); } } }, 'Construir'))),
       );
     }
   };
