@@ -7,6 +7,8 @@ import { h } from './dom';
 import { indicatorAt, judgeCut, type CutSpec, type CutVerdict } from '../galley/cut';
 import { itemLabel } from '../galley/model';
 import type { Ticket } from '../galley/tickets';
+import { settings } from '../core/settings';
+import { normalizeUiScale } from '../core/uiScale';
 import './galley.css';
 
 const root = () => document.getElementById('ui')!;
@@ -134,12 +136,13 @@ export function showTickets(list: Ticket[], visible: boolean, hint: string | nul
   ticketsEl.classList.remove('hidden');
   // sit right under the round buttons (the mission line is on the other side), wherever they end up on this screen
   const below = ['.hud-buttons'].map((q) => document.querySelector<HTMLElement>(q)).filter((el): el is HTMLElement => !!el && el.offsetParent !== null).reduce((m, el) => Math.max(m, el.getBoundingClientRect().bottom), 0);
-  if (below > 0) ticketsEl.style.top = `${Math.round(below + 3)}px`;
+  const scale = normalizeUiScale(settings.uiScale);
+  if (below > 0) ticketsEl.style.top = `${Math.round((below + 3) / scale)}px`;
   // as wide as the round buttons: from the bag to the pause button
   const btns = [...document.querySelectorAll<HTMLElement>('.hud-buttons .icon-btn')].filter((el) => el.offsetParent !== null);
   if (btns.length) {
     const left = Math.min(...btns.map((b) => b.getBoundingClientRect().left)), right = Math.max(...btns.map((b) => b.getBoundingClientRect().right));
-    ticketsEl.style.left = `${Math.round(left)}px`; ticketsEl.style.width = `${Math.round(right - left)}px`; ticketsEl.style.right = 'auto';
+    ticketsEl.style.left = `${Math.round(left / scale)}px`; ticketsEl.style.width = `${Math.round((right - left) / scale)}px`; ticketsEl.style.right = 'auto';
   }
   if (key === ticketsKey) return;
   ticketsKey = key;

@@ -11,6 +11,7 @@ import { registerSW } from './core/pwa';
 import { installAppShell, onBack } from './core/appShell';
 import { installMoveScrollGuard, installPcControls } from './input/shortcuts';
 import './ui/unify.css';
+import './ui/uiScale.css';
 
 installErrorGuard();
 installAppShell();

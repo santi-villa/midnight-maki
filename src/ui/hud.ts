@@ -470,8 +470,10 @@ function setupJoystick() {
   let cx = 0;
   let cy = 0;
   const set = (x: number, y: number) => {
-    const dx = x - cx;
-    const dy = y - cy;
+    // Pointer coordinates are physical CSS pixels; knob offsets live in the scaled UI.
+    const scale = joyEl!.getBoundingClientRect().width / joyEl!.offsetWidth || 1;
+    const dx = (x - cx) / scale;
+    const dy = (y - cy) / scale;
     const d = Math.min(45, Math.hypot(dx, dy));
     const a = Math.atan2(dy, dx);
     const kx = Math.cos(a) * d;
