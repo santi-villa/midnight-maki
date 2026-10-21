@@ -168,10 +168,11 @@ export async function showTitle(phaser: Phaser.Game) {
   video.muted = true; video.loop = true; video.playsInline = true; video.disablePictureInPicture = true;
   let videoOn = false;
   let stillTimer = 0;
-  const giveUp = () => { videoOn = false; window.clearTimeout(stillTimer); root.classList.remove('tt-video-on', 'tt-video-wait'); };
+  let videoFailed = false; // once it could not start, the still picture stays (no retry loop on every layout)
+  const giveUp = () => { videoFailed = true; videoOn = false; window.clearTimeout(stillTimer); root.classList.remove('tt-video-on', 'tt-video-wait'); };
   const syncVideo = () => {
     const want = mode === 'horizontal' && !calm() && !lowFx();
-    if (want && !videoOn) {
+    if (want && !videoOn && !videoFailed) {
       videoOn = true;
       if (!video.src) video.src = base + 'title/title-loop-v2.mp4';
       // until the video runs the screen stays plain dark (no still picture flashing before it); if it cannot start
@@ -179,7 +180,7 @@ export async function showTitle(phaser: Phaser.Game) {
       root.classList.add('tt-video-wait');
       window.clearTimeout(stillTimer);
       stillTimer = window.setTimeout(giveUp, 3500);
-      video.addEventListener('playing', () => { window.clearTimeout(stillTimer); root.classList.add('tt-video-on'); root.classList.remove('tt-video-wait'); }, { once: true });
+      video.addEventListener('playing', () => { window.clearTimeout(stillTimer); videoFailed = false; videoOn = true; root.classList.add('tt-video-on'); root.classList.remove('tt-video-wait'); }, { once: true });
       video.addEventListener('error', giveUp, { once: true });
       void video.play().catch(() => { /* blocked until a gesture: the timer falls back to the still picture */ });
     } else if (!want && videoOn) {

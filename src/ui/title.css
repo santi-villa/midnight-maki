@@ -107,6 +107,8 @@
 .tt.tt-video-wait .tt-frame, .tt.tt-video-wait .tt-back { opacity: 0; }
 .tt .tt-frame, .tt .tt-back { transition: opacity .6s ease; }
 @media (orientation: landscape) {
+  /* the prompt sits on the path between the three raccoons and the restaurant, not on top of the sleeper */
+  .tt .tt-prompt { top: 60%; bottom: auto; }
   .tt { --logo-w: min(40vw, 430px); }
   .tt .tt-logo { top: calc(2.5vh + var(--safe-t)); }
 }
