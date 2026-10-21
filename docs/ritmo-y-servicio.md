@@ -16,3 +16,26 @@
 **Comprobación:** recorrido real en navegador (`mm_settings.cookMode = relaxed`): 2 porciones echadas con `E` (stock 4 → 2), pepino de la heladera, barra «1 de 4»…«4 de 4», nori, espera real de la cocción, armado, entrega: monedas suben. Solo se teletransportó a la casilla de cada estación. Tests: `galleyModel.test.ts` (scoop, cortes por modo, ancho por cuchillos).
 
 **Limitaciones:** no se midió con jugadores; la reducción del modo Relajado es una estimación basada en la proporción de cortes por receta.
+
+## E2 · Personal y mejoras
+
+**Auditoría**
+- **Cocinero contratado**: su tarea (`kind === 'cook'` en `restaurant/staff.ts`) solo corre con la cocina clásica (`!galleyOn()`). En la cocina física no tenía ninguna tarea y cobraba sueldo diario. Opción elegida: *definir disponibilidad*, no rehacerlo: ver abajo.
+- **Spicy** en la cocina física no usa «un plato cada N s»: trabaja con sus dos mejoras (`rice_hand`, `cut_hand`); la pantalla de Personal decía lo contrario.
+- **Esterilla**: solo acorta el armado 30 % (1,4 s → 1 s); la descripción hablaba de «enrollar», del tablero viejo.
+- **Cuchillos**: `knife` y `knife2` restan un golpe cada uno; el ancho de la zona solo mejoraba una vez (la descripción de `knife2` prometía más). Corregido en `cut.ts` (cada cuchillo suma 0,05).
+- **Segunda tabla**: la usa Spicy cortador (`BOARDS` en `galley/crew.ts`); no se decía.
+- **Arrocera grande / reserva de Spicy**: coinciden con el código (6 porciones por tanda; Spicy mantiene 4 listas).
+- **Timbre**: coincide (sin timbre el personal no retira platos en la cocina física).
+- **Delantal vs bandeja**: son cosas distintas (manos en la cocina vs platos del mostrador a las mesas, `carryCapacity`); las descripciones ahora lo dicen.
+- Los requisitos decían «Primero construí el rincón» incluso para cuchillos y Spicy.
+
+**Cambios**
+- Cocineros (`restaurant/staff.ts`, `ui/staff.ts`): con cocina física **descansan**: se conservan, con su nivel, pero no cobran (`payableWage`) y no se pueden contratar nuevos (mensaje claro). Al volver a la cocina clásica todo sigue como antes. No se despide a nadie ni se borra nada.
+- Spicy en Personal: texto de la cocina física con sus mejoras.
+- Requisito previo con el nombre real (`Primero: Cuchillo de Spicy`, `Primero: Spicy: arrocero`).
+- Descripciones de esterilla, cuchillos, segunda tabla, delantal y bandejas.
+- Beneficio claramente insuficiente corregido: el segundo cuchillo (4× el precio del primero) ahora también ensancha la zona. No se tocaron precios ni requisitos.
+
+**Comprobación:** navegador con la cocina física (texto de Personal y de Mejoras) y `staff.test.ts` (cocinero conserva nivel, no cobra, no se contrata; vuelve a cobrar en la clásica).
+**Limitaciones:** los cocineros contratados siguen sin función en la cocina física (decisión de producto pendiente: darles una tarea propia).

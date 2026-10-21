@@ -79,6 +79,9 @@ const XP_STEPS = [25, 70, 140, 240];
 const HIRED_PRACTICE_CAP = 2;
 
 export const hireCost = (role: StaffRole = 'waiter') => ({ waiter: 150, cook: 220, cashier: 180, helper: 200 })[role];
+/** Cooks have nothing to do in the physical kitchen (their job is the classic cooking, see `kind === 'cook'` below): they stay on the team, keep their level and are not paid while the kitchen runs by hand. */
+export const cookRests = (e: Pick<Employee, 'role'>) => e.role === 'cook' && galleyOn();
+export const payableWage = (e: Employee) => (cookRests(e) ? 0 : wageOf(e));
 export const wageOf = (e: Employee) => ({ waiter: 16 + 6 * e.level, cook: 22 + 8 * e.level, cashier: 18 + 6 * e.level, helper: 14 + 5 * e.level })[e.role];
 export const trainCost = (level: number, crew = false) => (crew ? 120 + 90 * level : 90 + 70 * level);
 export const staffLimit = (level: number) => (level >= 7 ? 3 : level >= 5 ? 2 : level >= 3 ? 1 : 0);
@@ -102,6 +105,8 @@ export const CREW_INFO: Record<CrewId, { name: string; job: string; tasks: Task[
   rigg: { name: 'Rigg', job: 'Lleva los platos de la bandeja a las mesas, toma los pedidos y recoge las propinas.', tasks: ['serve', 'order', 'tip'], unlock: 2 },
   spicy: { name: 'Spicy', job: 'Cocina los pedidos del salón.', tasks: ['cook'], unlock: 2 },
 };
+/** What Spicy does in the physical kitchen: only what his two upgrades teach him. */
+export const SPICY_HANDS_JOB = 'En la cocina física trabaja a mano según tus mejoras: con «Spicy: arrocero» mantiene arroz cocido listo en el hangiri; con «Spicy: cortador» también corta lo que piden los tickets. Sin ellas no cocina por su cuenta.';
 export function crew(id: CrewId): CrewMember {
   const s = staffSave();
   return ((s.crew ??= {})[id] ??= { level: 0, xp: 0, on: false });
@@ -131,6 +136,7 @@ export function candidates(role: StaffRole = 'waiter', day = game.save.time.day)
 
 export function hire(c: Employee): string | null {
   const s = staffSave();
+  if (c.role === 'cook' && galleyOn()) return 'En la cocina física los cocineros no tienen tareas. Cambiá a la cocina clásica para contratar uno.';
   if (s.employees.filter((e) => e.role === c.role).length >= roleLimit(c.role, game.save.restaurant.level)) return 'El restaurante todavía no necesita más personal de ese puesto.';
   if (!game.spend(hireCost(c.role), 'hire')) return 'No te alcanzan las monedas.';
   const e: Employee = { ...c, id: `emp${s.nextId++}`, hiredDay: game.save.time.day };
@@ -197,7 +203,7 @@ export function payWages(day = game.save.time.day): { paid: number; unpaid: stri
   const days = day - s.lastPayDay;
   s.lastPayDay = day;
   for (const e of s.employees) {
-    const due = wageOf(e) * Math.min(days, 3);
+    const due = payableWage(e) * Math.min(days, 3);
     if (game.spend(due, 'wage')) { paid += due; e.unpaid = false; }
     else { e.unpaid = true; unpaid.push(e.name); }
   }
