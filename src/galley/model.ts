@@ -173,9 +173,10 @@ export class Galley {
       const cfg = COOK[STATION_BY_ID[id].cooker === 'rice' ? 'rice' : 'stove'];
       const loading = s.phase === 'idle' || (s.phase === 'cooking' && s.t < cfg.grace);
       if (loading) {
-        // rice goes straight from the stock into the cooker: carrying every portion from the fridge is the dullest trip of the kitchen
-        if (id === 'rice' && s.items.length < this.slots(id) && this.env.stock.have('rice') > 0) out.push('scoop');
         if (held && s.items.length < this.slots(id) && this.accepts(id, held)) out.push('put');
+        // rice goes straight from the stock into the cooker: carrying every portion from the fridge is the dullest trip of the kitchen
+        // (after `put`: with the raw rice already in the hands, setting it down is what the player means)
+        if (id === 'rice' && s.items.length < this.slots(id) && this.env.stock.have('rice') > 0) out.push('scoop');
         if (s.items.length && room) out.push('take'); // change of mind while it is still loading
       } else if (s.phase === 'done' && s.items.length && room) out.push('take');
     } else if (kind === 'board') {
