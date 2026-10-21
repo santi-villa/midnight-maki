@@ -187,6 +187,8 @@ export interface Settings {
   ambience: number;
   sfx: number;
   textScale: number;
+  /** Optional device preference; older settings keep the original interface size. */
+  uiScale?: number;
   textSpeed: number;  // chars per second, 0 = instant
   reduceMotion: boolean;
   haptics?: boolean;

@@ -2,6 +2,7 @@
 import { game } from '../core/state';
 import { reportError } from '../core/errors';
 import { sanitizeBindings } from '../input/bindings';
+import { normalizeUiScale } from '../core/uiScale';
 import type { SaveData, Settings } from '../core/types';
 import { SaveError, validateSave } from './validate';
 
@@ -542,6 +543,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ambience: 0.5,
   sfx: 0.7,
   textScale: 1,
+  uiScale: 1,
   textSpeed: 45,
   reduceMotion: false,
   haptics: false,
@@ -560,7 +562,7 @@ export function loadSettings(): Settings {
       const saved = JSON.parse(raw);
       // v2: the virtual joystick is on by default (older saves stored it switched off)
       if (!saved.settingsVersion || saved.settingsVersion < 2) Object.assign(saved, { joystick: true, settingsVersion: 2 });
-      return { ...DEFAULT_SETTINGS, ...saved, nightBrightness: saved.nightBrightness === 'dark' ? 'dark' : 'normal', haptics: saved.haptics === true, bindings: sanitizeBindings(saved.bindings) };
+      return { ...DEFAULT_SETTINGS, ...saved, uiScale: normalizeUiScale(saved.uiScale), nightBrightness: saved.nightBrightness === 'dark' ? 'dark' : 'normal', haptics: saved.haptics === true, bindings: sanitizeBindings(saved.bindings) };
     }
   } catch {
     /* ignore */

@@ -1,0 +1,13 @@
+/* Layout zoom preserves fixed edges, scrolling and hit testing; the Phaser canvas is a sibling. */
+:root { --ui-scale: 1; --ui-inverse-scale: 1; }
+#ui {
+  zoom: var(--ui-scale);
+  /* Keep physical safe-area margins even when controls become smaller. */
+  --safe-t: calc(env(safe-area-inset-top, 0px) * var(--ui-inverse-scale));
+  --safe-b: calc(env(safe-area-inset-bottom, 0px) * var(--ui-inverse-scale));
+  --safe-l: calc(env(safe-area-inset-left, 0px) * var(--ui-inverse-scale));
+  --safe-r: calc(env(safe-area-inset-right, 0px) * var(--ui-inverse-scale));
+}
+/* Full-screen art keeps its original framing; only the title's menu changes size. */
+#ui > .tt, #ui > .book { zoom: var(--ui-inverse-scale); }
+#ui > .tt .tt-menu { zoom: var(--ui-scale); }

@@ -7,6 +7,7 @@ import { audio } from '../../audio/audio';
 import { bus } from '../../core/events';
 import { haptic } from '../../core/haptics';
 import { settings } from '../../core/settings';
+import { normalizeUiScale } from '../../core/uiScale';
 import { actionForCode, bindingMap, isTypingTarget } from '../../input/bindings';
 import { game } from '../../core/state';
 import { inDialogue } from '../../dialogue/dialogue';
@@ -73,6 +74,8 @@ function layout() {
   const color = COLOR_BY_ID[look.color] ?? COLORS[0];
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const scale = normalizeUiScale(settings.uiScale);
+  const logicalW = vw / scale;
   const s = safeInsets();
   const availH = Math.max(300, vh - s.t - s.b - 16);
   const availW = Math.max(200, vw - s.l - s.r - 16);
@@ -87,14 +90,14 @@ function layout() {
   const cssH = Hc * pxs;
   // Closed: the same phone, scaled down and tucked under the bottom-right corner so only its top shows.
   // Open: the same art, centred. The visible part is also what the HUD keeps clear above it.
-  const centreY = s.t + (vh - s.t - s.b) / 2;
+  const centreY = (s.t + (vh - s.t - s.b) / 2) / scale;
   const maxW = 128;
   const closedScale = Math.min(0.5, maxW / cssW);
   const closedW = cssW * closedScale;
   const closedH = cssH * closedScale;
   const visH = Math.round(Math.min(closedH * 0.36, 120));
-  const cx = vw - s.r - 12 - closedW / 2;
-  const cy = vh - s.b - visH + closedH / 2;
+  const cx = logicalW - (s.r + 12) / scale - closedW / 2;
+  const cy = (vh - s.b) / scale - visH + closedH / 2;
   document.documentElement.style.setProperty('--phone-peek-h', visH + 'px');
   device.classList.add('no-anim');
   const st = device.style;
@@ -107,7 +110,7 @@ function layout() {
   st.setProperty('--scr-h', geo.sh * pxs + 'px');
   st.setProperty('--scr-r', m.screenRadius * pxs + 'px');
   st.setProperty('--closed-scale', closedScale.toFixed(3));
-  st.setProperty('--peek-x', Math.round(cx - vw / 2) + 'px');
+  st.setProperty('--peek-x', Math.round(cx - logicalW / 2) + 'px');
   st.setProperty('--peek-y', Math.round(cy - centreY) + 'px');
   st.top = centreY + 'px';
   drawCase(caseCanvas, m, color, Wc, Hc);
@@ -547,6 +550,11 @@ export function mountPhone() {
   void paintWallpaper();
   window.addEventListener('resize', () => { layout(); });
   window.visualViewport?.addEventListener('resize', () => layout());
+  let lastScale = normalizeUiScale(settings.uiScale);
+  bus.on('settings:changed', () => {
+    const scale = normalizeUiScale(settings.uiScale);
+    if (scale !== lastScale) { lastScale = scale; layout(); }
+  });
   window.addEventListener('keydown', onKey);
   bus.on('phone:changed', () => { if (phase === 'closed') applyLook(saved()); });
   // new designs are announced once (the first pass after loading stays silent)
