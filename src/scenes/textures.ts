@@ -135,6 +135,12 @@ export function customerTexture(scene: Phaser.Scene, id: CustomerId, seed = '', 
   return key;
 }
 
+/** The drawing of a map prop as a plain canvas (the same art propTexture hands to Phaser), for menus. */
+export function propCanvas(key: string, closed = false, sign = game.save.player.restaurantName || 'Midnight Maki'): HTMLCanvasElement {
+  const d = PROPS[key];
+  return farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed, sign) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed);
+}
+
 export function propTexture(scene: Phaser.Scene, key: string, closed = false): string {
   // the facade's sign shows the restaurant's name, so its texture is keyed by that name too
   const facade = /^bld_restaurant(_s[0-3])?$/.test(key);
@@ -143,8 +149,7 @@ export function propTexture(scene: Phaser.Scene, key: string, closed = false): s
   const k = 'pr_' + key + (closed ? '_closed' : '') + (facade || plaque ? '_' + sign : '');
   if (!scene.textures.exists(k)) {
     if (plaque) setPlaqueName(sign);
-    const d = PROPS[key];
-    scene.textures.addCanvas(k, farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed, sign) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed));
+    scene.textures.addCanvas(k, propCanvas(key, closed, sign));
   }
   return k;
 }
