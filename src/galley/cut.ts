@@ -21,12 +21,15 @@ export interface CutDifficulty {
   level: number;
   /** the knife upgrade widens the zone */
   knife: boolean;
+  /** 0, 1 or 2 knives owned: each widens the green zone a little (`knife` alone counts as one) */
+  knives?: number;
 }
 
 /** Zone width and speed for a difficulty. Wide and slow when relaxed, narrow and fast when hard. */
 export function cutSpec(d: CutDifficulty, rng: () => number, previousStart?: number): CutSpec {
   const level = Math.max(0, Math.min(1, d.level));
-  const width = Math.max(0.1, 0.3 - 0.15 * level + (d.knife ? 0.05 : 0));
+  const knives = d.knives ?? (d.knife ? 1 : 0);
+  const width = Math.max(0.1, 0.3 - 0.15 * level + 0.05 * knives);
   const speed = 0.8 + 0.9 * level;
   // anywhere on the bar, but never the same place twice in a row
   const lo = 0.04, hi = 0.96 - width;
@@ -56,9 +59,12 @@ export const VERDICT_GRADE: Record<CutVerdict, Grade> = { perfect: 3, good: 2, r
 
 /** Cuts in a row at the start; the knives bring it down (Cuchillo de Spicy: 4, Cuchillo afilado: 3). */
 export const BASE_CUTS = 5;
-export function cutsNeeded(upgrades: readonly string[]): number {
-  return BASE_CUTS - (upgrades.includes('knife') ? 1 : 0) - (upgrades.includes('knife2') ? 1 : 0);
+/** Relaxed mode starts with one cut fewer (a repeated bar is the dullest part of a long order); never fewer than two. */
+export function cutsNeeded(upgrades: readonly string[], mode: 'relaxed' | 'normal' | 'challenge' = 'normal'): number {
+  const base = mode === 'relaxed' ? BASE_CUTS - 1 : BASE_CUTS;
+  return Math.max(2, base - (upgrades.includes('knife') ? 1 : 0) - (upgrades.includes('knife2') ? 1 : 0));
 }
+export const knivesOwned = (upgrades: readonly string[]): number => (upgrades.includes('knife') ? 1 : 0) + (upgrades.includes('knife2') ? 1 : 0);
 
 /** The result of a whole series of cuts: the average of their grades, rounded to the nearest verdict. */
 export function combineVerdicts(vs: readonly CutVerdict[]): CutVerdict {

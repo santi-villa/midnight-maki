@@ -38,7 +38,7 @@ export const ASSEMBLE_SECONDS = 1.4;
 export const MIX_SECONDS = 3.5;
 export const PLAYER = 'player';
 
-export type Verb = 'open' | 'return' | 'put' | 'take' | 'chop' | 'assemble' | 'deliver' | 'trash' | 'cup';
+export type Verb = 'open' | 'return' | 'put' | 'take' | 'chop' | 'assemble' | 'deliver' | 'trash' | 'cup' | 'scoop';
 /** Machines start by themselves when loaded. The cooker keeps taking portions for a few seconds (`grace`) after the first one. */
 
 export type GalleyEvent =
@@ -173,6 +173,8 @@ export class Galley {
       const cfg = COOK[STATION_BY_ID[id].cooker === 'rice' ? 'rice' : 'stove'];
       const loading = s.phase === 'idle' || (s.phase === 'cooking' && s.t < cfg.grace);
       if (loading) {
+        // rice goes straight from the stock into the cooker: carrying every portion from the fridge is the dullest trip of the kitchen
+        if (id === 'rice' && s.items.length < this.slots(id) && this.env.stock.have('rice') > 0) out.push('scoop');
         if (held && s.items.length < this.slots(id) && this.accepts(id, held)) out.push('put');
         if (s.items.length && room) out.push('take'); // change of mind while it is still loading
       } else if (s.phase === 'done' && s.items.length && room) out.push('take');
@@ -225,6 +227,14 @@ export class Galley {
       ev.push({ t: 'put', who, item, at: id });
       if (this.kind(id) === 'cooker' && s.phase === 'idle') { s.phase = 'cooking'; s.t = 0; ev.push({ t: 'cookStart', station: id }); }
       if (this.kind(id) === 'mixer' && this.drinkIn(id)) { s.work = { recipe: this.drinkIn(id)!, bonus: 0, t: 0, total: MIX_SECONDS }; ev.push({ t: 'cookStart', station: id }); }
+      return { ok: true, events: ev };
+    }
+    if (verb === 'scoop') {
+      if (!this.env.stock.take('rice')) return fail('No queda arroz.');
+      const item: IngItem = { kind: 'ing', uid: this.nextUid++, ing: 'rice', form: 'raw', q: 2 };
+      s.items.push(item);
+      ev.push({ t: 'put', who, item, at: id });
+      if (s.phase === 'idle') { s.phase = 'cooking'; s.t = 0; ev.push({ t: 'cookStart', station: id }); }
       return { ok: true, events: ev };
     }
     if (verb === 'take') {
@@ -412,7 +422,7 @@ export class Galley {
 }
 
 function rank(v: Verb): number {
-  return v === 'take' ? 0 : v === 'assemble' ? 1 : v === 'open' || v === 'cup' ? 3 : 4;
+  return v === 'scoop' ? -1 : v === 'take' ? 0 : v === 'assemble' ? 1 : v === 'open' || v === 'cup' ? 3 : 4;
 }
 
 function blank(): StationState { return { items: [], phase: 'idle', t: 0, work: null, pending: false }; }
