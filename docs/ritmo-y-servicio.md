@@ -99,3 +99,16 @@
 Todas exigen el prólogo terminado (`intro_done`) y no mueven el misterio principal; no hay diálogos obligatorios: aparecen al hablar con el mapache.
 
 **Comprobación:** `bonds.test.ts` (solo con mejora *y* amistad, una vez, recompensas) y recorrido real en navegador: compra de «Bandeja de servicio» con `buyUpgrade` (monedas y madera descontadas), hablar con Pip, escena completa con los controles de diálogo, recuerdo guardado, un peluche y una foto, y al volver a hablar no se repite ni se paga otra vez. **Limitaciones:** el flujo se probó con la bandeja; las otras dos escenas se comprobaron por test, no en navegador. El prólogo se saltó con `intro_done` (la condición real de la escena).
+
+## E7 · Prólogo y aprendizaje con la cocina física
+
+**Recorrido real** (ruta «Saltar intro»): pantalla de título → nueva partida → *Saltar intro ›* → encuentro de llegada con los controles de diálogo (sin tocar flags) → hablar con Spicy (`tutSpicy`, pasa el paso 2 del prólogo) → tarjeta de lección en la cocina → platos de práctica de Rigg → siguientes pasos del prólogo.
+
+**Lo que ya enseñaba** (`galley/tutorial.ts`): sacar de la heladera, arroz en la arrocera, sacarlo a tiempo, cortar, llevar a la mesa de armado, armar y entregar en el mostrador (dos platos: kappa y nigiri), con tarjeta y flecha que siguen el trabajo.
+
+**Cambios**
+- **Práctica libre** (3 tarjetas, una por vez, saltables con «Omitir lección»): *Echar arroz* (el verbo nuevo), *devolver con «Guardar»* un ingrediente a la heladera y *tirar al tacho*. Se completan **haciéndolas** (el resultado sale de lo que ocurre en la cocina, no de un temporizador); la lección pasa de 10 a 13 pasos. La tarjeta final sigue cerrándose sola a los 9 s, como antes, y **no** completa el prólogo.
+- El paso del prólogo «Prepará tus dos primeros platos» pedía solo 1 plato servido; ahora pide los 2 que dice el texto (`served() >= 2`). Los pasos siguientes (comprar, despensa, Yuki, Bento, decorar, dormir) no se tocaron, y el capítulo 1 sigue pidiendo 6 en total.
+- **Error encontrado en este recorrido** (introducido por E1): con arroz crudo en las manos, la acción principal en la arrocera era «Echar arroz» y no «Dejar»; se corrigió (`put` antes que `scoop` cuando hay algo en las manos) y se agregó test.
+
+**Comprobación:** navegador, recorrido completo de la lección (`galley_tut` 13 pasos), con teletransporte solo entre estaciones, cortes con la barra real, esperas reales de cocción, modal «¡Primera vez que preparás…!» y plato mostrado cerrados con toques. Resultado: paso 2 del prólogo tras hablar con Spicy; paso 3 tras 2 platos servidos; prólogo sin completar. Tests: `galleyModel.test.ts` (pasos de práctica, orden de verbos). **Limitaciones:** el modo por defecto de una partida nueva fue Relajado (4 cortes); no se repitió en Normal/Difícil.

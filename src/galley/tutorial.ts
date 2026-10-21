@@ -6,7 +6,8 @@ import { STATIONS } from './layout';
 import { PLAYER, type Galley } from './model';
 import type { GItem, IngItem } from './prep';
 
-export interface TutCtx { g: Galley; served: ReadonlySet<string> }
+/** `did`: things the player has done at least once this session: 'scoop', 'return' (put an ingredient back in the fridge), 'trash' */
+export interface TutCtx { g: Galley; served: ReadonlySet<string>; did?: ReadonlySet<string> }
 export interface TutStep { id: string; dish: string; text: string; done(c: TutCtx): boolean }
 
 /** Everything the kitchen holds: the player's hands and every station. */
@@ -30,6 +31,10 @@ export const TUTORIAL: readonly TutStep[] = [
   { id: 'n_cut', dish: 'Nigiri de salmón', text: 'Segundo plato: un nigiri de salmón. Sacá salmón de la heladera y cortalo en la tabla.', done: (c) => ing(c, 'salmon', cut) || dish(c, 'sake_nigiri') },
   { id: 'n_make', dish: 'Nigiri de salmón', text: 'Armalo en la mesa con arroz cocido (el que sobró en el hangiri).', done: (c) => dish(c, 'sake_nigiri') },
   { id: 'n_serve', dish: 'Nigiri de salmón', text: 'Entregalo en el mostrador. ¡Listo!', done: (c) => c.served.has('sake_nigiri') },
+  // free practice, one small task at a time (the card can be skipped at any moment)
+  { id: 'p_scoop', dish: 'Práctica', text: 'Práctica 1 de 3: parada en la arrocera, tocá «Echar arroz». Sale directo de la despensa, sin viajar a la heladera. Después podés sacarlo otra vez.', done: (c) => !!c.did?.has('scoop') },
+  { id: 'p_return', dish: 'Práctica', text: 'Práctica 2 de 3: sacá un ingrediente de la heladera y devolvelo con «Guardar». Equivocarte no cuesta nada.', done: (c) => !!c.did?.has('return') },
+  { id: 'p_trash', dish: 'Práctica', text: 'Práctica 3 de 3: lo que sale mal va al tacho, junto a la mesa de armado. Sacá algo de la heladera y tiralo.', done: (c) => !!c.did?.has('trash') },
 ];
 
 const heldIng = (c: TutCtx, ing: string, form?: (f: string) => boolean): boolean => {
@@ -66,6 +71,9 @@ export function tutorialStation(i: number, c: TutCtx): string | null {
       return 'assembly';
     }
     case 'k_make': return 'assembly';
+    case 'p_scoop': return 'rice';
+    case 'p_return': return 'fridge';
+    case 'p_trash': return held ? 'bin' : 'fridge';
     case 'k_serve':
     case 'n_serve': return held?.kind === 'dish' ? 'pass' : 'assembly';
     default: return null;

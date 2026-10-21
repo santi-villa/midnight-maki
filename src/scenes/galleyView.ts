@@ -87,6 +87,8 @@ export class GalleyView {
   private labelTexts = new Map<string, Phaser.GameObjects.Text>();
   private labelT = 0;
   private served = new Set<string>();
+  /** what the player has tried this session (feeds the practice cards of the lesson) */
+  private did = new Set<string>();
   private offServed: (() => void) | null = null;
   private tutT = 0;
   private tutDoneAt = 0;
@@ -284,7 +286,7 @@ export class GalleyView {
       game.setFlag('galley_tut', 1);
     }
     const from = Number(game.flag('galley_tut')) - 1;
-    const i = tutorialStep(from, { g: galley(), served: this.served });
+    const i = tutorialStep(from, { g: galley(), served: this.served, did: this.did });
     if (i !== from) game.setFlag('galley_tut', i + 1);
     const skip = () => { game.setFlag('galley_tut_done'); showTutorial(null, () => {}); };
     if (i >= TUTORIAL.length) {
@@ -300,7 +302,7 @@ export class GalleyView {
   guideGoal(): { x: number; y: number } | null {
     if (!this.active || !game.has('galley_tut') || game.has('galley_tut_done')) return null;
     const i = Number(game.flag('galley_tut')) - 1;
-    const id = tutorialStation(i, { g: galley(), served: this.served });
+    const id = tutorialStation(i, { g: galley(), served: this.served, did: this.did });
     const s = id && STATION_BY_ID[id];
     if (!s) return null;
     return { x: s.stand[0][0] * TILE + TILE / 2, y: s.stand[0][1] * TILE + TILE / 2 };
@@ -664,6 +666,7 @@ export class GalleyView {
     this.actFrom = { x: c.x * TILE, y: slotY(s) + 1, t: this.clock };
     const res = g.perform(PLAYER, stationId, verb);
     if (!res.ok) { if (res.msg) toast(res.msg); audio.sfxPlay('error'); return; }
+    if (verb === 'scoop') this.did.add('scoop');
     this.onEvents(res.events);
     if (res.needsPick) this.pickFromFridge();
     if (res.needsCut) this.startCut(stationId);
@@ -753,7 +756,7 @@ export class GalleyView {
       switch (e.t) {
         case 'take': audio.sfxPlay('grab'); break;
         case 'put': audio.sfxPlay('drop'); break;
-        case 'refund': audio.sfxPlay('drop'); toast('Guardaste el ingrediente en la heladera.'); break;
+        case 'refund': this.did.add('return'); audio.sfxPlay('drop'); toast('Guardaste el ingrediente en la heladera.'); break;
         case 'cookStart': {
           const s = STATION_BY_ID[e.station];
           audio.sfxPlay('cook_start');
@@ -773,7 +776,7 @@ export class GalleyView {
           this.say(s, ['Aceptable', 'Muy bueno', '¡Perfecto!'][e.dish.dq], e.dish.dq === 2 ? '#ffe08a' : '#f6ecd6');
           break;
         }
-        case 'trash': audio.sfxPlay('trash'); break;
+        case 'trash': this.did.add('trash'); audio.sfxPlay('trash'); break;
         case 'delivered': this.slide(e.dish); break;
         case 'cut': break;
         case 'fridge': break;
