@@ -84,3 +84,18 @@
 - Cada dador sigue teniendo un encargo a la vez (`giverBusy`): estos quedan detrás de los existentes de Pip, Spicy, Rigg y Ume, no los reemplazan ni tocan capítulos.
 
 **Comprobación:** `quests.test.ts` (línea base, avance, recompensa una sola vez, ida y vuelta de guardado) y navegador: aparecen en el tablón, se aceptan y avanzan con `serveOrder` real; guirnalda entregada una vez. **Limitación:** la comprobación del servicio usó el camino real de `serveOrder`, pero sin una partida completa de cocina física con calidad perfecta; no se probó en el diálogo de cada dador.
+
+## E6 · Mejoras vinculadas al hogar
+
+**Ya existía**: los rincones de Pip, Spicy y Rigg (`restaurant/corners.ts`) con sus pausas de la tarde y las escenas de vínculos que cuelgan de ellos (`story/bonds.ts`: `pip_corner`, `spicy_corner`, `rigg_corner`…), con flag `bond_<id>` (día visto), recompensa en un solo bloque y panel de Vínculos con pistas.
+
+**Nuevo** — tres escenas cortas de las renovaciones de *cocina y servicio*, con el mismo motor (se guardan con su flag, no se repiten, no se pagan dos veces, se pueden reproducir desde el panel):
+| Escena | Condición | Recompensa |
+|---|---|---|
+| `spicy_rice` · La primera tanda | «Spicy: arrocero» comprado + amistad 2 con Spicy | recuerdo + 4 arroz y 3 nori |
+| `rigg_bell` · El timbre de las ocho | «Timbre de servicio» + amistad 2 con Rigg | recuerdo + reloj de pared |
+| `pip_tray` · La bandeja nueva | «Bandeja de servicio» + amistad 2 con Pip | recuerdo + peluche de gato + foto en el álbum |
+
+Todas exigen el prólogo terminado (`intro_done`) y no mueven el misterio principal; no hay diálogos obligatorios: aparecen al hablar con el mapache.
+
+**Comprobación:** `bonds.test.ts` (solo con mejora *y* amistad, una vez, recompensas) y recorrido real en navegador: compra de «Bandeja de servicio» con `buyUpgrade` (monedas y madera descontadas), hablar con Pip, escena completa con los controles de diálogo, recuerdo guardado, un peluche y una foto, y al volver a hablar no se repite ni se paga otra vez. **Limitaciones:** el flujo se probó con la bandeja; las otras dos escenas se comprobaron por test, no en navegador. El prólogo se saltó con `intro_done` (la condición real de la escena).
