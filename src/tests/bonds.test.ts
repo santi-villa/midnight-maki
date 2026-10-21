@@ -60,4 +60,22 @@ describe('personal scenes (vínculos)', () => {
     expect(bondDone(b)).toBe(true);
     expect(readyBonds().map((x) => x.id)).not.toContain('pip_nap');
   });
+
+  it('the kitchen renovations bring a scene with their raccoon, once, and only after the upgrade and the friendship', () => {
+    game.setFlag('intro_done');
+    const rice0 = game.save.inventory.rice ?? 0;
+    for (const [who, upgrade, id] of [['spicy', 'rice_hand', 'spicy_rice'], ['rigg', 'service_bell', 'rigg_bell'], ['pip', 'carry_tray', 'pip_tray']] as const) {
+      expect(readyBonds().map((b) => b.id)).not.toContain(id);
+      befriend(who, 2);
+      expect(readyBonds().map((b) => b.id)).not.toContain(id); // friendship alone is not enough
+      game.save.restaurant.upgrades.push(upgrade);
+      expect(nextBondFor(who, 'plaza')?.id).toBe(id);
+      const b = BONDS.find((x) => x.id === id)!;
+      grantBond(b, null); grantBond(b, null);
+      expect(nextBondFor(who, 'plaza')?.id).not.toBe(id);
+      expect(game.flag(`bond_count_${who}`)).toBe(1);
+    }
+    expect(game.save.furnitureOwned.clock).toBe(1);
+    expect(game.save.inventory.rice).toBe(rice0 + 4);
+  });
 });
