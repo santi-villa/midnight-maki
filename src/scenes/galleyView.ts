@@ -160,6 +160,7 @@ export class GalleyView {
     for (const id of this.workers.keys()) { const a = this.host.crew.actor(id); if (a) this.syncHeld('hand:' + id, a); }
     this.syncPass();
     this.drawProgress();
+    this.drawFocus();
     this.updateLabels(dt);
     this.updateTutorial(dt);
     this.steam(dt);
@@ -445,6 +446,58 @@ export class GalleyView {
           saveGalley();
         };
       } else w.wait = def.pace;
+    }
+  }
+
+  // ------------------------------------------------------------------ which station you can use
+  /**
+   * The station under your feet gets four corner ticks and a small arrow: a down arrow when something can be done there, a
+   * cross with dashed ticks when nothing can (so it never relies on colour alone). While carrying something, the stations
+   * that would take it show a soft down chevron.
+   */
+  private drawFocus() {
+    const gfx = this.gfx;
+    if (!gfx || this.host.galleyBusy || fridgeOpen() || cutting()) return;
+    const g = galley();
+    const p = this.host.player;
+    const held = g.held(PLAYER)[0];
+    const plate = this.holdingPlate();
+    const usable = (id: string) => g.verbs(PLAYER, id).filter((v) => !plate || v === 'put' || v === 'deliver' || v === 'trash');
+    const bob = lowFx() ? 0 : Math.round(Math.sin(this.clock * 5));
+    const INKC = 0x2b1d17, CREAM = 0xfff4d6, MUTED = 0xd9c7ad;
+    const here = STATIONS.find((s) => s.stand.some(([sx, sy]) => sx === p.tx && sy === p.ty));
+    if (held) {
+      for (const s of STATIONS) {
+        if (s === here) continue;
+        const ok = usable(s.id).some((v) => v === 'put' || v === 'deliver' || v === 'trash' || v === 'return' || (v === 'chop' && !g.station(s.id).items.length));
+        if (!ok) continue;
+        const cx = s.x * TILE + (s.w * TILE) / 2, y = s.y * TILE - 3;
+        gfx.fillStyle(INKC, 0.8).fillTriangle(cx - 4, y - 1, cx + 4, y - 1, cx, y + 4);
+        gfx.fillStyle(CREAM, 0.85).fillTriangle(cx - 3, y, cx + 3, y, cx, y + 3);
+      }
+    }
+    if (!here) return;
+    const verbs = usable(here.id);
+    const ok = verbs.length > 0;
+    const x0 = here.x * TILE - 1, y0 = here.y * TILE - 1, x1 = (here.x + here.w) * TILE, y1 = (here.y + here.h) * TILE;
+    const col = ok ? CREAM : MUTED;
+    // corner ticks (solid when usable; broken with a gap when not), each with a dark edge underneath
+    const tick = (x: number, y: number, dx: number, dy: number) => {
+      const len = ok ? 4 : 2;
+      for (const [c, o] of [[INKC, 1], [col, 0]] as const) {
+        gfx.fillStyle(c).fillRect(Math.min(x, x + dx * len) - o, y - o, len + 1 + o * 2, 1 + o * 2);
+        gfx.fillStyle(c).fillRect(x - o, Math.min(y, y + dy * len) - o, 1 + o * 2, len + 1 + o * 2);
+      }
+    };
+    tick(x0, y0, 1, 1); tick(x1, y0, -1, 1); tick(x0, y1, 1, -1); tick(x1, y1, -1, -1);
+    const cx = (x0 + x1) / 2, ay = y0 - 4 + (ok ? bob : 0);
+    if (ok) {
+      gfx.fillStyle(INKC).fillTriangle(cx - 4, ay - 1, cx + 5, ay - 1, cx + 0.5, ay + 5);
+      gfx.fillStyle(CREAM).fillTriangle(cx - 3, ay, cx + 4, ay, cx + 0.5, ay + 3.5);
+    } else {
+      // a small cross on a dark chip
+      gfx.fillStyle(INKC).fillRect(cx - 4, ay - 1, 9, 7);
+      for (let i = 0; i < 5; i++) { gfx.fillStyle(MUTED).fillRect(cx - 2 + i, ay + i, 1, 1); gfx.fillRect(cx + 2 - i, ay + i, 1, 1); }
     }
   }
 
