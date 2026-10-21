@@ -96,6 +96,8 @@ export class GalleyView {
   private fridgeDoor: Phaser.GameObjects.Image | null = null;
   private knife: Phaser.GameObjects.Image | null = null;
   private lastZone: number | undefined;
+  /** the last thing the player did at a station: pieces glide between that slot and the hands for a moment */
+  private actFrom: { x: number; y: number; t: number } | null = null;
   private clock = 0;
 
   constructor(private host: GalleyHost) {}
@@ -174,9 +176,9 @@ export class GalleyView {
   }
 
   // ------------------------------------------------------------------ station contents
-  private tex(item: GItem): string {
-    const key = 'gi_' + itemKey(item);
-    if (!this.host.scene.textures.exists(key)) this.host.scene.textures.addCanvas(key, galleyItemCanvas(item));
+  private tex(item: GItem, carried = false): string {
+    const key = 'gi_' + itemKey(item) + (carried ? '_held' : '');
+    if (!this.host.scene.textures.exists(key)) this.host.scene.textures.addCanvas(key, galleyItemCanvas(item, carried));
     return key;
   }
 
@@ -195,7 +197,7 @@ export class GalleyView {
       const sprites = show.map((item, i) => {
         const p = slots[Math.min(i, slots.length - 1)];
         const img = scene.add.image(Math.round(p.x), Math.round(p.y), this.tex(item)).setOrigin(0.5, 1).setScale(p.scale).setDepth((s.y + 1) * TILE + 0.5 + i * 0.01);
-        if (!prev || !prev.sprites.length || prev.key.indexOf(String(item.uid)) < 0) this.pop(img, p.scale);
+        if (!prev || !prev.sprites.length || prev.key.indexOf(String(item.uid)) < 0) this.arrive(img, p.scale);
         return img;
       });
       this.stationSprites.set(s.id, { key: sig, sprites });
@@ -331,6 +333,15 @@ export class GalleyView {
     this.host.scene.tweens.add({ targets: img, angle: { from: -18, to: 18 }, duration: 70, yoyo: true, repeat: 4, onComplete: () => img.setAngle(0) });
   }
 
+  /** A piece set down glides from the player's hands to its slot (a short pop where it came from nowhere, or on low effects). */
+  private arrive(img: Phaser.GameObjects.Image, scale: number) {
+    const from = this.actFrom && this.clock - this.actFrom.t < 0.35 ? this.host.player : null;
+    if (!from || lowFx()) { this.pop(img, scale); return; }
+    const x = img.x, y = img.y;
+    img.setPosition(Math.round(from.x), Math.round(from.y - 8)).setScale(scale * 1.15);
+    this.host.scene.tweens.add({ targets: img, x, y, scale, duration: 150, ease: 'Sine.out' });
+  }
+
   private pop(img: Phaser.GameObjects.Image, scale: number) {
     if (lowFx()) return;
     img.setScale(scale * 0.4);
@@ -348,8 +359,13 @@ export class GalleyView {
       draw.key = sig;
       draw.sprites.forEach((s) => s.destroy());
       draw.sprites = held.map((item) => {
-        const img = this.host.scene.add.image(0, 0, this.tex(item)).setOrigin(0.5, 1).setScale(0.75);
-        if (fresh && !lowFx()) { img.setScale(0.3); this.host.scene.tweens.add({ targets: img, scale: 0.75, duration: 200, ease: 'Back.out' }); }
+        const img = this.host.scene.add.image(0, 0, this.tex(item, true)).setOrigin(0.5, 1).setScale(0.75);
+        if (fresh && !lowFx()) {
+          img.setScale(0.5); this.host.scene.tweens.add({ targets: img, scale: 0.75, duration: 200, ease: 'Back.out' });
+          // it comes up from the slot it was taken from
+          const from = who === PLAYER && this.actFrom && this.clock - this.actFrom.t < 0.35 ? this.actFrom : null;
+          if (from) img.setData('lift', { dx: from.x - p.x, dy: from.y - (p.y - 8), t: this.clock });
+        }
         return img;
       });
     }
@@ -358,7 +374,10 @@ export class GalleyView {
     draw.sprites.forEach((img, i) => {
       const behind = dir === 'up';
       const side = dir === 'left' ? -5 : dir === 'right' ? 5 : 0;
-      img.setPosition(Math.round(p.x + side + (i ? 6 : 0) * (dir === 'left' ? -1 : 1)), Math.round(p.y - 8 - bob - i * 2));
+      let ox = 0, oy = 0;
+      const lift = img.getData('lift') as { dx: number; dy: number; t: number } | undefined;
+      if (lift) { const k = (this.clock - lift.t) / 0.16; if (k >= 1) img.setData('lift', undefined); else { const e = 1 - k * k; ox = lift.dx * e; oy = lift.dy * e; } }
+      img.setPosition(Math.round(p.x + side + ox + (i ? 6 : 0) * (dir === 'left' ? -1 : 1)), Math.round(p.y - 8 - bob - i * 2 + oy));
       img.setDepth(p.y + (behind ? -0.4 : 0.6));
     });
   }
@@ -586,6 +605,7 @@ export class GalleyView {
     }
     if ((verb === 'assemble') && tooTiredToCook()) { toast('Estás muy cansada para cocinar. Dormí o descansá un rato en tu cama.'); audio.sfxPlay('error'); return; }
     const g = galley();
+    this.actFrom = { x: c.x * TILE, y: slotY(s) + 1, t: this.clock };
     const res = g.perform(PLAYER, stationId, verb);
     if (!res.ok) { if (res.msg) toast(res.msg); audio.sfxPlay('error'); return; }
     this.onEvents(res.events);

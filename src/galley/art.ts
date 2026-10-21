@@ -10,12 +10,13 @@ import { RECIPES_BY_ID } from '../data/recipes';
 import { DRINK_BY_ID } from '../restaurant/drinkData';
 import type { GItem } from './prep';
 
-export const ITEM_W = 18;
-export const ITEM_H = 16;
+export const ITEM_W = 20; // 18x16 of art plus a one pixel contour all around
+export const ITEM_H = 18;
 const INK = '#2b1d17';
 const cache = new Map<string, HTMLCanvasElement>();
 
 export function itemKey(i: GItem): string {
+  // (the carried look is cached apart, see galleyItemCanvas)
   if (i.kind === 'cup') return 'cup';
   if (i.kind === 'drink') return `k|${i.drink}`;
   return i.kind === 'dish' ? `d|${i.recipe}|${i.dq}` : `i|${i.ing}|${i.form}|${i.q >= 3 ? 3 : 2}`;
@@ -86,11 +87,43 @@ function glass(fill?: string): HTMLCanvasElement {
   return c;
 }
 
-/** The sprite of a thing in somebody's hands or on a surface. */
-export function galleyItemCanvas(item: GItem): HTMLCanvasElement {
-  const key = itemKey(item);
+/** One pixel contour around whatever is drawn, so small things keep their silhouette over wood and dark counters. */
+function contoured(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
+  const c = makeCanvas(ITEM_W, ITEM_H);
+  const g = ctx2d(c);
+  const tint = makeCanvas(src.width, src.height);
+  const t = ctx2d(tint);
+  t.drawImage(src, 0, 0);
+  t.globalCompositeOperation = 'source-in';
+  t.fillStyle = color;
+  t.fillRect(0, 0, src.width, src.height);
+  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(tint, 1 + dx, 1 + dy);
+  g.drawImage(src, 1, 1);
+  return c;
+}
+
+/**
+ * Shape cues that do not rely on colour: raw is whole, cut shows knife marks, cooked shows steam, a plate sits on a dish,
+ * a glass holds a drink. Drawn in the corner of the 18x16 art.
+ */
+function cue(c: HTMLCanvasElement, form: string) {
+  const g = ctx2d(c);
+  if (form === 'cut' || form === 'cooked_cut') { px(g, 14, 1, INK, 3, 1); px(g, 13, 2, '#fffaf0', 2, 1); px(g, 15, 0, '#fffaf0'); px(g, 16, 2, INK); }
+  if (form === 'cooked' || form === 'cooked_cut') { px(g, 1, 1, '#ffffff'); px(g, 2, 0, '#ffffff'); px(g, 3, 1, '#ffffff'); }
+}
+
+/** The sprite of a thing in somebody's hands (`carried`: cream contour) or on a surface (dark contour). */
+export function galleyItemCanvas(item: GItem, carried = false): HTMLCanvasElement {
+  const key = itemKey(item) + (carried ? '|held' : '');
   const hit = cache.get(key);
   if (hit) return hit;
+  const flat = flatCanvas(item);
+  const c = contoured(flat, carried ? '#fff4d6' : INK);
+  cache.set(key, c);
+  return c;
+}
+
+function flatCanvas(item: GItem): HTMLCanvasElement {
   let c: HTMLCanvasElement;
   if (item.kind === 'cup') c = glass();
   else if (item.kind === 'drink') c = glass(DRINK_BY_ID[item.drink]?.icon.c1 ?? '#91ab69');
@@ -101,10 +134,10 @@ export function galleyItemCanvas(item: GItem): HTMLCanvasElement {
     const cut = item.form === 'cut' || item.form === 'cooked_cut';
     c = cut ? sliced(src) : (() => { const o = makeCanvas(ITEM_W, ITEM_H); ctx2d(o).drawImage(src, 1, 0); return o; })();
     if (item.form === 'cooked' || item.form === 'cooked_cut') toasted(c);
+    cue(c, item.form);
   }
   // a prepared piece that came out perfect carries a tiny gold glint
-  if (item.kind === 'ing' && item.q >= 3 && item.form !== 'raw') { const g = ctx2d(c); px(g, 15, 2, '#fff2b0'); px(g, 14, 3, '#f2c66d'); px(g, 16, 3, '#f2c66d'); px(g, 15, 4, '#f2c66d'); }
-  cache.set(key, c);
+  if (item.kind === 'ing' && item.q >= 3 && item.form !== 'raw') { const g = ctx2d(c); px(g, 15, 5, '#fff2b0'); px(g, 14, 6, '#f2c66d'); px(g, 16, 6, '#f2c66d'); px(g, 15, 7, '#f2c66d'); }
   return c;
 }
 
