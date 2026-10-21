@@ -22,6 +22,13 @@ const stat = (k: string, n: number) => () => (game.save.stats[k] ?? 0) >= n;
 const col = (cat: string, id: string) => () => game.collected(cat, id);
 const delivered = (q: string, i: number) => () => game.has(`qd_${q}_${i}`);
 const talked = (q: string, i: number) => () => game.has(`qt_${q}_${i}`);
+/** "n more since the request was accepted": the first look at the counter fixes the starting point, so old totals never finish a new request. */
+const since = (quest: string, key: string, n: number) => () => {
+  const base = game.flag(`qb_${quest}_${key}`);
+  const now = game.save.stats[key] ?? 0;
+  if (typeof base !== 'number') { game.setFlag(`qb_${quest}_${key}`, now); return false; }
+  return now - base >= n;
+};
 const itemsText = (m: Record<string, number>) => Object.entries(m).map(([id, n]) => `${n} ${ITEMS_BY_ID[id]?.name ?? id}`).join(', ');
 
 function side(
@@ -113,6 +120,21 @@ defineQuests([
     [{ text: 'Resolvé el acertijo del tocón tallado.', done: f('stump_solved'), target: { kind: 'object', zone: 'forest', x: 10, y: 12, label: 'Tocón tallado', interactId: 'stump' } }], { coins: 150, items: { berry: 4 } }),
   side('sq_bento_breakfast', 'bento', 'Desayuno de campeones', 'Ingredientes para Bento.', 'Quiero inventar un pan con fruta. ¿Me traés frutillas silvestres y un huevo?', after('unlock_forest'),
     [{ deliver: { berry: 3, egg: 1 } }], { coins: 110, items: { g_candy: 1 } }),
+]);
+// ------------------------------------------------------------------ small occasions at the restaurant (extend the raccoons' and Ume's requests)
+defineQuests([
+  side('sq_merienda_trio', 'pip', 'Merienda para tres', 'Compartir una merienda con cada mapache.', '¿Y si hacemos una merienda los cuatro? Tenés que compartir una con cada uno: conmigo, con Spicy y con Rigg. ¡Después armamos una mesita baja!', () => game.has('intro_done') && game.friendLevel('pip') >= 1,
+    [{ text: 'Compartí una merienda con Pip, con Spicy y con Rigg (Hablar → Más acciones → Compartir una merienda).', done: () => ['pip', 'spicy', 'rigg'].every((r) => (game.save.stats[`company_${r}_share`] ?? 0) >= 1), target: { kind: 'npc', npc: 'pip', label: 'Pip' } }],
+    { furniture: ['table_low', 'cushion_rose'] }),
+  side('sq_spicy_party', 'spicy', 'Una torta para Pip', 'Ayudar a Spicy con una celebración.', 'Se acerca el día de los Mapaches y quiero que todo salga perfecto. Necesito ver tu mano: sirvile tres platos perfectos a los clientes y decoro el salón con una guirnalda.', () => game.has('intro_done') && game.save.restaurant.level >= 2,
+    [{ text: 'Serví 3 platos perfectos en el restaurante.', done: since('sq_spicy_party', 'perfectServed', 3), target: { kind: 'object', zone: 'restaurant', x: 6, y: 3, label: 'Cocina' } }],
+    { furniture: ['garland', 'plush_raccoon'] }),
+  side('sq_rigg_meeting', 'rigg', 'Una reunión en la mesa larga', 'Organizar una pequeña reunión de vecinos.', 'Quiero anotar quién viene a comer y con quién se sienta. Si lográs que tres vecinos distintos coman bien en el restaurante, armo la mesa larga para todos.', () => game.has('intro_done') && game.friendLevel('rigg') >= 2,
+    [{ text: 'Serví bien a 3 vecinos del pueblo en el restaurante (invitalos charlando con ellos).', done: since('sq_rigg_meeting', 'neighborsServed', 3), target: { kind: 'object', zone: 'restaurant', x: 6, y: 3, label: 'Cocina' } }],
+    { furniture: ['table_long'], items: { g_tea: 1 } }),
+  side('sq_ume_merienda', 'ume', 'Té de la tarde en Midnight Maki', 'Preparar una merienda para Ume.', 'Gracias por el té de la otra vez. ¿Y si me preparás uno en el restaurante, con compañía? Sirvan dos bebidas a los clientes y me quedo a mirar.', () => isDone('sq_ume_tea'),
+    [{ text: 'Serví 2 bebidas en el restaurante (la licuadora y los vasos de la cocina).', done: since('sq_ume_merienda', 'drinksServed', 2), target: { kind: 'object', zone: 'restaurant', x: 11, y: 3, label: 'Licuadora' } }],
+    { furniture: ['kotatsu'], coins: 60 }),
 ]);
 if (SIDE_META.sq_sumi_photos) SIDE_META.sq_mika_photos = SIDE_META.sq_sumi_photos;
 

@@ -196,6 +196,8 @@ export function serveOrder(uid: number, quality: 0 | 1 | 2, variantBonus = 0, op
     s.recipesCooked[o.recipe] = (s.recipesCooked[o.recipe] ?? 0) + 1;
     s.restaurant.served++;
     if (quality >= 1) game.stat('goodServed');
+    if (quality === 2) game.stat('perfectServed');
+    if (o.customer.startsWith('nb_') && quality >= 1) game.stat('neighborsServed');
     game.stat('served');
   }
   const rep = o.kind === 'drink' ? 1 : BALANCE.reputationPerServe + quality - (quality === 0 ? 1 : 0) + (wantMet(o, quality) ? 1 : 0);

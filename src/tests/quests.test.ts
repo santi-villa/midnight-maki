@@ -148,3 +148,43 @@ describe('notice board', () => {
     expect(ids).not.toContain('sq_mika_photos');
   });
 });
+
+describe('restaurant occasions', () => {
+  it('count only what happens after the request was accepted, pay once, and never block a giver forever', async () => {
+    const { check, isActive, isDone } = await import('../quests/quests');
+    const { giverBusy } = await import('../quests/side');
+    game.save.stats.perfectServed = 9; // an old total must not finish a new request
+    game.save.restaurant.level = 2; game.setFlag('intro_done'); game.save.furnitureOwned = {};
+    expect(startQuest('sq_spicy_party')).toBe(true);
+    check();
+    expect(isActive('sq_spicy_party')).toBe(true);
+    game.stat('perfectServed', 2); check();
+    expect(isActive('sq_spicy_party')).toBe(true);
+    game.stat('perfectServed', 1); check();
+    expect(isDone('sq_spicy_party')).toBe(true);
+    expect(game.save.furnitureOwned.garland).toBe(1);
+    expect(game.save.furnitureOwned.plush_raccoon).toBe(1);
+    check(); check();
+    expect(game.save.furnitureOwned.garland).toBe(1); // no second reward
+    expect(giverBusy('spicy')).toBe(false);
+  });
+
+  it('the raccoons\' picnic needs a shared snack with each of the three', async () => {
+    const { check, isDone } = await import('../quests/quests');
+    game.setFlag('intro_done'); game.save.furnitureOwned = {};
+    startQuest('sq_merienda_trio');
+    game.save.stats.company_pip_share = 1; game.save.stats.company_spicy_share = 1; check();
+    expect(isDone('sq_merienda_trio')).toBe(false);
+    game.save.stats.company_rigg_share = 1; check();
+    expect(isDone('sq_merienda_trio')).toBe(true);
+    expect(game.save.furnitureOwned.table_low).toBe(1);
+  });
+
+  it('survive a save round trip with the baselines kept', () => {
+    startQuest('sq_rigg_meeting');
+    game.setFlag('qb_sq_rigg_meeting_neighborsServed', 4);
+    const back = validateSave(JSON.parse(JSON.stringify(game.save)));
+    expect(back.flags.qb_sq_rigg_meeting_neighborsServed).toBe(4);
+    expect(back.quests.active.sq_rigg_meeting).toBeDefined();
+  });
+});
