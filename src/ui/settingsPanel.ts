@@ -1,4 +1,5 @@
 import { settings, updateSettings } from '../core/settings';
+import { MIN_UI_SCALE, MAX_UI_SCALE, normalizeUiScale } from '../core/uiScale';
 import { game } from '../core/state';
 import type { SaveData } from '../core/types';
 import { resetAutoPerf } from '../core/perf';
@@ -12,6 +13,24 @@ import './settingsPanel.css';
 import { haptic, supportsHaptics } from '../core/haptics';
 
 export function openSettings(inGame: boolean) {
+  const uiPercent = () => Math.round(normalizeUiScale(settings.uiScale) * 100) + '%';
+  const sizeValue = h('output', { class: 'val', 'aria-live': 'polite' }, uiPercent());
+  const sizeInput = h('input', {
+    type: 'range', min: String(MIN_UI_SCALE), max: String(MAX_UI_SCALE), step: '0.05',
+    value: String(normalizeUiScale(settings.uiScale)), 'aria-label': 'Tamaño de la interfaz', 'aria-valuetext': uiPercent(),
+    oninput: (e: Event) => {
+      const input = e.target as HTMLInputElement;
+      updateSettings({ uiScale: Number(input.value) });
+      sizeValue.textContent = uiPercent();
+      input.setAttribute('aria-valuetext', uiPercent());
+    },
+  }) as HTMLInputElement;
+  const interfaceSize = setting('Tamaño de la interfaz', 'Achicá menús y controles para dejar más espacio. Se guarda en este dispositivo. El tamaño del texto se ajusta por separado.',
+    h('div', { class: 'col' }, h('div', { class: 'row', style: { flexWrap: 'nowrap' } }, sizeInput, sizeValue),
+      h('button', { class: 'btn small', onclick: () => {
+        updateSettings({ uiScale: 1 }); sizeInput.value = '1'; sizeValue.textContent = uiPercent();
+        sizeInput.setAttribute('aria-valuetext', uiPercent());
+      } }, 'Restablecer tamaño')), true);
   const slider = (label: string, key: 'music' | 'ambience' | 'sfx') => {
     const val = h('span', { class: 'val' }, Math.round(settings[key] * 100) + '%');
     const input = h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(settings[key]), 'aria-label': label, oninput: (e: Event) => { const v = +(e.target as HTMLInputElement).value; updateSettings({ [key]: v } as any); val.textContent = Math.round(v * 100) + '%'; } });
@@ -86,6 +105,7 @@ export function openSettings(inGame: boolean) {
       toggle('Flecha de objetivo', 'guide', 'Una flechita dorada señala hacia dónde ir en la misión actual.'),
       ),
     section('Pantalla y comodidad', 'phone',
+      interfaceSize,
       choice<'normal' | 'dark'>('Noche', [['normal', 'Normal'], ['dark', 'Oscura']], () => settings.nightBrightness ?? 'normal', (v) => updateSettings({ nightBrightness: v }), 'Brillo del exterior por la noche. Sofi conserva una luz tenue para orientarte.'),
       choice<'auto' | 'high' | 'low'>('Efectos visuales', [['auto', 'Automático'], ['high', 'Lindos'], ['low', 'Ahorro de batería']], () => settings.perf ?? 'auto', (v) => { if (v === 'auto') resetAutoPerf(); updateSettings({ perf: v }); }),
       toggle('Reducir movimiento', 'reduceMotion', 'Menos partículas y animaciones de fondo.'),
