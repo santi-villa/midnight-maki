@@ -17,7 +17,7 @@ import { Actor, TILE } from '../entities/Actor';
 import { CUT_SECONDS, handsFor, type HandDef, type Step } from '../galley/crew';
 import type { Need } from '../galley/prep';
 import type { Grid } from '../world/grid';
-import { combineVerdicts, cutLevel, cutsNeeded, cutSpec, type CutVerdict } from '../galley/cut';
+import { combineVerdicts, cutLevel, cutsNeeded, cutSpec, knivesOwned, type CutVerdict } from '../galley/cut';
 import { galley, galleyOn, saveGalley } from '../galley';
 import { fridgeOpenCanvas, galleyItemCanvas, itemKey, PIXEL_BITS } from '../galley/art';
 import { STATIONS, STATION_BY_ID, stationCentre, type StationDef } from '../galley/layout';
@@ -58,7 +58,7 @@ export interface GalleyHost {
   onInteract: (t: Target) => void;
 }
 
-export type GalleyVerb = Verb | 'pantry' | 'bell';
+export type GalleyVerb = Verb | 'scoop' | 'pantry' | 'bell';
 
 const slotY = (s: StationDef) => s.y * TILE + 2;
 
@@ -596,6 +596,7 @@ export class GalleyView {
     const top = st.items[st.items.length - 1];
     const kind = g.kind(station.id);
     switch (verb) {
+      case 'scoop': return { label: 'Echar arroz', detail: 'Sacar arroz de la despensa y cargarlo directo en la arrocera', icon: 'maki' };
       case 'open': return { label: 'Abrir', detail: 'Abrir la heladera y elegir un ingrediente', icon: 'act' };
       case 'return': return { label: 'Guardar', detail: `Devolver ${held ? itemLabel(held).toLowerCase() : 'lo que llevás'} a la heladera`, icon: 'act' };
       case 'put': return kind === 'cooker'
@@ -709,14 +710,14 @@ export class GalleyView {
     if (!item) return;
     const s = STATION_BY_ID[stationId];
     const ups = game.save.restaurant.upgrades;
-    const total = cutsNeeded(ups);
+    const total = cutsNeeded(ups, settings.cookMode);
     const level = cutLevel(settings.cookMode, clock.period);
     const verdicts: CutVerdict[] = [];
     this.host.galleyBusy = true;
     this.host.player.stop();
     this.host.player.setAct('cook');
     const next = () => {
-      const spec = cutSpec({ level, knife: ups.includes('knife') || ups.includes('knife2') }, Math.random, this.lastZone);
+      const spec = cutSpec({ level, knife: knivesOwned(ups) > 0, knives: knivesOwned(ups) }, Math.random, this.lastZone);
       this.lastZone = spec.start;
       runCutBar(spec, itemLabel(item).toLowerCase(), (verdict) => {
         verdicts.push(verdict);

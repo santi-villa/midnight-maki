@@ -31,6 +31,30 @@ const cut = (ing: string, verdict: 'perfect' | 'good' | 'regular' | 'fail', stat
   g.finishCut(station, verdict); act(station, 'take');
 };
 
+describe('rice straight from the stock', () => {
+  it('scoops real stock into the cooker without hands, starts it, and stops when the cooker is full or the stock is out', () => {
+    expect(g.verbs(PLAYER, 'rice')).toContain('scoop');
+    act('rice', 'scoop');
+    expect(g.verbs(PLAYER, 'rice')[0]).toBe('scoop'); // while loading, adding comes before taking it back
+    expect(stock.rice).toBe(9);
+    expect(g.station('rice').phase).toBe('cooking');
+    expect(g.held(PLAYER)).toHaveLength(0);
+    for (let i = 0; i < 3; i++) act('rice', 'scoop');
+    expect(g.verbs(PLAYER, 'rice')).not.toContain('scoop'); // 4 portions: full
+    g.tick(COOK.rice.time + 0.1);
+    expect(g.verbs(PLAYER, 'rice')).not.toContain('scoop'); // done: take it out first
+    for (let i = 0; i < 4; i++) { act('rice', 'take'); act('hangiri', 'put'); }
+    expect(g.verbs(PLAYER, 'rice')).toContain('scoop'); // emptied: the next batch can be loaded again
+    stock = { ...stock, rice: 0 };
+    expect(g.verbs(PLAYER, 'rice')).not.toContain('scoop'); // nothing left to scoop
+  });
+  it('does not consume anything when it cannot scoop', () => {
+    stock.rice = 0;
+    expect(g.perform(PLAYER, 'rice', 'scoop').ok).toBe(false);
+    expect(g.station('rice').items).toHaveLength(0);
+  });
+});
+
 describe('fridge and hands', () => {
   it('takes real stock, one thing at a time, and gives it back', () => {
     take('salmon');
@@ -431,6 +455,16 @@ describe('cuts, hints and the lesson', () => {
     expect(combineVerdicts(['perfect', 'perfect', 'perfect', 'good', 'perfect'])).toBe('perfect');
     expect(combineVerdicts(['good', 'good', 'regular', 'good', 'good'])).toBe('good');
     expect(combineVerdicts(['fail', 'fail', 'regular', 'fail', 'fail'])).toBe('fail');
+  });
+  it('relaxed mode asks one cut fewer, never fewer than two, and knives still help', async () => {
+    const { cutsNeeded, cutSpec } = await import('../galley/cut');
+    expect(cutsNeeded([], 'relaxed')).toBe(4);
+    expect(cutsNeeded(['knife'], 'relaxed')).toBe(3);
+    expect(cutsNeeded(['knife', 'knife2'], 'relaxed')).toBe(2);
+    expect(cutsNeeded(['knife', 'knife2'], 'challenge')).toBe(3);
+    const wide = (knives: number) => cutSpec({ level: 0.5, knife: knives > 0, knives }, () => 0.5).width;
+    expect(wide(2)).toBeGreaterThan(wide(1));
+    expect(wide(1)).toBeGreaterThan(wide(0));
   });
   it('says what the assembly table is still missing', async () => {
     const { closestRecipe } = await import('../galley/prep');
