@@ -67,10 +67,10 @@ export function coversLitPane(feetY: number, body: Box, pane: Box, baseY: number
   return body.r > pane.l && body.l < pane.r && body.b > pane.t && body.t < pane.b;
 }
 
-export function lampPoolTint(ambient: number, lampColor: number, strength: number, cap = 150): number | null {
+export function lampPoolTint(ambient: number, lampColor: number, strength: number, cap = 150, mix = 0.42): number | null {
   if (tintLum(ambient) > 200) return null;
   const k = Math.max(0, Math.min(1, strength));
-  const mixed = mixHex(ambient, lampColor, 0.42 * k);
+  const mixed = mixHex(ambient, lampColor, mix * k);
   const chAt = (sh: number) => {
     const a = ch(ambient, sh);
     const m = ch(mixed, sh);

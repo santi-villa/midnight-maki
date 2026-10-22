@@ -508,8 +508,8 @@ export class GalleyView {
 
   // ------------------------------------------------------------------ which station you can use
   /**
-   * The station under your feet gets four corner ticks and a small arrow: a down arrow when something can be done there, a
-   * cross with dashed ticks when nothing can (so it never relies on colour alone). While carrying something, the stations
+   * The station under your feet gets four corner ticks and a small arrow: a down arrow when something can be done there, and only dim short corners (no symbol) when
+   * nothing can (the arrow is the difference, not colour alone). While carrying something, the stations
    * that would take it show a soft down chevron.
    */
   private drawFocus() {
@@ -551,11 +551,8 @@ export class GalleyView {
     if (ok) {
       gfx.fillStyle(INKC).fillTriangle(cx - 4, ay - 1, cx + 5, ay - 1, cx + 0.5, ay + 5);
       gfx.fillStyle(CREAM).fillTriangle(cx - 3, ay, cx + 4, ay, cx + 0.5, ay + 3.5);
-    } else {
-      // a small cross on a dark chip
-      gfx.fillStyle(INKC).fillRect(cx - 4, ay - 1, 9, 7);
-      for (let i = 0; i < 5; i++) { gfx.fillStyle(MUTED).fillRect(cx - 2 + i, ay + i, 1, 1); gfx.fillRect(cx + 2 - i, ay + i, 1, 1); }
     }
+    // nothing to do here: only the short, dim corners remain (no symbol, so it never reads as an error)
   }
 
   // ------------------------------------------------------------------ progress, steam, labels
