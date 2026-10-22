@@ -24,7 +24,6 @@ import { drawObject } from '../art/objects';
 import { ctx2d, makeCanvas, outline, px, shade } from '../art/pixel';
 import { buildTileset } from '../art/tiles';
 import { buildRaccoonSheet, type RaccoonBuild } from '../art/raccoon';
-import { PIP_FRAME, pipSheet } from '../art/pipSheet';
 import { iconCanvas, type IconSpec } from '../art/icons';
 import { FURN_BY_ID, furnSize } from '../data/furniture';
 import { PROPS } from '../data/props';
@@ -39,25 +38,14 @@ export function ensureTileset(scene: Phaser.Scene) {
   if (!scene.textures.exists('tiles')) scene.textures.addCanvas('tiles', buildTileset());
 }
 
-/** Characters drawn from a sheet of their own (not generated from their look). */
-const hasOwnSheet = (id: string) => id === 'pip' && !!pipSheet();
-/** The look alone does not tell characters apart (two can share one), so a drawn sheet gets its own key. */
-const charKey = (id: string) => 'ch_' + hashStr(appearanceKey(id)) + (hasOwnSheet(id) ? '_own_' + id : '');
-
 /** Returns a texture key for the character, regenerating it if their look changed. */
 export function charTexture(scene: Phaser.Scene, id: string): string {
-  const key = charKey(id);
+  const look = appearanceKey(id);
+  const key = 'ch_' + hashStr(look);
   if (!scene.textures.exists(key)) {
     const build = RACCOON_BUILD[id];
     const folk = FOLK_SPECS[id];
-    if (hasOwnSheet(id)) {
-      // Pip has his own drawn sprite (his accessories are not painted on it)
-      const { w: fw, h: fh } = PIP_FRAME;
-      const canvas = makeCanvas(fw * FRAME_COUNT, fh);
-      ctx2d(canvas).drawImage(pipSheet()!, 0, 0);
-      const tex = scene.textures.addCanvas(key, canvas)!;
-      for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
-    } else if (folk || (id === 'player' && isHeroLook(appearanceOf(id)))) {
+    if (folk || (id === 'player' && isHeroLook(appearanceOf(id)))) {
       const { canvas, fw, fh } = folk ? buildFolkSheet(folk, folkCustom(id)) : heroSheet(appearanceOf(id));
       const tex = scene.textures.addCanvas(key, canvas)!;
       for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
@@ -83,7 +71,7 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
 
 /** True when this look is already a texture, so a zone change does not have to paint the sheet. */
 export function hasCharTexture(scene: Phaser.Scene, id: string): boolean {
-  return scene.textures.exists(charKey(id));
+  return scene.textures.exists('ch_' + hashStr(appearanceKey(id)));
 }
 
 /** Texture for an arbitrary appearance (generic customers). */
