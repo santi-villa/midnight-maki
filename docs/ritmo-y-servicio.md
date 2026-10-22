@@ -112,3 +112,13 @@ Todas exigen el prólogo terminado (`intro_done`) y no mueven el misterio princi
 - **Error encontrado en este recorrido** (introducido por E1): con arroz crudo en las manos, la acción principal en la arrocera era «Echar arroz» y no «Dejar»; se corrigió (`put` antes que `scoop` cuando hay algo en las manos) y se agregó test.
 
 **Comprobación:** navegador, recorrido completo de la lección (`galley_tut` 13 pasos), con teletransporte solo entre estaciones, cortes con la barra real, esperas reales de cocción, modal «¡Primera vez que preparás…!» y plato mostrado cerrados con toques. Resultado: paso 2 del prólogo tras hablar con Spicy; paso 3 tras 2 platos servidos; prólogo sin completar. Tests: `galleyModel.test.ts` (pasos de práctica, orden de verbos). **Limitaciones:** el modo por defecto de una partida nueva fue Relajado (4 cortes); no se repitió en Normal/Difícil.
+
+## Efectos del minijuego de corte
+`ui/galleyUi.ts › runCutBar`, `ui/galley.css`, `scenes/galleyView.ts › slash/startCut`. Sin cambiar reglas, tiempos ni puntajes.
+- Estela detrás del indicador (según la dirección), zona que se ilumina mientras el indicador está dentro y núcleo que respira.
+- Al cortar: destello de la barra, chispas del color del veredicto (más en «Perfecto», con un anillo), la tarjeta «golpea» (y tiembla si fallás), el veredicto con racha `×n`.
+- Rombos de la serie (dorado perfecto, verde bien, gris regular, rojo fallo) y contador de racha en el título.
+- El ingrediente sobre una tablita: cada corte suma una línea y separa las rodajas (un mal corte deja el borde irregular), y se conserva entre barras.
+- En el mundo: leve sacudida de cámara (más fuerte en perfecto), línea blanca del cuchillo y cartelito «¡Corte limpio!» / «¡Todo perfecto!» si toda la serie salió bien.
+- Con movimiento reducido o efectos bajos solo quedan los rombos, la racha y el ingrediente cortado (sin estela, destello, chispas ni sacudidas).
+Comprobado en Chromium emulado (vertical y horizontal, modo Normal): estela, perfecto con destello, rombos y rodajas.
