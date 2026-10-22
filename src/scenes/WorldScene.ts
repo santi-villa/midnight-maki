@@ -651,7 +651,7 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.anim === 'sway' && !lowFx() && !settings.reduceMotion) {
         this.tweens.add({ targets: img, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
-      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 76 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 0.62 : 0.5 });
+      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 96 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 1.4 : 0.5 });
       this.objs.push(img);
       this.propImgs.set(`${p.x},${p.y}`, img);
       if (!onWall && !p.def.ground && p.def.sombra !== 'ninguna') {
@@ -3461,6 +3461,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private glowPool: Phaser.GameObjects.Image[] = [];
+  /** the glass of every lit street lamp, so the lamp itself reads as on (not only the light around it) */
+  private bulbGfx: Phaser.GameObjects.Graphics | null = null;
   private vignette: Phaser.GameObjects.Image | null = null;
 
   /**
@@ -3700,9 +3702,17 @@ export class WorldScene extends Phaser.Scene {
       for (const { l, k } of lit) {
         const scale = (l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64;
         if (dim) {
-          const col = lampPoolTint(ls.tint, l.color ?? 0xffd27a, k)!;
+          // street lamps light a wider, warmer pool than a window or a candle
+          const post = !l.kind && !l.facade && l.r >= 90;
+          const col = (post ? lampPoolTint(ls.tint, l.color ?? 0xffd27a, k, 225, 0.85) : lampPoolTint(ls.tint, l.color ?? 0xffd27a, k))!;
           this.lightStamp.setScale(scale).setTint(col).setAlpha(1);
           rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
+          if (post) { // tighter passes fill the middle of the pool so the lamp reads as lit
+            for (const f of [0.75, 0.5]) {
+              this.lightStamp.setScale(scale * f);
+              rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
+            }
+          }
         } else {
           this.lightStamp.clearTint().setScale(scale).setAlpha(Math.min(1, k));
           rt.erase(this.lightStamp, l.x - rt.x, l.y - rt.y);
@@ -3761,11 +3771,18 @@ export class WorldScene extends Phaser.Scene {
           .setScale(spill ? 0.9 : (l.r * 1.25 * ls.halo) / 64, spill ? 0.45 : (l.r * 1.25 * ls.halo) / 64)
           // soft on purpose: a strong additive glow turns a night street into daylight, and it popped in and out whenever the
           // low-effects mode switched, which looked like the light changing as you walked
-          .setAlpha(Math.min(spill ? 0.3 : 0.42, (l.glow ?? 0.5) * k * f * (spill ? 0.6 : 0.7) * crowd));
+          .setAlpha(Math.min(spill ? 0.3 : l.r >= 90 ? 0.95 : 0.42, (l.glow ?? 0.5) * k * f * (spill ? 0.6 : 0.7) * crowd));
         i++;
       }
     }
     for (; i < this.glowPool.length; i++) this.glowPool[i].setVisible(false);
+    const bulbs = (this.bulbGfx ??= this.add.graphics().setDepth(200002));
+    bulbs.clear();
+    if (!lo) for (const { l, k } of lit) {
+      if (l.kind || l.facade || l.r < 90) continue;
+      bulbs.fillStyle(0xfff1b0, Math.min(0.9, 0.9 * k)).fillRect(Math.round(l.x) - 1, Math.round(l.y), 6, 7);
+      bulbs.fillStyle(0xffffff, Math.min(0.8, 0.8 * k)).fillRect(Math.round(l.x) + 1, Math.round(l.y) + 1, 2, 3);
+    }
     this.updateGlowDepths(actors);
   }
 
