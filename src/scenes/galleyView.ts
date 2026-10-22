@@ -732,11 +732,13 @@ export class GalleyView {
         this.slash(s, verdict, item);
         if (verdicts.length < total) { this.host.scene.time.delayedCall(240, next); return; }
         const final = combineVerdicts(verdicts);
+        // a clean series (every cut good or perfect) gets its own little flourish
+        if (verdicts.every((v) => v === 'good' || v === 'perfect')) this.host.floatAt(s.x * TILE + 8, s.y * TILE - 12, verdicts.every((v) => v === 'perfect') ? '¡Todo perfecto!' : '¡Corte limpio!', '#ffe08a');
         const res = g.finishCut(stationId, final);
         this.onEvents(res.events);
         saveGalley();
         this.host.scene.time.delayedCall(420, () => { this.host.galleyBusy = false; this.host.player.setAct('idle'); });
-      }, { n: verdicts.length + 1, of: total });
+      }, { n: verdicts.length + 1, of: total, icon: ITEMS_BY_ID[item.ing]?.icon });
     };
     next();
   }
@@ -806,6 +808,10 @@ export class GalleyView {
     audio.sfxPlay(verdict === 'perfect' ? 'chop_perfect' : verdict === 'fail' ? 'chop_miss' : 'chop');
     const cx = s.x * TILE + 8, top = s.y * TILE + 1;
     if (!lowFx()) {
+      // the hit is felt: a tiny camera knock (stronger on a perfect) and a white slash line across the board
+      scene.cameras.main.shake(verdict === 'perfect' ? 110 : 70, verdict === 'perfect' ? 0.0025 : 0.0012);
+      const line = scene.add.rectangle(cx, top + 4, 14, 1, verdict === 'fail' ? 0xd98a7a : 0xffffff, 0.9).setAngle(-28).setDepth(90850);
+      scene.tweens.add({ targets: line, scaleX: 1.8, alpha: 0, duration: 160, onComplete: () => line.destroy() });
       if (!scene.textures.exists('gl_knife')) {
         const c = document.createElement('canvas'); c.width = 8; c.height = 12;
         const g = c.getContext('2d')!;
