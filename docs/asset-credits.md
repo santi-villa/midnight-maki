@@ -42,7 +42,3 @@ Se añaden 178 muebles y adornos de los paquetes Bitglow Bedroom (20), Bathroom 
 - Las piezas grandes que solo aparecen en la imagen del pack completo no se extraen de la previsualización para fingir que están disponibles en la demo.
 
 Los créditos del menú del juego mencionan a VectoRaith y Bitglow. El resto de la construcción del mundo, arte de personajes, lógica, animaciones y composición sigue siendo el trabajo propio del proyecto.
-
-## Sprite de Pip
-
-La hoja de poses de Pip (28 poses sobre fondo liso, enviada por la persona que hace el juego) se conserva en `art-source/pip/hoja-aportada.webp`. `scripts/build-pip-sheet.py` aísla cada pose, la reduce 4× con alfa duro y la empaqueta en las 30 posiciones de personaje del juego (`src/assets/pip/pip-sheet.png`, marcos de 36×32). Faltan poses para algunas posiciones (parpadeo, cocinar, saludar con ambas manos), que reutilizan la más cercana: ver el mapa de poses dentro del script. `src/art/pipSheet.ts` la carga al arrancar; sin ella Pip vuelve a dibujarse por código. El sprite no lleva los accesorios del creador de personaje y el retrato de Pip sigue siendo el anterior.
