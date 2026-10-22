@@ -4,7 +4,7 @@
  */
 import { game } from '../core/state';
 import { Galley, type GalleyEnv } from './model';
-import { deliverDish } from './serve';
+import { deliverDish, serveAtTable } from './serve';
 import { drinksUnlocked } from '../restaurant/drinkData';
 
 const env: GalleyEnv = {
@@ -18,6 +18,7 @@ const env: GalleyEnv = {
   known: (id) => game.save.recipesKnown.includes(id),
   drinks: () => drinksUnlocked(),
   deliver: (dish) => deliverDish(dish),
+  serve: (dish, tableId) => serveAtTable(dish, tableId),
 };
 
 let kitchen: Galley | null = null;

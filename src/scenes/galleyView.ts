@@ -25,7 +25,7 @@ import { galley, galleyOn, saveGalley } from '../galley';
 import { fridgeOpenCanvas, galleyItemCanvas, itemKey, PIXEL_BITS } from '../galley/art';
 import { STATIONS, STATION_BY_ID, stationCentre, type StationDef } from '../galley/layout';
 import { COOK, PLAYER, itemLabel, type GalleyEvent, type Verb } from '../galley/model';
-import type { GItem, IngItem } from '../galley/prep';
+import type { DishItem, DrinkItem, GItem, IngItem } from '../galley/prep';
 import { allocateStaged, stagedPieces, tickets } from '../galley/tickets';
 import { TUTORIAL, TUTORIAL_DISHES, TUTORIAL_STOCK, tutorialStation, tutorialStep } from '../galley/tutorial';
 import { bus } from '../core/events';
@@ -316,6 +316,28 @@ export class GalleyView {
     if (!this.active) return false;
     const h = galley().held(PLAYER)[0];
     return !!h && (h.kind === 'dish' || h.kind === 'drink');
+  }
+
+  /** The table the carried dish is for (null when there is no dish, or it is for the counter or nobody asked for it). */
+  heldFor(): string | null {
+    if (!this.holdingPlate()) return null;
+    return targetFor(galley().held(PLAYER)[0] as DishItem | DrinkItem)?.tableId ?? null;
+  }
+
+  /** Hands the carried dish to the guests of this table. */
+  serveHeld(tableId: string): string {
+    const res = galley().serveHeld(PLAYER, tableId);
+    if (!res.ok) { audio.sfxPlay('error'); return res.msg ?? ''; }
+    audio.sfxPlay('plate_slide');
+    saveGalley();
+    return res.msg ?? '';
+  }
+
+  /** Where the floating prompt of a station action goes: over the station, in world pixels. */
+  promptAt(stationId: string): { x: number; y: number } | null {
+    const s = STATION_BY_ID[stationId];
+    if (!s) return null;
+    return { x: stationCentre(s).x * TILE, y: s.y * TILE - 2 };
   }
 
   /** The service bell on the pass: there once the upgrade is bought. */

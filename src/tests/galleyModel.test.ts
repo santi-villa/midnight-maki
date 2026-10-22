@@ -16,6 +16,7 @@ const env = (): GalleyEnv => ({
   rng: () => 0.5,
   known: () => true,
   deliver: (dish) => (accept ? (delivered.push(dish.kind === 'dish' ? dish.recipe : dish.drink), { ok: true }) : { ok: false, msg: 'Nadie pidió eso.' }),
+  serve: (dish, tableId) => (tableId === 'mesa2' ? (delivered.push(dish.kind === 'dish' ? dish.recipe : dish.drink), { ok: true, msg: 'Buen provecho' }) : { ok: false, msg: 'Ese plato es para Mesa 2.' }),
 });
 beforeEach(() => {
   stock = { rice: 10, nori: 5, cucumber: 4, salmon: 3, egg: 2, sesame: 2, avocado: 2, crab: 1 };
@@ -297,6 +298,20 @@ describe('assembly and the pass', () => {
     act('pass', 'deliver');
     expect(delivered).toEqual(['kappa']);
     expect(g.held(PLAYER)).toHaveLength(0);
+  });
+
+  it('a carried dish is served straight at the table that waits for it, and stays in the hands at any other', () => {
+    makeKappa('good'); act('assembly', 'assemble'); g.tick(2);
+    act('assembly', 'take');
+    const wrong = g.serveHeld(PLAYER, 'mesa1');
+    expect(wrong.ok).toBe(false);
+    expect(wrong.msg).toBe('Ese plato es para Mesa 2.');
+    expect(g.held(PLAYER)).toHaveLength(1);
+    const ok = g.serveHeld(PLAYER, 'mesa2');
+    expect(ok.ok).toBe(true);
+    expect(delivered).toEqual(['kappa']);
+    expect(g.held(PLAYER)).toHaveLength(0);
+    expect(g.serveHeld(PLAYER, 'mesa2').ok).toBe(false); // nothing left to serve
   });
 
   it('the bin takes whatever is in the hands', () => {

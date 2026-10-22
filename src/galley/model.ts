@@ -26,6 +26,8 @@ export interface GalleyEnv {
   drinks?(): boolean;
   /** hands a finished dish to the service. `ok: false` keeps it in the hands. */
   deliver(dish: DishItem | DrinkItem, who: string): { ok: boolean; msg?: string };
+  /** hands the dish straight to the guests of one table (the dining room), skipping the pass */
+  serve?(dish: DishItem | DrinkItem, tableId: string): { ok: boolean; msg?: string };
 }
 
 /** Seconds a cooker takes, and when what it holds goes a little past (good → regular) and burns. */
@@ -277,6 +279,17 @@ export class Galley {
     // trash
     const item = hands.shift()!;
     return { ok: true, events: [{ t: 'trash', who, item }] };
+  }
+
+  /** Carries the finished dish to a table and serves it there. Fails (dish stays in the hands) when that table is not the one waiting for it. */
+  serveHeld(who: string, tableId: string): Result {
+    const hands = this.hands.get(who);
+    const dish = hands?.[0];
+    if (!hands || !dish || (dish.kind !== 'dish' && dish.kind !== 'drink')) return fail('No llevás ningún plato.');
+    const res = this.env.serve?.(dish, tableId) ?? { ok: false, msg: 'Llevá el plato al mostrador de entrega.' };
+    if (!res.ok) return { ok: false, msg: res.msg, events: [] };
+    hands.shift();
+    return { ok: true, msg: res.msg, events: [] };
   }
 
   /** Takes an ingredient from the fridge into the hands. Uses real stock. */
