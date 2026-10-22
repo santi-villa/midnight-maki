@@ -14,7 +14,10 @@ import { ITEMS_BY_ID } from '../data/items';
 import { RECIPES } from '../data/recipes';
 import { DRINKS } from '../restaurant/drinkData';
 import { Actor, TILE } from '../entities/Actor';
-import { CUT_SECONDS, handsFor, type HandDef, type Step } from '../galley/crew';
+import { cookHand, cutSecondsFor, handsFor, paceFor, RICE_RESERVE, type HandDef, type Step } from '../galley/crew';
+import { COOKABLE } from '../galley/prep';
+import { PERFECT, VERY_GOOD, crew as crewMember, hiredCooks, practiceHand, setHandDoing } from '../restaurant/staff';
+import { perkTotals, type PerkWho } from '../restaurant/perks';
 import type { Need } from '../galley/prep';
 import type { Grid } from '../world/grid';
 import { combineVerdicts, cutLevel, cutsNeeded, cutSpec, knivesOwned, type CutVerdict } from '../galley/cut';
@@ -71,7 +74,7 @@ function slotsFor(s: StationDef, n: number): { x: number; y: number; scale: numb
   return Array.from({ length: n }, (_, i) => ({ x: x0 + 4 + i * 8, y: slotY(s) + 1, scale: 0.5 }));
 }
 
-interface Worker { def: HandDef; step: Step | null; moving: boolean; wait: number; timer: number; after: (() => void) | null; lost: number }
+interface Worker { def: HandDef; who: PerkWho; member: { level: number; perks?: string[] }; step: Step | null; moving: boolean; wait: number; timer: number; after: (() => void) | null; lost: number }
 
 export class GalleyView {
   private active = false;
@@ -394,19 +397,43 @@ export class GalleyView {
     return [...sum.entries()].map(([ing, count]) => ({ ing, form: 'cut' as const, count }));
   }
 
-  /** Spicy walks (with the town's own movement) to a station, uses it, and goes on to the next thing. */
+  /** cooked ingredients (egg, shrimp, eel) the open tickets still need, summed per ingredient and form */
+  private wantedCooked(): Need[] {
+    const sum = new Map<string, Need>();
+    for (const t of tickets()) for (const l of t.lines) for (const n of l.needs) {
+      if (l.waiting <= 0 || !COOKABLE.has(n.ing) || (n.form !== 'cooked' && n.form !== 'cooked_cut')) continue;
+      const key = `${n.ing}|${n.form}`;
+      const cur = sum.get(key) ?? { ing: n.ing, form: n.form, count: 0 };
+      cur.count += n.count * l.waiting;
+      sum.set(key, cur);
+    }
+    return [...sum.values()];
+  }
+
+  /**
+   * The kitchen's helpers: Spicy (with his upgrades) and the hired cooks (stove or second knife). Each walks to a station, uses
+   * it through the same model as the player, and goes on. Their times come from their level and skills but are never below 1.2×
+   * the player's own (see restaurant/perks.ts), so they free your hands without doing the work faster than you.
+   */
   private updateHands(dt: number) {
     const g = galley();
     const ups = game.save.restaurant.upgrades;
-    const defs = handsFor(ups);
+    const defs: { def: HandDef; who: PerkWho; member: { level: number; perks?: string[] } }[] = [
+      ...handsFor(ups).map((d) => ({ def: d, who: 'spicy' as PerkWho, member: crewMember('spicy') })),
+      ...hiredCooks().map((e) => ({ def: cookHand(e), who: 'cook' as PerkWho, member: e })),
+    ];
     const crew = this.host.crew;
     for (const id of [...this.workers.keys()]) {
-      if (defs.some((d) => d.crew === id)) continue;
+      if (defs.some((d) => d.def.crew === id)) continue;
       crew.move(id, null); this.workers.delete(id);
     }
-    for (const def of defs) {
+    for (const { def, who: kind, member } of defs) {
       let w = this.workers.get(def.crew);
-      if (!w) { w = { def, step: null, moving: false, wait: 1, timer: 0, after: null, lost: 0 }; this.workers.set(def.crew, w); }
+      if (!w) { w = { def, who: kind, member, step: null, moving: false, wait: 1, timer: 0, after: null, lost: 0 }; this.workers.set(def.crew, w); }
+      // the post can change (a cook moved from the stove to the knife): the brain follows
+      w.def = def; w.member = member;
+      const tp = perkTotals(kind, member.level, member);
+      const pace = paceFor(member.level, tp.speed);
       const pos = crew.ready(def.crew) ? crew.where(def.crew) : null;
       if (!pos || pos.zone !== 'restaurant') {
         if (w.step || w.moving) { w.step = null; w.moving = false; w.timer = 0; w.after = null; crew.move(def.crew, null); }
@@ -415,14 +442,15 @@ export class GalleyView {
       if (clock.paused) continue;
       if (w.timer > 0) {
         w.timer -= dt;
-        if (w.timer <= 0) { w.after?.(); w.after = null; w.wait = def.pace; }
+        if (w.timer <= 0) { w.after?.(); w.after = null; w.wait = pace; }
         continue;
       }
       if (w.wait > 0) { w.wait -= dt; continue; }
       const who = 'hand:' + def.crew;
       if (!w.step) {
-        w.step = def.next(g, who, { stock: (id) => game.countUsable(id), ups, wanted: this.wantedCuts() });
-        if (!w.step) { w.wait = 0.8; continue; }
+        w.step = def.next(g, who, { stock: (id) => game.countUsable(id), ups, wanted: this.wantedCuts(), wantedCooked: this.wantedCooked(), reserve: RICE_RESERVE + tp.reserve });
+        if (!w.step) { w.wait = 0.8; setHandDoing(def.crew, 'Esperando'); continue; }
+        setHandDoing(def.crew, w.step.doing);
         w.moving = false;
       }
       const s = STATION_BY_ID[w.step.station];
@@ -441,15 +469,18 @@ export class GalleyView {
       saveGalley();
       if (res.needsCut) {
         const item = g.station(step.station).items[0] as IngItem | undefined;
-        w.timer = CUT_SECONDS;
+        w.timer = cutSecondsFor(member.level, tp.speed);
         w.after = () => {
           if (!item) return;
-          const verdict: CutVerdict = Math.random() < 0.3 ? 'perfect' : 'good';
+          // by level (and skills): perfect, good or a regular cut: practice makes them better, never flawless
+          const roll = Math.random(), top = Math.min(0.9, PERFECT[member.level] + tp.quality);
+          const verdict: CutVerdict = roll < top ? 'perfect' : roll < top + VERY_GOOD[member.level] ? 'good' : 'regular';
           this.slash(STATION_BY_ID[step.station], verdict, item);
           this.onEvents(g.finishCut(step.station, verdict).events);
+          practiceHand(def.crew, 4);
           saveGalley();
         };
-      } else w.wait = def.pace;
+      } else { w.wait = pace; if (step.verb === 'take' && step.station === 'stove') practiceHand(def.crew, 3); }
     }
   }
 

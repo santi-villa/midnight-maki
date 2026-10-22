@@ -37,7 +37,7 @@ import { LampMoths } from './lampMoths';
 import { Pets } from './pets';
 import { CROP_ART, cropStage } from '../art/farm';
 import { nextDoor, questTarget } from '../world/guide';
-import { crew, crewUnlocked, employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type CrewId, type StaffEnv } from '../restaurant/staff';
+import { crew, crewUnlocked, employees, handMove, handWhere, hiredCooks, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type CrewId, type StaffEnv } from '../restaurant/staff';
 import { NeighborLife } from '../systems/neighbors';
 import { facingTable, seatDrawOffset, standApart } from '../restaurant/seating';
 import { planWaitSpots, scanWaitSpots, RECEPTION_SPOTS, WAITING_SPOTS, type WaitTile } from '../restaurant/waiting';
@@ -195,17 +195,22 @@ export class WorldScene extends Phaser.Scene {
     get zoneId() { return world.zoneId; },
     grid: () => world.zone.grid,
     crew: {
-      ready: (id) => crew(id as CrewId).on && crewUnlocked(id as CrewId) && ['open', 'closing'].includes(restaurantPhase(clock.period, game.save.time.minutes)),
+      // hired cooks are walked by the staff engine; the raccoons by the town
+      ready: (id) => hiredCooks().some((e) => e.id === id)
+        ? ['open', 'closing'].includes(restaurantPhase(clock.period, game.save.time.minutes))
+        : crew(id as CrewId).on && crewUnlocked(id as CrewId) && ['open', 'closing'].includes(restaurantPhase(clock.period, game.save.time.minutes)),
       where: (id) => {
+        if (id.startsWith('emp')) { const p = handWhere(id); return p ? { zone: 'restaurant', ...p } : null; }
         const res = world.town.residents.get(id);
         if (!res || typeof game.flag('at_' + id) === 'string') return null;
         return { zone: res.trip.position.zone, x: res.trip.position.x, y: res.trip.position.y, settled: res.trip.settled };
       },
       move: (id, tile) => {
+        if (id.startsWith('emp')) { handMove(id, tile, world.staffEnv()); return; }
         if (tile) world.rememberResidents();
         world.town.duty(id, tile ? { zone: 'restaurant', x: tile.x, y: tile.y, wander: 0, act: 'work' } : null);
       },
-      actor: (id) => world.npcs.get(id)?.actor ?? null,
+      actor: (id) => (id.startsWith('emp') ? world.staffBodies.get(id)?.actor : world.npcs.get(id)?.actor) ?? null,
     },
     propAt: (x, y) => world.propImgs.get(`${x},${y}`),
     get galleyBusy() { return world.galleyBusy; },
@@ -1032,14 +1037,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------------ staff (hired waiters)
-  private staffBodies = new Map<string, { actor: Actor; plate: Phaser.GameObjects.Image | null }>();
+  staffBodies = new Map<string, { actor: Actor; plate: Phaser.GameObjects.Image | null }>();
 
   private clearStaff() {
     for (const b of this.staffBodies.values()) { b.actor.destroy(); b.plate?.destroy(); }
     this.staffBodies.clear();
   }
 
-  private staffEnv(): StaffEnv {
+  staffEnv(): StaffEnv {
     const grid = this.zoneId === 'restaurant' ? this.zone.grid : this.town.grid('restaurant');
     const near = (x: number, y: number) => (grid.isSolid(x, y) ? grid.nearestWalkable(x, y) : [x, y]) ?? [x, y];
     return {
@@ -1095,7 +1100,8 @@ export class WorldScene extends Phaser.Scene {
         a.y = r.y * TILE + TILE - 2;
         a.moving = r.act === 'walk';
         a.dir = r.dir;
-        const act = r.act === 'work' && r.step === 'ordering' ? 'talk' : 'idle';
+        // a cook at the stove or the knife shows the working pose
+        const act = r.act === 'work' && r.step === 'ordering' ? 'talk' : r.hand && r.act !== 'walk' && ['Corta', 'Carga el fogón', 'Retira del fogón', 'Busca algo para el fogón', 'Deja lo cocido'].includes(r.doing) ? 'cook' : 'idle';
         if (a.act !== act) a.setAct(act);
         a.sync();
         const order = r.carrying != null ? game.save.orders.find((o) => o.uid === r.carrying) : null;

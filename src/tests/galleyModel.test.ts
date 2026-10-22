@@ -416,7 +416,7 @@ describe('the reflex bar', () => {
 describe('Spicy in the kitchen', () => {
   const ctx = (ups: string[], wanted: { ing: string; form: 'cut'; count: number }[] = []) => ({ stock: (id: string) => stock[id] ?? 0, ups, wanted });
   const run = async (until: () => boolean, ups: string[], wanted: { ing: string; form: 'cut'; count: number }[] = []) => {
-    const { HANDS, CUT_SECONDS } = await import('../galley/crew');
+    const { HANDS, cutSecondsFor } = await import('../galley/crew'); const CUT_SECONDS = cutSecondsFor(0);
     const who = 'hand:spicy';
     let guard = 0;
     while (!until() && guard++ < 300) {
@@ -445,6 +445,47 @@ describe('Spicy in the kitchen', () => {
     const { handsFor } = await import('../galley/crew');
     expect(handsFor([])).toEqual([]);
     expect(handsFor(['cut_hand'])).toHaveLength(1);
+  });
+});
+
+describe('hired cooks in the kitchen', () => {
+  const ctx = (wantedCooked: { ing: string; form: 'cooked' | 'cooked_cut'; count: number }[], wanted: { ing: string; form: 'cut'; count: number }[] = []) => ({ stock: (id: string) => stock[id] ?? 0, ups: [] as string[], wanted, wantedCooked });
+  const run = async (job: 'stove' | 'cut', until: () => boolean, c: ReturnType<typeof ctx>) => {
+    const { cookHand } = await import('../galley/crew');
+    const hand = cookHand({ id: 'emp1', job });
+    const who = 'hand:emp1';
+    let guard = 0;
+    while (!until() && guard++ < 200) {
+      const step = hand.next(g, who, c);
+      if (!step) { g.tick(COOK.stove.time + 0.1); continue; }
+      const r = step.verb === 'fetch' ? g.takeFromFridge(who, step.arg!) : g.perform(who, step.station, step.verb);
+      expect(r.ok, `${step.station} ${step.verb}: ${r.msg}`).toBe(true);
+      if (r.needsCut) g.finishCut(step.station, 'good');
+    }
+    return who;
+  };
+  it('the stove cook cooks what the tickets ask cooked, leaves it on a counter, and never cooks the same piece twice', async () => {
+    const c = ctx([{ ing: 'egg', form: 'cooked', count: 2 }]);
+    const who = await run('stove', () => g.station('counter_a').items.length + g.station('counter_b').items.length >= 2, c);
+    const left = [...g.station('counter_a').items, ...g.station('counter_b').items].map((i) => (i.kind === 'ing' ? `${i.ing}:${i.form}` : i.kind));
+    expect(left).toEqual(['egg:cooked', 'egg:cooked']);
+    expect(stock.egg).toBe(0);
+    expect(g.held(who)).toEqual([]);
+    const { cookHand } = await import('../galley/crew');
+    expect(cookHand({ id: 'emp1', job: 'stove' }).next(g, who, c)).toBeNull(); // enough: he rests
+  });
+  it('the knife cook also cuts what was cooked when a ticket wants it cooked and cut, and cuts raw pieces as Spicy does', async () => {
+    const piece = (ing: string, form: 'raw' | 'cooked'): IngItem => ({ kind: 'ing', uid: Math.random(), ing, form, q: 2 });
+    g.station('counter_a').items.push(piece('egg', 'cooked'));
+    const c = ctx([{ ing: 'egg', form: 'cooked_cut', count: 1 }], [{ ing: 'cucumber', form: 'cut', count: 1 }]);
+    await run('cut', () => [...g.station('counter_a').items, ...g.station('counter_b').items].filter((i) => i.kind === 'ing' && i.form === 'cut').length >= 1 && [...g.station('counter_a').items, ...g.station('counter_b').items].some((i) => i.kind === 'ing' && i.form === 'cooked_cut'), c);
+    const forms = [...g.station('counter_a').items, ...g.station('counter_b').items].map((i) => (i.kind === 'ing' ? `${i.ing}:${i.form}` : i.kind)).sort();
+    expect(forms).toEqual(['cucumber:cut', 'egg:cooked_cut']);
+  });
+  it('a plain cooked need is not cut: the knife leaves it as it is', async () => {
+    const { cookHand } = await import('../galley/crew');
+    g.station('counter_a').items.push({ kind: 'ing', uid: 1, ing: 'egg', form: 'cooked', q: 2 });
+    expect(cookHand({ id: 'emp1', job: 'cut' }).next(g, 'hand:emp1', ctx([{ ing: 'egg', form: 'cooked', count: 1 }]))).toBeNull();
   });
 });
 
