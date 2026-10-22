@@ -38,7 +38,7 @@
 - Beneficio claramente insuficiente corregido: el segundo cuchillo (4× el precio del primero) ahora también ensancha la zona. No se tocaron precios ni requisitos.
 
 **Comprobación:** navegador con la cocina física (texto de Personal y de Mejoras) y `staff.test.ts` (cocinero conserva nivel, no cobra, no se contrata; vuelve a cobrar en la clásica).
-**Limitaciones:** los cocineros contratados siguen sin función en la cocina física (decisión de producto pendiente: darles una tarea propia).
+**Limitaciones:** (actualizado) los cocineros ya tienen tarea en la cocina física; ver «Cocineros y habilidades».
 
 ## E3 · Decisiones durante el servicio
 
@@ -122,3 +122,16 @@ Todas exigen el prólogo terminado (`intro_done`) y no mueven el misterio princi
 - En el mundo: leve sacudida de cámara (más fuerte en perfecto), línea blanca del cuchillo y cartelito «¡Corte limpio!» / «¡Todo perfecto!» si toda la serie salió bien.
 - Con movimiento reducido o efectos bajos solo quedan los rombos, la racha y el ingrediente cortado (sin estela, destello, chispas ni sacudidas).
 Comprobado en Chromium emulado (vertical y horizontal, modo Normal): estela, perfecto con destello, rombos y rodajas.
+
+
+## Cocineros y habilidades (personal)
+**Cocinero contratado en la cocina física** (`galley/crew.ts › cookHand`, `restaurant/staff.ts`, `scenes/galleyView.ts › updateHands`). Deja de «descansar»: se paga y trabaja con un **puesto** que se elige en Personal:
+- **Fogón**: carga y retira del fogón lo que piden los tickets cocido (huevo, camarón, anguila) y lo deja en las mesadas; no cocina dos veces lo mismo.
+- **Cortes** (segundo cortador): corta como Spicy lo que piden los tickets y, además, lo que ya está cocido cuando el ticket lo pide cocido y cortado. Usa la segunda tabla si la hay.
+Camina con el motor del personal (`handMove/handWhere`), usa las mismas reglas del modelo que vos, no arma ni entrega. Gana práctica con lo que hace.
+
+**¿Más lentos que el jugador? Sí, por regla y con test.** Los tiempos salen de `restaurant/perks.ts`: referencia del jugador `PLAYER_REF` (una serie de cortes ≈ 6,5 s; ritmo entre acciones 1,2 s) × `SLOWER` por nivel (2,2 · 1,9 · 1,65 · 1,45 · 1,3) × habilidades, con un **piso de 1,2×** el tiempo del jugador: nadie puede superarlo, ni en el nivel máximo con las mejores habilidades. Spicy cortador antes tardaba 4,5 s por pieza (más rápido que vos); ahora 14,3 s en nivel 0 y 8,5 s como mínimo. Además caminan más lento que Sofi. `perks.test.ts` comprueba el piso en todos los niveles. En el navegador (nivel 0): una pieza cortada tardó 23 s desde que ocupó la tabla hasta quedar en la mesada, y un huevo cocido 34 s; vos tardás unos 6–8 s en cortar.
+
+**Habilidades por persona** (`restaurant/perks.ts`, menú «Habilidades» en cada tarjeta de Personal): hasta el nivel 4 se desbloquean solas algunas y en los niveles 2 y 4 se elige una de dos (se puede cambiar gratis). Efectos pequeños y visibles: tiempo (−15 %), caminata (+15 %), calidad (más perfectos), arroz de reserva (+2, Spicy) y bandeja (+1, Rigg y meseros). Cubre cocinero, Spicy, Rigg, Pip, mesero, cajero y ayudante. Guardado opcional: `Employee.job`, `Employee.perks`, `CrewMember.perks` (guardados viejos cargan igual y usan la primera alternativa de cada par).
+
+**Comprobación:** tests (`perks`, `staff`, `galleyModel`) y navegador con contratación real: el cocinero con puesto «Cortes» dejó un pepino cortado y con puesto «Fogón» un huevo cocido en las mesadas; el menú muestra niveles, bloqueos y alternativas. **Limitaciones:** las alternativas y su efecto en la calidad no se verificaron en una sesión larga; Pip tiene pocas habilidades (solo tiempo y caminata); los meseros/cajero/ayudante usan el motor clásico de siempre con las habilidades aplicadas al tiempo y la caminata.

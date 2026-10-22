@@ -3,9 +3,10 @@ import { game } from '../core/state';
 import { audio } from '../audio/audio';
 import {
   COOK_SECONDS, CREW_INFO, LEVEL_NAMES, MAX_LEVEL, TRAITS, candidates, crew, crewUnlocked, employees, fire, hire, hireCost, roleLimit, runtime, setCrew, setRestock, setStaff,
-  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, payableWage, cookRests, SPICY_HANDS_JOB, type CrewId, type Employee, type StaffRole,
+  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, SPICY_HANDS_JOB, cookJob, type CrewId, type Employee, type StaffRole,
 } from '../restaurant/staff';
 import { galleyOn } from '../galley/mode';
+import { activePerks, chooseAlternative, perksOf, type PerkWho } from '../restaurant/perks';
 import { h, panel, toast } from './dom';
 import { previewCanvas } from './creator';
 import { ITEMS_BY_ID } from '../data/items';
@@ -25,9 +26,31 @@ const ROLE_JOB = {
   cashier: 'Recoge las propinas de las mesas.',
   helper: 'Mantiene la despensa: recibe paquetes de los proveedores (los paga el restaurante).',
 } as const;
-const COOK_REST_TEXT = 'Descansa: en la cocina física cocinás vos con Spicy; los cocineros trabajan en la cocina clásica. Conserva su nivel y no cobra.';
 const RESTOCK_ITEMS = ['rice', 'nori', 'salmon', 'cucumber', 'egg', 'sesame'];
 const RESTOCK_STEPS = [0, 6, 12, 20];
+
+/** The skills of one person: automatic ones by level and, at levels 2 and 4, one of two to choose (free to change). */
+function skillsBlock(who: PerkWho, member: { level: number; perks?: string[] }, changed: () => void): HTMLElement {
+  const active = new Set(activePerks(who, member.level, member).map((p) => p.id));
+  const rows: HTMLElement[] = [];
+  const perks = perksOf(who);
+  for (const level of [...new Set(perks.map((p) => p.level))].sort()) {
+    const here = perks.filter((p) => p.level === level);
+    const locked = member.level < level;
+    const alt = here.some((p) => p.group);
+    rows.push(h('div', { class: 'skill-level' }, h('span', { class: 'pill' }, `Nivel ${level}`), alt ? h('span', { class: 'hint' }, locked ? 'Elegís una de dos' : 'Elegí una de dos (se puede cambiar)') : null));
+    for (const p of here) {
+      const on = active.has(p.id);
+      rows.push(h('div', { class: 'skill' + (on ? ' on' : '') + (locked ? ' locked' : '') },
+        h('div', { class: 'skill-text' }, h('b', null, (on ? '✓ ' : locked ? '🔒 ' : '') + p.name), h('div', { class: 'hint' }, p.desc)),
+        alt && !locked ? h('button', { type: 'button', class: 'btn small' + (on ? ' primary' : ''), 'aria-pressed': String(on), onclick: () => { const next = chooseAlternative(who, member.level, member, p.id); if (next) { member.perks = next; game.touch('staff'); changed(); } } }, on ? 'Elegida' : 'Elegir') : null));
+    }
+  }
+  return h('div', { class: 'skills col' }, ...rows);
+}
+
+const openSkills = new Set<string>();
+const skillsToggle = (id: string, render: () => void) => h('button', { type: 'button', class: 'btn small' + (openSkills.has(id) ? ' primary' : ''), 'aria-expanded': String(openSkills.has(id)), onclick: () => { if (openSkills.has(id)) openSkills.delete(id); else openSkills.add(id); render(); } }, openSkills.has(id) ? 'Ocultar habilidades' : 'Habilidades');
 
 export function openStaff() {
   const body = h('div', { class: 'col' });
@@ -37,7 +60,7 @@ export function openStaff() {
     const s = staffSave();
     const lvl = game.save.restaurant.level;
     const list = employees();
-    const wages = list.reduce((n, e) => n + payableWage(e), 0);
+    const wages = list.reduce((n, e) => n + wageOf(e), 0);
     body.append(
       h('div', { class: 'card row', style: { justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' } },
         h('div', null, h('b', null, 'Equipo del restaurante'), h('div', { class: 'hint' }, `Sueldos por día: ${wages} ●. Los mapaches ayudan sin cobrar.`)),
@@ -59,7 +82,9 @@ export function openStaff() {
             ok && id === 'rigg' ? (crew('rigg').carry ?? 0) < MAX_CARRY_UPGRADES
               ? h('button', { class: 'btn small', title: 'Una bandeja más grande para llevar más platos por viaje', disabled: game.coins < carryUpgradeCost(), onclick: () => { const err = upgradeRiggTray(); if (err) toast(err); else { audio.sfxPlay('success'); toast(`Rigg ahora lleva ${riggCapacity()} platos por viaje.`); } render(); } }, `Bandeja de Rigg: ${riggCapacity()} → ${riggCapacity() + 1} (${carryUpgradeCost()} ●)`)
               : h('span', { class: 'hint' }, `Bandeja al máximo: ${riggCapacity()} platos`) : null,
-            ok && m.level < MAX_LEVEL ? h('button', { class: 'btn small', disabled: game.coins < trainCost(m.level, true), onclick: () => { const err = trainCrew(id); if (err) toast(err); else { audio.sfxPlay('success'); toast(`${info.name} mejoró: ahora es ${LEVEL_NAMES[crew(id).level].toLowerCase()}.`); } render(); } }, `Capacitar (${trainCost(m.level, true)} ●)`) : null)),
+            ok ? skillsToggle(id, render) : null,
+            ok && m.level < MAX_LEVEL ? h('button', { class: 'btn small', disabled: game.coins < trainCost(m.level, true), onclick: () => { const err = trainCrew(id); if (err) toast(err); else { audio.sfxPlay('success'); toast(`${info.name} mejoró: ahora es ${LEVEL_NAMES[crew(id).level].toLowerCase()}.`); } render(); } }, `Capacitar (${trainCost(m.level, true)} ●)`) : null),
+          ok && openSkills.has(id) ? skillsBlock(id, m, render) : null),
       );
     }
     body.append(h('b', null, `Personal contratado`));
@@ -70,15 +95,20 @@ export function openStaff() {
         h('div', { class: 'card col', style: { gap: '6px' } },
           h('div', { class: 'row', style: { gap: '10px' } }, face(e),
             h('div', { style: { flex: '1' } }, h('b', null, `${e.name} · ${ROLE[e.role]}`), h('div', { class: 'hint' }, `${TRAITS[e.trait].name}: ${TRAITS[e.trait].line}`),
-              h('div', { class: 'hint' }, `${LEVEL_NAMES[e.level]} ${stars(e.level)} · ${cookRests(e) ? 'sin sueldo mientras descansa' : wageOf(e) + ' ● por día'}${e.role === 'cook' ? ` · un plato cada ${COOK_SECONDS.hired[e.level]} s en cocina clásica` : ''}`),
-              h('div', { class: 'staff-doing' }, cookRests(e) ? COOK_REST_TEXT : e.unpaid ? 'No cobró: no trabaja hasta que se le pague.' : r?.doing ?? 'Esperando'))),
+              h('div', { class: 'hint' }, `${LEVEL_NAMES[e.level]} ${stars(e.level)} · ${wageOf(e)} ● por día${e.role === 'cook' && !galleyOn() ? ` · un plato cada ${COOK_SECONDS.hired[e.level]} s` : ''}`),
+              h('div', { class: 'staff-doing' }, e.unpaid ? 'No cobró: no trabaja hasta que se le pague.' : r?.doing ?? 'Esperando'))),
+          e.role === 'cook' && galleyOn() ? h('div', { class: 'row', style: { gap: '6px', flexWrap: 'wrap' } }, h('span', { class: 'hint' }, 'Puesto:'),
+            h('button', { class: 'btn small' + (cookJob(e) === 'stove' ? ' primary' : ''), title: 'Cocina en el fogón lo que piden los tickets', onclick: () => { e.job = 'stove'; game.touch('staff'); render(); } }, 'Fogón'),
+            h('button', { class: 'btn small' + (cookJob(e) === 'cut' ? ' primary' : ''), title: 'Corta junto a vos, en la segunda tabla si la tenés', onclick: () => { e.job = 'cut'; game.touch('staff'); render(); } }, 'Cortes')) : null,
           e.role === 'waiter' ? h('div', { class: 'row', style: { gap: '6px', flexWrap: 'wrap' } },
             h('button', { class: 'btn small' + (e.takeOrders ? ' primary' : ''), onclick: () => { e.takeOrders = !e.takeOrders; game.touch('staff'); render(); } }, e.takeOrders ? '✓ Toma pedidos' : 'Toma pedidos'),
             h('button', { class: 'btn small' + (e.serve ? ' primary' : ''), onclick: () => { e.serve = !e.serve; game.touch('staff'); render(); } }, e.serve ? '✓ Sirve platos' : 'Sirve platos'),
             h('button', { class: 'btn small', title: 'Qué hace primero cuando hay de las dos cosas', onclick: () => { e.priority = e.priority === 'serve' ? 'orders' : 'serve'; game.touch('staff'); render(); } }, e.priority === 'serve' ? 'Primero: platos' : 'Primero: pedidos')) : null,
           h('div', { class: 'row', style: { gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' } },
+            skillsToggle(e.id, render),
             e.level < MAX_LEVEL ? h('button', { class: 'btn small', disabled: game.coins < trainCost(e.level), onclick: () => { const err = train(e.id); if (err) toast(err); else { audio.sfxPlay('success'); toast(`${e.name} aprendió: ahora es ${LEVEL_NAMES[e.level].toLowerCase()}.`); } render(); } }, `Capacitar (${trainCost(e.level)} ●)`) : null,
-            h('button', { class: 'btn small', onclick: () => { if (confirmFire !== e.id) { confirmFire = e.id; render(); return; } fire(e.id); confirmFire = ''; toast(`${e.name} dejó el restaurante.`); render(); } }, confirmFire === e.id ? 'Tocá otra vez para despedir' : 'Despedir'))),
+            h('button', { class: 'btn small', onclick: () => { if (confirmFire !== e.id) { confirmFire = e.id; render(); return; } fire(e.id); confirmFire = ''; toast(`${e.name} dejó el restaurante.`); render(); } }, confirmFire === e.id ? 'Tocá otra vez para despedir' : 'Despedir')),
+          openSkills.has(e.id) ? skillsBlock(e.role, e, render) : null),
       );
     }
     if (list.some((e) => e.role === 'helper')) {
@@ -90,7 +120,6 @@ export function openStaff() {
       const limit = roleLimit(role, lvl);
       if (!limit || list.filter((e) => e.role === role).length >= limit) continue;
       body.append(h('b', null, `Buscan trabajo: ${ROLE[role].toLowerCase()}`), h('p', { class: 'hint' }, `${ROLE_JOB[role]} Contratar cuesta ${hireCost(role)} ●. Al principio trabajan despacio. Sin monedas para el sueldo, no trabajan.`));
-      if (role === 'cook' && galleyOn()) { body.append(h('p', { class: 'hint' }, 'Con la cocina física un cocinero nuevo no tendría tareas: la contratación está en pausa. Se habilita al cambiar a la cocina clásica en Ajustes.')); continue; }
       for (const c of candidates(role)) {
         body.append(h('div', { class: 'card row', style: { gap: '10px' } }, face(c),
           h('div', { style: { flex: '1' } }, h('b', null, c.name), h('div', { class: 'hint' }, `${TRAITS[c.trait].name}: ${TRAITS[c.trait].line}`), h('div', { class: 'hint' }, `${ROLE[role]} · ${wageOf(c)} ● por día`)),
@@ -111,8 +140,7 @@ function updateDoing(body: HTMLElement) {
   cards.forEach((el, i) => {
     const w = all[i] as { id: string; on: boolean; e?: Employee } | undefined;
     if (!w) return;
-    if (w.e && cookRests(w.e)) el.textContent = COOK_REST_TEXT;
-    else if (w.e?.unpaid) el.textContent = 'No cobró: no trabaja hasta que se le pague.';
+    if (w.e?.unpaid) el.textContent = 'No cobró: no trabaja hasta que se le pague.';
     else if (!w.on) el.textContent = 'Descansando (no ayuda hoy)';
     else el.textContent = runtime.get(w.id)?.doing ?? 'Esperando';
   });
