@@ -12,7 +12,7 @@ import { playerBusy } from '../restaurant/claims';
 import { celebrate, showServeResult } from '../restaurant/kitchen';
 import { customerName, serveOrder } from '../restaurant/orders';
 import type { CookResult } from '../restaurant/cooking';
-import { guestViews, plateState, stagePlate, tableLabel } from '../restaurant/service';
+import { deliverTo, guestViews, plateState, stagePlate, tableLabel } from '../restaurant/service';
 import { addEnergy, DISH_COST } from '../systems/fatigue';
 import type { DishItem, DrinkItem } from './prep';
 import { DRINK_BY_ID } from '../restaurant/drinkData';
@@ -43,10 +43,23 @@ export function drinkOrderFor(drink: string): Order | null {
 }
 
 /** Who a finished dish or drink would go to right now (the same pick `deliverDish` makes). */
-export function targetFor(item: DishItem | DrinkItem): { label: string; table: string | null } | null {
+export function targetFor(item: DishItem | DrinkItem): { label: string; table: string | null; tableId: string | null } | null {
   const o = item.kind === 'drink' ? drinkOrderFor(item.drink) : orderFor(item.recipe);
   if (!o) return null;
-  return o.service ? { label: `${tableLabel(o.service.tableId)} · ${customerName(o.customer)}`, table: tableLabel(o.service.tableId) } : { label: `Mostrador · ${customerName(o.customer)}`, table: 'Mostrador' };
+  return o.service ? { label: `${tableLabel(o.service.tableId)} · ${customerName(o.customer)}`, table: tableLabel(o.service.tableId), tableId: o.service.tableId } : { label: `Mostrador · ${customerName(o.customer)}`, table: 'Mostrador', tableId: null };
+}
+
+/** Walking the finished dish to its table: it is staged and handed over in one go (no tray round trip). */
+export function serveAtTable(dish: DishItem | DrinkItem, tableId: string): { ok: boolean; msg?: string } {
+  const to = targetFor(dish);
+  if (!to || to.tableId !== tableId) return { ok: false, msg: to ? `Ese plato es para ${to.table}.` : 'Esa mesa no pidió eso.' };
+  const r = deliverDish(dish);
+  if (!r.ok || r.uid === undefined) return { ok: false, msg: r.msg };
+  const order = game.save.orders.find((o) => o.uid === r.uid);
+  if (order?.plate) order.plate.state = 'carried'; // for the instant it takes to hand it over, so the tray size does not matter
+  const msg = deliverTo(tableId);
+  if (order?.plate?.state === 'carried') order.plate.state = 'ready';
+  return { ok: true, msg };
 }
 
 export function deliverDish(dish: DishItem | DrinkItem): { ok: boolean; msg?: string; uid?: number } {
