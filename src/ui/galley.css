@@ -85,3 +85,44 @@
 .gl-pin { min-width: 40px; min-height: 28px; padding: 0 8px; border: 1px solid #b98d5a; border-radius: 8px; background: #fbf3dc; color: #3a2a1e; font: inherit; font-size: .9em; cursor: pointer; }
 .gl-pin.on { background: #ecc983; border-color: #8b6a46; font-weight: 700; }
 .gl-ticket.pinned { border-color: #c9923c; }
+
+/* ---- cutting bar feedback: trail, hot zone, sparks, series dots, streak, the ingredient being sliced ---- */
+.gl-cut-title { position: relative; }
+.gl-streak { margin-left: 6px; padding: 0 7px; border-radius: 8px; background: #ecc983; border: 1px solid #8b6a46; font-size: .85em; opacity: 0; }
+.gl-streak.on { opacity: 1; }
+.gl-slices { align-self: center; width: 150px; height: 56px; image-rendering: pixelated; margin: -2px 0; }
+.gl-pips { display: flex; justify-content: center; gap: 6px; margin: -2px 0 0; }
+.gl-pip { width: 12px; height: 12px; border-radius: 3px; border: 2px solid #b9a385; background: #f3e8d2; transform: rotate(45deg) scale(.8); transition: transform .18s, background .18s; }
+.gl-pip.now { border-color: #8b6a46; transform: rotate(45deg) scale(1); }
+.gl-pip.hit { transform: rotate(45deg) scale(1.1); }
+.gl-pip.perfect { background: #f2c66d; border-color: #b9871a; }
+.gl-pip.good { background: #9bc47f; border-color: #4f7a43; }
+.gl-pip.regular { background: #cdbd9f; border-color: #8a7a60; }
+.gl-pip.fail { background: #d98a7a; border-color: #b0524a; }
+.gl-bar-wrap { position: relative; }
+.gl-bar { transition: box-shadow .12s; }
+.gl-zone { transition: background .12s, box-shadow .12s; }
+.gl-zone.hot { background: rgba(140, 200, 110, .8); box-shadow: 0 0 10px 2px rgba(190, 240, 140, .9) inset; }
+.gl-zone-core { animation: gl-core 1.1s ease-in-out infinite alternate; }
+@keyframes gl-core { from { opacity: .65; } to { opacity: 1; } }
+.gl-trail { position: absolute; top: 2px; bottom: 2px; width: 30px; pointer-events: none; opacity: 0; transition: opacity .08s; }
+.gl-ind.fwd .gl-trail { right: 100%; opacity: 1; background: linear-gradient(to right, rgba(63, 46, 34, 0), rgba(63, 46, 34, .4)); }
+.gl-ind.back .gl-trail { left: 100%; opacity: 1; background: linear-gradient(to left, rgba(63, 46, 34, 0), rgba(63, 46, 34, .4)); }
+.gl-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.gl-cut.hit-perfect .gl-flash { animation: gl-flash .32s ease-out; }
+.gl-cut.hit-good .gl-flash { animation: gl-flash .22s ease-out; opacity: 0; }
+@keyframes gl-flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+.gl-cut.hit-perfect .gl-bar { box-shadow: 0 0 14px 3px rgba(255, 224, 120, .9); }
+.gl-cut.hit-fail .gl-bar { box-shadow: 0 0 10px 2px rgba(210, 100, 90, .7); }
+.gl-cut.done.hit-perfect, .gl-cut.done.hit-good { animation: gl-thunk .2s ease-out; }
+.gl-cut.done.hit-fail { animation: gl-shake .24s linear; }
+@keyframes gl-thunk { 0% { transform: translateX(-50%) scale(1); } 40% { transform: translateX(-50%) scale(.97, .94) translateY(2px); } 100% { transform: translateX(-50%) scale(1); } }
+@keyframes gl-shake { 0%, 100% { transform: translateX(-50%); } 25% { transform: translateX(calc(-50% - 4px)); } 75% { transform: translateX(calc(-50% + 4px)); } }
+.gl-sparks { position: absolute; left: 0; right: 0; top: 50%; height: 0; pointer-events: none; overflow: visible; }
+.gl-spark { position: absolute; width: 4px; height: 4px; margin: -2px 0 0 -2px; animation: gl-spark .5s ease-out forwards; }
+@keyframes gl-spark { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(var(--dx), calc(var(--dy) + 10px)); opacity: 0; } }
+.gl-ring { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border: 2px solid #fff2b0; border-radius: 50%; animation: gl-ring .5s ease-out forwards; }
+@keyframes gl-ring { from { transform: scale(.4); opacity: 1; } to { transform: scale(4.4); opacity: 0; } }
+.gl-verdict.perfect { animation: gl-pop .3s ease-out, gl-glint .6s ease-out; }
+@keyframes gl-glint { 0% { letter-spacing: 0; } 40% { letter-spacing: 3px; } 100% { letter-spacing: 0; } }
+.reduce-motion .gl-zone-core, .reduce-motion .gl-cut.done, .reduce-motion .gl-flash, .reduce-motion .gl-verdict.perfect { animation: none !important; }
