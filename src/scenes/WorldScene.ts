@@ -2244,7 +2244,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     if (intent.type === 'deliver') {
-      this.note(deliverTo(intent.tableId));
+      this.note(this.galleyView.heldFor() === intent.tableId ? this.galleyView.serveHeld(intent.tableId) : deliverTo(intent.tableId));
       this.syncGuests();
       this.contextKey = '';
       return;
@@ -2438,6 +2438,7 @@ export class WorldScene extends Phaser.Scene {
       blocked: (x: number, y: number) => this.zone.grid.isSolid(x, y),
       guests: this.zoneId === 'restaurant' ? this.senseGuests() : [],
       galley: this.galleyView.actions(),
+      heldFor: this.galleyView.heldFor(),
     };
   }
 
@@ -2663,6 +2664,8 @@ export class WorldScene extends Phaser.Scene {
       else if (t.kind === 'interact') at = { x: t.def.x * TILE + TILE / 2, y: t.def.y * TILE };
       else if (t.kind === 'door') at = { x: t.def.x * TILE + TILE / 2, y: t.def.y * TILE };
       else if (t.kind === 'gather') at = { x: t.spot.x * TILE + TILE / 2, y: t.spot.y * TILE };
+    } else if (i.type === 'galley') {
+      at = this.galleyView.promptAt(i.station) ?? at;
     } else if (i.type === 'takeOrder' || i.type === 'deliver' || i.type === 'tip') {
       const g = this.senseGuests().find((q) => q.tableId === i.tableId);
       if (g) at = { x: g.x, y: g.y - 26 };
