@@ -18,10 +18,10 @@ export const FOLK_SPECS: Record<string, FolkSpec> = {
     deco: [{ k: 'vest', c: '#3b3339', inner: '#2f2830' }, { k: 'necklace', c: '#e8c35a' }],
   },
   pip: {
-    id: 'pip', ears: 'round', fur: '#9c9ba5', furLight: '#d8d6e6', innerEar: '#5b5967', mask: '#625f72', nose: '#2b2330', eye: '#2b2330',
-    top: '#9c9ba5', topLight: '#b4b3bd', legsColor: '#8b8a95', legs: 'fur', shoes: '#5d5b68', wide: 3.6, frameW: 42,
-    tail: { kind: 'ringed', c: '#8f8e99' },
-    belly: { c: '#d8d6ea', rx: 8, ry: 4.2, y: 4.6 },
+    id: 'pip', plush: true, ears: 'round', fur: '#a29da4', furLight: '#e6e0d6', innerEar: '#5b5764', mask: '#625d6e', headMark: '#524d5e', nose: '#2b2330', eye: '#241c29',
+    top: '#a29da4', topLight: '#bab5b8', legsColor: '#8b8693', legs: 'fur', shoes: '#5b5766', wide: 3.6, frameW: 48,
+    tail: { kind: 'ringed', c: '#9b96a0' },
+    belly: { c: '#d9d3d2', rx: 8, ry: 4.2, y: 4.6 },
   },
   rigg: {
     id: 'rigg', ears: 'round', fur: '#8c5b37', furLight: '#bb8b5d', innerEar: '#c79d6c', mask: '#5e3c26', nose: '#2a1a14', eye: '#2b2330',
