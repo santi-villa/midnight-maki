@@ -115,17 +115,17 @@ function geo(W: number, H: number, pose: FolkPose, view: View): Geo {
   else if (pose.expr === 'sad') armDy = 1;
   // a sad Pip lets his head droop a little
   const droop = pose.expr === 'sad' ? 1 : 0;
-  const torsoTop = 22.7 + dy;
+  const torsoTop = 25 + dy;
   return {
     W, H, A, dy, sit,
-    hx: A + (side ? 1.6 : 0) + (pose.expr === 'sad' && !side ? -0.5 : 0),
-    hy: 17.2 + dy + droop,
-    hrx: side ? 11.4 : 12.8,
-    hry: 8.8,
+    hx: A + (side ? 2 : 0) + (pose.expr === 'sad' && !side ? -1 : 0),
+    hy: 19 + dy + droop,
+    hrx: side ? 11 : 12,
+    hry: 8,
     torsoTop,
-    torsoBot: 34.6,
-    trx: side ? 9.4 : 11.6,
-    tcx: A + (side ? -0.6 : 0),
+    torsoBot: 35,
+    trx: side ? 9 : 11,
+    tcx: A + (side ? -1 : 0),
     armDy,
     lift: pose.legs === 'a' ? 'l' : pose.legs === 'b' ? 'r' : null,
     sway: pose.legs === 'a' ? -1 : pose.legs === 'b' ? 1 : 0,
@@ -141,15 +141,15 @@ function tail(g: Ctx, pal: Pal, s: Geo, view: View) {
   if (view === 'back') {
     // seen from behind the tail hangs over the lower back, rings run across it
     const cx = A + s.sway * 0.8;
-    const cy = 30.4 + lift;
-    m = ell(cx, cy, 7.4, 6.6, 2.3);
-    band = (_x, y) => (y - (cy - 6.6)) / 13.2;
+    const cy = 30.8 + lift;
+    m = ell(cx, cy, 6, 5.4, 2.3);
+    band = (_x, y) => (y - (cy - 5.4)) / 10.8;
   } else if (view === 'side') {
-    const t = tailMask([A - 5.5, 31.2 + lift], [A - 12.6 + s.sway * 0.4, 31.6 + lift], [A - 12, 19.6 + lift], 3.6, 5.2, 3.5);
+    const t = tailMask([A - 5, 31.4 + lift], [A - 10 + s.sway * 0.4, 31.8 + lift], [A - 9.8, 22.4 + lift], 3, 4.1, 2.8);
     m = t.mask; band = t.band;
   } else {
     // from the front only the fat curl beside the body shows
-    const t = tailMask([A + 8, 31 + lift], [A + 14.4 + s.sway * 0.5, 31 + lift], [A + 14.2 + s.sway * 0.4, 20.4 + lift], 3.4, 4.8, 3.2);
+    const t = tailMask([A + 7, 31.2 + lift], [A + 12.4 + s.sway * 0.5, 31.2 + lift], [A + 12.2 + s.sway * 0.4, 22.6 + lift], 3, 4.1, 2.8);
     m = t.mask; band = t.band;
   }
   const rings = (t: number) => (t > 0.14 && t < 0.28) || (t > 0.42 && t < 0.56) || (t > 0.7 && t < 0.84) || t >= 0.93;
@@ -158,22 +158,22 @@ function tail(g: Ctx, pal: Pal, s: Geo, view: View) {
 
 function feet(g: Ctx, pal: Pal, s: Geo, view: View) {
   const { W, H, A } = s;
-  const cy = (l: boolean) => (s.sit ? 36 : 35.7) - (s.lift === (l ? 'l' : 'r') ? 1 : 0);
+  const cy = (l: boolean) => (s.sit ? 36 : 35.8) - (s.lift === (l ? 'l' : 'r') ? 1 : 0);
   const foot = (cx: number, y: number, rx: number, ry: number) => blob(g, W, H, ell(cx, y, rx, ry, 2.2), pal.paw, { lt: 0.16, dk: -0.2, l: 1, d: 1 });
   if (view === 'side') {
     const swing = s.lift ? 2 : 0;
     const back = s.lift === 'l' ? -1 : 1;
-    foot(A - 5.4 - swing * back * 0.5, cy(true), 3.4, 2.4);
-    foot(A + 3.4 + swing * back * 0.5, cy(false), 3.4, 2.4);
+    foot(A - 5 - swing * back * 0.5, cy(true), 3.4, 2.4);
+    foot(A + 3 + swing * back * 0.5, cy(false), 3.4, 2.4);
     return;
   }
   if (s.sit) {
-    foot(A - 8.6, cy(true), 3.9, 2.4);
-    foot(A + 8.6, cy(false), 3.9, 2.4);
+    foot(A - 8, cy(true), 3.9, 2.4);
+    foot(A + 8, cy(false), 3.9, 2.4);
     return;
   }
-  foot(A - 5.9, cy(true), 3.5, 2.5);
-  foot(A + 5.9, cy(false), 3.5, 2.5);
+  foot(A - 6, cy(true), 3.5, 2.5);
+  foot(A + 6, cy(false), 3.5, 2.5);
 }
 
 function torso(g: Ctx, pal: Pal, s: Geo, view: View, custom?: FolkCustom) {
@@ -184,10 +184,10 @@ function torso(g: Ctx, pal: Pal, s: Geo, view: View, custom?: FolkCustom) {
   const ry = (bot - top) / 2;
   blob(g, W, H, ell(s.tcx, cy, s.trx, ry, 2.3), pal.fur, { lt: 0.16, dk: -0.2, l: 1.8, d: 1.9 });
   if (view !== 'back') {
-    const bx = view === 'side' ? s.tcx + 4.4 : s.tcx;
-    const brx = view === 'side' ? 5.2 : 7.9;
+    const bx = view === 'side' ? s.tcx + 4 : s.tcx;
+    const brx = view === 'side' ? 5 : 8;
     // the belly is the heart of Pip: big, round, soft
-    blob(g, W, H, ell(bx, cy + 1, brx, ry - 0.9, 2.05), pal.belly, { lt: 0.22, dk: -0.12, l: 1.6, d: 1.7 });
+    blob(g, W, H, ell(bx, cy + 0.6, brx, ry - 1.1, 2.05), pal.belly, { lt: 0.22, dk: -0.12, l: 1.6, d: 1.7 });
   }
   if (custom?.extra) bodyAcc(g, custom.extra.kind, custom.extra.c1, custom.extra.c2, Math.round(s.tcx), Math.round(top) + 8, Math.round(s.trx) + 1, view);
 }
@@ -203,42 +203,40 @@ function arms(g: Ctx, pal: Pal, s: Geo, view: View, pose: FolkPose) {
   };
   if (view === 'side') {
     const swing = pose.legs === 'a' ? 1.4 : pose.legs === 'b' ? -1.4 : 0;
-    if (pose.arms === 'read') { arm(A + 5.6, 29.4, 2.5, 3.6); return; }
-    arm(s.tcx - 1.8 + swing, 28.6 + dy * 0.5 + (s.sit ? 2 : 0), 2.8, 3.9);
+    if (pose.arms === 'read') { arm(A + 5, 30, 2.5, 3.6); return; }
+    arm(s.tcx - 2 + swing, 29.6 + dy * 0.5 + (s.sit ? 2 : 0), 2.8, 3.9);
     return;
   }
   const lowL = pose.legs === 'a' ? 0 : pose.legs === 'b' ? 1 : 0.5;
   const lowR = pose.legs === 'b' ? 0 : pose.legs === 'a' ? 1 : 0.5;
   const sitDy = s.sit ? 2 : 0;
-  const body = (x: number) => s.torsoTop + 6.4 + (x === 0 ? 0 : 0);
-  void body;
-  const baseY = 29 + sitDy;
+  const baseY = 29.6 + sitDy;
   const mood = pose.expr === 'happy' || pose.expr === 'surprised' ? 0.8 : 0;
   if (pose.arms === 'cook1' || pose.arms === 'cook2') {
     const up = pose.arms === 'cook1' ? 0 : 1;
-    arm(A - 8.3, baseY - 0.4 - up);
-    arm(A + 8.3, baseY - 0.4 + up - 1);
+    arm(A - 8, baseY - 0.4 - up);
+    arm(A + 8, baseY - 0.4 + up - 1);
     return;
   }
   if (pose.arms === 'read') {
-    arm(A - 7.2, baseY + 0.4, 2.5, 3.6);
-    arm(A + 7.2, baseY + 0.4, 2.5, 3.6);
+    arm(A - 7, baseY + 0.4, 2.5, 3.6);
+    arm(A + 7, baseY + 0.4, 2.5, 3.6);
     return;
   }
   if (pose.arms === 'wave1' || pose.arms === 'wave2') {
     // the raised paw goes on the side without the tail so it reads on its own
     const w = pose.arms === 'wave1' ? 0 : 1;
-    arm(A - 14.2 - w * 0.6, 20.8 - w * 1.2, 2.5, 4.8, true);
-    arm(A + 10.6, baseY - 0.2);
+    arm(A - 13.4 - w * 0.6, 22.6 - w * 1.2, 2.5, 4.8, true);
+    arm(A + 10, baseY - 0.2);
     return;
   }
-  arm(A - 10.7 - mood, baseY + dy + lowL - 0.5, 2.7, 4.2);
-  arm(A + 10.7 + mood, baseY + dy + lowR - 0.5, 2.7, 4.2);
+  arm(A - 10 - mood, baseY + dy + lowL - 0.5, 2.7, 4.2);
+  arm(A + 10 + mood, baseY + dy + lowR - 0.5, 2.7, 4.2);
 }
 
 function ears(g: Ctx, pal: Pal, s: Geo, view: View) {
   const { W, H } = s;
-  const cyE = s.hy - 8.2;
+  const cyE = s.hy - s.hry + 0.6;
   const ear = (cx: number, rx: number, ry: number, inner: boolean) => {
     blob(g, W, H, ell(cx, cyE + 0.4, rx, ry, 2), pal.fur, { lt: 0.16, dk: -0.18, l: 1.1, d: 1.2 });
     // the inside of the ear is dark; from behind a smaller dark patch stays, so the ears still read as raccoon ears
@@ -246,11 +244,11 @@ function ears(g: Ctx, pal: Pal, s: Geo, view: View) {
     else blob(g, W, H, ell(cx, cyE + 0.8, rx - 1.5, ry - 1.4, 2), tone(pal.fur, -0.3));
   };
   if (view === 'side') {
-    ear(s.hx - 5.2, 3.3, 3.1, true); // near ear
-    ear(s.hx + 3.6, 2.7, 2.7, true); // far ear
+    ear(s.hx - 5, 3.2, 3, true); // near ear
+    ear(s.hx + 4.4, 2.8, 2.8, true); // far ear, a touch smaller so it reads as farther away
   } else {
-    ear(s.hx - 9.4, 3.4, 3.2, view === 'front');
-    ear(s.hx + 9.4, 3.4, 3.2, view === 'front');
+    ear(s.hx - 8.6, 3.3, 3.1, view === 'front');
+    ear(s.hx + 8.6, 3.3, 3.1, view === 'front');
   }
 }
 
@@ -265,7 +263,7 @@ function face(g: Ctx, pal: Pal, s: Geo, view: View, expr: FolkExpr) {
   if (view === 'back') {
     // the stripe carries on over the crown so Pip is recognisable from behind
     const hy = s.hy;
-    blob(g, W, H, box(A - 2, hy - 8.4, A + 2, hy - 3.6), pal.stripe, {});
+    blob(g, W, H, box(A - 2, hy - s.hry + 0.4, A + 2, hy - 3.4), pal.stripe, {});
     return;
   }
   if (view === 'front') return faceFront(g, pal, s, expr);
@@ -311,15 +309,15 @@ function faceFront(g: Ctx, pal: Pal, s: Geo, expr: FolkExpr) {
   const hy = s.hy;
   const cxm = Math.round(hx); // axis column pair: (cxm - 1, cxm)
   // mask: two soft patches and a bridge, flat so the eyes read inside them
-  for (const sg of [-1, 1]) blob(g, W, H, ell(hx + sg * 6.1, hy + 0.5, 5.1, 3.7, 2.2), pal.mask, {});
+  for (const sg of [-1, 1]) blob(g, W, H, ell(hx + sg * 5.8, hy + 0.5, 4.8, 3.5, 2.2), pal.mask, {});
   blob(g, W, H, box(hx - 2, hy - 2, hx + 2, hy + 1.4), pal.mask, {});
   // forehead stripe: Pip's mark, tapering into the bridge of the mask
-  blob(g, W, H, box(hx - 2, hy - 8.4, hx + 2, hy - 3), pal.stripe, {});
+  blob(g, W, H, box(hx - 2, hy - s.hry + 0.4, hx + 2, hy - 3), pal.stripe, {});
   blob(g, W, H, box(hx - 1, hy - 3, hx + 1, hy - 1.4), pal.stripe, {});
   // cheeks and muzzle: pale cream with a soft rim
   // soft cheeks in between fur and cream give the face its plush volume
-  for (const sg of [-1, 1]) blob(g, W, H, ell(hx + sg * 7.6, hy + 5.2, 3, 2.3, 2.2), mixHex(pal.fur, pal.cream, 0.55), { lt: 0.1 });
-  blob(g, W, H, ell(hx, hy + 4.7, 5.5, 3.5, 2.3), pal.cream, { lt: 0.12, dk: -0.1, l: 1.2, d: 1.2 });
+  for (const sg of [-1, 1]) blob(g, W, H, ell(hx + sg * 7.2, hy + 4.9, 2.8, 2.2, 2.2), mixHex(pal.fur, pal.cream, 0.55), { lt: 0.1 });
+  blob(g, W, H, ell(hx, hy + 4.4, 5.2, 3.3, 2.3), pal.cream, { lt: 0.12, dk: -0.1, l: 1.2, d: 1.2 });
   const ey = Math.round(hy - 1.2);
   eyeAt(g, pal, cxm - 7, cxm - 6, ey, expr);
   eyeAt(g, pal, cxm + 6, cxm + 5, ey, expr);
@@ -358,22 +356,22 @@ function faceSide(g: Ctx, pal: Pal, s: Geo, expr: FolkExpr) {
   const hx = s.hx;
   const hy = s.hy;
   const cx = Math.round(hx);
-  blob(g, W, H, ell(hx + 5.2, hy + 0.5, 5, 3.6, 2.2), pal.mask, {});
-  blob(g, W, H, ell(hx + 1.4, hy - 6.2, 2.8, 2.5, 2), pal.stripe, {});
+  blob(g, W, H, ell(hx + 5, hy + 0.5, 4.8, 3.5, 2.2), pal.mask, {});
+  blob(g, W, H, ell(hx + 1.4, hy - 5.6, 2.7, 2.3, 2), pal.stripe, {});
   // muzzle sticks out, cheek puffs behind it
-  blob(g, W, H, ell(hx + 3.2, hy + 5.4, 3.4, 2.5, 2.2), mixHex(pal.fur, pal.cream, 0.55), { lt: 0.1 });
-  blob(g, W, H, ell(hx + 8.2, hy + 4.4, 4, 3.2, 2.3), pal.cream, { lt: 0.12, dk: -0.1, l: 1.2, d: 1.2 });
+  blob(g, W, H, ell(hx + 3, hy + 4.9, 3.2, 2.3, 2.2), mixHex(pal.fur, pal.cream, 0.55), { lt: 0.1 });
+  blob(g, W, H, ell(hx + 7.6, hy + 4.4, 3.8, 3.1, 2.3), pal.cream, { lt: 0.12, dk: -0.1, l: 1.2, d: 1.2 });
   const ey = Math.round(hy - 1.2);
   eyeAt(g, pal, cx + 5, cx + 4, ey, expr);
-  px(g, cx + 10, ey + 2, pal.nose, 2, 2);
-  px(g, cx + 10, ey + 2, tone(pal.nose, 0.35));
+  px(g, cx + 9, ey + 2, pal.nose, 2, 2);
+  px(g, cx + 9, ey + 2, tone(pal.nose, 0.35));
   const my = ey + 6;
   const mc = pal.mouth;
-  if (expr === 'happy') { px(g, cx + 6, my, mc, 4, 1); px(g, cx + 7, my + 1, '#d98b8b', 2, 1); }
-  else if (expr === 'surprised') px(g, cx + 7, my, mc, 2, 2);
-  else if (expr === 'sad') { px(g, cx + 7, my, mc, 3, 1); px(g, cx + 6, my + 1, mc); }
-  else if (expr === 'smug') { px(g, cx + 6, my + 1, mc, 3, 1); px(g, cx + 9, my, mc); }
-  else px(g, cx + 6, my, mc, 3, 1);
+  if (expr === 'happy') { px(g, cx + 5, my, mc, 4, 1); px(g, cx + 6, my + 1, '#d98b8b', 2, 1); }
+  else if (expr === 'surprised') px(g, cx + 6, my, mc, 2, 2);
+  else if (expr === 'sad') { px(g, cx + 6, my, mc, 3, 1); px(g, cx + 5, my + 1, mc); }
+  else if (expr === 'smug') { px(g, cx + 5, my + 1, mc, 3, 1); px(g, cx + 8, my, mc); }
+  else px(g, cx + 5, my, mc, 3, 1);
 }
 
 // ------------------------------------------------------------------ assembling
@@ -427,7 +425,7 @@ export function plushFrame(spec: FolkSpec, pose: FolkPose, custom: FolkCustom | 
     face(o, pal, s, view, pose.expr);
     if (pose.arms === 'read') {
       const A = s.A;
-      const by = 27;
+      const by = 28;
       px(o, A - 4, by, '#8a5a3c', 9, 6);
       px(o, A - 4, by, '#e9d3a5', 9, 5);
       px(o, A - 3, by + 1, '#f6e7c4', 3, 2);
