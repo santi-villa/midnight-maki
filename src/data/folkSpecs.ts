@@ -19,7 +19,7 @@ export const FOLK_SPECS: Record<string, FolkSpec> = {
   },
   pip: {
     id: 'pip', plush: true, ears: 'round', fur: '#a29da4', furLight: '#e6e0d6', innerEar: '#5b5764', mask: '#625d6e', headMark: '#524d5e', nose: '#2b2330', eye: '#241c29',
-    top: '#a29da4', topLight: '#bab5b8', legsColor: '#8b8693', legs: 'fur', shoes: '#5b5766', wide: 3.6, frameW: 48,
+    top: '#a29da4', topLight: '#bab5b8', legsColor: '#8b8693', legs: 'fur', shoes: '#5b5766', wide: 3.6, frameW: 45,
     tail: { kind: 'ringed', c: '#9b96a0' },
     belly: { c: '#d9d3d2', rx: 8, ry: 4.2, y: 4.6 },
   },
