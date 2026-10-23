@@ -9,7 +9,7 @@
 import type { Dir } from '../core/types';
 import { ctx2d, makeCanvas, mix, px, shade, type Ctx } from './pixel';
 import { bodyAcc, headAcc } from './raccoon';
-import { plushFrame } from './pipPlush';
+import { plushFrame } from './plushRaccoon';
 import { drawHeroAccessories, drawHeroFace, drawHeroHair, type FaceParams, type HeroSpec, type Kit } from './hero';
 
 /**
@@ -98,7 +98,8 @@ export interface FolkSpec {
   frameW?: number; // frame width override (wide characters)
   earColor?: string; // ears in another colour than the face (hair-coloured ears)
   belly?: { c: string; rx?: number; ry?: number; y?: number };
-  plush?: boolean; // drawn by pipPlush.ts instead of the shared parts
+  /** drawn by plushRaccoon.ts instead of the shared parts: body size and the traits that tell the plush raccoons apart */
+  plush?: { size: 'big' | 'small'; stripe?: string; brow?: string; earOuter?: string; cheek?: string; ring?: string; darkLimbs?: boolean; tailK?: number };
   human?: boolean; // human face: no snout, small nose, brows
   humanEars?: boolean;
   hero?: HeroSpec; // playable hero: detailed hair / face / outfit parameters
