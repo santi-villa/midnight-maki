@@ -29,7 +29,7 @@ test('Pip plush sheet: size, feet, mirror, faces, tail in every direction', asyn
     // front silhouette of the head (above the tail curl) is symmetric
     const f0 = frame(0);
     let sym = true;
-    for (let y = 8; y < 16; y++) for (let x = 3; x < fw / 2; x++) if ((at(f0, x, y)[3] > 0) !== (at(f0, fw - 1 - x, y)[3] > 0)) sym = false;
+    for (let y = 11; y < 18; y++) for (let x = 3; x < fw / 2; x++) if ((at(f0, x, y)[3] > 0) !== (at(f0, fw - 1 - x, y)[3] > 0)) sym = false;
     out.headSymmetric = sym;
     out.eyesFront = [count(f0, eye, 0, fw / 2), count(f0, eye, fw / 2, fw)];
     out.eyesBack = count(frame(3), eye);
@@ -40,9 +40,9 @@ test('Pip plush sheet: size, feet, mirror, faces, tail in every direction', asyn
     out.actionsDistinct = distinct([0, 24, 25, 26, 27, 28, 29]);
     return out;
   });
-  expect(r.fw).toBe(36);
+  expect(r.fw).toBe(34);
   expect(r.fh).toBe(39);
-  expect(r.width).toBe(36 * 30);
+  expect(r.width).toBe(34 * 30);
   const v = r.vertical as number[][];
   // feet on the last rows in every standing frame; nothing above the ears (the transparent pad is for hats)
   for (let i = 0; i < 30; i++) { if (i === 15) continue; expect(v[i][1], `frame ${i} feet`).toBeGreaterThanOrEqual(37); expect(v[i][0], `frame ${i} top`).toBeGreaterThanOrEqual(4); }
