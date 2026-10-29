@@ -1,15 +1,16 @@
 /** Palettes and outfits of every villager drawn with the detailed "folk" renderer (src/art/folk.ts). */
 import type { FolkSpec } from '../art/folk';
 
-const GRAY = '#9d9ba3';
 
 export const FOLK_SPECS: Record<string, FolkSpec> = {
   spicy: {
-    id: 'spicy', ears: 'round', fur: GRAY, furLight: '#f4f1f0', innerEar: '#4b4553', mask: '#57525f', nose: '#2b2330', eye: '#2b2330',
+    id: 'spicy', ears: 'round', fur: '#978b8f', furLight: '#ecd7c6', innerEar: '#e6d0bf', mask: '#48414c', nose: '#2a2430', eye: '#1f1a23',
     hat: { kind: 'bandana', c: '#c9482f', c2: '#962f24' },
-    top: '#8d8b95', topLight: '#a9a7b1', legsColor: '#77757f', legs: 'pants', shoes: '#4a4552',
-    tail: { kind: 'ringed', c: '#a3a1a9' },
+    top: '#8d8b95', topLight: '#a9a7b1', legsColor: '#77757f', legs: 'pants', shoes: '#48414c', frameW: 45,
+    tail: { kind: 'ringed', c: '#978b8f' },
     deco: [{ k: 'apron', c: '#f6e6d6', c2: '#e8b09e' }],
+    belly: { c: '#ecd7c6' },
+    plush: { size: 'small', ring: '#5d535c' },
   },
   taro: {
     id: 'taro', ears: 'pointy', fur: '#d9843f', furLight: '#f3d3a2', innerEar: '#f7dcb4', nose: '#3a2a2a', eye: '#2b2330',
@@ -18,16 +19,18 @@ export const FOLK_SPECS: Record<string, FolkSpec> = {
     deco: [{ k: 'vest', c: '#3b3339', inner: '#2f2830' }, { k: 'necklace', c: '#e8c35a' }],
   },
   pip: {
-    id: 'pip', ears: 'round', fur: '#9c9ba5', furLight: '#d8d6e6', innerEar: '#5b5967', mask: '#625f72', nose: '#2b2330', eye: '#2b2330',
-    top: '#9c9ba5', topLight: '#b4b3bd', legsColor: '#8b8a95', legs: 'fur', shoes: '#5d5b68', wide: 3.6, frameW: 42,
-    tail: { kind: 'ringed', c: '#8f8e99' },
-    belly: { c: '#d8d6ea', rx: 8, ry: 4.2, y: 4.6 },
+    id: 'pip', ears: 'round', fur: '#9e969e', furLight: '#f6e6d6', innerEar: '#8d6a63', mask: '#514a59', nose: '#3d3544', eye: '#1d1620',
+    top: '#9e969e', topLight: '#bab5b8', legsColor: '#8b8693', legs: 'fur', shoes: '#5b5361', wide: 3.6, frameW: 45,
+    tail: { kind: 'ringed', c: '#9a929b' },
+    belly: { c: '#f2e4d3', rx: 8, ry: 4.2, y: 4.6 },
+    plush: { size: 'big', stripe: '#514a59', brow: '#f1e2d0', earOuter: '#f0e1cf', ring: '#5e5766' },
   },
   rigg: {
-    id: 'rigg', ears: 'round', fur: '#8c5b37', furLight: '#bb8b5d', innerEar: '#c79d6c', mask: '#5e3c26', nose: '#2a1a14', eye: '#2b2330',
-    top: '#8c5b37', topLight: '#a47048', legsColor: '#7b4d2f', legs: 'fur', shoes: '#4a3020',
-    tail: { kind: 'ringed', c: '#8c5b37' },
-    belly: { c: '#f2e4ca', rx: 4.4, ry: 3.4, y: 5 },
+    id: 'rigg', ears: 'round', fur: '#c76a4c', furLight: '#f0d5be', innerEar: '#f0d5be', mask: '#3d2a30', nose: '#1d1b22', eye: '#110c10',
+    top: '#c76a4c', topLight: '#d98466', legsColor: '#3b2628', legs: 'fur', shoes: '#3b2628', frameW: 45,
+    tail: { kind: 'ringed', c: '#c0654a' },
+    belly: { c: '#f0d5be' },
+    plush: { size: 'small', darkLimbs: true, brow: '#f4dcc6', cheek: '#f0d5be', ring: '#7a3a2e', tailK: 1.1 },
   },
   momo: {
     id: 'momo', ears: 'long', fur: '#f3e6c8', furLight: '#fbf4e2', innerEar: '#f3b7b9', blush: '#f0a9a6', nose: '#d98b8b', eye: '#2b2330',

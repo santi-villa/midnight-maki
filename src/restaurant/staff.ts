@@ -14,6 +14,7 @@ import { ITEMS_BY_ID, PACKS, type PackDef } from '../data/items';
 import { canCook } from './orders';
 import { pantryFree } from './supplies';
 import { galleyOn } from '../galley/mode';
+import { perkTotals } from './perks';
 import { claimPlate, collectTipAt, guestViews, plateState, stagePlate, staffDeliver, takeOrderAt, tableJobs } from './service';
 
 export type StaffRole = 'waiter' | 'cook' | 'cashier' | 'helper';
@@ -36,11 +37,15 @@ export interface Employee {
   priority: 'orders' | 'serve';
   /** could not be paid on the last pay day: stays off until paid */
   unpaid?: boolean;
+  /** cooks in the physical kitchen: the stove or the second knife (optional: older saves default to the stove) */
+  job?: 'stove' | 'cut';
+  /** chosen alternatives of the skills menu (see perks.ts) */
+  perks?: string[];
 }
 
 export type CrewId = 'pip' | 'rigg' | 'spicy';
 /** `carry`: extra plates Rigg can hold on his tray (0..2), bought with coins */
-export interface CrewMember { level: number; xp: number; on: boolean; carry?: number }
+export interface CrewMember { level: number; xp: number; on: boolean; carry?: number; perks?: string[] }
 export interface StaffSave {
   employees: Employee[];
   nextId: number;
@@ -72,8 +77,8 @@ const SERVE_SECONDS = [2.6, 2.1, 1.7, 1.4, 1.1];
 export const COOK_SECONDS: Record<'crew' | 'hired', number[]> = { crew: [34, 27, 21, 16, 12], hired: [45, 36, 28, 21, 15] };
 const WALK_TILES = [1.1, 1.3, 1.5, 1.7, 1.9];
 /** chance of a perfect / very good dish by level (the rest come out fine) */
-const PERFECT = [0.05, 0.15, 0.3, 0.5, 0.7];
-const VERY_GOOD = [0.35, 0.5, 0.5, 0.4, 0.3];
+export const PERFECT = [0.05, 0.15, 0.3, 0.5, 0.7];
+export const VERY_GOOD = [0.35, 0.5, 0.5, 0.4, 0.3];
 /** practice only takes hired staff so far; raccoons keep learning, slowly */
 const XP_STEPS = [25, 70, 140, 240];
 const HIRED_PRACTICE_CAP = 2;
@@ -102,6 +107,8 @@ export const CREW_INFO: Record<CrewId, { name: string; job: string; tasks: Task[
   rigg: { name: 'Rigg', job: 'Lleva los platos de la bandeja a las mesas, toma los pedidos y recoge las propinas.', tasks: ['serve', 'order', 'tip'], unlock: 2 },
   spicy: { name: 'Spicy', job: 'Cocina los pedidos del salón.', tasks: ['cook'], unlock: 2 },
 };
+/** What Spicy does in the physical kitchen: only what his two upgrades teach him. */
+export const SPICY_HANDS_JOB = 'En la cocina física trabaja a mano según tus mejoras: con «Spicy: arrocero» mantiene arroz cocido listo en el hangiri; con «Spicy: cortador» también corta lo que piden los tickets. Sin ellas no cocina por su cuenta.';
 export function crew(id: CrewId): CrewMember {
   const s = staffSave();
   return ((s.crew ??= {})[id] ??= { level: 0, xp: 0, on: false });
@@ -205,7 +212,7 @@ export function payWages(day = game.save.time.day): { paid: number; unpaid: stri
 }
 
 /** How much slower than the player a dish or a host greeting takes (Pip). 1 = as quick as it gets. */
-export const hostSlowdown = () => [2.2, 1.8, 1.45, 1.2, 1][crew('pip').level];
+export const hostSlowdown = () => [2.2, 1.8, 1.45, 1.2, 1][crew('pip').level] * perkTotals('pip', crew('pip').level, crew('pip')).speed;
 
 function gainXp(m: { level: number; xp: number }, xp: number, cap: number) {
   m.xp += xp;
@@ -237,14 +244,16 @@ function workers(env: StaffEnv): Worker[] {
   for (const e of s.employees) {
     const t = TRAITS[e.trait];
     const tasks: Task[] = e.role === 'cook' ? ['cook'] : e.role === 'cashier' ? ['tip'] : e.role === 'helper' ? ['restock'] : (e.priority === 'orders' ? ['order', 'serve'] : ['serve', 'order']).filter((k) => (k === 'order' ? e.takeOrders : e.serve)) as Task[];
-    out.push({ id: e.id, kind: 'hired', level: e.level, tasks, walk: WALK_TILES[e.level] * t.walk, mul: t.work, off: s.paused || !!e.unpaid, member: e, cap: HIRED_PRACTICE_CAP, carry: 1 });
+    const tp = perkTotals(e.role, e.level, e);
+    out.push({ id: e.id, kind: 'hired', level: e.level, tasks, walk: WALK_TILES[e.level] * t.walk * tp.walk, mul: t.work * tp.speed, off: s.paused || !!e.unpaid, member: e, cap: HIRED_PRACTICE_CAP, carry: 1 + tp.carry });
   }
   for (const id of ['rigg', 'spicy'] as CrewId[]) {
     const m = crew(id);
     if (!m.on) continue;
     const w = env.crew.where(id);
     const away = !crewUnlocked(id) || !w || w.zone !== 'restaurant';
-    out.push({ id, kind: 'crew', level: m.level, tasks: CREW_INFO[id].tasks, walk: WALK_TILES[m.level], mul: 1, off: s.paused || away || !env.crew.working(), member: m, cap: MAX_LEVEL, note: away ? 'Fuera del restaurante' : undefined, carry: id === 'rigg' ? riggCapacity() : 1 });
+    const tp = perkTotals(id, m.level, m);
+    out.push({ id, kind: 'crew', level: m.level, tasks: CREW_INFO[id].tasks, walk: WALK_TILES[m.level] * tp.walk, mul: tp.speed, off: s.paused || away || !env.crew.working(), member: m, cap: MAX_LEVEL, note: away ? 'Fuera del restaurante' : undefined, carry: (id === 'rigg' ? riggCapacity() : 1) + tp.carry });
   }
   return out;
 }
@@ -275,6 +284,8 @@ export interface Runtime {
   queue: { uid: number; tableId: string }[];
   target: { x: number; y: number } | null;
   lost: number;
+  /** the physical kitchen drives this person (see galley/crew.ts): they only walk where told */
+  hand?: boolean;
 }
 export const runtime = new Map<string, Runtime>();
 let sessionSave: unknown = null;
@@ -415,6 +426,7 @@ function stillValid(r: Runtime): boolean {
 }
 
 function arrive(w: Worker, r: Runtime) {
+  if (r.hand) { r.act = 'idle'; return; }
   r.act = 'work';
   const L = w.level;
   const k = w.mul;
@@ -574,6 +586,37 @@ export function tickStaff(dt: number, env: StaffEnv) {
   }
   // someone who stopped working (switched off) lets go of their jobs
   for (const [id, r] of runtime) if (!active.has(id) && r.claim) { release(r); r.act = 'idle'; r.step = null; }
+}
+
+// ------------------------------------------------------------------ kitchen hands (the physical kitchen asks hired cooks to walk and work)
+/** Hired cooks who can work the kitchen right now (paid, not paused, in the physical kitchen). */
+export function hiredCooks(): Employee[] {
+  const s = staffSave();
+  return galleyOn() && !s.paused ? s.employees.filter((e) => e.role === 'cook' && !e.unpaid) : [];
+}
+export const cookJob = (e: Pick<Employee, 'job'>): 'stove' | 'cut' => e.job ?? 'stove';
+export function handWhere(id: string): { x: number; y: number; settled: boolean } | null {
+  const r = runtime.get(id);
+  return r ? { x: Math.round(r.x), y: Math.round(r.y), settled: r.act !== 'walk' } : null;
+}
+/** Walks a hired cook to a tile (or sends him back to his spot when `tile` is null). */
+export function handMove(id: string, tile: { x: number; y: number } | null, env: StaffEnv) {
+  const r = runtime.get(id) ?? rt(id, env, false);
+  const to = tile ?? env.home();
+  r.hand = !!tile;
+  r.claim = null; r.step = null;
+  const path = env.path({ x: Math.round(r.x), y: Math.round(r.y) }, to);
+  r.path = path ?? [];
+  r.target = to;
+  r.act = r.path.length ? 'walk' : 'idle';
+}
+export function setHandDoing(id: string, text: string) { const r = runtime.get(id); if (r) r.doing = text; }
+/** Practice from kitchen work (hired cooks cap at the same level as other hired staff). */
+export function practiceHand(id: string, xp: number) {
+  const e = employees().find((x) => x.id === id);
+  if (e) gainXp(e, xp, HIRED_PRACTICE_CAP);
+  else if (id === 'spicy') gainXp(crew('spicy'), xp, MAX_LEVEL);
+  game.touch('staff');
 }
 
 /** Test helper */

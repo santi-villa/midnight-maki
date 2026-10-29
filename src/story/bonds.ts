@@ -449,6 +449,64 @@ export const BONDS: Bond[] = [
     outro: [['narr', 'Entre los tres levantan la mesa a la vez. Se chocan, se ríen y la dejan en un lugar que nadie eligió, pero queda perfecto.']],
     reward: { memory: 'La mesa de los cuatro', furniture: 'bond_table_four' },
   },
+  // ============================================================ the kitchen's renovations, seen through the raccoons
+  {
+    id: 'spicy_rice', who: 'spicy', title: 'La primera tanda', recap: 'Spicy se hizo cargo del arroz del servicio y probó la primera tanda con cara de juez.',
+    hint: 'Comprá «Spicy: arrocero» (Restaurante → Mejoras) y hablá con Spicy (amistad nivel 2).',
+    ready: () => game.has('intro_done') && lvl('spicy') >= 2 && game.save.restaurant.upgrades.includes('rice_hand'),
+    intro: [
+      ['spicy', 'Atenta. El arroz ya no es un problema tuyo. Es un problema mío. Y yo no tengo problemas: tengo tandas.', 'smug'],
+      ['narr', 'Spicy levanta la tapa del hangiri con los dos brazos. Sube una nube tibia que huele a campo recién llovido.'],
+      ['spicy', 'Cuatro porciones listas, siempre. Vos cortá, armá y entregá; la parte divertida es tuya.', 'happy'],
+    ],
+    choice: {
+      options: ['Probar un granito de arroz.', 'Dejarle un papelito con tu forma favorita de arroz.'],
+      replies: [
+        [['narr', 'Lo probás. Está en su punto: suelto por fuera, pegajoso por dentro.'], ['spicy', 'Silencio. No digas nada. Con esa cara ya me lo dijiste todo.', 'happy']],
+        [['spicy', 'Un papelito… «Un poco menos de vinagre». Lo voy a enmarcar. Y lo voy a ignorar con cariño.', 'smug']],
+      ],
+    },
+    outro: [['narr', 'Esa tarde el arroz siempre está esperándote cuando llegás a la cocina. Spicy, por supuesto, dice que fue casualidad.']],
+    reward: { memory: 'La primera tanda de Spicy', items: { rice: 4, nori: 3 } },
+  },
+  {
+    id: 'rigg_bell', who: 'rigg', title: 'El timbre de las ocho', recap: 'Rigg afinó el timbre del mostrador y anotó cuánto tardan los platos en llegar.',
+    hint: 'Comprá el «Timbre de servicio» (Restaurante → Mejoras) y hablá con Rigg (amistad nivel 2).',
+    ready: () => game.has('intro_done') && lvl('rigg') >= 2 && game.save.restaurant.upgrades.includes('service_bell'),
+    intro: [
+      ['rigg', 'Instalaste el timbre. Lo medí: suena en un la sostenido. Es una buena señal para un lugar que sirve a tiempo.', 'neutral'],
+      ['narr', 'Rigg golpea la campanita con el borde de la libreta. Mira el reloj y anota algo con letra chiquita.'],
+      ['rigg', 'Una regla mía: cuando suena el timbre, un plato sale. Cuando no suena, yo no me muevo. Es un pacto.', 'smug'],
+    ],
+    choice: {
+      options: ['«Quedamos así: yo toco, vos llevás.»', '«A veces el pacto se puede tocar sin plato.»'],
+      replies: [
+        [['rigg', 'Anotado. Pacto firmado. Con tinta.', 'happy']],
+        [['rigg', 'Un timbre sin plato… se llama saludo. Lo permito. Solo de vez en cuando.', 'smug']],
+      ],
+    },
+    outro: [['narr', 'Desde ese día, el sonido del timbre y los pasos de Rigg sobre la madera van siempre juntos.']],
+    reward: { memory: 'El timbre de Rigg', furniture: 'clock' },
+  },
+  {
+    id: 'pip_tray', who: 'pip', title: 'La bandeja nueva', recap: 'Pip estrenó la bandeja de servicio y no se le cayó ni una (casi).',
+    hint: 'Comprá la «Bandeja de servicio» (Restaurante → Mejoras) y hablá con Pip (amistad nivel 2).',
+    ready: () => game.has('intro_done') && lvl('pip') >= 2 && game.save.restaurant.upgrades.includes('carry_tray'),
+    intro: [
+      ['pip', '¡{name}! ¡La bandeja! ¡Es enorme! ¡Caben dos platos! ¡O un plato y mi sombrero!', 'happy'],
+      ['narr', 'Pip se pone la bandeja en la cabeza, la baja con cara de piloto y vuelve a levantarla muy despacito.'],
+      ['pip', 'Dice Rigg que hay que llevarla con las dos manos. Pero yo tengo una cola. Eso me da ventaja.', 'happy'],
+    ],
+    choice: {
+      options: ['Ayudarlo a llevar el primer plato.', 'Sacarle una foto con la bandeja.'],
+      replies: [
+        [['narr', 'Caminan juntos hasta la mesa. El plato llega entero, y Pip pone cara de campeón olímpico.'], ['pip', '¡Entrega perfecta! ¡Se lo contamos a todos!', 'happy']],
+        [['narr', 'Clic. Pip queda con la bandeja en alto y la lengua apenas afuera, concentradísimo.'], ['pip', '¡Salí hermoso! ¿Esa foto va a la pared?', 'happy']],
+      ],
+    },
+    outro: [['pip', 'Cuando tenga dos bandejas más grandes, ¡armo un puente de platos!', 'happy']],
+    reward: { memory: 'La bandeja de Pip', furniture: 'plush_cat', photo: { who: ['pip', 'player'], subject: 'Pip con su bandeja nueva' } },
+  },
   {
     id: 'trio_photo', who: 'trio', title: 'La foto de los cuatro', recap: 'Se sacaron una foto los cuatro, con Pip adelante y Rigg a punto de irse.',
     hint: 'Alcanzá el nivel 3 de amistad con los tres, guardá 3 fotos y hablá con Pip en el restaurante.',

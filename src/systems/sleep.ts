@@ -134,6 +134,11 @@ async function morningSpeech() {
     if (game.save.restaurant.upgrades.includes('pantry')) await say('narr', 'Rigg dejó ingredientes básicos en la despensa: arroz y alga.');
     if (fest) await say('narr', 'Hoy hay un evento especial en el pueblo. Revisá el calendario del Diario.');
     if (game.flag('market_night')) await say('narr', 'Esta noche abre el Mercado Nocturno.');
+    // a visit the player arranged (invited a neighbour): a reminder, never an obligation
+    const { plannedToday } = await import('../restaurant/townVisits');
+    const { NEIGHBOR_BY_ID } = await import('../data/neighbors');
+    const names = plannedToday(game.save.time.day).map((p) => `${NEIGHBOR_BY_ID[p.id]?.name ?? p.id} (${['a la mañana', 'a la tarde', 'al atardecer', 'a la noche'][p.period] ?? 'hoy'})`);
+    if (names.length) await say('narr', `Hoy pasa por Midnight Maki: ${names.join(', ')}. Si no abrís, la visita queda para otro día.`);
   });
 }
 

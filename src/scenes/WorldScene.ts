@@ -32,11 +32,12 @@ import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { dayMinutes } from '../systems/daytime';
 import { lowFx, sampleFrame } from '../core/perf';
+import { FURN_BY_ID } from '../data/furniture';
 import { LampMoths } from './lampMoths';
 import { Pets } from './pets';
 import { CROP_ART, cropStage } from '../art/farm';
 import { nextDoor, questTarget } from '../world/guide';
-import { crew, crewUnlocked, employees, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type CrewId, type StaffEnv } from '../restaurant/staff';
+import { crew, crewUnlocked, employees, handMove, handWhere, hiredCooks, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type CrewId, type StaffEnv } from '../restaurant/staff';
 import { NeighborLife } from '../systems/neighbors';
 import { facingTable, seatDrawOffset, standApart } from '../restaurant/seating';
 import { planWaitSpots, scanWaitSpots, RECEPTION_SPOTS, WAITING_SPOTS, type WaitTile } from '../restaurant/waiting';
@@ -194,17 +195,22 @@ export class WorldScene extends Phaser.Scene {
     get zoneId() { return world.zoneId; },
     grid: () => world.zone.grid,
     crew: {
-      ready: (id) => crew(id as CrewId).on && crewUnlocked(id as CrewId) && ['open', 'closing'].includes(restaurantPhase(clock.period, game.save.time.minutes)),
+      // hired cooks are walked by the staff engine; the raccoons by the town
+      ready: (id) => hiredCooks().some((e) => e.id === id)
+        ? ['open', 'closing'].includes(restaurantPhase(clock.period, game.save.time.minutes))
+        : crew(id as CrewId).on && crewUnlocked(id as CrewId) && ['open', 'closing'].includes(restaurantPhase(clock.period, game.save.time.minutes)),
       where: (id) => {
+        if (id.startsWith('emp')) { const p = handWhere(id); return p ? { zone: 'restaurant', ...p } : null; }
         const res = world.town.residents.get(id);
         if (!res || typeof game.flag('at_' + id) === 'string') return null;
         return { zone: res.trip.position.zone, x: res.trip.position.x, y: res.trip.position.y, settled: res.trip.settled };
       },
       move: (id, tile) => {
+        if (id.startsWith('emp')) { handMove(id, tile, world.staffEnv()); return; }
         if (tile) world.rememberResidents();
         world.town.duty(id, tile ? { zone: 'restaurant', x: tile.x, y: tile.y, wander: 0, act: 'work' } : null);
       },
-      actor: (id) => world.npcs.get(id)?.actor ?? null,
+      actor: (id) => (id.startsWith('emp') ? world.staffBodies.get(id)?.actor : world.npcs.get(id)?.actor) ?? null,
     },
     propAt: (x, y) => world.propImgs.get(`${x},${y}`),
     get galleyBusy() { return world.galleyBusy; },
@@ -645,7 +651,7 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.anim === 'sway' && !lowFx() && !settings.reduceMotion) {
         this.tweens.add({ targets: img, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
-      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 76 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 0.62 : 0.5 });
+      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 96 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 1.4 : 0.5 });
       this.objs.push(img);
       this.propImgs.set(`${p.x},${p.y}`, img);
       if (!onWall && !p.def.ground && p.def.sombra !== 'ninguna') {
@@ -1031,14 +1037,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------------ staff (hired waiters)
-  private staffBodies = new Map<string, { actor: Actor; plate: Phaser.GameObjects.Image | null }>();
+  staffBodies = new Map<string, { actor: Actor; plate: Phaser.GameObjects.Image | null }>();
 
   private clearStaff() {
     for (const b of this.staffBodies.values()) { b.actor.destroy(); b.plate?.destroy(); }
     this.staffBodies.clear();
   }
 
-  private staffEnv(): StaffEnv {
+  staffEnv(): StaffEnv {
     const grid = this.zoneId === 'restaurant' ? this.zone.grid : this.town.grid('restaurant');
     const near = (x: number, y: number) => (grid.isSolid(x, y) ? grid.nearestWalkable(x, y) : [x, y]) ?? [x, y];
     return {
@@ -1094,7 +1100,8 @@ export class WorldScene extends Phaser.Scene {
         a.y = r.y * TILE + TILE - 2;
         a.moving = r.act === 'walk';
         a.dir = r.dir;
-        const act = r.act === 'work' && r.step === 'ordering' ? 'talk' : 'idle';
+        // a cook at the stove or the knife shows the working pose
+        const act = r.act === 'work' && r.step === 'ordering' ? 'talk' : r.hand && r.act !== 'walk' && ['Corta', 'Carga el fogón', 'Retira del fogón', 'Busca algo para el fogón', 'Deja lo cocido'].includes(r.doing) ? 'cook' : 'idle';
         if (a.act !== act) a.setAct(act);
         a.sync();
         const order = r.carrying != null ? game.save.orders.find((o) => o.uid === r.carrying) : null;
@@ -1174,7 +1181,7 @@ export class WorldScene extends Phaser.Scene {
         const owner = [...this.visitors.values()].find((v) => v.customers.includes(meal.customer));
         if (owner && neighborOf(meal.customer)) {
           this.ateParties.add(owner.id);
-          noteTownMeal(meal.customer, meal.recipe, meal.quality, this.impatientParties.has(owner.id));
+          if (noteTownMeal(meal.customer, meal.recipe, meal.quality, this.impatientParties.has(owner.id))) this.favouriteMeals.add(`${meal.customer}:${meal.recipe}`);
         }
         if (this.zoneId === 'restaurant') this.enqueueMeal(meal);
       }
@@ -1223,7 +1230,13 @@ export class WorldScene extends Phaser.Scene {
       if (v.stage === 'dining' && !g && v.phase) this.sendVisitorHome(v);
       if (v.stage === 'departing' && v.trips.every((t) => t.settled)) {
         v.customers.forEach((c, i) => { const n = neighborOf(c); if (n) this.neighborLife.release(n.id, v.trips[i].position); });
-        for (const c of v.customers) if (neighborOf(c)) noteTownLeft(c, this.ateParties.has(v.id) && !this.impatientParties.has(v.id));
+        for (const c of v.customers) {
+          const nb = neighborOf(c);
+          if (!nb) continue;
+          const gift = noteTownLeft(c, this.ateParties.has(v.id) && !this.impatientParties.has(v.id));
+          // the fifth and the tenth happy visit: a small thank-you, once (see OCCASION_GIFTS)
+          if (gift) bus.emit('toast', { text: `${nb.name} te dejó ${FURN_BY_ID[gift.furniture]?.name ?? 'un regalo'} para agradecerte (visita ${gift.visit}). Está en tu depósito.` });
+        }
         this.ateParties.delete(v.id); this.impatientParties.delete(v.id);
         this.visitors.delete(v.id);
       }
@@ -1675,12 +1688,18 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /** `customer:recipe` of dishes that were a regular's favourite, until their comment is shown */
+  private favouriteMeals = new Set<string>();
+
   private mealReceipt(meal: PaidMeal) {
     const owner = [...this.visitors.values()].find((v) => v.customers.includes(meal.customer));
     const body = owner ? this.guests.get(`${owner.id}:${owner.customers.indexOf(meal.customer)}`) : undefined;
     const a = body?.actor;
     if (!owner || !a?.sprite.active) return;
-    this.sayLine(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, mealComment(meal.customer, meal.quality), 4.5);
+    const favKey = `${meal.customer}:${meal.recipe}`;
+    const favourite = this.favouriteMeals.delete(favKey);
+    this.sayLine(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, favourite ? '¡Mi favorito de siempre!' : mealComment(meal.customer, meal.quality), 4.5);
+    if (favourite && !lowFx()) this.floatAt(a.x, a.y - 52, '♥', '#f08a9a');
     const total = meal.result.coins;
     if (total > 0) { this.floatAt(a.x, a.y - 44, `+${total}`); this.coopLink?.say(`guest:${owner.id}:${owner.customers.indexOf(meal.customer)}`, '', 1, undefined, total); }
   }
@@ -2225,7 +2244,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     if (intent.type === 'deliver') {
-      this.note(deliverTo(intent.tableId));
+      this.note(this.galleyView.heldFor() === intent.tableId ? this.galleyView.serveHeld(intent.tableId) : deliverTo(intent.tableId));
       this.syncGuests();
       this.contextKey = '';
       return;
@@ -2419,6 +2438,7 @@ export class WorldScene extends Phaser.Scene {
       blocked: (x: number, y: number) => this.zone.grid.isSolid(x, y),
       guests: this.zoneId === 'restaurant' ? this.senseGuests() : [],
       galley: this.galleyView.actions(),
+      heldFor: this.galleyView.heldFor(),
     };
   }
 
@@ -2644,6 +2664,8 @@ export class WorldScene extends Phaser.Scene {
       else if (t.kind === 'interact') at = { x: t.def.x * TILE + TILE / 2, y: t.def.y * TILE };
       else if (t.kind === 'door') at = { x: t.def.x * TILE + TILE / 2, y: t.def.y * TILE };
       else if (t.kind === 'gather') at = { x: t.spot.x * TILE + TILE / 2, y: t.spot.y * TILE };
+    } else if (i.type === 'galley') {
+      at = this.galleyView.promptAt(i.station) ?? at;
     } else if (i.type === 'takeOrder' || i.type === 'deliver' || i.type === 'tip') {
       const g = this.senseGuests().find((q) => q.tableId === i.tableId);
       if (g) at = { x: g.x, y: g.y - 26 };
@@ -3439,6 +3461,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private glowPool: Phaser.GameObjects.Image[] = [];
+  /** the glass of every lit street lamp, so the lamp itself reads as on (not only the light around it) */
+  private bulbGfx: Phaser.GameObjects.Graphics | null = null;
   private vignette: Phaser.GameObjects.Image | null = null;
 
   /**
@@ -3678,9 +3702,17 @@ export class WorldScene extends Phaser.Scene {
       for (const { l, k } of lit) {
         const scale = (l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64;
         if (dim) {
-          const col = lampPoolTint(ls.tint, l.color ?? 0xffd27a, k)!;
+          // street lamps light a wider, warmer pool than a window or a candle
+          const post = !l.kind && !l.facade && l.r >= 90;
+          const col = (post ? lampPoolTint(ls.tint, l.color ?? 0xffd27a, k, 225, 0.85) : lampPoolTint(ls.tint, l.color ?? 0xffd27a, k))!;
           this.lightStamp.setScale(scale).setTint(col).setAlpha(1);
           rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
+          if (post) { // tighter passes fill the middle of the pool so the lamp reads as lit
+            for (const f of [0.75, 0.5]) {
+              this.lightStamp.setScale(scale * f);
+              rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
+            }
+          }
         } else {
           this.lightStamp.clearTint().setScale(scale).setAlpha(Math.min(1, k));
           rt.erase(this.lightStamp, l.x - rt.x, l.y - rt.y);
@@ -3739,11 +3771,18 @@ export class WorldScene extends Phaser.Scene {
           .setScale(spill ? 0.9 : (l.r * 1.25 * ls.halo) / 64, spill ? 0.45 : (l.r * 1.25 * ls.halo) / 64)
           // soft on purpose: a strong additive glow turns a night street into daylight, and it popped in and out whenever the
           // low-effects mode switched, which looked like the light changing as you walked
-          .setAlpha(Math.min(spill ? 0.3 : 0.42, (l.glow ?? 0.5) * k * f * (spill ? 0.6 : 0.7) * crowd));
+          .setAlpha(Math.min(spill ? 0.3 : l.r >= 90 ? 0.95 : 0.42, (l.glow ?? 0.5) * k * f * (spill ? 0.6 : 0.7) * crowd));
         i++;
       }
     }
     for (; i < this.glowPool.length; i++) this.glowPool[i].setVisible(false);
+    const bulbs = (this.bulbGfx ??= this.add.graphics().setDepth(200002));
+    bulbs.clear();
+    if (!lo) for (const { l, k } of lit) {
+      if (l.kind || l.facade || l.r < 90) continue;
+      bulbs.fillStyle(0xfff1b0, Math.min(0.9, 0.9 * k)).fillRect(Math.round(l.x) - 1, Math.round(l.y), 6, 7);
+      bulbs.fillStyle(0xffffff, Math.min(0.8, 0.8 * k)).fillRect(Math.round(l.x) + 1, Math.round(l.y) + 1, 2, 3);
+    }
     this.updateGlowDepths(actors);
   }
 
