@@ -28,6 +28,7 @@ import { iconCanvas, type IconSpec } from '../art/icons';
 import { FURN_BY_ID, furnSize } from '../data/furniture';
 import { PROPS } from '../data/props';
 import { appearanceKey, appearanceOf, dropOf, folkCustom } from '../systems/appearance';
+import { illustratedRigg, RIGG_SHEET_KEY } from '../art/riggSprite';
 
 /** The three raccoons use the chibi renderer (art/raccoon.ts). */
 export const RACCOON_BUILD: Record<string, RaccoonBuild> = { spicy: 'small', rigg: 'medium', pip: 'big' };
@@ -40,6 +41,7 @@ export function ensureTileset(scene: Phaser.Scene) {
 
 /** Returns a texture key for the character, regenerating it if their look changed. */
 export function charTexture(scene: Phaser.Scene, id: string): string {
+  if (illustratedRigg(scene, id)) return RIGG_SHEET_KEY;
   const look = appearanceKey(id);
   const key = 'ch_' + hashStr(look);
   if (!scene.textures.exists(key)) {
@@ -71,6 +73,7 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
 
 /** True when this look is already a texture, so a zone change does not have to paint the sheet. */
 export function hasCharTexture(scene: Phaser.Scene, id: string): boolean {
+  if (illustratedRigg(scene, id)) return true;
   return scene.textures.exists('ch_' + hashStr(appearanceKey(id)));
 }
 
