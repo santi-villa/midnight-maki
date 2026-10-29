@@ -1,4 +1,4 @@
-"""Slice the approved 4x6 Rigg sheet into the existing 30-frame actor layout.
+"""Slice Rigg into the shared 30-frame actor layout plus six motion frames.
 
 Requires Pillow, like the other asset builders. Runtime only loads rigg.png.
 """
@@ -53,23 +53,55 @@ for row in range(6):
         frame.putalpha(alpha)
         frames.append(frame.crop(bounds))
 
-# One shared scale, rather than stretching each pose to the same height.
-scale = 34 / max(f.height for f in frames)
+# Walking poses share the same height and head anchor. Tail width must not
+# recenter the body between steps. There is no extra procedural vertical bounce.
 cells = []
-for frame in frames:
-    frame = frame.resize((round(frame.width * scale), round(frame.height * scale)), Image.Resampling.NEAREST)
+for index, frame in enumerate(frames):
+    height = 30 if index < 16 else 31
+    scale = height / frame.height
+    upper = frame.getchannel('A').crop((0, 0, frame.width, round(frame.height * .3))).getbbox()
+    head_x = (upper[0] + upper[2]) / 2
+    resized = frame.resize((round(frame.width * scale), height), Image.Resampling.NEAREST)
     cell = Image.new('RGBA', (40, 39))
-    cell.alpha_composite(frame, ((40 - frame.width) // 2, 37 - frame.height))
+    left = max(0, min(40 - resized.width, 20 - round(head_x * scale)))
+    cell.alpha_composite(resized, (left, 37 - height))
     cells.append(cell)
 
-# down/up/right/left, expressions, breathing, work, wave, read, sit.
-# Unavailable expressions reuse neutral art rather than changing Rigg's size.
+# Build blinks by cropping the closed eyelids already drawn in pose 21.
+# Only the eye rectangles change: never swap to a sitting body to blink.
+def blink(source, boxes):
+    frame = frames[source].copy()
+    for eye, box in enumerate(boxes):
+        lid = frames[21].crop((40, 69, 67, 90) if eye == 0 else (98, 69, 125, 90))
+        frame.paste(lid.resize((box[2] - box[0], box[3] - box[1]), Image.Resampling.NEAREST), box)
+    base = cells[source]
+    height = 30 if source < 16 else 31
+    scale = height / frame.height
+    upper = frames[source].getchannel('A').crop((0, 0, frame.width, round(frame.height * .3))).getbbox()
+    left = max(0, min(40 - round(frame.width * scale), 20 - round((upper[0] + upper[2]) / 2 * scale)))
+    result = base.copy()
+    # Composite only the eyes to guarantee identical pixels everywhere else.
+    for box in boxes:
+        x0, y0 = left + round(box[0] * scale), 37 - height + round(box[1] * scale)
+        x1, y1 = left + round(box[2] * scale), 37 - height + round(box[3] * scale)
+        result.paste(frame.crop(box).resize((x1 - x0, y1 - y0), Image.Resampling.NEAREST), (x0, y0))
+    return result
+
+blinks = {
+    0: blink(0, [(37, 63, 60, 86), (89, 63, 115, 86)]),
+    8: blink(8, [(149, 62, 171, 88)]),
+    4: blink(4, [(31, 63, 52, 88)]),
+    18: blink(18, [(43, 67, 68, 92), (99, 66, 125, 91)]),
+    20: blink(20, [(42, 67, 65, 92), (98, 66, 123, 91)]),
+}
+# Existing actor slots plus the fourth walk frame per direction and read/sit blink.
 order = [0, 1, 2, 12, 13, 14, 8, 9, 10, 4, 5, 6,
          0, 17, 0, 21, 8, 4, 0, 0, 0, 12, 8, 4,
-         18, 19, 16, 17, 18, 20]
-assert len(order) == 30
+         18, 19, 16, 17, 18, 20, 3, 15, 11, 7, 18, 20]
+assert len(order) == 36
 sheet = Image.new('RGBA', (40 * len(order), 39))
 for i, source in enumerate(order):
-    sheet.alpha_composite(cells[source], (40 * i, 0))
+    cell = blinks[source] if i in (12, 16, 17, 34, 35) else cells[source]
+    sheet.alpha_composite(cell, (40 * i, 0))
 sheet.save(TARGET, optimize=True)
-print(f'{TARGET.relative_to(ROOT)}: {sheet.width}x{sheet.height}, 30 frames')
+print(f'{TARGET.relative_to(ROOT)}: {sheet.width}x{sheet.height}, 36 frames')
