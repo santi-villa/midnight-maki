@@ -7,6 +7,7 @@ import { FARM_ATLAS_KEY, FARM_ATLAS_URL, installFarmAtlas } from '../art/farm';
 import { ICON_ATLAS_KEY, ICON_ATLAS_URL, installIconAtlas } from '../art/iconArt';
 import { PETS_ATLAS_KEY, PETS_ATLAS_URL } from './pets';
 import { VILLAGE_ATLAS_KEY, VILLAGE_ATLAS_URL, installVillageAtlas } from '../art/villageAssets';
+import { RIGG_SHEET_KEY, RIGG_SHEET_URL, RIGG_FRAME_WIDTH, RIGG_FRAME_HEIGHT } from '../art/riggSprite';
 
 /** Generates the shared tileset, then shows the title. */
 export class BootScene extends Phaser.Scene {
@@ -23,6 +24,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(FARM_ATLAS_KEY, FARM_ATLAS_URL);
     this.load.image(ICON_ATLAS_KEY, ICON_ATLAS_URL);
     this.load.image(PETS_ATLAS_KEY, PETS_ATLAS_URL);
+    this.load.spritesheet(RIGG_SHEET_KEY, RIGG_SHEET_URL, { frameWidth: RIGG_FRAME_WIDTH, frameHeight: RIGG_FRAME_HEIGHT });
   }
   create() {
     if (this.textures.exists(COZY_ATLAS_KEY)) installCozyAtlas(this.textures.get(COZY_ATLAS_KEY).getSourceImage() as HTMLImageElement);
