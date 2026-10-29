@@ -10,6 +10,7 @@ import type { Dir } from '../core/types';
 import { ctx2d, makeCanvas, mix, px, shade, type Ctx } from './pixel';
 import { bodyAcc, headAcc } from './raccoon';
 import { plushFrame } from './plushRaccoon';
+import { pipFrame } from './pip';
 import { drawHeroAccessories, drawHeroFace, drawHeroHair, type FaceParams, type HeroSpec, type Kit } from './hero';
 
 /**
@@ -983,6 +984,7 @@ function headLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
 
 // ------------------------------------------------------------------ one frame
 export function folkFrame(spec: FolkSpec, pose: FolkPose, custom?: FolkCustom): HTMLCanvasElement {
+  if (spec.id === 'pip') return pipFrame(pose, custom, pose.legs === 'a' ? .25 : .75);
   CUSTOM = custom;
   EXPR = pose.expr;
   FW = spec.frameW ?? DW;

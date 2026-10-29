@@ -7,6 +7,7 @@ import type { Grid } from '../world/grid';
 import { castEpoch, castKey } from '../scenes/shadowTex';
 import { restPose } from './restPose';
 import { riggMotion } from '../art/riggMotion';
+import { pipMotion } from '../art/pip';
 
 export const TILE = 16;
 
@@ -213,6 +214,7 @@ export class Actor {
   private updateFrame(_dt: number) {
     this.bob = 0;
     const illustrated = (this.sprite.texture.customData as { motion?: string } | undefined)?.motion === 'rigg';
+    const pip = (this.sprite.texture.customData as { motion?: string } | undefined)?.motion === 'pip';
     let frame: number;
     if (this.moving) {
       const seq = WALK_FRAMES[this.dir];
@@ -278,7 +280,7 @@ export class Actor {
           // gentle breathing while standing still
           if ((this.animT + this.phase) % 1.8 > 1.15) frame = FRAMES.breathe[this.dir];
       }
-      if (!illustrated && this.blinking > 0 && this.act !== 'sleep' && this.act !== 'happy' && this.act !== 'sit' && this.act !== 'eat' && this.act !== 'drink' && this.act !== 'read') {
+      if (!illustrated && !pip && this.blinking > 0 && this.act !== 'sleep' && this.act !== 'happy' && this.act !== 'sit' && this.act !== 'eat' && this.act !== 'drink' && this.act !== 'read') {
         if (this.dir === 'down') frame = FRAMES.blinkDown;
         else if (this.dir === 'right') frame = FRAMES.blinkRight;
         else if (this.dir === 'left') frame = FRAMES.blinkLeft;
@@ -286,6 +288,10 @@ export class Actor {
     }
     if (illustrated) {
       frame = riggMotion(this.moving, this.dir, this.act, this.animT, this.blinking > 0, frame);
+      this.bob = 0;
+    }
+    if (pip) {
+      frame = pipMotion(this.dir, this.act, this.moving, this.animT, this.blinking > 0, frame);
       this.bob = 0;
     }
     if (this.sprite.frame.name !== String(frame)) this.sprite.setFrame(frame);
