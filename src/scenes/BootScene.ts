@@ -27,6 +27,7 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet(RIGG_SHEET_KEY, RIGG_SHEET_URL, { frameWidth: RIGG_FRAME_WIDTH, frameHeight: RIGG_FRAME_HEIGHT });
   }
   create() {
+    if (this.textures.exists(RIGG_SHEET_KEY)) this.textures.get(RIGG_SHEET_KEY).customData = { motion: 'rigg' };
     if (this.textures.exists(COZY_ATLAS_KEY)) installCozyAtlas(this.textures.get(COZY_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     if (this.textures.exists(INTERIOR_ATLAS_KEY)) installInteriorAtlas(this.textures.get(INTERIOR_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     if (this.textures.exists(BRIDGE_ATLAS_KEY)) installBridgeAtlas(this.textures.get(BRIDGE_ATLAS_KEY).getSourceImage() as HTMLImageElement);
