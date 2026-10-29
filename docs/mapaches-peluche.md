@@ -1,5 +1,9 @@
 # Mapaches de peluche: Pip, Spicy y Rigg
 
+Prueba nueva 29/10/2026: Pip usa ahora un dibujo erguido desde cero, con hoja y
+animaciones propias en `art/pip.ts`. Ver [Pip por código](pip-codigo.md). Este
+documento conserva la descripción del generador anterior y del respaldo.
+
 Actualización 29/10/2026: Rigg usa ahora una primera hoja de sprites ilustrados
 con su atuendo habitual; el generador descrito aquí se conserva para sus atuendos
 personalizados y como respaldo. Ver [la entrega de Rigg](rigg-sprites.md).

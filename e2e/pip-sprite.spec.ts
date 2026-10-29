@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 /** The plush raccoons (src/art/plushRaccoon.ts): each sheet keeps the shared 30-frame contract and every direction / mood really differs. */
-for (const [id, width] of [['pip', 34], ['rigg', 34], ['spicy', 34]] as const) test(`${id} plush sheet: size, feet, mirror, faces, tail in every direction`, async ({ page }) => {
+for (const [id, width] of [['rigg', 34], ['spicy', 34]] as const) test(`${id} plush sheet: size, feet, mirror, faces, tail in every direction`, async ({ page }) => {
   await page.goto('/?debug');
   const r = await page.evaluate(async (id) => {
     const { buildFolkSheet } = await import('/src/art/folk.ts' as string);
@@ -58,4 +58,32 @@ for (const [id, width] of [['pip', 34], ['rigg', 34], ['spicy', 34]] as const) t
   expect(r.walkDistinct).toBe(true);
   expect(r.moodsDistinct).toBe(true);
   expect(r.actionsDistinct).toBe(true);
+});
+
+
+test('Pip from the plush reference: complete procedural sheet, planted walk and real blink', async ({ page }) => {
+  await page.goto('/?debug');
+  const r = await page.evaluate(async () => {
+    const { buildPipSheet, pipMotion } = await import('/src/art/pip.ts' as string);
+    const { canvas, fw, fh } = buildPipSheet();
+    const g = canvas.getContext('2d')!;
+    const pixels = (i: number) => g.getImageData(i * fw, 0, fw, fh).data;
+    const base = pixels(0), blink = pixels(12);
+    let changed = 0, outsideEyes = 0;
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
+      const k = (y * fw + x) * 4;
+      if ([0, 1, 2, 3].some(c => base[k+c] !== blink[k+c])) { changed++; if (y < 15 || y > 19) outsideEyes++; }
+    }
+    const directions = ['down', 'up', 'right', 'left'] as const;
+    const walks = directions.map(dir => Array.from({length:8},(_,i)=>pipMotion(dir,'idle',true,(i+.1)/10,false,0)));
+    const feet = walks.flat().map(i => {const d=pixels(i);let bottom=-1;for(let y=0;y<fh;y++)for(let x=0;x<fw;x++)if(d[(y*fw+x)*4+3])bottom=y;return bottom;});
+    const distinct = walks.map(ids => new Set(ids.map(i => Array.from(pixels(i)).join(','))).size);
+    const custom=buildPipSheet({head:{kind:'beanie',c1:'#a64455',c2:'#782f43'}});
+    return {fw,fh,count:canvas.width/fw,changed,outsideEyes,feet,distinct,custom:custom.canvas.toDataURL()!==canvas.toDataURL()};
+  });
+  expect(r.fw).toBe(48); expect(r.fh).toBe(39); expect(r.count).toBe(66);
+  expect(r.changed).toBeGreaterThan(0); expect(r.outsideEyes).toBe(0);
+  expect(Math.max(...r.feet)-Math.min(...r.feet)).toBeLessThanOrEqual(1);
+  expect(r.distinct.every(n=>n>=6)).toBe(true);
+  expect(r.custom).toBe(true);
 });
