@@ -1,5 +1,9 @@
 # Mapaches de peluche: Pip, Spicy y Rigg
 
+Actualización 29/10/2026: Rigg usa ahora una primera hoja de sprites ilustrados
+con su atuendo habitual; el generador descrito aquí se conserva para sus atuendos
+personalizados y como respaldo. Ver [la entrega de Rigg](rigg-sprites.md).
+
 Pip, Spicy y Rigg ya no usan las piezas compartidas de `src/art/folk.ts`: se dibujan con un generador propio, `src/art/plushRaccoon.ts`, que se activa con `plush: { … }` en su spec (`src/data/folkSpecs.ts`). El resto de los personajes no cambia.
 
 ## Qué cambió

@@ -1,6 +1,10 @@
 # Rigg: primera prueba con sprites ilustrados
 
 29/10/2026. El diseño elegido en el chat se usa para Rigg, sin cambiar a Pip ni a Spicy.
+Verificación repetida después de integrar los avances remotos hasta `fb7fd41`:
+se conservan el nuevo generador de peluches para Pip/Spicy y las mejoras de cocina.
+
+![Rigg con su libro dentro del restaurante](rigg-sprite-restaurante.png)
 
 - Fuente editable: `src/assets/characters/rigg-source.png` (una hoja con 24 poses).
 - Archivo que carga el juego: `src/assets/characters/rigg.png`, 30 cuadros de 40×39 px.
