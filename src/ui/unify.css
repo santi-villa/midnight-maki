@@ -45,3 +45,12 @@ body .load-tip { opacity: 1; color: #7a6247; }
 body .load-paws i { background: #c27f86; }
 body .load-paws i:nth-child(2) { background: #e0a94f; }
 body .load-paws i:nth-child(3) { background: #7f9f7c; }
+
+/* skills menu of each person (Personal) */
+.skills { gap: 4px; padding: 6px 8px; border-radius: 10px; background: #f4e8c8; border: 2px solid #dcc08e; }
+.skill-level { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.skill { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px; border-radius: 8px; border: 1px solid #dcc08e; background: #fbf3dc; }
+.skill.on { background: #e8efc9; border-color: #a9b88a; }
+.skill.locked { opacity: .65; }
+.skill-text { flex: 1; min-width: 0; }
+.skill-text .hint { font-size: .8em; }

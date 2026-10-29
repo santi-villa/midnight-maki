@@ -3,7 +3,7 @@ import { game } from '../core/state';
 import { NEIGHBOR_BY_ID } from '../data/neighbors';
 import { charm } from './orders';
 import {
-  customerOf, demandFactor, dueVisit, emptyClients, inviteResponse, plan, recordInvite, recordMeal, recordVisit, regularDropIn, regularsCount, walkIn,
+  customerOf, demandFactor, takeOccasion, dueVisit, emptyClients, inviteResponse, plan, recordInvite, recordMeal, recordVisit, regularDropIn, regularsCount, walkIn,
   type ClientsSave, type InviteResult,
 } from './townClients';
 
@@ -24,13 +24,23 @@ export function nextTownGuest(busy: (customer: string) => boolean, roll: number 
   return id ? customerOf(id) : null;
 }
 
-export function noteTownMeal(customer: string, recipe: string, quality: 0 | 1 | 2, waited: boolean) {
-  recordMeal(clients(), customer, recipe, quality, waited, game.save.time.day);
+export function noteTownMeal(customer: string, recipe: string, quality: 0 | 1 | 2, waited: boolean): boolean {
+  return recordMeal(clients(), customer, recipe, quality, waited, game.save.time.day);
 }
 
-export function noteTownLeft(customer: string, happy: boolean) {
+/** Records the end of a visit. Returns the thank-you gift when this was their 5th or 10th happy visit (already added to the stored furniture). */
+export function noteTownLeft(customer: string, happy: boolean): { id: string; furniture: string; visit: number } | null {
   recordVisit(clients(), customer, game.save.time.day, happy);
-  if (happy) game.save.restaurant.reputation += 1;
+  if (!happy) return null;
+  game.save.restaurant.reputation += 1;
+  const gift = takeOccasion(clients(), customer);
+  if (gift) game.save.furnitureOwned[gift.furniture] = (game.save.furnitureOwned[gift.furniture] ?? 0) + 1;
+  return gift;
+}
+
+/** Visits the player arranged for today (for the morning note). */
+export function plannedToday(day: number): { id: string; period: number }[] {
+  return clients().planned.filter((p) => p.day === day).map((p) => ({ id: p.id, period: p.period }));
 }
 
 /** The player invites a neighbour. Returns what they answered; a yes is remembered as a planned visit. */

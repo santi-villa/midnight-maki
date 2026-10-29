@@ -3,8 +3,10 @@ import { game } from '../core/state';
 import { audio } from '../audio/audio';
 import {
   COOK_SECONDS, CREW_INFO, LEVEL_NAMES, MAX_LEVEL, TRAITS, candidates, crew, crewUnlocked, employees, fire, hire, hireCost, roleLimit, runtime, setCrew, setRestock, setStaff,
-  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, type CrewId, type Employee, type StaffRole,
+  MAX_CARRY_UPGRADES, carryUpgradeCost, riggCapacity, staffSave, train, trainCost, trainCrew, upgradeRiggTray, wageOf, SPICY_HANDS_JOB, cookJob, type CrewId, type Employee, type StaffRole,
 } from '../restaurant/staff';
+import { galleyOn } from '../galley/mode';
+import { activePerks, chooseAlternative, perksOf, type PerkWho } from '../restaurant/perks';
 import { h, panel, toast } from './dom';
 import { previewCanvas } from './creator';
 import { ITEMS_BY_ID } from '../data/items';
@@ -27,6 +29,29 @@ const ROLE_JOB = {
 const RESTOCK_ITEMS = ['rice', 'nori', 'salmon', 'cucumber', 'egg', 'sesame'];
 const RESTOCK_STEPS = [0, 6, 12, 20];
 
+/** The skills of one person: automatic ones by level and, at levels 2 and 4, one of two to choose (free to change). */
+function skillsBlock(who: PerkWho, member: { level: number; perks?: string[] }, changed: () => void): HTMLElement {
+  const active = new Set(activePerks(who, member.level, member).map((p) => p.id));
+  const rows: HTMLElement[] = [];
+  const perks = perksOf(who);
+  for (const level of [...new Set(perks.map((p) => p.level))].sort()) {
+    const here = perks.filter((p) => p.level === level);
+    const locked = member.level < level;
+    const alt = here.some((p) => p.group);
+    rows.push(h('div', { class: 'skill-level' }, h('span', { class: 'pill' }, `Nivel ${level}`), alt ? h('span', { class: 'hint' }, locked ? 'Elegís una de dos' : 'Elegí una de dos (se puede cambiar)') : null));
+    for (const p of here) {
+      const on = active.has(p.id);
+      rows.push(h('div', { class: 'skill' + (on ? ' on' : '') + (locked ? ' locked' : '') },
+        h('div', { class: 'skill-text' }, h('b', null, (on ? '✓ ' : locked ? '🔒 ' : '') + p.name), h('div', { class: 'hint' }, p.desc)),
+        alt && !locked ? h('button', { type: 'button', class: 'btn small' + (on ? ' primary' : ''), 'aria-pressed': String(on), onclick: () => { const next = chooseAlternative(who, member.level, member, p.id); if (next) { member.perks = next; game.touch('staff'); changed(); } } }, on ? 'Elegida' : 'Elegir') : null));
+    }
+  }
+  return h('div', { class: 'skills col' }, ...rows);
+}
+
+const openSkills = new Set<string>();
+const skillsToggle = (id: string, render: () => void) => h('button', { type: 'button', class: 'btn small' + (openSkills.has(id) ? ' primary' : ''), 'aria-expanded': String(openSkills.has(id)), onclick: () => { if (openSkills.has(id)) openSkills.delete(id); else openSkills.add(id); render(); } }, openSkills.has(id) ? 'Ocultar habilidades' : 'Habilidades');
+
 export function openStaff() {
   const body = h('div', { class: 'col' });
   let confirmFire = '';
@@ -45,11 +70,11 @@ export function openStaff() {
     );
     for (const id of ['pip', 'rigg', 'spicy'] as CrewId[]) {
       const info = CREW_INFO[id], m = crew(id), ok = crewUnlocked(id);
-      const speed = id === 'spicy' ? `Un plato cada ${COOK_SECONDS.crew[m.level]} s` : id === 'rigg' ? `Lleva ${riggCapacity()} plato${riggCapacity() > 1 ? 's' : ''} por viaje` : 'Recibe un grupo a la vez';
+      const speed = id === 'spicy' ? (galleyOn() ? 'Cocina física: ver mejoras de Spicy' : `Un plato cada ${COOK_SECONDS.crew[m.level]} s`) : id === 'rigg' ? `Lleva ${riggCapacity()} plato${riggCapacity() > 1 ? 's' : ''} por viaje` : 'Recibe un grupo a la vez';
       body.append(
         h('div', { class: 'card col', style: { gap: '6px', opacity: ok ? '1' : '.7' } },
           h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, info.name), h('span', { class: 'hint' }, `${LEVEL_NAMES[m.level]} ${stars(m.level)}`)),
-          h('div', { class: 'hint' }, info.job),
+          h('div', { class: 'hint' }, id === 'spicy' && galleyOn() ? SPICY_HANDS_JOB : info.job),
           ok ? h('div', { class: 'hint' }, speed) : h('div', { class: 'hint' }, `Necesita amistad nivel ${info.unlock} con ${info.name}.`),
           ok && id !== 'pip' ? h('div', { class: 'staff-doing' }, m.on ? runtime.get(id)?.doing ?? 'Esperando' : 'Descansando (no ayuda hoy)') : null,
           h('div', { class: 'row', style: { gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' } },
@@ -57,7 +82,9 @@ export function openStaff() {
             ok && id === 'rigg' ? (crew('rigg').carry ?? 0) < MAX_CARRY_UPGRADES
               ? h('button', { class: 'btn small', title: 'Una bandeja más grande para llevar más platos por viaje', disabled: game.coins < carryUpgradeCost(), onclick: () => { const err = upgradeRiggTray(); if (err) toast(err); else { audio.sfxPlay('success'); toast(`Rigg ahora lleva ${riggCapacity()} platos por viaje.`); } render(); } }, `Bandeja de Rigg: ${riggCapacity()} → ${riggCapacity() + 1} (${carryUpgradeCost()} ●)`)
               : h('span', { class: 'hint' }, `Bandeja al máximo: ${riggCapacity()} platos`) : null,
-            ok && m.level < MAX_LEVEL ? h('button', { class: 'btn small', disabled: game.coins < trainCost(m.level, true), onclick: () => { const err = trainCrew(id); if (err) toast(err); else { audio.sfxPlay('success'); toast(`${info.name} mejoró: ahora es ${LEVEL_NAMES[crew(id).level].toLowerCase()}.`); } render(); } }, `Capacitar (${trainCost(m.level, true)} ●)`) : null)),
+            ok ? skillsToggle(id, render) : null,
+            ok && m.level < MAX_LEVEL ? h('button', { class: 'btn small', disabled: game.coins < trainCost(m.level, true), onclick: () => { const err = trainCrew(id); if (err) toast(err); else { audio.sfxPlay('success'); toast(`${info.name} mejoró: ahora es ${LEVEL_NAMES[crew(id).level].toLowerCase()}.`); } render(); } }, `Capacitar (${trainCost(m.level, true)} ●)`) : null),
+          ok && openSkills.has(id) ? skillsBlock(id, m, render) : null),
       );
     }
     body.append(h('b', null, `Personal contratado`));
@@ -68,15 +95,20 @@ export function openStaff() {
         h('div', { class: 'card col', style: { gap: '6px' } },
           h('div', { class: 'row', style: { gap: '10px' } }, face(e),
             h('div', { style: { flex: '1' } }, h('b', null, `${e.name} · ${ROLE[e.role]}`), h('div', { class: 'hint' }, `${TRAITS[e.trait].name}: ${TRAITS[e.trait].line}`),
-              h('div', { class: 'hint' }, `${LEVEL_NAMES[e.level]} ${stars(e.level)} · ${wageOf(e)} ● por día${e.role === 'cook' ? ` · un plato cada ${COOK_SECONDS.hired[e.level]} s` : ''}`),
+              h('div', { class: 'hint' }, `${LEVEL_NAMES[e.level]} ${stars(e.level)} · ${wageOf(e)} ● por día${e.role === 'cook' && !galleyOn() ? ` · un plato cada ${COOK_SECONDS.hired[e.level]} s` : ''}`),
               h('div', { class: 'staff-doing' }, e.unpaid ? 'No cobró: no trabaja hasta que se le pague.' : r?.doing ?? 'Esperando'))),
+          e.role === 'cook' && galleyOn() ? h('div', { class: 'row', style: { gap: '6px', flexWrap: 'wrap' } }, h('span', { class: 'hint' }, 'Puesto:'),
+            h('button', { class: 'btn small' + (cookJob(e) === 'stove' ? ' primary' : ''), title: 'Cocina en el fogón lo que piden los tickets', onclick: () => { e.job = 'stove'; game.touch('staff'); render(); } }, 'Fogón'),
+            h('button', { class: 'btn small' + (cookJob(e) === 'cut' ? ' primary' : ''), title: 'Corta junto a vos, en la segunda tabla si la tenés', onclick: () => { e.job = 'cut'; game.touch('staff'); render(); } }, 'Cortes')) : null,
           e.role === 'waiter' ? h('div', { class: 'row', style: { gap: '6px', flexWrap: 'wrap' } },
             h('button', { class: 'btn small' + (e.takeOrders ? ' primary' : ''), onclick: () => { e.takeOrders = !e.takeOrders; game.touch('staff'); render(); } }, e.takeOrders ? '✓ Toma pedidos' : 'Toma pedidos'),
             h('button', { class: 'btn small' + (e.serve ? ' primary' : ''), onclick: () => { e.serve = !e.serve; game.touch('staff'); render(); } }, e.serve ? '✓ Sirve platos' : 'Sirve platos'),
             h('button', { class: 'btn small', title: 'Qué hace primero cuando hay de las dos cosas', onclick: () => { e.priority = e.priority === 'serve' ? 'orders' : 'serve'; game.touch('staff'); render(); } }, e.priority === 'serve' ? 'Primero: platos' : 'Primero: pedidos')) : null,
           h('div', { class: 'row', style: { gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' } },
+            skillsToggle(e.id, render),
             e.level < MAX_LEVEL ? h('button', { class: 'btn small', disabled: game.coins < trainCost(e.level), onclick: () => { const err = train(e.id); if (err) toast(err); else { audio.sfxPlay('success'); toast(`${e.name} aprendió: ahora es ${LEVEL_NAMES[e.level].toLowerCase()}.`); } render(); } }, `Capacitar (${trainCost(e.level)} ●)`) : null,
-            h('button', { class: 'btn small', onclick: () => { if (confirmFire !== e.id) { confirmFire = e.id; render(); return; } fire(e.id); confirmFire = ''; toast(`${e.name} dejó el restaurante.`); render(); } }, confirmFire === e.id ? 'Tocá otra vez para despedir' : 'Despedir'))),
+            h('button', { class: 'btn small', onclick: () => { if (confirmFire !== e.id) { confirmFire = e.id; render(); return; } fire(e.id); confirmFire = ''; toast(`${e.name} dejó el restaurante.`); render(); } }, confirmFire === e.id ? 'Tocá otra vez para despedir' : 'Despedir')),
+          openSkills.has(e.id) ? skillsBlock(e.role, e, render) : null),
       );
     }
     if (list.some((e) => e.role === 'helper')) {

@@ -16,6 +16,7 @@ const env = (): GalleyEnv => ({
   rng: () => 0.5,
   known: () => true,
   deliver: (dish) => (accept ? (delivered.push(dish.kind === 'dish' ? dish.recipe : dish.drink), { ok: true }) : { ok: false, msg: 'Nadie pidió eso.' }),
+  serve: (dish, tableId) => (tableId === 'mesa2' ? (delivered.push(dish.kind === 'dish' ? dish.recipe : dish.drink), { ok: true, msg: 'Buen provecho' }) : { ok: false, msg: 'Ese plato es para Mesa 2.' }),
 });
 beforeEach(() => {
   stock = { rice: 10, nori: 5, cucumber: 4, salmon: 3, egg: 2, sesame: 2, avocado: 2, crab: 1 };
@@ -30,6 +31,58 @@ const cut = (ing: string, verdict: 'perfect' | 'good' | 'regular' | 'fail', stat
   take(ing); const r = act(station, 'chop'); expect(r.needsCut).toBe(true);
   g.finishCut(station, verdict); act(station, 'take');
 };
+
+describe('rice straight from the stock', () => {
+  it('scoops real stock into the cooker without hands, starts it, and stops when the cooker is full or the stock is out', () => {
+    expect(g.verbs(PLAYER, 'rice')).toContain('scoop');
+    act('rice', 'scoop');
+    expect(g.verbs(PLAYER, 'rice')[0]).toBe('scoop'); // while loading, adding comes before taking it back
+    expect(stock.rice).toBe(9);
+    expect(g.station('rice').phase).toBe('cooking');
+    expect(g.held(PLAYER)).toHaveLength(0);
+    for (let i = 0; i < 3; i++) act('rice', 'scoop');
+    expect(g.verbs(PLAYER, 'rice')).not.toContain('scoop'); // 4 portions: full
+    g.tick(COOK.rice.time + 0.1);
+    expect(g.verbs(PLAYER, 'rice')).not.toContain('scoop'); // done: take it out first
+    for (let i = 0; i < 4; i++) { act('rice', 'take'); act('hangiri', 'put'); }
+    expect(g.verbs(PLAYER, 'rice')).toContain('scoop'); // emptied: the next batch can be loaded again
+    stock = { ...stock, rice: 0 };
+    expect(g.verbs(PLAYER, 'rice')).not.toContain('scoop'); // nothing left to scoop
+  });
+  it('with raw rice in the hands, setting it down comes before scooping more', () => {
+    take('rice');
+    expect(g.verbs(PLAYER, 'rice')).toEqual(['put', 'scoop']);
+    act('rice', 'put');
+    expect(g.verbs(PLAYER, 'rice')[0]).toBe('scoop');
+  });
+  it('does not consume anything when it cannot scoop', () => {
+    stock.rice = 0;
+    expect(g.perform(PLAYER, 'rice', 'scoop').ok).toBe(false);
+    expect(g.station('rice').items).toHaveLength(0);
+  });
+});
+
+describe('tickets know what is already prepared', () => {
+  it('counts staged pieces once, in ticket order, and ignores pieces still waiting for the knife', async () => {
+    const { allocateStaged, stagedPieces } = await import('../galley/tickets');
+    const piece = (ing: string, form: 'raw' | 'cut' | 'cooked'): IngItem => ({ kind: 'ing', uid: Math.random(), ing, form, q: 2 });
+    g.station('counter_a').items.push(piece('cucumber', 'cut'), piece('rice', 'cooked'));
+    g.station('assembly').items.push(piece('nori', 'raw'));
+    // a cucumber that has not been cut yet does not count
+    (g.station('board_1') as { items: IngItem[]; pending: boolean }).items.push(piece('cucumber', 'raw'));
+    (g.station('board_1') as { pending: boolean }).pending = true;
+    const pool = stagedPieces(g);
+    expect(pool.get('cucumber|cut')).toBe(1);
+    expect(pool.get('cucumber|raw')).toBeUndefined();
+    type Needs = { ing: string; form: 'raw' | 'cooked' | 'cut'; count: number; have?: number }[];
+    const needs = (): Needs => [{ ing: 'rice', form: 'cooked', count: 1 }, { ing: 'cucumber', form: 'cut', count: 1 }, { ing: 'nori', form: 'raw', count: 1 }];
+    const t = (id: string) => ({ id, label: id, who: '', lines: [{ recipe: id, name: id, waiting: 1, ready: 0, needs: needs() }], patience: 1, impatient: false, done: false });
+    const list = [t('A'), t('B')];
+    allocateStaged(list, pool);
+    expect(list[0].lines[0].needs.map((n) => n.have)).toEqual([1, 1, 1]);
+    expect(list[1].lines[0].needs.map((n) => n.have)).toEqual([0, 0, 0]);
+  });
+});
 
 describe('fridge and hands', () => {
   it('takes real stock, one thing at a time, and gives it back', () => {
@@ -247,6 +300,20 @@ describe('assembly and the pass', () => {
     expect(g.held(PLAYER)).toHaveLength(0);
   });
 
+  it('a carried dish is served straight at the table that waits for it, and stays in the hands at any other', () => {
+    makeKappa('good'); act('assembly', 'assemble'); g.tick(2);
+    act('assembly', 'take');
+    const wrong = g.serveHeld(PLAYER, 'mesa1');
+    expect(wrong.ok).toBe(false);
+    expect(wrong.msg).toBe('Ese plato es para Mesa 2.');
+    expect(g.held(PLAYER)).toHaveLength(1);
+    const ok = g.serveHeld(PLAYER, 'mesa2');
+    expect(ok.ok).toBe(true);
+    expect(delivered).toEqual(['kappa']);
+    expect(g.held(PLAYER)).toHaveLength(0);
+    expect(g.serveHeld(PLAYER, 'mesa2').ok).toBe(false); // nothing left to serve
+  });
+
   it('the bin takes whatever is in the hands', () => {
     take('salmon'); act('bin', 'trash');
     expect(g.held(PLAYER)).toHaveLength(0);
@@ -364,7 +431,7 @@ describe('the reflex bar', () => {
 describe('Spicy in the kitchen', () => {
   const ctx = (ups: string[], wanted: { ing: string; form: 'cut'; count: number }[] = []) => ({ stock: (id: string) => stock[id] ?? 0, ups, wanted });
   const run = async (until: () => boolean, ups: string[], wanted: { ing: string; form: 'cut'; count: number }[] = []) => {
-    const { HANDS, CUT_SECONDS } = await import('../galley/crew');
+    const { HANDS, cutSecondsFor } = await import('../galley/crew'); const CUT_SECONDS = cutSecondsFor(0);
     const who = 'hand:spicy';
     let guard = 0;
     while (!until() && guard++ < 300) {
@@ -393,6 +460,47 @@ describe('Spicy in the kitchen', () => {
     const { handsFor } = await import('../galley/crew');
     expect(handsFor([])).toEqual([]);
     expect(handsFor(['cut_hand'])).toHaveLength(1);
+  });
+});
+
+describe('hired cooks in the kitchen', () => {
+  const ctx = (wantedCooked: { ing: string; form: 'cooked' | 'cooked_cut'; count: number }[], wanted: { ing: string; form: 'cut'; count: number }[] = []) => ({ stock: (id: string) => stock[id] ?? 0, ups: [] as string[], wanted, wantedCooked });
+  const run = async (job: 'stove' | 'cut', until: () => boolean, c: ReturnType<typeof ctx>) => {
+    const { cookHand } = await import('../galley/crew');
+    const hand = cookHand({ id: 'emp1', job });
+    const who = 'hand:emp1';
+    let guard = 0;
+    while (!until() && guard++ < 200) {
+      const step = hand.next(g, who, c);
+      if (!step) { g.tick(COOK.stove.time + 0.1); continue; }
+      const r = step.verb === 'fetch' ? g.takeFromFridge(who, step.arg!) : g.perform(who, step.station, step.verb);
+      expect(r.ok, `${step.station} ${step.verb}: ${r.msg}`).toBe(true);
+      if (r.needsCut) g.finishCut(step.station, 'good');
+    }
+    return who;
+  };
+  it('the stove cook cooks what the tickets ask cooked, leaves it on a counter, and never cooks the same piece twice', async () => {
+    const c = ctx([{ ing: 'egg', form: 'cooked', count: 2 }]);
+    const who = await run('stove', () => g.station('counter_a').items.length + g.station('counter_b').items.length >= 2, c);
+    const left = [...g.station('counter_a').items, ...g.station('counter_b').items].map((i) => (i.kind === 'ing' ? `${i.ing}:${i.form}` : i.kind));
+    expect(left).toEqual(['egg:cooked', 'egg:cooked']);
+    expect(stock.egg).toBe(0);
+    expect(g.held(who)).toEqual([]);
+    const { cookHand } = await import('../galley/crew');
+    expect(cookHand({ id: 'emp1', job: 'stove' }).next(g, who, c)).toBeNull(); // enough: he rests
+  });
+  it('the knife cook also cuts what was cooked when a ticket wants it cooked and cut, and cuts raw pieces as Spicy does', async () => {
+    const piece = (ing: string, form: 'raw' | 'cooked'): IngItem => ({ kind: 'ing', uid: Math.random(), ing, form, q: 2 });
+    g.station('counter_a').items.push(piece('egg', 'cooked'));
+    const c = ctx([{ ing: 'egg', form: 'cooked_cut', count: 1 }], [{ ing: 'cucumber', form: 'cut', count: 1 }]);
+    await run('cut', () => [...g.station('counter_a').items, ...g.station('counter_b').items].filter((i) => i.kind === 'ing' && i.form === 'cut').length >= 1 && [...g.station('counter_a').items, ...g.station('counter_b').items].some((i) => i.kind === 'ing' && i.form === 'cooked_cut'), c);
+    const forms = [...g.station('counter_a').items, ...g.station('counter_b').items].map((i) => (i.kind === 'ing' ? `${i.ing}:${i.form}` : i.kind)).sort();
+    expect(forms).toEqual(['cucumber:cut', 'egg:cooked_cut']);
+  });
+  it('a plain cooked need is not cut: the knife leaves it as it is', async () => {
+    const { cookHand } = await import('../galley/crew');
+    g.station('counter_a').items.push({ kind: 'ing', uid: 1, ing: 'egg', form: 'cooked', q: 2 });
+    expect(cookHand({ id: 'emp1', job: 'cut' }).next(g, 'hand:emp1', ctx([{ ing: 'egg', form: 'cooked', count: 1 }]))).toBeNull();
   });
 });
 
@@ -432,6 +540,16 @@ describe('cuts, hints and the lesson', () => {
     expect(combineVerdicts(['good', 'good', 'regular', 'good', 'good'])).toBe('good');
     expect(combineVerdicts(['fail', 'fail', 'regular', 'fail', 'fail'])).toBe('fail');
   });
+  it('relaxed mode asks one cut fewer, never fewer than two, and knives still help', async () => {
+    const { cutsNeeded, cutSpec } = await import('../galley/cut');
+    expect(cutsNeeded([], 'relaxed')).toBe(4);
+    expect(cutsNeeded(['knife'], 'relaxed')).toBe(3);
+    expect(cutsNeeded(['knife', 'knife2'], 'relaxed')).toBe(2);
+    expect(cutsNeeded(['knife', 'knife2'], 'challenge')).toBe(3);
+    const wide = (knives: number) => cutSpec({ level: 0.5, knife: knives > 0, knives }, () => 0.5).width;
+    expect(wide(2)).toBeGreaterThan(wide(1));
+    expect(wide(1)).toBeGreaterThan(wide(0));
+  });
   it('says what the assembly table is still missing', async () => {
     const { closestRecipe } = await import('../galley/prep');
     const piece = (ing: string, form: 'raw' | 'cooked' | 'cut'): IngItem => ({ kind: 'ing', uid: 1, ing, form, q: 2 });
@@ -451,6 +569,23 @@ describe('cuts, hints and the lesson', () => {
     act('rice', 'put');
     expect(tutorialStep(1, { g, served })).toBe(2);
     expect(tutorialStep(TUTORIAL.length, { g, served })).toBe(TUTORIAL.length);
+  });
+  it('after the two dishes the lesson offers three small practice tasks, one at a time, each done by doing it', async () => {
+    const { tutorialStep, tutorialStation, TUTORIAL } = await import('../galley/tutorial');
+    const first = TUTORIAL.findIndex((t) => t.id === 'p_scoop');
+    expect(first).toBe(10);
+    const served = new Set(['kappa', 'sake_nigiri']);
+    const did = new Set<string>();
+    expect(tutorialStep(first, { g, served, did })).toBe(first);
+    expect(tutorialStation(first, { g, served, did })).toBe('rice');
+    did.add('trash'); // doing a later task early does not skip the one in front
+    expect(tutorialStep(first, { g, served, did })).toBe(first);
+    did.add('scoop');
+    expect(tutorialStep(first, { g, served, did })).toBe(first + 1);
+    did.add('return');
+    expect(tutorialStep(first, { g, served, did })).toBe(TUTORIAL.length);
+    take('salmon');
+    expect(tutorialStation(TUTORIAL.findIndex((t) => t.id === 'p_trash'), { g, served, did })).toBe('bin');
   });
   it('the arrow follows the work: fridge, then cooker, then the board', async () => {
     const { tutorialStation } = await import('../galley/tutorial');

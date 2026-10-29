@@ -10,23 +10,23 @@ export interface UpgradeDef { id: string; name: string; desc: string; price: num
 /** Every upgrade changes something visible or tangible in the restaurant. */
 export const UPGRADES: UpgradeDef[] = [
   { id: 'tables2', name: 'Más mesas', desc: '+1 grupo simultáneo. Una mesa y silla para el salón; si el lugar está ocupado, quedan en el depósito.', price: 300, level: 2, items: { wood: 2 } },
-  { id: 'knife', name: 'Cuchillo de Spicy', desc: 'Un golpe menos al cortar en la tabla (5 → 4) y la zona verde un poco más ancha.', price: 350, level: 2, items: { stone: 1 } },
-  { id: 'knife2', name: 'Cuchillo afilado', desc: 'Otro corte menos al rebanar (3 en total) y zona de corte más grande.', price: 1400, level: 4, items: { stone: 3 }, needs: 'knife' },
-  { id: 'bamboo', name: 'Esterilla de bambú premium', desc: 'El armado de cada plato en la mesa de armado tarda 30% menos.', price: 550, level: 3, items: { wood: 2 } },
+  { id: 'knife', name: 'Cuchillo de Spicy', desc: 'Un golpe menos al cortar (5 → 4; 4 → 3 en modo relajado) y la zona verde un poco más ancha.', price: 350, level: 2, items: { stone: 1 } },
+  { id: 'knife2', name: 'Cuchillo afilado', desc: 'Otro golpe menos (3 en total; 2 en modo relajado) y la zona verde algo más ancha todavía. Cuesta más que el primero y lo pide como requisito.', price: 1400, level: 4, items: { stone: 3 }, needs: 'knife' },
+  { id: 'bamboo', name: 'Esterilla de bambú premium', desc: 'Armar un plato en la mesa de armado tarda 30 % menos. Solo cambia la espera del armado; el resto de la cocina queda igual.', price: 550, level: 3, items: { wood: 2 } },
   { id: 'lights', name: 'Iluminación cálida', desc: 'Faroles en el salón. +encanto (mejores propinas).', price: 500, level: 3, items: { wood: 1, stone: 1 } },
   { id: 'display', name: 'Vitrina de sushi', desc: 'Una vitrina en el salón. +encanto.', price: 800, level: 4, items: { wood: 3 } },
   { id: 'pantry', name: 'Despensa ampliada', desc: 'Rigg te deja ingredientes básicos cada mañana.', price: 700, level: 4, items: { wood: 3 } },
-  { id: 'board2', name: 'Segunda tabla de cortar', desc: 'Una tabla más en la cocina (se ve en el mapa): dos ingredientes cortándose a la vez.', price: 1200, level: 3, items: { wood: 3, stone: 1 } },
+  { id: 'board2', name: 'Segunda tabla de cortar', desc: 'Una tabla más en la cocina (se ve en el mapa): dos ingredientes a la vez. Si Spicy tiene «cortador», también la usa, así que cortan juntos.', price: 1200, level: 3, items: { wood: 3, stone: 1 } },
   { id: 'rice_big', name: 'Arrocera grande', desc: 'Una arrocera más grande y dorada (se ve en el mapa): 6 porciones por tanda en vez de 4.', price: 1500, level: 4, items: { wood: 3, stone: 2 } },
-  { id: 'galley_hands', name: 'Delantal con bolsillos', desc: 'Llevás dos cosas a la vez en la cocina.', price: 900, level: 3, items: { wood: 2 } },
+  { id: 'galley_hands', name: 'Delantal con bolsillos', desc: 'En la cocina llevás dos cosas a la vez entre estaciones (ingredientes o un plato). No cambia cuántos platos llevás a las mesas: eso es la bandeja.', price: 900, level: 3, items: { wood: 2 } },
   { id: 'rice_hand', name: 'Spicy: arrocero', desc: 'Spicy trabaja en la cocina durante el servicio: saca arroz de la heladera, lo cocina y mantiene 4 porciones listas en el hangiri. Hace falta que Spicy esté en el equipo.', price: 2500, level: 5, items: { wood: 3, stone: 2 }, needs: 'rice_big' },
   { id: 'service_bell', name: 'Timbre de servicio', desc: 'Tocás el timbre del mostrador de entrega y Rigg (o un mesero) lleva los platos listos a sus mesas. Sin el timbre, el personal no retira platos de la cocina.', price: 1000, level: 3, items: { wood: 2 } },
-  { id: 'cut_hand', name: 'Spicy: cortador', desc: 'Spicy también corta en la tabla lo que piden los tickets y lo deja en las mesadas de apoyo (cinco segundos por pieza). Necesita su mejora de arrocero.', price: 3200, level: 6, items: { wood: 4, stone: 3 }, needs: 'rice_hand' },
+  { id: 'cut_hand', name: 'Spicy: cortador', desc: 'Spicy también corta en la tabla lo que piden los tickets y lo deja en las mesadas de apoyo (unos cuatro segundos y medio por pieza). Necesita su mejora de arrocero.', price: 3200, level: 6, items: { wood: 4, stone: 3 }, needs: 'rice_hand' },
   { id: 'second_room', name: 'Segundo sector', desc: '+1 grupo simultáneo y muebles para el salón.', price: 1200, level: 5, items: { wood: 4, stone: 2 } },
   { id: 'garden_patio', name: 'Jardín exterior', desc: 'Macetas y faroles en la entrada del restaurante.', price: 900, level: 5, items: { wood: 3, stone: 2 } },
-  { id: 'carry_tray', name: 'Bandeja de servicio', desc: 'Llevá dos pedidos a la vez, incluso de mesas diferentes.', price: 180, level: 2, items: { wood: 2 } },
-  { id: 'carry_tray2', name: 'Bandeja grande', desc: 'Llevá tres pedidos a la vez.', price: 420, level: 4, items: { wood: 3 }, needs: 'carry_tray' },
-  { id: 'carry_tray3', name: 'Carrito de servicio', desc: 'Llevá cuatro pedidos a la vez.', price: 780, level: 6, items: { wood: 4, stone: 1 }, needs: 'carry_tray2' },
+  { id: 'carry_tray', name: 'Bandeja de servicio', desc: 'Del mostrador a las mesas: llevás dos pedidos a la vez, incluso de mesas diferentes.', price: 180, level: 2, items: { wood: 2 } },
+  { id: 'carry_tray2', name: 'Bandeja grande', desc: 'Del mostrador a las mesas: llevás tres pedidos a la vez.', price: 420, level: 4, items: { wood: 3 }, needs: 'carry_tray' },
+  { id: 'carry_tray3', name: 'Carrito de servicio', desc: 'Del mostrador a las mesas: llevás cuatro pedidos a la vez.', price: 780, level: 6, items: { wood: 4, stone: 1 }, needs: 'carry_tray2' },
   { id: 'pip_corner', name: 'Rincón de tesoros de Pip', desc: 'Zabuton y baúl en su cuarto. Pip juega allí durante su descanso.', price: 140, level: 2, items: { wood: 2 }, friendship: { id: 'pip', points: 20 } },
   { id: 'spicy_corner', name: 'Rincón de sabores de Spicy', desc: 'Mesa y hierbas en su cuarto. Spicy se toma una pausa para merendar.', price: 160, level: 2, items: { wood: 2 }, friendship: { id: 'spicy', points: 20 } },
   { id: 'rigg_corner', name: 'Rincón de lectura de Rigg', desc: 'Escritorio y zabuton en su cuarto. Rigg lo usa para leer.', price: 160, level: 2, items: { wood: 2 }, friendship: { id: 'rigg', points: 20 } },
@@ -51,7 +51,7 @@ export const lastPurchase = (): PurchaseReport | null => lastReport;
 export function upgradeMissing(u: UpgradeDef): string[] {
   const missing: string[] = [];
   if (game.save.restaurant.level < u.level) missing.push(`Nivel ${u.level}`);
-  if (u.needs && !game.save.restaurant.upgrades.includes(u.needs)) missing.push('Primero construí el rincón');
+  if (u.needs && !game.save.restaurant.upgrades.includes(u.needs)) missing.push(`Primero: ${UPGRADES.find((x) => x.id === u.needs)?.name ?? 'la mejora anterior'}`);
   if (u.friendship && (game.save.relationships[u.friendship.id]?.points ?? 0) < u.friendship.points) missing.push(`Amistad: ${game.save.relationships[u.friendship.id]?.points ?? 0}/${u.friendship.points}`);
   if (game.coins < u.price) missing.push('Monedas');
   for (const [id, q] of Object.entries(u.items ?? {})) if (game.count(id) < q) missing.push(`${id === 'wood' ? 'Madera' : 'Piedra'}: ${game.count(id)}/${q}`);

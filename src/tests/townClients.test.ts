@@ -3,10 +3,10 @@ import { game, newSave } from '../core/state';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { orderForCustomer, customerName } from '../restaurant/orders';
 import {
-  customerOf, demandFactor, dueVisit, emptyClients, inviteResponse, recordMeal, recordVisit, regularDropIn, rememberedDish,
+  customerOf, demandFactor, dueVisit, emptyClients, favouriteOf, takeOccasion, OCCASION_GIFTS, inviteResponse, recordMeal, recordVisit, regularDropIn, rememberedDish,
   type DemandContext, type InviteContext,
 } from '../restaurant/townClients';
-import { inviteNeighbor, nextTownGuest, clients } from '../restaurant/townVisits';
+import { inviteNeighbor, nextTownGuest, clients, noteTownLeft } from '../restaurant/townVisits';
 
 const dem = (o: Partial<DemandContext> = {}): DemandContext => ({ period: 1, day: 3, rain: false, reputation: 0, charm: 0, festival: false, regulars: 0, ...o });
 const inv = (o: Partial<InviteContext> = {}): InviteContext => ({ day: 4, period: 1, rain: false, mood: 0, alreadyToday: false, alreadyPlanned: false, ...o });
@@ -81,5 +81,34 @@ describe('regulars remember', () => {
     const o = orderForCustomer(customerOf('kai'), () => 0.01)!;
     expect(o.recipe).toBe('veggie_roll');
     expect(o.customer).toBe('nb_kai');
+  });
+});
+
+describe('a regular is recognised', () => {
+  it('has a favourite only after a couple of good servings, and serving it again is flagged once it is known', () => {
+    const s = emptyClients(), c = customerOf('goro');
+    expect(recordMeal(s, c, 'tamago', 1, false, 1)).toBe(false);
+    expect(favouriteOf(s, c)).toBeNull();
+    expect(recordMeal(s, c, 'tamago', 2, false, 2)).toBe(false); // it becomes a favourite with this serving
+    expect(favouriteOf(s, c)).toBe('tamago');
+    expect(recordMeal(s, c, 'tamago', 1, false, 3)).toBe(true);
+    expect(recordMeal(s, c, 'tamago', 0, false, 4)).toBe(false); // a bad plate is not celebrated
+  });
+
+  it('brings one thank-you gift on the 5th and the 10th happy visit, never twice, and keeps old saves working', () => {
+    game.save.furnitureOwned = {};
+    for (let d = 1; d <= 4; d++) { recordMeal(clients(), customerOf('kai'), 'veggie_roll', 2, false, d); expect(noteTownLeft(customerOf('kai'), true)).toBeNull(); }
+    recordMeal(clients(), customerOf('kai'), 'veggie_roll', 2, false, 5);
+    const gift = noteTownLeft(customerOf('kai'), true);
+    expect(gift).toMatchObject({ id: 'kai', furniture: OCCASION_GIFTS.kai, visit: 5 });
+    expect(game.save.furnitureOwned[OCCASION_GIFTS.kai]).toBe(1);
+    expect(takeOccasion(clients(), customerOf('kai'))).toBeNull(); // same milestone: already given
+    for (let d = 6; d <= 9; d++) { recordMeal(clients(), customerOf('kai'), 'veggie_roll', 2, false, d); expect(noteTownLeft(customerOf('kai'), true)).toBeNull(); }
+    recordMeal(clients(), customerOf('kai'), 'veggie_roll', 2, false, 10);
+    expect(noteTownLeft(customerOf('kai'), true)?.visit).toBe(10);
+    expect(game.save.furnitureOwned[OCCASION_GIFTS.kai]).toBe(2);
+    // an unhappy 5th visit gives nothing and a save without `gifted` is fine
+    const s = emptyClients(); s.regulars.ren = { visits: 5, likes: {}, mood: 0, last: 1, waits: 0 };
+    expect(takeOccasion(s, customerOf('ren'))).toBeNull();
   });
 });

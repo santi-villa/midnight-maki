@@ -127,6 +127,8 @@ export interface ContextSense {
   guests?: { tableId: string; x: number; y: number }[];
   /** What the physical kitchen's stations next to the player offer (already limited to the ones in reach). */
   galley?: { action: ContextAction; x: number; y: number; bias: number }[];
+  /** The table a dish carried from the physical kitchen is waiting for, if any: standing there offers to serve it. */
+  heldFor?: string | null;
 }
 
 export function isPlayerRoom(room: { id: string; owner?: string } | null | undefined): boolean {
@@ -185,7 +187,7 @@ function shortWho(name: string) {
   return name.split(/\s+/)[0] || name;
 }
 
-function jobAction(job: TableJob): ContextAction | null {
+function jobAction(job: TableJob, heldFor?: string | null): ContextAction | null {
   if (job.status === 'tip' && job.tip > 0) {
     return {
       id: `tip:${job.tableId}`,
@@ -208,7 +210,7 @@ function jobAction(job: TableJob): ContextAction | null {
   if (job.phase !== 'waiting_food' || !job.recipe) return null;
   const who = job.customerId ? customerName(job.customerId) : 'el cliente';
   const dish = RECIPES_BY_ID[job.recipe]?.name ?? DRINK_BY_ID[job.recipe]?.name ?? 'el pedido';
-  if (carriedOrder(job.tableId)) {
+  if (carriedOrder(job.tableId) || heldFor === job.tableId) {
     return {
       id: `deliver:${job.tableId}`,
       label: 'Entregar',
@@ -264,7 +266,7 @@ function addTables(bag: Map<string, Scored>, sense: ContextSense) {
   for (const job of tableJobs()) {
     const table = sense.furniture.find((f) => f.room === 'dining' && TABLE_KINDS.has(f.kind) && String(f.uid) === job.tableId);
     if (!table) continue;
-    const action = jobAction(job);
+    const action = jobAction(job, sense.heldFor);
     if (!action) continue;
     // Within reach, attention and delivery get half a tile of preference over casual actions.
     const service = action.intent.type === 'takeOrder' || action.intent.type === 'deliver';

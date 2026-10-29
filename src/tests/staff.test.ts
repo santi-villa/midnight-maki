@@ -246,4 +246,18 @@ describe('the pass bell', () => {
     game.save.restaurant.upgrades.push('service_bell');
     expect(ringBell().msg).toMatch(/platos/); // nothing waiting
   });
+
+  it('a hired cook is hired and paid in the physical kitchen too, and keeps the post and the skills he was given', () => {
+    settings.cookStyle = 'galley';
+    const cook = hireOne('cook');
+    cook.level = 3; cook.job = 'cut'; cook.perks = ['cook_eye'];
+    const coins = game.save.coins;
+    expect(payWages(game.save.time.day + 1).paid).toBeGreaterThan(0);
+    expect(game.save.coins).toBeLessThan(coins);
+    const back = validateSave(JSON.parse(JSON.stringify(game.save)));
+    expect(back.staff?.employees[0]).toMatchObject({ level: 3, job: 'cut', perks: ['cook_eye'] });
+    const older = JSON.parse(JSON.stringify(game.save)); delete older.staff!.employees[0].job; delete older.staff!.employees[0].perks;
+    expect(validateSave(older).staff?.employees[0].level).toBe(3); // saves from before the skills load fine
+    settings.cookStyle = 'act';
+  });
 });

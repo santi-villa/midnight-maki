@@ -6,8 +6,10 @@ import { game } from '../core/state';
 import { RECIPES_BY_ID } from '../data/recipes';
 import { DRINK_BY_ID } from '../restaurant/drinkData';
 import { billOfMaterials, type Need } from './prep';
+import type { Galley } from './model';
 import { guestViews, plateState, tableLabel } from '../restaurant/service';
 import { customerName } from '../restaurant/orders';
+import { favouriteOf, emptyClients } from '../restaurant/townClients';
 
 export interface TicketLine {
   recipe: string;
@@ -15,8 +17,8 @@ export interface TicketLine {
   /** dishes of this recipe still to make / already on the pass */
   waiting: number;
   ready: number;
-  /** what each needs on the assembly table, e.g. "Salmón cortado" */
-  needs: Need[];
+  /** what each needs on the assembly table, e.g. "Salmón cortado"; `have`: how many of the pieces for all the dishes of this line are already prepared (on the table, the counters, the boards or the hangiri) */
+  needs: (Need & { have?: number })[];
   /** a drink: it also needs a glass in the blender */
   cup?: boolean;
 }
@@ -31,6 +33,10 @@ export interface Ticket {
   impatient: boolean;
   /** every dish of the ticket is on the pass */
   done: boolean;
+  /** the player chose to cook this one first */
+  pinned?: boolean;
+  /** a regular who is waiting for their favourite dish: the recipe id */
+  favourite?: string;
 }
 
 export const MAX_TICKETS = 3;
@@ -50,7 +56,39 @@ function lines(uids: number[]): TicketLine[] {
   return [...byRecipe.values()];
 }
 
-/** All tickets, the most urgent first. */
+/** The ticket the player picked to cook first (cleared when it is served or its guests leave). Not saved: it is a hint for the next minutes. */
+let pinnedId: string | null = null;
+export const pinnedTicket = (): string | null => pinnedId;
+export function pinTicket(id: string | null) { pinnedId = pinnedId === id ? null : id; }
+
+/** Prepared pieces lying around the kitchen, by `ing|form`: what the next dishes can use without more work. */
+export function stagedPieces(g: Pick<Galley, 'station'>): Map<string, number> {
+  const pool = new Map<string, number>();
+  const add = (ing: string, form: string) => pool.set(`${ing}|${form}`, (pool.get(`${ing}|${form}`) ?? 0) + 1);
+  for (const id of ['assembly', 'counter_a', 'counter_b', 'hangiri', 'board_1', 'board_2']) {
+    const st = g.station(id);
+    if (!st) continue;
+    for (const i of st.items) if (i.kind === 'ing' && !(st.pending && i.form !== 'cut' && i.form !== 'cooked_cut')) add(i.ing, i.form);
+  }
+  const cooker = g.station('rice');
+  if (cooker?.phase === 'done') for (const i of cooker.items) if (i.kind === 'ing') add(i.ing, i.form === 'raw' ? 'cooked' : i.form);
+  return pool;
+}
+
+/** Gives each unfinished ticket, in order, the staged pieces it can use (a piece counts for one ticket only). */
+export function allocateStaged(list: Ticket[], pool: Map<string, number>) {
+  for (const t of list) {
+    if (t.done) continue;
+    for (const l of t.lines) for (const n of l.needs) {
+      const key = `${n.ing}|${n.form}`, free = pool.get(key) ?? 0, total = n.count * l.waiting;
+      const give = Math.min(free, total);
+      n.have = give;
+      if (give) pool.set(key, free - give);
+    }
+  }
+}
+
+/** All tickets, the most urgent first (or the one the player pinned). */
 export function tickets(): Ticket[] {
   const out: Ticket[] = [];
   for (const view of guestViews()) {
@@ -61,6 +99,7 @@ export function tickets(): Ticket[] {
     out.push({
       id: view.id, label: view.tableId ? tableLabel(view.tableId) : 'Mesa', who: customerName(view.customerId) + (view.size > 1 ? ` y ${view.size - 1} más` : ''),
       lines: ls, patience: Math.max(0, Math.min(1, view.patience / Math.max(1, view.maxPatience))), impatient: view.impatient,
+      favourite: ((fav) => (fav && ls.some((l) => l.recipe === fav) ? fav : undefined))(favouriteOf(game.save.clients ?? emptyClients(), view.customerId)),
       done: ls.every((l) => l.waiting === 0),
     });
   }
@@ -69,5 +108,7 @@ export function tickets(): Ticket[] {
     const ls = lines(counter);
     out.push({ id: 'counter', label: 'Mostrador', who: 'Especial', lines: ls, patience: 1, impatient: false, done: ls.every((l) => l.waiting === 0) });
   }
-  return out.sort((a, b) => Number(a.done) - Number(b.done) || a.patience - b.patience);
+  if (pinnedId && !out.some((t) => t.id === pinnedId && !t.done)) pinnedId = null;
+  for (const t of out) t.pinned = t.id === pinnedId;
+  return out.sort((a, b) => Number(a.done) - Number(b.done) || Number(!!b.pinned) - Number(!!a.pinned) || a.patience - b.patience);
 }
