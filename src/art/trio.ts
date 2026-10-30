@@ -68,6 +68,9 @@ const LOOKS: Record<TrioId, Look> = {
   },
 };
 
+/** Each raccoon's measurements and colours (read-only, for tests and previews). */
+export const TRIO_LOOKS: Readonly<Record<TrioId, Readonly<Look>>> = LOOKS;
+
 /** Frame width of each raccoon's sheet (the height is FOLK_H, 39). */
 export const TRIO_W: Record<TrioId, number> = { pip: LOOKS.pip.W, rigg: LOOKS.rigg.W, spicy: LOOKS.spicy.W };
 
@@ -98,7 +101,8 @@ function geo(L: Look, pose: FolkPose, view: View): Geo {
   return {
     L, W, H: 39, A, view, sit, dy,
     hx: A + (side ? 2 : 0) + (pose.expr === 'sad' && !side ? -1 : 0),
-    hy: L.hy + dy + (pose.expr === 'sad' ? 1 : 0),
+    // a sad or sleepy head droops a little
+    hy: L.hy + dy + (pose.expr === 'sad' || pose.expr === 'sleep' ? 1 : 0),
     hrx: side ? L.hrxS : L.hrx,
     torsoTop: L.tTop + dy, torsoBot: 35, trx: side ? L.trxS : L.trx, tcx: A + (side ? -1 : 0),
     armDy,
