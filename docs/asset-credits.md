@@ -42,3 +42,19 @@ Se añaden 178 muebles y adornos de los paquetes Bitglow Bedroom (20), Bathroom 
 - Las piezas grandes que solo aparecen en la imagen del pack completo no se extraen de la previsualización para fingir que están disponibles en la demo.
 
 Los créditos del menú del juego mencionan a VectoRaith y Bitglow. El resto de la construcción del mundo, arte de personajes, lógica, animaciones y composición sigue siendo el trabajo propio del proyecto.
+
+## Modern Interiors (LimeZu)
+
+Pack comprado (versión completa) de LimeZu: <https://limezu.itch.io/moderninteriors>. Su licencia permite usarlo y editarlo en proyectos comerciales, **prohíbe redistribuirlo** y pide crédito, que figura en la pantalla de créditos del juego.
+
+Por eso el pack **no está en el repositorio** (`ASSETS DESCARGADOS/NUEVO/` está en `.gitignore`); el original vive en el Drive de Santi. En el repo solo queda el atlas chico con los recortes que usa el juego (`src/assets/limezu/atlas.png`, 256×100) y su catálogo (`catalog.json`, con hoja y rectángulo de origen de cada pieza).
+
+`scripts/build-limezu-assets.py` arma ese atlas a partir de las hojas por tema. Acepta las hojas nativas de 16×16 o las de RPG Maker MV de 48×48: estas últimas son ampliaciones exactas ×3 del original y se reducen con vecino más cercano, sin inventar ni suavizar píxeles. Uso:
+
+```
+LIMEZU_SRC=/ruta/a/las/hojas/por/tema python3 scripts/build-limezu-assets.py
+```
+
+Cada pieza declara qué muebles o props del juego viste (`replaces`): los IDs guardados, las huellas en la grilla y el comportamiento no cambian, solo el dibujo. Las piezas se dibujan a tamaño nativo, nunca escaladas. Una pieza con una sola vista no se usa girada de costado (ahí queda el dibujo anterior). Con `?interiors=classic` en la URL el juego carga sin el pack, para comparar.
+
+Primera prueba (32 piezas): sillas de izakaya en cuatro direcciones, mesas, chabudai, zabutones, banquito, bandeja de té, roperos, aparador, escritorio, mesita de luz, lámparas, plantas, pecera, cuadros, kakejiku y bibliotecas.

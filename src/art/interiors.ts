@@ -3,6 +3,8 @@ import catalog from '../assets/interiors/catalog.json';
 import atlasURL from '../assets/interiors/atlas.png';
 import { ctx2d, makeCanvas } from './pixel';
 import { INTERIOR_REPLACEMENTS } from './interiorReplacements';
+import limezu from '../assets/limezu/catalog.json';
+import limezuURL from '../assets/limezu/atlas.png';
 
 export const INTERIOR_ATLAS_KEY = 'interior-source';
 export const INTERIOR_ATLAS_URL = atlasURL;
@@ -11,7 +13,38 @@ const pieces = new Map(catalog.pieces.map((piece) => [piece.id, piece]));
 
 export function installInteriorAtlas(source: CanvasImageSource) { atlas = source; }
 
+/**
+ * LimeZu "Modern Interiors" pieces (scripts/build-limezu-assets.py) dress existing furniture IDs. Saved IDs, footprints and
+ * behaviour stay the same; only the drawing changes. `?interiors=classic` keeps the previous art for comparison.
+ */
+export const LIMEZU_ATLAS_KEY = 'limezu-source';
+export const LIMEZU_ATLAS_URL = limezuURL;
+let lzAtlas: CanvasImageSource | null = null;
+const lzFor = new Map<string, (typeof limezu.pieces)[number]>();
+for (const piece of limezu.pieces) for (const id of piece.replaces) lzFor.set(id, piece);
+export const limezuWanted = () => typeof location === 'undefined' || new URLSearchParams(location.search).get('interiors') !== 'classic';
+export function installLimezuAtlas(source: CanvasImageSource) { lzAtlas = source; }
+
+/** Native pixels, never scaled: bottom-centred in the footprint; a taller or wider piece grows the canvas around it. */
+function limezuObject(id: string, width: number, height: number, rot: number): HTMLCanvasElement | null {
+  const piece = lzFor.get(id);
+  if (!lzAtlas || !piece) return null;
+  // a piece drawn in one direction only cannot stand turned sideways: keep the previous art there
+  if (piece.frames.length < 4 && rot % 2 === 1) return null;
+  const frame = piece.frames[((rot % piece.frames.length) + piece.frames.length) % piece.frames.length].atlas;
+  const w = Math.max(width, frame.w);
+  const h = Math.max(height, frame.h);
+  const canvas = makeCanvas(w, h);
+  ctx2d(canvas).drawImage(lzAtlas, frame.x, frame.y, frame.w, frame.h, Math.floor((w - frame.w) / 2), h - frame.h, frame.w, frame.h);
+  return canvas;
+}
+
+/** True when this furniture ID is drawn by a LimeZu piece (the piece already has its own rotations). */
+export const hasLimezu = (id: string) => !!lzAtlas && lzFor.has(id);
+
 export function interiorObject(id: string, width: number, height: number, rot: number): HTMLCanvasElement | null {
+  const lz = limezuObject(id, width, height, rot);
+  if (lz) return lz;
   const replacement = INTERIOR_REPLACEMENTS[id];
   const piece = pieces.get(replacement ?? id);
   if (!atlas || !piece) return null;
