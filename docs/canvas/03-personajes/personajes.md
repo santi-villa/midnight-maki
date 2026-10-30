@@ -23,7 +23,7 @@ Grandote, cariñoso, torpe y curioso. Colecciona cosas brillantes y regala tesor
 - **No le gusta:** Wasabi, Ají picante, Piedra
 - Imágenes: `pip_retrato.png`, `pip_cuerpo.png`
 
-### Spicy Beacon — Chef dramático
+### Spicy Bacon — Chef dramático
 El más chiquito y el más ruidoso: excéntrico, teatral y brillante en la cocina. Cree que todo mejora con un poquito (mucho) de picante.
 
 - **Dónde está durante el día:** Midnight Maki, Playa, Habitaciones

@@ -37,7 +37,7 @@ export const ITEMS: ItemDef[] = [
   I('cream', 'Queso crema', 'ingredient', { type: 'blob', c1: '#f6f1e2' }, 6, 3, 'Suave y untable.'),
   I('sesame', 'Sésamo', 'ingredient', { type: 'flakes', c1: '#f3e6c8' }, 2, 1, 'Semillitas tostadas.'),
   I('wasabi', 'Wasabi', 'ingredient', { type: 'blob', c1: '#a3c46f' }, 3, 1, 'Picante, con cuidado.'),
-  I('chili', 'Ají picante', 'ingredient', { type: 'veg', c1: '#c94a3f', c2: '#e8826f' }, 4, 2, 'El favorito de Spicy Beacon.'),
+  I('chili', 'Ají picante', 'ingredient', { type: 'veg', c1: '#c94a3f', c2: '#e8826f' }, 4, 2, 'El favorito de Spicy Bacon.'),
   I('tempura', 'Copos de tempura', 'ingredient', { type: 'flakes', c1: '#e8c070' }, 3, 1, 'Crujientes y dorados.'),
   I('mango', 'Mango', 'ingredient', { type: 'round', c1: '#f2b84a', c2: '#f8d78a' }, 6, 3, 'Dulce y tropical.'),
   I('eel', 'Anguila glaseada', 'ingredient', { type: 'fillet', c1: '#8a5a3c', c2: '#c9a24a' }, 9, 6, 'Glaseada con salsa dulce.'),

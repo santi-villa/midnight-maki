@@ -17,7 +17,7 @@ export function recordCompany(id: string, kind: CompanyActivity, snack?: string)
     if (kind === 'share' && !game.removeItem(snack!, 1)) { game.setFlag(marker(id, kind), previous); return false; }
     game.addFriendship(id, kind === 'share' || kind === 'play' ? 3 : 2);
     game.stat('companyMoments');
-    if (!game.has('memory_' + id + '_company')) game.setFlag('memory_' + id + '_company', `Un rato juntos: ${id === 'spicy' ? 'Spicy Beacon' : id === 'pip' ? 'Pip' : 'Rigg'}`);
+    if (!game.has('memory_' + id + '_company')) game.setFlag('memory_' + id + '_company', `Un rato juntos: ${id === 'spicy' ? 'Spicy Bacon' : id === 'pip' ? 'Pip' : 'Rigg'}`);
   }
   game.stat(`company_${id}_${kind}`); game.touch('company');
   return true;

@@ -53,7 +53,7 @@ export async function checkFestival(zone: string) {
 }
 
 async function birthday(r: string) {
-  const name = { pip: 'Pip', spicy: 'Spicy Beacon', rigg: 'Rigg' }[r];
+  const name = { pip: 'Pip', spicy: 'Spicy Bacon', rigg: 'Rigg' }[r];
   await say('narr', `Hoy es el cumpleaños de ${name}. Los otros dos mapaches colgaron una guirnalda torcida en el salón.`);
   if (r === 'pip') await say('pip', '¡Es mi cumple! ¿Sabías? ¡Ahora sí sabés! Acepto abrazos, regalos y cucharas.', 'happy');
   if (r === 'spicy') await say('spicy', 'Hoy no cocino. Hoy me cocinan. Bueno, cocino un poquito. Es mi cumpleaños y hago lo que quiero.', 'happy');
@@ -120,7 +120,7 @@ const SCENES: Record<string, { where: string; night?: boolean; play: () => Promi
   raccoons: {
     where: 'restaurant',
     play: async () => {
-      await say('narr', '¡Día de los Mapaches! El pueblo entero celebra a Pip, Spicy Beacon y Rigg.');
+      await say('narr', '¡Día de los Mapaches! El pueblo entero celebra a Pip, Spicy Bacon y Rigg.');
       await say('pip', '¡Es nuestro día! ¡Hay torta! ¡Y gorritos! ¡Y gorritos de torta!', 'happy');
       await say('spicy', 'Yuki nos hizo ropa a juego. Para vos también, obviamente. Somos una pandilla.', 'happy');
       await say('rigg', 'Esto es demasiada atención. Me encanta. No se lo digas a nadie.', 'smug');

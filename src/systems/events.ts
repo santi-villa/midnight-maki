@@ -6,7 +6,7 @@ export interface CalendarEvent { id: string; name: string; season: number; day: 
 export const EVENTS: CalendarEvent[] = [
   { id: 'flowers', name: 'Festival de las Flores', season: 0, day: 10, desc: 'Concurso de flores en el jardín y decoración primaveral.' },
   { id: 'sushi', name: 'Festival del Sushi', season: 1, day: 7, desc: 'Competencia amistosa de recetas en la plaza.' },
-  { id: 'raccoons', name: 'Día de los Mapaches', season: 1, day: 12, desc: 'Una celebración para Pip, Spicy Beacon y Rigg.' },
+  { id: 'raccoons', name: 'Día de los Mapaches', season: 1, day: 12, desc: 'Una celebración para Pip, Spicy Bacon y Rigg.' },
   { id: 'lanterns', name: 'Noche de Faroles', season: 2, day: 9, desc: 'El pueblo entero se ilumina.' },
   { id: 'moon', name: 'Mercado de la Luna', season: 3, day: 7, desc: 'Comerciantes especiales y objetos raros.' },
 ];

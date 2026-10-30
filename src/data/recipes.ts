@@ -159,11 +159,11 @@ export const RECIPES: RecipeDef[] = [
   }),
   // ------------------------------------------------------------- special
   R({
-    id: 'spicy_beacon', name: 'Spicy Beacon Roll', cat: 'special', difficulty: 3, spicy: true,
+    id: 'spicy_beacon', name: 'Spicy Bacon Roll', cat: 'special', difficulty: 3, spicy: true,
     desc: 'Atún, ají y una cantidad preocupante de wasabi. Firma de Spicy.',
     ingredients: { rice: 1, nori: 1, tuna: 1, chili: 1, wasabi: 1 },
     steps: uramaki(['tuna', 'chili'], ['wasabi']), price: 78, xp: 30,
-    unlock: { flag: 'recipe_spicy', text: 'Misión de Spicy Beacon' }, icon: { type: 'uramaki', c1: '#c4505a', c2: '#c94a3f', c3: '#a3c46f' },
+    unlock: { flag: 'recipe_spicy', text: 'Misión de Spicy Bacon' }, icon: { type: 'uramaki', c1: '#c4505a', c2: '#c94a3f', c3: '#a3c46f' },
   }),
   R({
     id: 'pip_happy', name: "Pip's Happy Maki", cat: 'special', difficulty: 3,

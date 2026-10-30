@@ -63,7 +63,7 @@ export const CHARACTERS: CharacterDef[] = [
     birthday: 105, voice: 1.5, rainSpot: { zone: 'restaurant', x: 11, y: 9, wander: 1, act: 'sit' },
   },
   {
-    id: 'spicy', name: 'Spicy Beacon', title: 'Chef dramático', raccoon: true,
+    id: 'spicy', name: 'Spicy Bacon', title: 'Chef dramático', raccoon: true,
     // the smallest one: light grey, white muzzle, dark ear tips (top of the photo)
     appearance: A({ species: 'raccoon', skin: '#a3a1a8', eyes: 2, eyeColor: '#7a4a2a', head: 'hd_bandana', extra: 'ex_apron', hairStyle: 6, marks: { mask: '#2a2230', face: '#f6f3ee', belly: '#f6f3ee', arms: '#8d8b92', ear: '#2a2230' } }),
     drop: [5, 6, 14, 16, 18, 20],
