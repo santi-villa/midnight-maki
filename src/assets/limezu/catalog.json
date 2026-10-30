@@ -1,0 +1,922 @@
+{
+ "author": "LimeZu",
+ "pack": "Modern Interiors (full version)",
+ "url": "https://limezu.itch.io/moderninteriors",
+ "license": "Use in commercial and non-commercial projects allowed; redistribution of the asset is not. Credits required.",
+ "width": 256,
+ "height": 100,
+ "pieces": [
+  {
+   "id": "lz_chair_slate",
+   "name": "Silla de izakaya gris",
+   "replaces": [
+    "chair_dark"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      66,
+      38,
+      13,
+      17
+     ],
+     "atlas": {
+      "x": 148,
+      "y": 42,
+      "w": 13,
+      "h": 17
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      67,
+      71,
+      13,
+      16
+     ],
+     "atlas": {
+      "x": 203,
+      "y": 42,
+      "w": 13,
+      "h": 16
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      82,
+      43,
+      13,
+      12
+     ],
+     "atlas": {
+      "x": 218,
+      "y": 69,
+      "w": 13,
+      "h": 12
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      80,
+      71,
+      13,
+      16
+     ],
+     "atlas": {
+      "x": 217,
+      "y": 42,
+      "w": 13,
+      "h": 16
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_chair_moss",
+   "name": "Silla de izakaya verde",
+   "replaces": [
+    "chair_wood"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      2,
+      70,
+      13,
+      17
+     ],
+     "atlas": {
+      "x": 162,
+      "y": 42,
+      "w": 13,
+      "h": 17
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      3,
+      103,
+      13,
+      16
+     ],
+     "atlas": {
+      "x": 231,
+      "y": 42,
+      "w": 13,
+      "h": 16
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      18,
+      75,
+      13,
+      12
+     ],
+     "atlas": {
+      "x": 232,
+      "y": 69,
+      "w": 13,
+      "h": 12
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      16,
+      103,
+      13,
+      16
+     ],
+     "atlas": {
+      "x": 1,
+      "y": 69,
+      "w": 13,
+      "h": 16
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_chair_straw",
+   "name": "Silla de izakaya de paja",
+   "replaces": [
+    "chair_rose",
+    "chair_sage"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      66,
+      102,
+      13,
+      17
+     ],
+     "atlas": {
+      "x": 176,
+      "y": 42,
+      "w": 13,
+      "h": 17
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      67,
+      135,
+      13,
+      16
+     ],
+     "atlas": {
+      "x": 15,
+      "y": 69,
+      "w": 13,
+      "h": 16
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      82,
+      107,
+      13,
+      12
+     ],
+     "atlas": {
+      "x": 1,
+      "y": 87,
+      "w": 13,
+      "h": 12
+     }
+    },
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      80,
+      135,
+      13,
+      16
+     ],
+     "atlas": {
+      "x": 29,
+      "y": 69,
+      "w": 13,
+      "h": 16
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_table_long",
+   "name": "Mesa larga de madera",
+   "replaces": [
+    "table_long",
+    "table_wood",
+    "table_dark",
+    "table_pink",
+    "bond_table_four"
+   ],
+   "frames": [
+    {
+     "sheet": "Generic_01",
+     "rect": [
+      85,
+      72,
+      38,
+      21
+     ],
+     "atlas": {
+      "x": 59,
+      "y": 42,
+      "w": 38,
+      "h": 21
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_table_round",
+   "name": "Mesita redonda",
+   "replaces": [
+    "table_round"
+   ],
+   "frames": [
+    {
+     "sheet": "Generic_01",
+     "rect": [
+      81,
+      49,
+      14,
+      14
+     ],
+     "atlas": {
+      "x": 86,
+      "y": 69,
+      "w": 14,
+      "h": 14
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_table_family",
+   "name": "Mesa familiar",
+   "replaces": [
+    "table_family"
+   ],
+   "frames": [
+    {
+     "sheet": "Generic_01",
+     "rect": [
+      13,
+      81,
+      38,
+      37
+     ],
+     "atlas": {
+      "x": 29,
+      "y": 1,
+      "w": 38,
+      "h": 37
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_chabudai",
+   "name": "Chabudai con té",
+   "replaces": [
+    "table_low"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_01",
+     "rect": [
+      81,
+      41,
+      30,
+      14
+     ],
+     "atlas": {
+      "x": 101,
+      "y": 69,
+      "w": 30,
+      "h": 14
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_stool",
+   "name": "Banquito",
+   "replaces": [
+    "stool"
+   ],
+   "frames": [
+    {
+     "sheet": "Generic_01",
+     "rect": [
+      73,
+      233,
+      14,
+      14
+     ],
+     "atlas": {
+      "x": 132,
+      "y": 69,
+      "w": 14,
+      "h": 14
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_zabuton_sand",
+   "name": "Zabuton arena",
+   "replaces": [
+    "cushion_rose"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_01",
+     "rect": [
+      145,
+      154,
+      13,
+      12
+     ],
+     "atlas": {
+      "x": 15,
+      "y": 87,
+      "w": 13,
+      "h": 12
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_zabuton_sky",
+   "name": "Zabuton celeste",
+   "replaces": [
+    "cushion_indigo"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_01",
+     "rect": [
+      129,
+      154,
+      13,
+      12
+     ],
+     "atlas": {
+      "x": 29,
+      "y": 87,
+      "w": 13,
+      "h": 12
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_zabuton_moss",
+   "name": "Zabuton verde",
+   "replaces": [
+    "bond_nap_cushion"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_01",
+     "rect": [
+      161,
+      154,
+      13,
+      12
+     ],
+     "atlas": {
+      "x": 43,
+      "y": 87,
+      "w": 13,
+      "h": 12
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_tea_tray",
+   "name": "Bandeja de té",
+   "replaces": [
+    "tea_set"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_01",
+     "rect": [
+      57,
+      53,
+      13,
+      9
+     ],
+     "atlas": {
+      "x": 57,
+      "y": 87,
+      "w": 13,
+      "h": 9
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_wardrobe_oak",
+   "name": "Ropero de roble",
+   "replaces": [
+    "wardrobe_wood"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      130,
+      4,
+      27,
+      39
+     ],
+     "atlas": {
+      "x": 1,
+      "y": 1,
+      "w": 27,
+      "h": 39
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_wardrobe_glass",
+   "name": "Ropero con vidrios",
+   "replaces": [
+    "wardrobe_white"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      195,
+      9,
+      27,
+      32
+     ],
+     "atlas": {
+      "x": 114,
+      "y": 1,
+      "w": 27,
+      "h": 32
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_sideboard",
+   "name": "Aparador",
+   "replaces": [
+    "shelf_kitchen"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      224,
+      153,
+      32,
+      21
+     ],
+     "atlas": {
+      "x": 98,
+      "y": 42,
+      "w": 32,
+      "h": 21
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_desk",
+   "name": "Escritorio con libros",
+   "replaces": [
+    "desk_wood",
+    "desk_dark"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      196,
+      164,
+      25,
+      26
+     ],
+     "atlas": {
+      "x": 222,
+      "y": 1,
+      "w": 25,
+      "h": 26
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_cabinet",
+   "name": "Mesita de luz",
+   "replaces": [
+    "chest_wood"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      144,
+      169,
+      16,
+      20
+     ],
+     "atlas": {
+      "x": 131,
+      "y": 42,
+      "w": 16,
+      "h": 20
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_lamp_cream",
+   "name": "Lámpara de pie crema",
+   "replaces": [
+    "lamp_cream"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      129,
+      104,
+      13,
+      33
+     ],
+     "atlas": {
+      "x": 68,
+      "y": 1,
+      "w": 13,
+      "h": 33
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_lamp_red",
+   "name": "Lámpara de pie roja",
+   "replaces": [
+    "lamp_rose"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      176,
+      200,
+      15,
+      33
+     ],
+     "atlas": {
+      "x": 82,
+      "y": 1,
+      "w": 15,
+      "h": 33
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_lamp_blue",
+   "name": "Lámpara de pie azul",
+   "replaces": [
+    "bond_reading_lamp"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      128,
+      152,
+      15,
+      33
+     ],
+     "atlas": {
+      "x": 98,
+      "y": 1,
+      "w": 15,
+      "h": 33
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_lamp_bedside",
+   "name": "Velador",
+   "replaces": [
+    "lamp_table"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      194,
+      234,
+      12,
+      16
+     ],
+     "atlas": {
+      "x": 43,
+      "y": 69,
+      "w": 12,
+      "h": 16
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_plant_small",
+   "name": "Planta chica",
+   "replaces": [
+    "plant_fern",
+    "plant_herbs"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      2,
+      86,
+      12,
+      14
+     ],
+     "atlas": {
+      "x": 147,
+      "y": 69,
+      "w": 12,
+      "h": 14
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_palm",
+   "name": "Palmera en maceta",
+   "replaces": [
+    "plant_monstera"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      197,
+      48,
+      23,
+      31
+     ],
+     "atlas": {
+      "x": 142,
+      "y": 1,
+      "w": 23,
+      "h": 31
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_fishbowl",
+   "name": "Pecera",
+   "replaces": [
+    "aquarium"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      33,
+      186,
+      15,
+      16
+     ],
+     "atlas": {
+      "x": 56,
+      "y": 69,
+      "w": 15,
+      "h": 16
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_painting_hills",
+   "name": "Cuadro de colinas",
+   "replaces": [
+    "pt_landscape"
+   ],
+   "frames": [
+    {
+     "sheet": "Generic_01",
+     "rect": [
+      82,
+      11,
+      28,
+      13
+     ],
+     "atlas": {
+      "x": 160,
+      "y": 69,
+      "w": 28,
+      "h": 13
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_painting_sunset",
+   "name": "Cuadro de atardecer",
+   "replaces": [
+    "pt_stars"
+   ],
+   "frames": [
+    {
+     "sheet": "Generic_01",
+     "rect": [
+      50,
+      11,
+      28,
+      13
+     ],
+     "atlas": {
+      "x": 189,
+      "y": 69,
+      "w": 28,
+      "h": 13
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_painting_fish",
+   "name": "Cuadro del pez",
+   "replaces": [
+    "pt_sushi",
+    "bond_plate_frame"
+   ],
+   "frames": [
+    {
+     "sheet": "Living_Room_01",
+     "rect": [
+      2,
+      218,
+      13,
+      15
+     ],
+     "atlas": {
+      "x": 72,
+      "y": 69,
+      "w": 13,
+      "h": 15
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_painting_sakura",
+   "name": "Kakejiku de sakura",
+   "replaces": [
+    "pt_raccoon",
+    "errand_thanks"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_02",
+     "rect": [
+      2,
+      39,
+      12,
+      17
+     ],
+     "atlas": {
+      "x": 190,
+      "y": 42,
+      "w": 12,
+      "h": 17
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_bookcase_tall",
+   "name": "Biblioteca alta",
+   "replaces": [
+    "library_shelf"
+   ],
+   "frames": [
+    {
+     "sheet": "Classroom_and_Library_01",
+     "rect": [
+      130,
+      219,
+      27,
+      31
+     ],
+     "atlas": {
+      "x": 166,
+      "y": 1,
+      "w": 27,
+      "h": 31
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_bookcase",
+   "name": "Biblioteca",
+   "replaces": [
+    "shelf_books"
+   ],
+   "frames": [
+    {
+     "sheet": "Classroom_and_Library_01",
+     "rect": [
+      130,
+      219,
+      27,
+      31
+     ],
+     "atlas": {
+      "x": 194,
+      "y": 1,
+      "w": 27,
+      "h": 31
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_bookcase_dark",
+   "name": "Biblioteca de colores",
+   "replaces": [
+    "shelf_dark"
+   ],
+   "frames": [
+    {
+     "sheet": "Classroom_and_Library_01",
+     "rect": [
+      9,
+      183,
+      28,
+      25
+     ],
+     "atlas": {
+      "x": 1,
+      "y": 42,
+      "w": 28,
+      "h": 25
+     }
+    }
+   ]
+  },
+  {
+   "id": "lz_reading_desk",
+   "name": "Mesa de lectura",
+   "replaces": [
+    "library_table"
+   ],
+   "frames": [
+    {
+     "sheet": "Classroom_and_Library_01",
+     "rect": [
+      9,
+      154,
+      28,
+      22
+     ],
+     "atlas": {
+      "x": 30,
+      "y": 42,
+      "w": 28,
+      "h": 22
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { ensureTileset } from './textures';
 import { COZY_ATLAS_KEY, COZY_ATLAS_URL, installCozyAtlas } from '../art/cozyAssets';
-import { INTERIOR_ATLAS_KEY, INTERIOR_ATLAS_URL, installInteriorAtlas } from '../art/interiors';
+import { INTERIOR_ATLAS_KEY, INTERIOR_ATLAS_URL, installInteriorAtlas, installLimezuAtlas, LIMEZU_ATLAS_KEY, LIMEZU_ATLAS_URL, limezuWanted } from '../art/interiors';
 import { BRIDGE_ATLAS_KEY, BRIDGE_ATLAS_URL, installBridgeAtlas } from '../art/bridges';
 import { FARM_ATLAS_KEY, FARM_ATLAS_URL, installFarmAtlas } from '../art/farm';
 import { ICON_ATLAS_KEY, ICON_ATLAS_URL, installIconAtlas } from '../art/iconArt';
@@ -19,6 +19,7 @@ export class BootScene extends Phaser.Scene {
     this.load.on('progress', bar);
     this.load.image(COZY_ATLAS_KEY, COZY_ATLAS_URL);
     this.load.image(INTERIOR_ATLAS_KEY, INTERIOR_ATLAS_URL);
+    if (limezuWanted()) this.load.image(LIMEZU_ATLAS_KEY, LIMEZU_ATLAS_URL);
     this.load.image(BRIDGE_ATLAS_KEY, BRIDGE_ATLAS_URL);
     this.load.image(VILLAGE_ATLAS_KEY, VILLAGE_ATLAS_URL);
     this.load.image(FARM_ATLAS_KEY, FARM_ATLAS_URL);
@@ -30,6 +31,7 @@ export class BootScene extends Phaser.Scene {
     if (this.textures.exists(RIGG_SHEET_KEY)) this.textures.get(RIGG_SHEET_KEY).customData = { motion: 'rigg' };
     if (this.textures.exists(COZY_ATLAS_KEY)) installCozyAtlas(this.textures.get(COZY_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     if (this.textures.exists(INTERIOR_ATLAS_KEY)) installInteriorAtlas(this.textures.get(INTERIOR_ATLAS_KEY).getSourceImage() as HTMLImageElement);
+    if (this.textures.exists(LIMEZU_ATLAS_KEY)) installLimezuAtlas(this.textures.get(LIMEZU_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     if (this.textures.exists(BRIDGE_ATLAS_KEY)) installBridgeAtlas(this.textures.get(BRIDGE_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     if (this.textures.exists(VILLAGE_ATLAS_KEY)) installVillageAtlas(this.textures.get(VILLAGE_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     if (this.textures.exists(FARM_ATLAS_KEY)) installFarmAtlas(this.textures.get(FARM_ATLAS_KEY).getSourceImage() as HTMLImageElement);
