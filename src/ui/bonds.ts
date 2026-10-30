@@ -4,7 +4,7 @@ import { game } from '../core/state';
 import { BONDS, bondDone, bondsDone, playBond, type Bond } from '../story/bonds';
 import { h, panel } from './dom';
 
-const WHO: [Bond['who'], string][] = [['pip', 'Pip'], ['spicy', 'Spicy Beacon'], ['rigg', 'Rigg'], ['trio', 'Los tres juntos']];
+const WHO: [Bond['who'], string][] = [['pip', 'Pip'], ['spicy', 'Spicy Bacon'], ['rigg', 'Rigg'], ['trio', 'Los tres juntos']];
 
 export function openBonds() {
   let close = () => {};

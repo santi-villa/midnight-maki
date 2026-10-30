@@ -4,7 +4,7 @@ Copiar cada bloque por separado. Los números corresponden al nuevo orden de Map
 
 ## Punto 7 — Historias y vínculos de Pip, Spicy y Rigg
 
-Implementá el punto 7 de Mapaches y Sushi: historias personales, escenas cotidianas y vínculos de Pip, Spicy Beacon y Rigg con su hogar y el misterio de Akio.
+Implementá el punto 7 de Mapaches y Sushi: historias personales, escenas cotidianas y vínculos de Pip, Spicy Bacon y Rigg con su hogar y el misterio de Akio.
 
 Repositorio: santi-villa/midnight-maki. Antes de editar, revisá ramas remotas y estado local. La rama de trabajo autorizada es master-mgsshv; incorporá avances posteriores de forma segura, sin force push ni sobrescribir cambios ajenos. Publicá commits coherentes directamente en esa rama.
 

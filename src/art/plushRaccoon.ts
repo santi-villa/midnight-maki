@@ -14,25 +14,25 @@ import { ctx2d, makeCanvas, mix as mixHex, px, shade, type Ctx } from './pixel';
 import { bodyAcc, headAcc } from './raccoon';
 import type { FolkCustom, FolkExpr, FolkPose, FolkSpec } from './folk';
 
-type Mask = (x: number, y: number) => boolean;
+export type Mask = (x: number, y: number) => boolean;
 type View = 'front' | 'side' | 'back';
 
 /** pixel-centre ellipse; p > 2 squares the corners a little (plush cheeks) */
-const ell = (cx: number, cy: number, rx: number, ry: number, p = 2): Mask => (x, y) => Math.pow(Math.abs(x - cx) / rx, p) + Math.pow(Math.abs(y - cy) / ry, p) <= 1;
-const box = (x0: number, y0: number, x1: number, y1: number): Mask => (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1;
+export const ell = (cx: number, cy: number, rx: number, ry: number, p = 2): Mask => (x, y) => Math.pow(Math.abs(x - cx) / rx, p) + Math.pow(Math.abs(y - cy) / ry, p) <= 1;
+export const box = (x0: number, y0: number, x1: number, y1: number): Mask => (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1;
 
 const toneCache = new Map<string, string>();
-const tone = (c: string, a: number) => {
+export const tone = (c: string, a: number) => {
   const k = c + a;
   let v = toneCache.get(k);
   if (!v) toneCache.set(k, (v = shade(c, a)));
   return v;
 };
 
-interface Paint { lt?: number; dk?: number; l?: number; d?: number; pick?: (x: number, y: number) => string | null }
+export interface Paint { lt?: number; dk?: number; l?: number; d?: number; pick?: (x: number, y: number) => string | null }
 
 /** Fills a mask with a base colour, a light rim at the top-left and a shade rim at the bottom-right. */
-function blob(g: Ctx, W: number, H: number, m: Mask, base: string, o: Paint = {}) {
+export function blob(g: Ctx, W: number, H: number, m: Mask, base: string, o: Paint = {}) {
   const l = o.l ?? 1.5;
   const d = o.d ?? 1.6;
   for (let y = 0; y < H; y++) {
@@ -50,7 +50,7 @@ function blob(g: Ctx, W: number, H: number, m: Mask, base: string, o: Paint = {}
 }
 
 /** A fat tail along a curve: thicker in the middle, round tip, alternating rings. */
-function tailMask(p0: [number, number], p1: [number, number], p2: [number, number], r0: number, rMax: number, rTip: number) {
+export function tailMask(p0: [number, number], p1: [number, number], p2: [number, number], r0: number, rMax: number, rTip: number) {
   const pts: { x: number; y: number; r: number; t: number }[] = [];
   for (let i = 0; i <= 40; i++) {
     const t = i / 40;
@@ -454,9 +454,9 @@ function faceSide(g: Ctx, pal: Pal, s: Geo, expr: FolkExpr) {
 }
 
 // ------------------------------------------------------------------ assembling
-type Layer = (g: Ctx) => void;
+export type Layer = (g: Ctx) => void;
 
-function stack(W: number, H: number, ink: string, layers: Layer[], after: (g: Ctx) => void): HTMLCanvasElement {
+export function stack(W: number, H: number, ink: string, layers: Layer[], after: (g: Ctx) => void): HTMLCanvasElement {
   const out = makeCanvas(W, H);
   const o = ctx2d(out);
   for (const l of layers) {
@@ -476,7 +476,7 @@ function stack(W: number, H: number, ink: string, layers: Layer[], after: (g: Ct
   return out;
 }
 
-function mirror(src: HTMLCanvasElement): HTMLCanvasElement {
+export function mirror(src: HTMLCanvasElement): HTMLCanvasElement {
   const c = makeCanvas(src.width, src.height);
   const g = ctx2d(c);
   g.translate(src.width, 0);

@@ -12,7 +12,7 @@ Se conservan las siete imágenes, diálogos y secuencia de la introducción; las
 
 La introducción terminaba colocando a Sofi en la plaza y el prólogo dependía de entrar al restaurante. Ahora tanto completar la historia como saltarla desembocan en la entrada interior de Midnight Maki: casilla `(8, 12)`, libre de colisiones, mirando hacia arriba. La puerta de la plaza reutiliza esa misma definición. La música cambia suavemente a la pista del restaurante correspondiente al período; el HUD aparece después de abrirse la transición y se libera el movimiento.
 
-El primer objetivo es hablar con Spicy Beacon y conocer a los mapaches. El encuentro conserva sus diálogos y comienza al hablar con Spicy, permitiendo explorar antes. Una segunda conversación inicia la enseñanza de cocina. Se mantienen los seis pasos e índices del prólogo, sus flags y los siguientes objetivos: preparar sushi, visitar a Taro, decorar la habitación y descansar. Ver o saltar la intro no completa el encuentro ni todo el prólogo.
+El primer objetivo es hablar con Spicy Bacon y conocer a los mapaches. El encuentro conserva sus diálogos y comienza al hablar con Spicy, permitiendo explorar antes. Una segunda conversación inicia la enseñanza de cocina. Se mantienen los seis pasos e índices del prólogo, sus flags y los siguientes objetivos: preparar sushi, visitar a Taro, decorar la habitación y descansar. Ver o saltar la intro no completa el encuentro ni todo el prólogo.
 
 Continuar una partida existente respeta su zona, coordenadas y progreso. Una prueba carga un guardado previo situado en la plaza, conserva su prólogo pendiente y permite entrar al restaurante sin completar objetivos automáticamente.
 

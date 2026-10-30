@@ -289,7 +289,7 @@ export async function friendshipUp(id: string, lvl: number) {
         game.setFlag('recipe_spicy');
         const { learnRecipe } = await import('../restaurant/orders');
         learnRecipe('spicy_beacon');
-        await say('spicy', 'Te ganaste mi receta firma: el Spicy Beacon Roll. Tratalo con respeto. Y con wasabi.', 'happy');
+        await say('spicy', 'Te ganaste mi receta firma: el Spicy Bacon Roll. Tratalo con respeto. Y con wasabi.', 'happy');
       },
       3: async () => {
         if (!game.save.clothesOwned.includes('hd_chef')) game.save.clothesOwned.push('hd_chef');

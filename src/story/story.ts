@@ -61,8 +61,8 @@ defineQuests([
     desc: 'Llegaste a Midnight Maki. Conocé a sus habitantes y aprendé a cuidar el restaurante.',
     auto: () => game.has('arrived'),
     steps: [
-      { text: 'Hablá con Spicy Beacon y conocé a los mapaches.', done: () => game.has('intro_done'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
-      { text: 'Aprendé a preparar sushi con Spicy Beacon en la cocina.', done: () => game.has('tut_spicy'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
+      { text: 'Hablá con Spicy Bacon y conocé a los mapaches.', done: () => game.has('intro_done'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Bacon' } },
+      { text: 'Aprendé a preparar sushi con Spicy Bacon en la cocina.', done: () => game.has('tut_spicy'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Bacon' } },
       { text: 'Prepará tus dos primeros platos en la cocina: seguí la tarjeta y la flecha.', done: () => served() >= 2, target: { kind: 'object', zone: 'restaurant', x: 6, y: 3, label: 'Cocina' } },
       { text: 'Comprá un ingrediente o un paquete en el Almacén de Taro.', done: () => game.has('bought_supply') || ((game.save.stats.purchases ?? 0) >= 1 && !game.has('starter_decor')), hint: 'Lo suelto queda en la mochila y ya se puede cocinar. Los paquetes y las cajas se abren en la despensa.', target: { kind: 'object', zone: 'plaza', x: 27, y: 18, label: 'Almacén de Taro', interactId: 'taro_shop' } },
       { text: 'Guardá ingredientes en la despensa de la cocina.', done: () => pantryTotal() > 0 || !game.has('starter_decor'), hint: 'Tocá la despensa, al lado de la tabla. «Guardar ingredientes sueltos» pasa lo de la mochila. «Guardar paquetes y cajas» abre lo que compraste por mayor. Al cocinar se usa primero la despensa.', target: { kind: 'object', zone: 'restaurant', x: 1, y: 3, label: 'Despensa', interactId: 'fridge' } },
@@ -135,7 +135,7 @@ defineQuests([
     desc: 'Una receta escrita por Akio guarda una pista.',
     auto: () => chapterDone(3),
     steps: [
-      { text: 'Spicy encontró algo en el depósito. Hablá con él.', done: () => game.has('notebook_found'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Beacon' } },
+      { text: 'Spicy encontró algo en el depósito. Hablá con él.', done: () => game.has('notebook_found'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Bacon' } },
       { text: 'Visitá el Mercado Nocturno (de noche, por el torii del noreste de la plaza).', done: () => game.has('market_visited'), target: { kind: 'location', zone: 'market', label: 'Mercado Nocturno' } },
       { text: 'Conseguí una carambola en el mercado.', done: () => game.countUsable('starfruit') >= 1 || (game.save.recipesCooked.three_stars ?? 0) > 0, target: { kind: 'object', zone: 'market', x: 4, y: 5, label: 'Dulces de luna', interactId: 'mk_food' } },
       { text: 'Cociná las Tres Estrellas (Cocina → Cocina libre).', done: () => (game.save.recipesCooked.three_stars ?? 0) > 0, target: { kind: 'object', zone: 'restaurant', x: 5, y: 3, label: 'Cocinar', interactId: 'cook' } },
@@ -325,7 +325,7 @@ async function meetRaccoons() {
       await say('rigg', 'Entonces... llegaste, al final.', 'neutral');
       await say('spicy', '¿Hacerte cargo? ¡Eso significa que podríamos volver a abrir!', 'happy');
       await say('pip', '¡Podríamos tener clientes de verdad! ¡Y mesas! ¡Y servilletas lindas!', 'happy');
-      await say('?Mapache con pañuelo|spicy', 'Yo soy Spicy Beacon, chef principal, artista del arroz.', 'happy');
+      await say('?Mapache con pañuelo|spicy', 'Yo soy Spicy Bacon, chef principal, artista del arroz.', 'happy');
       await say('pip', '¡Yo soy Pip! Atiendo las mesas. Bueno, cuando hay mesas. Y gente. Hace mucho que no hay gente.', 'happy');
       await world.walk('rigg', 12, 8);
       await say('rigg', 'Rigg. Me ocupo de... pensar. Alguien tiene que hacerlo.', 'smug');

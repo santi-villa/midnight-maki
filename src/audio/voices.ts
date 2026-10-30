@@ -88,7 +88,7 @@ function kiki(step: number): VoiceNote {
   });
 }
 
-/** Spicy Beacon — very high, fastest, with leaps. */
+/** Spicy Bacon — very high, fastest, with leaps. */
 function spicy(step: number): VoiceNote {
   const freq = 494 * SPICY_LEAPS[step % SPICY_LEAPS.length];
   return tone({

@@ -217,7 +217,7 @@ const more: Record<string, Line[]> = {
     { t: 'Akio me reconoció enseguida. Dijo "Pip, seguís igual de grandote". ¡Es mi tamaño perfecto para abrazar!', flag: 'akio_visit', e: 'happy', weight: 3, set: 'mem_pip_akio' },
   ],
   spicy: [
-    { t: 'Akio probó mi Spicy Beacon Roll. Lloró. Dice que fue el picante. YO DIGO QUE FUE LA EMOCIÓN.', flag: 'akio_visit', e: 'happy', weight: 3, set: 'mem_spicy_akio' },
+    { t: 'Akio probó mi Spicy Bacon Roll. Lloró. Dice que fue el picante. YO DIGO QUE FUE LA EMOCIÓN.', flag: 'akio_visit', e: 'happy', weight: 3, set: 'mem_spicy_akio' },
   ],
   rigg: [
     { t: 'Cerré el cuaderno de casos. Empecé uno nuevo. Se llama "Cosas lindas que pasan". Ya tiene muchas páginas.', flag: 'story_done', e: 'happy' },

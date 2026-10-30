@@ -318,7 +318,7 @@ function credits() {
       h('p', null, 'Ilustraciones pixel art, música y sonidos para Villa Nori.'),
       h('p', null, 'Terreno y tejas: VectoRaith (demo Traditional Japanese, con adaptación de color). Muebles y decoración: Bitglow y Modern Interiors, de LimeZu. Huerta: Cozy Farm Lite, de Bramble & Byte.'),
       h('p', null, 'Hecho con Phaser, TypeScript y Vite. Tipografía: Pixelify Sans (OFL).'),
-      h('p', { class: 'muted' }, 'Pip, Spicy Beacon y Rigg te mandan saludos.'),
+      h('p', { class: 'muted' }, 'Pip, Spicy Bacon y Rigg te mandan saludos.'),
     ),
   });
 }
@@ -328,5 +328,5 @@ function brandLogo(className: string) {
     h('div', { class: 'brand-top' }, 'MAKI ', h('span', null, '&')),
     h('div', { class: 'brand-bottom' }, 'MAPACHES'),
     h('div', { class: 'brand-subtitle' }, 'Los secretos de Villa Nori'),
-    h('div', { class: 'brand-family' }, 'Pip · Spicy Beacon · Rigg'));
+    h('div', { class: 'brand-family' }, 'Pip · Spicy Bacon · Rigg'));
 }

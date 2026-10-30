@@ -2,7 +2,7 @@
 
 ## Resumen
 
-Una persona (Santiago o Sofi) vive en una ciudad gris donde siempre llueve y nada cambia. Una noche aparece bajo su puerta un sobre con una llave, fotografías y una carta firmada por "A.": le ofrece hacerse cargo de **Midnight Maki**, un restaurante de sushi en el pueblo costero de **Villa Nori**, que guarda tres pequeños habitantes: los mapaches **Pip**, **Spicy Beacon** y **Rigg**.
+Una persona (Santiago o Sofi) vive en una ciudad gris donde siempre llueve y nada cambia. Una noche aparece bajo su puerta un sobre con una llave, fotografías y una carta firmada por "A.": le ofrece hacerse cargo de **Midnight Maki**, un restaurante de sushi en el pueblo costero de **Villa Nori**, que guarda tres pequeños habitantes: los mapaches **Pip**, **Spicy Bacon** y **Rigg**.
 
 Llega en tren al atardecer, sigue el camino hasta la plaza y encuentra el restaurante por sus dos faroles. Adentro están los tres mapaches. Con ellos aprende a cocinar, repara el lugar y conoce al pueblo. Pero hay un misterio: un pedido sin remitente, una foto antigua que Pip reconoce, una receta escrita por Akio —el antiguo dueño—, vecinos que recuerdan cosas distintas y un cielo que de pronto pierde sus constelaciones. Todas las pistas llevan al **Faro de las Tres Estrellas**, donde hay que colocar las tres estrellas en el mecanismo. Después viene una cena especial con los mapaches y Akio vuelve de visita a Villa Nori. El juego sigue libre después del final.
 
@@ -106,8 +106,8 @@ Imagen: `escena_7.jpg`
 ### Prólogo: Una carta inesperada
 Llegaste a Midnight Maki. Conocé a sus habitantes y aprendé a cuidar el restaurante.
 
-- Hablá con Spicy Beacon y conocé a los mapaches.
-- Aprendé a preparar sushi con Spicy Beacon en la cocina.
+- Hablá con Spicy Bacon y conocé a los mapaches.
+- Aprendé a preparar sushi con Spicy Bacon en la cocina.
 - Prepará tu primer sushi: tocá "Pedidos" en el mostrador y después la tabla de cocina.
 - Visitá el Almacén de Taro en la plaza y comprá algo.
 - Decorá tu habitación: subí las escaleras y tocá Decorar. Solo se puede en tu cuarto.
