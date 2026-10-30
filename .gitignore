@@ -8,3 +8,6 @@ playwright-report
 
 .env
 .env.local
+
+# supera el limite de 100MB de GitHub
+ASSETS DESCARGADOS/NUEVO/**/moderninteriors-win.zip
