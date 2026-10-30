@@ -9,8 +9,7 @@
 import type { Dir } from '../core/types';
 import { ctx2d, makeCanvas, mix, px, shade, type Ctx } from './pixel';
 import { bodyAcc, headAcc } from './raccoon';
-import { plushFrame } from './plushRaccoon';
-import { pipFrame } from './pip';
+import { trioFrame, type TrioId } from './trio';
 import { drawHeroAccessories, drawHeroFace, drawHeroHair, type FaceParams, type HeroSpec, type Kit } from './hero';
 
 /**
@@ -99,8 +98,6 @@ export interface FolkSpec {
   frameW?: number; // frame width override (wide characters)
   earColor?: string; // ears in another colour than the face (hair-coloured ears)
   belly?: { c: string; rx?: number; ry?: number; y?: number };
-  /** drawn by plushRaccoon.ts instead of the shared parts: body size and the traits that tell the plush raccoons apart */
-  plush?: { size: 'big' | 'small'; stripe?: string; brow?: string; earOuter?: string; cheek?: string; ring?: string; darkLimbs?: boolean; tailK?: number };
   human?: boolean; // human face: no snout, small nose, brows
   humanEars?: boolean;
   hero?: HeroSpec; // playable hero: detailed hair / face / outfit parameters
@@ -984,12 +981,12 @@ function headLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
 
 // ------------------------------------------------------------------ one frame
 export function folkFrame(spec: FolkSpec, pose: FolkPose, custom?: FolkCustom): HTMLCanvasElement {
-  if (spec.id === 'pip') return pipFrame(pose, custom, pose.legs === 'a' ? .25 : .75);
   CUSTOM = custom;
   EXPR = pose.expr;
   FW = spec.frameW ?? DW;
   AX = FW / 2;
-  if (spec.plush) return plushFrame(spec, pose, custom, Math.round(FW * K), FOLK_H);
+  // the three raccoons have their own generator, drawn from the plush toys (trio.ts)
+  if (spec.id === 'pip' || spec.id === 'rigg' || spec.id === 'spicy') return trioFrame(spec.id as TrioId, pose, custom);
   const side = pose.dir === 'left' || pose.dir === 'right';
   const view: 'front' | 'side' | 'back' = pose.dir === 'down' ? 'front' : pose.dir === 'up' ? 'back' : 'side';
   const g = geo(spec, pose, side);

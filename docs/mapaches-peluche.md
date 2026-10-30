@@ -1,56 +1,41 @@
-# Mapaches de peluche: Pip, Spicy y Rigg
+# Los tres mapaches: Pip, Rigg y Spicy Bacon
 
-Prueba nueva 29/10/2026: Pip usa ahora un dibujo erguido desde cero, con hoja y
-animaciones propias en `art/pip.ts`. Ver [Pip por código](pip-codigo.md). Este
-documento conserva la descripción del generador anterior y del respaldo.
+30/10/2026. Los tres mapaches se rehicieron desde cero a partir de las fotos de los
+peluches, parados en dos patas. Se dibujan por código (pixel art procedural), sin
+PNG: `src/art/trio.ts`. Reemplaza al generador anterior (`plush` en los specs), al
+Pip erguido de `art/pip.ts` y a la hoja ilustrada de Rigg, que se borraron.
 
-Actualización 29/10/2026: Rigg usa ahora una primera hoja de sprites ilustrados
-con su atuendo habitual; el generador descrito aquí se conserva para sus atuendos
-personalizados y como respaldo. Ver [la entrega de Rigg](rigg-sprites.md).
+![Los tres en el restaurante, junto a Sofi y vecinos](mapaches-en-el-juego.png)
 
-Pip, Spicy y Rigg ya no usan las piezas compartidas de `src/art/folk.ts`: se dibujan con un generador propio, `src/art/plushRaccoon.ts`, que se activa con `plush: { … }` en su spec (`src/data/folkSpecs.ts`). El resto de los personajes no cambia.
+![Las 30 poses de cada uno](mapaches-hojas.png)
 
-## Qué cambió
-- **Trazo en píxeles de salida.** Cada parte se pinta directamente en la grilla final (sin escalar un diseño más grande), con un contorno oscuro de 1 px por parte y sombreado por grupos: borde claro arriba a la izquierda, borde de sombra abajo a la derecha, 2 o 3 tonos por material, sin degradados.
-- **Proporciones.** Cabeza ancha y redondeada (26 px), cuerpo compacto con una panza clara grande y redonda, brazos cortos y gruesos con manos oscuras, patas pequeñas y cola gruesa con anillos. El cuadro quedó en 34×39 px (`frameW: 45`; antes 32×39): el ancho extra es la cola, que se ve en todas las direcciones. La altura del cuadro y la línea de los pies no cambian.
-- **Cara.** Antifaz en dos manchas más un puente, franja oscura en la frente (marca de Pip), ojos de 2×3 px con un brillo de 1 px, hocico y mejillas crema, nariz y boca de pocos píxeles.
-- **Direcciones.** Frente, espalda (franja sobre la coronilla, orejas, cola sobre la espalda baja), y perfiles derecha e izquierda (la izquierda es el espejo exacto de la derecha, como en el resto de las hojas).
-- **Los 30 cuadros** siguen en el mismo orden (`FRAMES` en `characters.ts`): caminar con pasitos y rebote, respiración, parpadeo, feliz, sorprendido, dormido, triste (cabeza caída, cejas), orgulloso (párpado pesado y sonrisa de lado), cocinar, saludar (patita levantada), leer (libro) y sentado.
-- **Accesorios.** El sombrero y el accesorio de cuerpo que presta el creador de personaje se siguen dibujando.
-- **Retrato.** Sale del cuadro frontal, así que también es nuevo.
+## Cada uno
+| | Cuadro | Rasgos |
+|---|---|---|
+| **Pip** (el más grande) | 36×39 | Gris, franja oscura en la frente, orejas crema, panza grande. De frente el hocico es una puntita (casi no se ve la nariz); de costado sí se ve el hocico largo. |
+| **Rigg** (ella, naranja) | 34×39 | Pelaje óxido, manchas y patas negras, cejas blancas, pestañas, brillo verde agua en los ojos, medalla dorada. |
+| **Spicy Bacon** (el más chico, juguetón) | 30×39 | Manchas grandes con aro claro, ojos marrones brillantes, mechones negros en las orejas, vincha roja atada (nudo y puntas) y delantal. Al caminar salta un poco más. |
+
+El alto del cuadro (39) y la línea de los pies no cambian; el ancho extra es la cola,
+que se ve en las cuatro direcciones.
+
+## Cómo está armado
+- `trio.ts` tiene un `LOOKS` por personaje (tamaños, paleta, accesorios) y una sola
+  función de dibujo, `trioFrame(id, pose, custom)`. `folk.ts` la llama para `pip`,
+  `rigg` y `spicy`; el resto de los personajes no cambia.
+- Las piezas básicas (elipses, sombreado por bordes, cola con anillos, contorno de
+  1 px por capa, espejo) están en `src/art/plushRaccoon.ts`.
+- Respeta el contrato de las hojas de personajes: 30 cuadros en el orden de `FRAMES`
+  (`characters.ts`): caminar en 4 direcciones, parpadeos, feliz, sorprendido, dormido,
+  triste, orgulloso, respirar, cocinar, saludar, leer y sentado. La izquierda es el
+  espejo de la derecha.
+- El sombrero y la ropa que el jugador presta en el armario se siguen dibujando
+  encima (reemplazan la vincha y el delantal de Spicy).
+- Los guardados no cambian: mismos IDs y misma hoja de 30 cuadros.
 
 ## Cómo se verifica
-`e2e/pip-sprite.spec.ts` (una vez por mapache) comprueba en un navegador real: tamaño de la hoja (30 × 36×39), pies en las últimas filas, perfil izquierdo = espejo del derecho, cabeza simétrica de frente, ojos iguales a cada lado, sin ojos de espalda, cola visible en las cuatro direcciones y que caminar, estados de ánimo y acciones sean cuadros distintos.
-
-`docs/pip-antes-despues.png` compara el sprite anterior con el nuevo.
-
-## Ajuste de tamaño
-La primera versión del peluche medía 32×34 px (ancho × alto de la figura) y se veía grande al lado del resto. El ajuste lo deja en **31×31**, siempre con los pies en la última fila:
-
-| Personaje | Figura (ancho × alto, px) |
-|---|---|
-| Sofi (jugadora) | 20 × 29 |
-| Spicy, Rigg | 22 × 28 |
-| Taro | 22 × 30 |
-| Bento | 20 × 32 |
-| Momo | 20 × 36 |
-| **Pip** | **31 × 31** |
-
-Pip es el mapache más ancho y más grandote (3 px más alto que Spicy y Rigg, 9 px más ancho) sin pasar a Taro ni a Bento en altura.
-
-Cómo se ajustó, sin escalar ninguna imagen: la cabeza pasó a elipse de radios enteros (24×16 px) centrada en un píxel exacto, así sus bordes caen justo entre píxeles y no hay medios píxeles; el torso (22 px), la panza (16 px), los brazos, las orejas y las patas usan centros y radios enteros o medios exactos, y la cola es más corta y más fina. Se conservan la cara, las expresiones, los 30 cuadros y la posición de los pies.
-
-`docs/pip-ajuste-comparacion.png` muestra la versión anterior contra la ajustada, y `docs/mapaches-en-el-restaurante.png` a los tres mapaches dentro del restaurante junto a Sofi, Taro, Bento y Momo.
-
-## Spicy y Rigg (a partir de las imágenes de referencia)
-Los tres comparten el mismo generador y cambian solo los datos de su spec:
-
-| | Tamaño | Pelaje | Rasgos |
-|---|---|---|---|
-| Pip | `big` | gris cálido | franja ancha en la frente, cejas crema sobre el antifaz, orejas crema con interior marrón, panza crema |
-| Spicy | `small` | gris cálido | dos manchas oscuras separadas en los ojos, orejas grises con interior crema, hocico y panza crema; conserva la bandana roja y el delantal |
-| Rigg | `small` | naranja (panda rojo) | manchas negras separadas, mejillas crema, brazos y patas marrón oscuro, cola grande con anillos marrones |
-
-Los colores salen de las imágenes de referencia (se muestrearon con una paleta de 10 a 12 colores). Spicy y Rigg ocupan 32×39 px de cuadro y su figura mide 29 px de alto; Pip, 34×39 y 31 px. Los tamaños del código están en `BIG` y `SMALL` (`plushRaccoon.ts`).
-
-`docs/mapaches-referencia-vs-sprite.png` pone cada referencia junto a su sprite.
+`e2e/raccoon-sprites.spec.ts` corre una vez por mapache en un navegador real: tamaño
+de la hoja, pies en las últimas filas, perfil izquierdo = espejo del derecho, cabeza
+simétrica de frente (salvo Spicy, por el nudo de la vincha), ojos iguales a los dos
+lados, sin ojos de espalda, cola visible en todas las direcciones y que caminar,
+estados de ánimo y acciones sean cuadros distintos.
