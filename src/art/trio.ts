@@ -315,19 +315,15 @@ function face(g: Ctx, s: Geo, id: TrioId, expr: FolkExpr) {
     for (const sg of [-1, 1]) blob(g, W, H, rell(hx + sg * 6, hy + 0.2, 5, 2.3, sg * 0.38), L.dark);
     blob(g, W, H, (x, y) => y >= hy - L.hry + 0.4 && y < hy + 2 && Math.abs(x - hx) <= 1.2 + Math.max(0, (hy - y) * 0.22), L.dark);
     for (const sg of [-1, 1]) blob(g, W, H, ell(hx + sg * 7.6, hy + 4.4, 3, 2.4, 2.1), L.cream, { dk: -0.06 });
-    // a pointed snout: narrower towards the nose
-    blob(g, W, H, (x, y) => {
-      const v = (y - (hy + 3.8)) / 3.6;
-      if (Math.abs(v) > 1) return false;
-      return Math.abs(x - hx) <= 4.4 * Math.sqrt(1 - v * v) * (v > 0 ? 1 - v * 0.45 : 1);
-    }, L.cream, { lt: 0.04, dk: -0.08, l: 1, d: 1 });
+    // seen from the front the long snout points at us: only a small cream tip shows, the length reads from the side
+    blob(g, W, H, ell(hx, hy + 3.6, 2.6, 2.1, 2.2), L.cream, { lt: 0.04, dk: -0.08, l: 1, d: 1 });
     const ey = Math.round(hy - 0.6);
     if (expr === 'blink' || expr === 'sleep') { px(g, cx - 7, ey + 1, L.eye, 3, 1); px(g, cx + 4, ey + 1, L.eye, 3, 1); }
     else if (expr === 'happy') { for (const x0 of [cx - 7, cx + 4]) { px(g, x0, ey + 1, L.eye); px(g, x0 + 1, ey, L.eye); px(g, x0 + 2, ey + 1, L.eye); } }
     else eyesFront(g, s, id, expr, cx - 6, cx + 4, ey, 2, expr === 'surprised' ? 3 : 2);
-    px(g, cx - 1, Math.round(hy + 5.6), L.nose, 2, 2);
-    px(g, cx - 1, Math.round(hy + 5.6), tone(L.nose, 0.35));
-    mouthFront(g, cx, Math.round(hy + 7.4), expr === 'neutral' || expr === 'blink' ? 'sleep' : expr, mouth);
+    px(g, cx - 1, Math.round(hy + 2.8), L.nose, 2, 1);
+    px(g, cx - 1, Math.round(hy + 2.8), tone(L.nose, 0.35));
+    mouthFront(g, cx, Math.round(hy + 5.2), expr === 'neutral' || expr === 'blink' ? 'sleep' : expr, mouth);
     return;
   }
   const big = id === 'spicy';
@@ -349,6 +345,26 @@ function face(g: Ctx, s: Geo, id: TrioId, expr: FolkExpr) {
   mouthFront(g, cx, Math.round(hy + 5), expr, mouth);
 }
 
+/**
+ * Spicy's red bandana: a thin band tied around the forehead (over the head, under the ears' tips), knotted on one side
+ * with two short tails; from behind the knot sits in the middle of the back of the head.
+ */
+function bandana(g: Ctx, s: Geo) {
+  const { L, W, H } = s;
+  const red = '#c9482f', dark = '#962f24';
+  const y0 = s.hy - L.hry + 1.6, y1 = y0 + 2.2;
+  const inHead = ell(s.hx, s.hy, s.hrx + 0.6, L.hry + 0.6, L.hp);
+  blob(g, W, H, (x, y) => y >= y0 && y < y1 && inHead(x, y), red, { lt: 0.18, dk: -0.15, l: 1, d: 1 });
+  const knot = (kx: number, down: number) => {
+    blob(g, W, H, ell(kx, y0 + 1, 1.6, 1.4), dark);
+    blob(g, W, H, (x, y) => y > y0 + 1.6 && y < y0 + 4.8 && Math.abs(x - (kx + down * (y - y0 - 1.6) * 0.6)) < 0.9, red);
+    blob(g, W, H, (x, y) => y > y0 + 1.6 && y < y0 + 4 && Math.abs(x - (kx + down * 1.4 + down * (y - y0 - 1.6) * 0.9)) < 0.9, dark);
+  };
+  if (s.view === 'back') knot(s.hx, 1);
+  else if (s.view === 'side') knot(s.hx - s.hrx + 0.8, -1);
+  else knot(s.hx + s.hrx - 0.6, 1);
+}
+
 /** One frame of Pip, Rigg or Spicy Bacon. `left` is the mirror of `right`. */
 export function trioFrame(id: TrioId, pose: FolkPose, custom?: FolkCustom): HTMLCanvasElement {
   const L = LOOKS[id];
@@ -366,8 +382,9 @@ export function trioFrame(id: TrioId, pose: FolkPose, custom?: FolkCustom): HTML
   if (view === 'back') layers.push((g) => tail(g, s));
   layers.push((g) => ears(g, s, id));
   layers.push((g) => head(g, s, id));
-  const item = custom?.head ?? (id === 'spicy' ? { kind: 'bandana', c1: '#c9482f', c2: '#962f24' } : undefined);
+  const item = custom?.head;
   if (item) layers.push((g) => headAcc(g, item.kind, item.c1, item.c2, Math.round(s.hx), Math.round(s.hy - L.hry) - 1, Math.round(L.hrx * 0.67), view));
+  else if (id === 'spicy') layers.push((g) => bandana(g, s));
   const canvas = stack(L.W, 39, L.ink, layers, (o) => {
     face(o, s, id, pose.expr);
     if (pose.arms === 'read') {
