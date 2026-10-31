@@ -155,11 +155,11 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
 /** Default furniture for each decor room the first time it's visited. */
 const DEFAULT_DECOR: Record<string, [string, number, number, number?][]> = {
   dining: [
-    // three tiles wide, with a gap between the chairs on each side
-    ['table_long', 7, 8], ['chair_dark', 7, 9, 2], ['chair_dark', 9, 9, 2], ['chair_dark', 7, 7, 0], ['chair_dark', 9, 7, 0],
-    ['table_long', 12, 7], ['chair_dark', 12, 8, 2], ['chair_dark', 14, 8, 2], ['chair_dark', 12, 6, 0], ['chair_dark', 14, 6, 0],
-    ['table_low', 15, 10], ['cushion_indigo', 15, 9], ['cushion_rose', 16, 9], ['cushion_rose', 15, 11], ['cushion_indigo', 16, 11],
-    ['bamboo_pot', 16, 6], ['andon', 11, 12], ['bamboo_pot', 7, 12],
+    // three tiles wide, with a gap between the chairs on each side, on the hall's grid (restaurant/stages.ts)
+    ['table_long', 13, 7], ['chair_dark', 13, 8, 2], ['chair_dark', 15, 8, 2], ['chair_dark', 13, 6, 0], ['chair_dark', 15, 6, 0],
+    ['table_long', 17, 7], ['chair_dark', 17, 8, 2], ['chair_dark', 19, 8, 2], ['chair_dark', 17, 6, 0], ['chair_dark', 19, 6, 0],
+    ['table_low', 17, 11], ['cushion_indigo', 17, 10], ['cushion_rose', 18, 10], ['cushion_rose', 17, 12], ['cushion_indigo', 18, 12],
+    ['bamboo_pot', 22, 7], ['andon', 14, 12], ['bamboo_pot', 7, 12],
   ],
   room_player: [['bed_rose', 1, 2], ['lamp_table', 2, 2], ['rug_cream', 3, 4], ['wardrobe_wood', 5, 2]],
   room_pip: [['futon_rose', 9, 3], ['plush_bear', 12, 2], ['lantern_cream', 13, 2]],
@@ -215,8 +215,9 @@ export function ensureDefaultDecor() {
       game.setFlag('resident_futon_' + id, uid); placed = true;
     }
   }
-  applyStageGrants(); // after the defaults, so the new tables never land on them
   widenSavedTables();
+  spreadSavedTables();
+  applyStageGrants(); // after the defaults (and the moves of older halls), so the new tables never land on them
   settleStoredGifts();
 }
 
@@ -257,6 +258,55 @@ function widenSavedTables() {
       });
       syncWideDining(table.uid, table.x, table.y, chairs.filter((c): c is PlacedFurniture => !!c));
     }
+  });
+}
+
+/**
+ * The hall grew to 24 tiles and its tables moved onto a grid with aisles. In older saves, every group the game placed
+ * (default tables, stage tables, the tatami) that is still exactly where the game left it moves to its new place;
+ * anything the player arranged stays where it is.
+ */
+type Piece = [id: string, x: number, y: number];
+const SPREAD: { from: Piece[]; to: Piece[] }[] = [
+  { from: [['table_long', 12, 7], ['chair_dark', 12, 6], ['chair_dark', 14, 6], ['chair_dark', 12, 8], ['chair_dark', 14, 8]],
+    to: [['table_long', 17, 7], ['chair_dark', 17, 6], ['chair_dark', 19, 6], ['chair_dark', 17, 8], ['chair_dark', 19, 8]] },
+  { from: [['table_long', 7, 8], ['chair_dark', 7, 7], ['chair_dark', 9, 7], ['chair_dark', 7, 9], ['chair_dark', 9, 9]],
+    to: [['table_long', 13, 7], ['chair_dark', 13, 6], ['chair_dark', 15, 6], ['chair_dark', 13, 8], ['chair_dark', 15, 8]] },
+  { from: [['table_low', 15, 10], ['cushion_indigo', 15, 9], ['cushion_rose', 16, 9], ['cushion_rose', 15, 11], ['cushion_indigo', 16, 11]],
+    to: [['table_low', 17, 11], ['cushion_indigo', 17, 10], ['cushion_rose', 18, 10], ['cushion_rose', 17, 12], ['cushion_indigo', 18, 12]] },
+  { from: [['table_dark', 10, 10], ['chair_dark', 10, 9], ['chair_dark', 11, 9], ['chair_dark', 10, 11], ['chair_dark', 11, 11]],
+    to: [['table_long', 3, 7], ['chair_dark', 3, 6], ['chair_dark', 5, 6], ['chair_dark', 3, 8], ['chair_dark', 5, 8]] },
+  { from: [['table_dark', 13, 10], ['chair_dark', 13, 9], ['chair_dark', 14, 9], ['chair_dark', 13, 11], ['chair_dark', 14, 11]],
+    to: [['table_long', 11, 11], ['chair_dark', 11, 10], ['chair_dark', 13, 10], ['chair_dark', 11, 12], ['chair_dark', 13, 12]] },
+  { from: [['table_round', 15, 7], ['chair_dark', 15, 6], ['chair_dark', 15, 8]], to: [['table_round', 4, 11], ['chair_dark', 4, 10], ['chair_dark', 4, 12]] },
+  { from: [['lantern_red', 10, 6]], to: [['lantern_red', 7, 6]] },
+  { from: [['bamboo_pot', 16, 6]], to: [['bamboo_pot', 22, 7]] },
+  { from: [['andon', 11, 12]], to: [['andon', 14, 12]] },
+];
+function spreadSavedTables() {
+  game.once('dining_spread_v1', () => {
+    const room = game.room('dining');
+    const covers = (f: PlacedFurniture, x: number, y: number) => {
+      const d = FURN_BY_ID[f.id];
+      if (!d) return false;
+      const s = furnSize(d, f.rot);
+      return x >= f.x && x < f.x + s.w && y >= f.y && y < f.y + s.h;
+    };
+    // every group found intact moves together; each target is checked against what stays in place
+    const found = SPREAD.map((g) => g.from.map(([id, x, y]) => room.find((f) => f.id === id && f.x === x && f.y === y && (f.rot ?? 0) % 2 === 0)));
+    const moving = new Set(found.filter((fs) => fs.every(Boolean)).flat() as PlacedFurniture[]);
+    found.forEach((fs, i) => {
+      if (!fs.every(Boolean)) return;
+      const to = SPREAD[i].to;
+      const clear = to.every(([id, x, y]) => {
+        const s = furnSize(FURN_BY_ID[id], 0);
+        for (let j = 0; j < s.h; j++) for (let k = 0; k < s.w; k++) if (room.some((f) => !moving.has(f) && covers(f, x + k, y + j))) return false;
+        return true;
+      });
+      if (!clear) { fs.forEach((f) => moving.delete(f!)); return; }
+      fs.forEach((f, n) => { f!.id = to[n][0]; f!.x = to[n][1]; f!.y = to[n][2]; });
+      syncWideDining(fs[0]!.uid, fs[0]!.x, fs[0]!.y, fs.slice(1) as PlacedFurniture[]);
+    });
   });
 }
 

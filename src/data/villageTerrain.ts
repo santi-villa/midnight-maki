@@ -129,10 +129,9 @@ export function createVillageTerrain() {
   rect(plaza.x, plaza.y, plaza.w, plaza.h, 'c', true);
   // Clearly bounded public square: fountain, planting beds and seating belong here.
   if (exteriorsWanted()) {
-    // Modern Exteriors: raised planters on the paving instead of flat beds, and two pigeons by the fountain.
+    // Modern Exteriors: raised planters on the paving instead of flat beds (pigeons come as a flock, see data/flocks.ts).
     prop('planter_pink', 48, 34); prop('planter_white', 60, 34);
     prop('planter_red', 48, 41); prop('planter_pink', 60, 41);
-    prop('pigeon', 52, 39); prop('pigeon_peck', 57, 35);
   } else {
     rect(48, 33, 2, 2, 'r'); rect(60, 33, 2, 2, 'y');
     rect(48, 40, 2, 2, 'l'); rect(60, 40, 2, 2, 'r');
@@ -211,7 +210,7 @@ export function createVillageTerrain() {
   // A quiet crescent beach below the garden; everything stays comfortably above the foam line.
   rect(21, 46, 3, 3, 's'); for (let y = 46; y < 49; y++) for (let x = 21; x < 24; x++) prop('stonestairs', x, y);
   prop('beach_umbrella_blue', 10, 53); prop('beach_towel_sky', 11, 54);
-  prop('seagull', 22, 59); prop('boat_rope', 27, 56); prop('bigrock', 3, 57); prop('beach_grass', 5, 50);
+  prop('boat_rope', 27, 56); prop('bigrock', 3, 57); prop('beach_grass', 5, 50);
   prop('bench', 24, 49);
   if (exteriorsWanted()) {
     // Modern Exteriors: a second shade below the pier walk, castles on the wet sand, and the sea's own landmarks offshore.
@@ -236,13 +235,13 @@ export function createVillageTerrain() {
   prop('lighthouse', 98, 67); prop('boat', 59, 74); prop('boat_rope', 74, 73); prop('boat', 87, 72);
   rails.push({ x: 57, y: 69, span: 32, axis: 'h' });
   if (exteriorsWanted()) {
-    // Modern Exteriors: carts between the market stalls, cargo and benches against the south rail, gulls on the rails.
+    // Modern Exteriors: carts between the market stalls, cargo and benches against the south rail.
     // The aisle, the stall counters, both pier mouths and the house doors stay open.
     prop('wharf_flower_cart', 57, 60); prop('wharf_candy_cart', 41, 60);
     prop('wharf_flower_box', 44, 68); prop('wharf_barrel', 52, 68); prop('wharf_barrel', 53, 68);
-    prop('wharf_flower_box', 60, 68); prop('wharf_bench', 64, 68); prop('gull_right', 59, 69);
+    prop('wharf_flower_box', 60, 68); prop('wharf_bench', 64, 68);
     prop('wharf_boxes', 75, 68); prop('wharf_box', 77, 68); prop('wharf_barrel', 78, 68);
-    prop('wharf_bench', 86, 68); prop('gull_left', 80, 69); prop('gull_right', 92, 69);
+    prop('wharf_bench', 86, 68);
   }
   for (const [x, y] of [[55, 65], [63, 65], [78, 66], [90, 67], [97, 69]]) prop('lantern_cream', x, y);
   // River walk remains on the residential bank, with a bridge to the wharf.

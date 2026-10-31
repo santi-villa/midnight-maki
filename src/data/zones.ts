@@ -49,11 +49,12 @@ export const GARDEN_PLOT_POSITIONS = [[7, 10], [8, 10], [9, 10], [10, 10], [7, 1
 // ================================================================== RESTAURANT
 function restaurant(): ZoneDef {
   // izakaya / sushi bar: tall dark walls (noren band on top), bar behind a sushi counter, tatami corner
-  const b = new Builder(18, 14, '#');
-  b.room(0, 0, 18, 14, [11, 14]);
-  b.rect(1, 0, 16, 1, 'U');
+  // 24 wide: the hall grew to the right so its tables keep a one-tile aisle around them (kitchen, doors and stairs stay put)
+  const b = new Builder(24, 14, '#');
+  b.room(0, 0, 24, 14, [11, 14, 19, 21]);
+  b.rect(1, 0, 22, 1, 'U');
   b.rect(KITCHEN.x, KITCHEN.y, KITCHEN.w, KITCHEN.h, 'k');
-  b.rect(12, 9, 5, 4, 't');
+  b.rect(15, 9, 7, 4, 't');
   b.set(8, 13, 'm').set(9, 13, 'm');
   // the kitchen is a station table (galley/layout.ts): a spot that needs an upgrade is a plain work counter until then
   for (const s of STATIONS) {
@@ -70,6 +71,12 @@ function restaurant(): ZoneDef {
     .prop('wall_lantern_red', 5, 1)
     .prop('wall_lantern_cream', 12, 1)
     .prop('wall_lantern_red', 15, 1)
+    .prop('wallshelf', 18, 1)
+    .prop('wall_lantern_cream', 20, 1)
+    .prop('wallshelf', 21, 1)
+    .prop('bamboo', 22, 2)
+    .prop('sake_barrel', 18, 3)
+    .prop('sake_barrel', 19, 3)
     .prop('sake_barrel', 1, 9)
     .prop('sake_barrel', 1, 10)
     .prop('barrel', 2, 10)
@@ -107,7 +114,7 @@ function restaurant(): ZoneDef {
       { id: 'storage_door', x: 13, y: 2, label: 'Depósito', action: 'door:storage' },
     ],
     // the hall includes the open floor left of the old square and the tatami corner; the kitchen stays outside
-    rooms: [{ id: 'dining', name: 'Salón', x: 3, y: 6, w: 14, h: 7, defWall: 'izakaya', defFloor: 'izakaya' }],
+    rooms: [{ id: 'dining', name: 'Salón', x: 3, y: 6, w: 20, h: 7, defWall: 'izakaya', defFloor: 'izakaya' }],
     gather: [],
   });
 }
@@ -240,7 +247,7 @@ function beach(): ZoneDef {
     // One quiet sunbathing corner; leave the central shoreline open for walking and shells.
     // Sea landmarks sit at the edges instead of scattering across the swimming/fishing view.
     b.prop('beach_umbrella_blue', 27, 12).prop('beach_towel_sky', 28, 13)
-      .prop('seagull', 17, 14).prop('beach_grass', 11, 5)
+      .prop('beach_grass', 11, 5)
       .prop('sea_rock_big', 2, 20).prop('buoy_red', 40, 20);
   }
   b.prop('boat', 31, 14).prop('boat', 44, 13).prop('bigrock', 42, 15).prop('rock', 46, 14)
