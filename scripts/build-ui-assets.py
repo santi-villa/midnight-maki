@@ -63,3 +63,28 @@ if (SPROUT / 'Mouse sprites').is_dir():
         im.resize((32, 32), Image.NEAREST).save(DEST / f'{name}.png', optimize=True)
     Image.open(SPROUT / 'Dialouge UI' / 'dialog box character finished talking click to continue indicator - spritesheet .png').convert('RGBA').save(DEST / 'dialog_next.png', optimize=True)
     print('sprout lands: cursors + dialog indicator')
+
+# Sprout Lands frames for the HTML menus, cut tight and blown up 3x (nearest) so CSS border-image stays crisp.
+if (SPROUT / 'Sprite sheet for Basic Pack.png').is_file():
+    basic = Image.open(SPROUT / 'Sprite sheet for Basic Pack.png').convert('RGBA')
+    menu = Image.open(SPROUT / 'Setting menu.png').convert('RGBA')
+    dlg = Image.open(SPROUT / 'Dialouge UI' / 'dialog box big.png').convert('RGBA')
+
+    def tight(im, box):
+        c = im.crop(box)
+        return c.crop(c.getbbox())
+
+    FRAMES = {
+        'btn': tight(basic, (163, 178, 253, 205)),
+        'btn_down': tight(basic, (259, 180, 349, 205)),
+        'tile': tight(basic, (11, 59, 37, 87)),
+        'tile_on': tight(basic, (11, 107, 37, 135)),
+        'tile_dark': tight(basic, (11, 155, 37, 183)),
+        'frame': tight(basic, (153, 57, 183, 87)),
+        'close': tight(basic, (825, 0, 870, 30)),
+        'panel': tight(menu, (128, 0, 256, 144)),
+        'dialog': tight(dlg, (7, 0, 176, 48)),
+    }
+    for name, im in FRAMES.items():
+        im.resize((im.width * 3, im.height * 3), Image.NEAREST).save(DEST / f'sl_{name}.png', optimize=True)
+    print('sprout lands frames:', {k: v.size for k, v in FRAMES.items()})
