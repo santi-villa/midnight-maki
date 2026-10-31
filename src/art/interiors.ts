@@ -51,6 +51,15 @@ export function drawLimezuFloor(c: CanvasRenderingContext2D, x: number, y: numbe
   return true;
 }
 
+/** Room Builder walls (by decor wall style): part 0 is the upper row ('U'), part 1 the lower row with its skirting ('W'). */
+const lzWalls = (limezu as { walls?: Record<string, { atlas: { x: number; y: number } }> }).walls ?? {};
+export function drawLimezuWall(c: CanvasRenderingContext2D, x: number, y: number, style: string, part: 0 | 1): boolean {
+  const f = lzWalls[style];
+  if (!lzAtlas || !f) return false;
+  c.drawImage(lzAtlas, f.atlas.x, f.atlas.y + part * 16, 16, 16, x, y, 16, 16);
+  return true;
+}
+
 /** True when this furniture ID is drawn by a LimeZu piece (the piece already has its own rotations). */
 export const hasLimezu = (id: string) => !!lzAtlas && lzFor.has(id);
 
