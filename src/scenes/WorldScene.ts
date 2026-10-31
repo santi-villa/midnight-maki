@@ -78,6 +78,7 @@ import { shopShutter, shutterLevel } from '../art/shopShutter';
 import { buildingLayout } from '../art/nature';
 import { villageShopLayout } from '../art/village';
 import { makeCanvas, ctx2d } from '../art/pixel';
+import { exteriorObject } from '../art/exteriors';
 import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
@@ -461,6 +462,23 @@ export class WorldScene extends Phaser.Scene {
     cam.setBounds(bx, by, Math.max(w, vw), Math.max(h, vh));
   }
 
+  /** The square's fountain runs: the pack's six frames cycled on the prop's image (still when effects are low). */
+  private animateFountain(img: Phaser.GameObjects.Image, w: number, h: number) {
+    if (lowFx() || settings.reduceMotion) return;
+    const keys: string[] = [];
+    for (let f = 0; f < 6; f++) {
+      const key = `fountain_anim_${f}`;
+      if (!this.textures.exists(key)) {
+        const c = exteriorObject(`fountain_frame_${f}`, w, h);
+        if (!c) return;
+        this.textures.addCanvas(key, c);
+      }
+      keys.push(key);
+    }
+    let i = 0;
+    const timer = this.time.addEvent({ delay: 140, loop: true, callback: () => { if (!img.active) { timer.remove(); return; } img.setTexture(keys[i = (i + 1) % keys.length]); } });
+  }
+
   /** The lighthouse's beam: a long soft cone turning slowly round the lantern at night (added light, never a solid shape). */
   private addBeacon(x: number, y: number) {
     if (lowFx()) return;
@@ -718,6 +736,7 @@ export class WorldScene extends Phaser.Scene {
       const px = p.x * TILE + (p.def.w * TILE) / 2;
       const py = (p.y + p.def.h) * TILE;
       const img = this.add.image(px, py, key).setOrigin(0.5, 1);
+      if (p.key === 'fountain') this.animateFountain(img, p.def.sw, p.def.sh);
       // wall-mounted props (on wall face rows) render behind actors
       const onWall = def.ground[p.y]?.[p.x] === 'W' || def.ground[p.y]?.[p.x] === 'V';
       // awnings and posters sit on building fronts; puddles lie on the ground

@@ -27,6 +27,7 @@ SHEETS = {
     'beach': 'ME_Theme_Sorter_16x16/21_Beach_16x16.png',
     'sea': 'Animated_16x16/Animated_Terrains_16x16/Sea_Water_Tileset_Basic_16x16.png',
     'seacorner': 'Animated_16x16/Animated_Terrains_16x16/Sea_Water_Tileset_Outer_Corners_16x16.png',
+    'fountain_anim': 'Animated_16x16/Animated_sheets_16x16/Garden_Fountain_5_16x16.png',
 }
 _sheets = {}
 
@@ -135,7 +136,10 @@ def add_single(key, name, replaces, folder, single):
 
 
 # Plaza: the fountain, its benches, street lamps, mailbox, pots and planters on the flower beds.
-add_single('fountain', 'Fuente de la plaza', ['fountain'], '17_Garden', 'Garden_16x16_Fountain_3_4')
+# the square's fountain with running water: the pack's six-frame animation (frame 0 is the still drawing)
+add('fountain', 'Fuente de la plaza', ['fountain', 'fountain_frame_0'], 'fountain_anim', (0, 0, 64, 80))
+for f in range(1, 6):
+    add(f'fountain_f{f}', f'Fuente de la plaza (cuadro {f})', [f'fountain_frame_{f}'], 'fountain_anim', (f * 64, 0, 64, 80))
 add_single('bench', 'Banco de plaza', ['bench', 'wharf_bench'], '3_City_Props', 'City_Props_16x16_Bench_7')
 add_single('street_lamp', 'Farol', ['lamppost', 'street_lamp_l', 'street_lamp_r'], '3_City_Props', 'City_Props_16x16_Street_Lamp_5')
 add_single('bench_side_l', 'Banco de costado (mira a la derecha)', ['bench_side_l'], '3_City_Props', 'City_Props_16x16_Bench_6')
