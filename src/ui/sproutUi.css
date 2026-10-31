@@ -72,3 +72,50 @@ body .slot.selected { background: none; border-image-source: url('../assets/ui/s
   border: 15px solid transparent; border-image: url('../assets/ui/sl_dialog.png') 15 15 18 15 fill / 15px 15px 18px 15px stretch;
 }
 body .load-tip { color: #6b4f33; }
+
+/* exploration HUD */
+.game-hud .hud-status {
+  border: 12px solid transparent; border-image: url('../assets/ui/sl_panel.png') 15 fill / 12px stretch;
+  background: none; box-shadow: 0 4px 10px rgba(20, 12, 8, .35);
+}
+.game-hud .hud-status .time, .game-hud .hud-date, .game-hud .hud-coins, .game-hud .hud-time-row { background: transparent; }
+.game-hud .hud-date, .game-hud .hud-coins { border-top: 2px solid #c69a68; }
+.game-hud .hud-energy { border: 2px solid #8b6a46; background: #c69a68; border-radius: 4px; }
+.game-hud .hud-energy i { background: linear-gradient(#bfe08a 0 35%, #8fbf5a 35% 80%, #6f9e45 80%); }
+.game-hud .hud-status-toggle { border: 6px solid transparent; border-image: url('../assets/ui/sl_btn.png') 12 12 15 12 fill / 6px 6px 8px 6px stretch; }
+.game-hud .hud-buttons .icon-btn {
+  width: 48px; height: 52px; border: 0; border-radius: 0; box-shadow: none;
+  background: url('../assets/ui/sl_round.png') center / 48px 52px no-repeat; image-rendering: pixelated;
+}
+.game-hud .hud-buttons .icon-btn .skin-icon { margin-top: -4px; }
+.game-hud .hud-buttons .icon-btn:active { background: url('../assets/ui/sl_round_down.png') center bottom / 48px 50px no-repeat; box-shadow: none; }
+.game-hud .hud-quest, .game-hud .hud-quest.mini {
+  border: 12px solid transparent; border-image: url('../assets/ui/sl_dialog.png') 15 15 18 15 fill / 12px 12px 14px 12px stretch;
+  background: none; box-shadow: 0 4px 10px rgba(20, 12, 8, .3); padding: 0 4px 2px;
+}
+.game-hud .hud-suggest button, .game-hud .hud-phone, .game-hud .ctx-dock .hud-interact, .game-hud .ctx-chip, .game-hud .ctx-row {
+  border: 10px solid transparent; border-image: url('../assets/ui/sl_btn.png') 12 12 15 12 fill / 10px 10px 12px 10px stretch;
+  box-shadow: 0 4px 8px rgba(20, 12, 8, .3); color: #4a3020;
+}
+.game-hud .hud-suggest button:active, .game-hud .hud-phone:active, .game-hud .ctx-dock .hud-interact:active, .game-hud .ctx-chip:active {
+  border-image: url('../assets/ui/sl_btn_down.png') 12 fill / 10px stretch; box-shadow: none;
+}
+.game-hud kbd { border: 2px solid #b98d5a; background: #f8eed3; color: #4a3020; }
+.joystick.game-joystick i { border: 0; background: url('../assets/ui/sl_round.png') center / 100% 100% no-repeat; box-shadow: none; image-rendering: pixelated; }
+.toast, body .toast {
+  background: none; color: #4a3020; text-shadow: none; border-radius: 0;
+  border: 10px solid transparent; border-image: url('../assets/ui/sl_dialog.png') 15 15 18 15 fill / 10px 10px 12px 10px stretch;
+}
+.game-hud .hud-meters .hud-coins {
+  border: 7px solid transparent; border-radius: 0; background: none; box-shadow: none;
+  border-image: url('../assets/ui/sl_btn.png') 12 12 15 12 fill / 7px 7px 9px 7px stretch; padding: 0 2px;
+}
+.game-hud .hud-meters .hud-energy { border-color: #8b6a46; }
+.game-hud .hud-status { padding: 0 4px; }
+
+/* Noriphone: the pack's buttons on the phone's own screens */
+.pn-btn, .pn-tab, .pn-opt, .pn-back, .pn-close {
+  background: none; border-radius: 0; box-shadow: none; color: #4a3020;
+  border: 9px solid transparent; border-image: url('../assets/ui/sl_btn.png') 12 12 15 12 fill / 9px 9px 11px 9px stretch;
+}
+.pn-btn:active, .pn-tab:active, .pn-opt:active, .pn-back:active, .pn-close:active { border-image: url('../assets/ui/sl_btn_down.png') 12 fill / 9px stretch; }
