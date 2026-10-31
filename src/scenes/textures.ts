@@ -323,6 +323,9 @@ export function critterTexture(scene: Phaser.Scene, kind: 'bird' | 'cat' | 'butt
   if (scene.textures.exists(key)) return key;
   const wings = ['#f4a6c0', '#ffd36a', '#9fd8f6', '#ffffff'][variant % 4];
   const B: Record<string, string> = { b: '#a8714a', d: '#7a4c30', w: '#f6f1e6', y: '#f2b33a', k: '#2b1d17', g: '#a59f9a', G: '#7a7480', p: '#f08aa0', W: wings, V: shade(wings, -0.2) };
+  // birds: variant 0 sparrow, 1 pigeon (grey, pinkish beak), 2 gull (white, grey wings, yellow beak)
+  if (kind === 'bird' && variant % 4 === 1) Object.assign(B, { b: '#9aa0ae', d: '#6d7384', w: '#c3c7d3', y: '#d9a0a8' });
+  if (kind === 'bird' && variant % 4 === 2) Object.assign(B, { b: '#f2f0ea', d: '#a9b0ba', w: '#ffffff', y: '#f2b33a' });
   const frames =
     kind === 'bird'
       ? [

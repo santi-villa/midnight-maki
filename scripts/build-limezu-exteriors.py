@@ -103,7 +103,7 @@ def add(key, name, replaces, sh, rect):
     pieces.append(dict(id='lx_' + key, name=name, replaces=replaces, sheet=sh, rect=list(rect)))
 
 
-# Beach: parasols, towels, sandcastles, signposts, a seagull, buoys and rocks standing in the sea.
+# Beach: parasols, towels, sandcastles, buoys and rocks standing in the sea.
 add('umbrella_blue', 'Sombrilla celeste', ['beach_umbrella_blue'], 'beach', (400, 211, 47, 61))
 add('umbrella_green', 'Sombrilla verde', ['beach_umbrella_green'], 'beach', (464, 211, 47, 61))
 add('umbrella_orange', 'Sombrilla naranja', ['beach_umbrella_orange'], 'beach', (464, 275, 47, 61))
@@ -113,7 +113,6 @@ add('towel_sun', 'Toallón amarillo', ['beach_towel_sun'], 'beach', (450, 97, 28
 add('sandcastle', 'Castillo de arena', ['sandcastle'], 'beach', (81, 299, 47, 36))
 add('sandcastle_wide', 'Castillo de arena con muralla', ['sandcastle_wide'], 'beach', (193, 300, 46, 35))
 add('sandcastle_tower', 'Torre de arena', ['sandcastle_tower'], 'beach', (137, 294, 18, 25))
-add('seagull', 'Gaviota', ['seagull'], 'beach', (133, 667, 23, 20))
 add('buoy', 'Boya', ['buoy'], 'beach', (8, 853, 17, 27))
 add('buoy_red', 'Boya faro', ['buoy_red'], 'beach', (39, 849, 18, 31))
 add('buoy_orange', 'Boya naranja', ['buoy_orange'], 'beach', (72, 862, 17, 18))
@@ -135,7 +134,7 @@ def add_single(key, name, replaces, folder, single):
     add(key, name, replaces, sh, (left, top, right - left, bottom - top))
 
 
-# Plaza: the fountain, its benches, street lamps, mailbox, pots, planters on the flower beds and two pigeons.
+# Plaza: the fountain, its benches, street lamps, mailbox, pots and planters on the flower beds.
 add_single('fountain', 'Fuente de la plaza', ['fountain'], '17_Garden', 'Garden_16x16_Fountain_3_4')
 add_single('bench', 'Banco de plaza', ['bench', 'wharf_bench'], '3_City_Props', 'City_Props_16x16_Bench_7')
 add_single('street_lamp', 'Farol', ['lamppost', 'street_lamp_l', 'street_lamp_r'], '3_City_Props', 'City_Props_16x16_Street_Lamp_5')
@@ -145,10 +144,8 @@ add_single('pot_topiary', 'Maceta con arbusto', ['pot_cream'], '17_Garden', 'Gar
 add_single('planter_pink', 'Cantero rosa', ['planter_pink'], '3_City_Props', 'City_Props_16x16_Flower_Bush_1')
 add_single('planter_red', 'Cantero rojo', ['planter_red'], '3_City_Props', 'City_Props_16x16_Flower_Bush_2')
 add_single('planter_white', 'Cantero blanco', ['planter_white'], '3_City_Props', 'City_Props_16x16_Flower_Bush_3')
-add_single('pigeon', 'Paloma', ['pigeon'], '3_City_Props', 'City_Props_16x16_Pigeon_1')
-add_single('pigeon_peck', 'Paloma picoteando', ['pigeon_peck'], '3_City_Props', 'City_Props_16x16_Pigeon_2')
 
-# Harbour and market: cargo, carts and gulls on the wharf (wharf_* may stand on decks and paths, see villageWorld).
+# Harbour and market: cargo and carts on the wharf (wharf_* may stand on decks and paths, see villageWorld).
 add_single('wharf_barrel', 'Barril del muelle', ['wharf_barrel'], '3_City_Props', 'City_Props_16x16_Brown_Barrel_2')
 add_single('wharf_boxes', 'Pila de cajas', ['wharf_boxes'], '6_Garage_Sales', 'Garage_Sales_16x16_Box_9')
 add_single('wharf_box', 'Caja', ['wharf_box'], '6_Garage_Sales', 'Garage_Sales_16x16_Box_2')
@@ -156,8 +153,6 @@ add_single('wharf_flower_cart', 'Carro de flores', ['wharf_flower_cart'], '17_Ga
 add_single('wharf_flower_box', 'Cajón con flores', ['wharf_flower_box'], '17_Garden', 'Garden_16x16_Wood_Box_Full_2')
 add_single('wharf_candy_cart', 'Carrito de golosinas', ['wharf_candy_cart'], '3_City_Props', 'City_Props_16x16_Candies_Cart_1')
 add_single('lighthouse', 'Faro', ['lighthouse_tall'], '21_Beach', '21_Beach_16x16_Example_Lighthouse')
-add_single('gull_left', 'Gaviota mirando a la izquierda', ['gull_left'], '21_Beach', '21_Beach_16x16_Seagull_Left')
-add_single('gull_right', 'Gaviota mirando a la derecha', ['gull_right'], '21_Beach', '21_Beach_16x16_Seagull_Right')
 
 # Station platform: a long bench, luggage, a trolley and potted trees.
 add_single('station_bench', 'Banco del andén', ['station_bench'], '20_Subway_and_Train_Station', 'Subway_and_Train_Station_16x16_Three_Seats_Grey_Bench_Frontal_1')

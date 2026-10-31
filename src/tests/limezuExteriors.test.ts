@@ -55,7 +55,7 @@ describe('LimeZu exterior pieces', () => {
     }
     const plaza = ZONES.plaza;
     const ids = new Set(plaza.props.map((p) => p.id));
-    for (const id of ['planter_pink', 'planter_white', 'planter_red', 'pigeon']) expect(ids.has(id), id).toBe(true);
+    for (const id of ['planter_pink', 'planter_white', 'planter_red']) expect(ids.has(id), id).toBe(true);
     for (const row of plaza.ground) expect(row).not.toMatch(/[ryl]{2}/);
   });
 });

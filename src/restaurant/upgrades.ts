@@ -36,10 +36,11 @@ export const UPGRADES: UpgradeDef[] = [
 ];
 
 const VISUAL: Record<string, [string, number, number, number?][]> = {
-  tables2: [['table_round', 10, 11], ['chair_wood', 11, 11, 3]],
-  lights: [['lantern_red', 11, 6], ['lantern_red', 15, 6]],
-  display: [['display_case', 10, 6]],
-  second_room: [['table_low', 7, 10], ['cushion_rose', 7, 11], ['cushion_indigo', 8, 11]],
+  // off the door's aisle, the kitchen gates and the table grid (restaurant/stages.ts)
+  tables2: [['table_round', 6, 7], ['chair_wood', 7, 7, 3]],
+  lights: [['lantern_red', 22, 6], ['lantern_red', 22, 9]],
+  display: [['display_case', 21, 9]],
+  second_room: [['table_low', 20, 11], ['cushion_rose', 20, 10], ['cushion_indigo', 21, 10]],
 };
 
 const purchasing = new Set<string>();

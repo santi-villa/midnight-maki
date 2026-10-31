@@ -102,7 +102,6 @@ export const PROPS: Record<string, PropDef> = {
   sandcastle: P('rock', 3, 2, 47, 36, '#e0a050', '', { sombra: 'contacto' }),
   sandcastle_wide: P('rock', 3, 2, 46, 35, '#e0a050', '', { sombra: 'contacto' }),
   sandcastle_tower: P('rock', 1, 1, 18, 25, '#e0a050', '', { sombra: 'contacto' }),
-  seagull: P('rock', 1, 1, 23, 20, '#f6f3ee', '', { solid: false, sombra: 'contacto' }),
   buoy: P('stonelantern', 1, 1, 17, 27, '#4a8a8a', '', { solid: false, sombra: 'ninguna' }),
   buoy_red: P('stonelantern', 1, 1, 18, 31, '#d04040', '', { solid: false, sombra: 'ninguna' }),
   buoy_orange: P('stonelantern', 1, 1, 17, 18, '#f0a030', '', { solid: false, sombra: 'ninguna' }),
@@ -112,12 +111,10 @@ export const PROPS: Record<string, PropDef> = {
   sea_rock_small: P('rock', 1, 1, 20, 19, '#8d8790', '', { solid: false, sombra: 'ninguna' }),
   sea_rock_arch: P('rock', 2, 1, 22, 35, '#8d8790', '', { solid: false, sombra: 'ninguna' }),
   beach_grass: P('bush', 1, 1, 19, 19, '#5db449', '#5db449', { solid: false, sombra: 'contacto' }),
-  // plaza dressing from the same pack: planters on the square's flower beds and pigeons that never block the way.
+  // plaza dressing from the same pack: planters on the square's flower beds.
   planter_pink: P('flowers', 2, 1, 32, 15, '#f47fa0', '#ffffff', { sombra: 'contacto' }),
   planter_red: P('flowers', 2, 1, 32, 15, '#e0504a', '#ffffff', { sombra: 'contacto' }),
   planter_white: P('flowers', 2, 1, 32, 15, '#f6f3ee', '#ffffff', { sombra: 'contacto' }),
-  pigeon: P('rock', 1, 1, 11, 13, '#9aa0ae', '', { solid: false, sombra: 'contacto' }),
-  pigeon_peck: P('rock', 1, 1, 13, 15, '#9aa0ae', '', { solid: false, sombra: 'contacto' }),
   // harbour and market (wharf_* may stand on the deck and the market paths); gulls never block the way
   wharf_barrel: P('barrel', 1, 1, 15, 26),
   wharf_boxes: P('crate', 2, 1, 32, 36),
@@ -126,8 +123,6 @@ export const PROPS: Record<string, PropDef> = {
   wharf_flower_cart: P('crate', 2, 1, 32, 34, '#b07a4c'),
   wharf_flower_box: P('crate', 2, 1, 28, 27, '#b07a4c'),
   wharf_candy_cart: P('stall', 3, 1, 46, 37, '#f4a6c0', '#f8f4ec'),
-  gull_left: P('rock', 1, 1, 23, 20, '#f6f3ee', '', { solid: false, sombra: 'contacto' }),
-  gull_right: P('rock', 1, 1, 23, 20, '#f6f3ee', '', { solid: false, sombra: 'contacto' }),
   // station platform
   station_bench: P('bench', 3, 1, 46, 16, '#8d8790'),
   station_suitcase: P('crate', 1, 1, 15, 18, '#f0a030'),

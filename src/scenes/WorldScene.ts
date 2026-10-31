@@ -86,6 +86,8 @@ import { gatherSpots, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 import { companyScene, openCompany } from '../story/companions';
 import type { CompanyActivity } from '../systems/companionship';
+import { FLOCKS, type BirdSpecies } from '../data/flocks';
+const BIRD_VARIANT: Record<BirdSpecies, number> = { sparrow: 0, pigeon: 1, gull: 2 };
 
 export type { Target };
 
@@ -859,7 +861,7 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat' | 'butterfly'; vx: number; vy: number; t: number; flying: boolean; ox?: number; oy?: number }[] = [];
+  private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat' | 'butterfly'; vx: number; vy: number; t: number; flying: boolean; ox?: number; oy?: number; flock?: number }[] = [];
   /** birds hop around by day and fly off when you get close; a cat strolls through the plaza */
   private pets: Pets | null = null;
   spawnCritters() {
@@ -871,7 +873,7 @@ export class WorldScene extends Phaser.Scene {
       this.pets = this.zone?.def.outdoor || this.zoneId === 'restaurant' ? new Pets(this, this.zoneId, clock.isNight(), (x, y) => this.petFootstep(x, y), this.zone.grid) : null;
     }
     const def = this.zone.def;
-    if (!def.outdoor || game.flag('weather') === 'rain' || ['market', 'station'].includes(this.zoneId)) return;
+    if (!def.outdoor || game.flag('weather') === 'rain' || this.zoneId === 'station') return;
     const night = clock.isNight();
     const add = (kind: 'bird' | 'cat' | 'butterfly') => {
       for (let k = 0; k < 20; k++) {
@@ -883,7 +885,17 @@ export class WorldScene extends Phaser.Scene {
         return;
       }
     };
-    if (!night) for (let i = 0; i < (this.zoneId === 'beach' ? 2 : 3); i++) add('bird');
+    // flocks gather where they make sense (data/flocks.ts) and leave together
+    if (!night) FLOCKS.forEach((f, n) => {
+      if (f.zone !== this.zoneId) return;
+      for (let i = 0, tries = 0; i < f.n && tries < f.n * 6; tries++) {
+        const x = f.x + Math.floor(Math.random() * 4) - 2, y = f.y + Math.floor(Math.random() * 3) - 1;
+        if (x < 0 || y < 0 || x >= def.w || y >= def.h || this.zone.grid.isSolid(x, y)) continue;
+        const s = this.add.sprite(x * TILE + 4 + Math.random() * 8, y * TILE + 10 + Math.random() * 4, critterTexture(this, 'bird', BIRD_VARIANT[f.species]), 0).setOrigin(0.5, 1).setFlipX(Math.random() < 0.5);
+        this.critters.push({ s, kind: 'bird', vx: 0, vy: 0, t: Math.random() * 2, flying: false, ox: s.x, oy: s.y, flock: n });
+        i++;
+      }
+    });
     if (!night && seasonOf(game.save.time.day) < 2 && ['plaza', 'garden', 'forest'].includes(this.zoneId)) for (let i = 0; i < (this.zoneId === 'garden' ? 5 : 3); i++) add('butterfly');
   }
 
@@ -903,10 +915,13 @@ export class WorldScene extends Phaser.Scene {
       }
       if (c.kind === 'bird') {
         if (!c.flying && d < 28) {
-          c.flying = true;
-          c.vx = (s.x > this.player.x ? 1 : -1) * 60;
-          c.vy = -50;
-          s.setFrame(1);
+          // the whole flock takes off, each bird away from you at its own angle
+          for (const o of this.critters) if (o === c || (c.flock !== undefined && o.flock === c.flock && !o.flying)) {
+            o.flying = true;
+            o.vx = (o.s.x > this.player.x ? 1 : -1) * (50 + Math.random() * 30);
+            o.vy = -40 - Math.random() * 25;
+            o.s.setFlipX(o.vx < 0).setFrame(1);
+          }
         }
         if (c.flying) {
           s.x += c.vx * dt;
@@ -3490,7 +3505,7 @@ export class WorldScene extends Phaser.Scene {
           this.objs.push(b);
         }
       }
-    if (def.outdoor && !lowFx() && this.zoneId !== 'market') {
+    if (def.outdoor && !lowFx()) {
       for (let i = 0; i < 3; i++) {
         const c = this.add.image(Math.random() * def.w * TILE, Math.random() * def.h * TILE, glow).setScale(3.5, 2.2).setTint(0x1a1428).setAlpha(0.1).setDepth(150001);
         this.clouds.push(c);
@@ -3718,7 +3733,7 @@ export class WorldScene extends Phaser.Scene {
       period: clock.period,
       prog: clock.progress(),
       outdoor: !!def.outdoor,
-      dark: !!def.dark || this.zoneId === 'market',
+      dark: !!def.dark,
       gloom: !!def.gloom,
       rain,
       season: seasonOf(t.day),
@@ -3848,7 +3863,7 @@ export class WorldScene extends Phaser.Scene {
       return Math.max(ls.lamp * f, f * 0.85);
     }
     if (l.kind === 'window') return ls.windows;
-    return this.zone.def.outdoor && !this.zone.def.dark && this.zoneId !== 'market'
+    return this.zone.def.outdoor && !this.zone.def.dark
       ? lampActivation(ls.lamp, l.seed ?? lightSeed(l.x, l.y)) : ls.lamp;
   }
 
