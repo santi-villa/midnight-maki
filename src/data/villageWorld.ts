@@ -281,4 +281,30 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
     z.ground = terrain.slice(b.y, b.y + b.h).map(row => row.slice(b.x, b.x + b.w).join(''));
     for (const a of PROJECT_AMENITIES.filter(a => a.zone === id)) z.interact.push({ id: 'project_' + a.id, x: a.x, y: a.y, label: a.title, action: 'project:' + a.id, cond: `proj_${a.project}_${a.phase}` });
   }
+  // Fishing spots stand on the nearest walkable tile that touches the water (several had drifted inland or into the
+  // water when the map was reworked); two spots on the same stretch of shore become one.
+  const water = (x: number, y: number) => 'wd'.includes(terrain[y]?.[x] ?? '!');
+  for (const [id, z] of Object.entries(zones)) {
+    const b = bounds[id as VillageZone]; if (!b) continue;
+    const solid = new Set<string>();
+    for (const p of z.props) {
+      const d = PROPS[p.id]; if (!d?.solid || d.kind === 'boat') continue;
+      for (let y = p.y; y < p.y + d.h; y++) for (let x = p.x; x < p.x + d.w; x++) solid.add(`${x + b.x},${y + b.y}`);
+    }
+    const ok = (x: number, y: number) => x >= b.x && y >= b.y && x < b.x + b.w && y < b.y + b.h && !'wdhC'.includes(terrain[y]?.[x] ?? 'w')
+      && !solid.has(`${x},${y}`) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([i, j]) => water(x + i, y + j));
+    const kept: [number, number][] = [];
+    z.interact = z.interact.filter(i => {
+      if (!i.action.startsWith('fish')) return true;
+      const wx = i.x + b.x, wy = i.y + b.y;
+      let best: [number, number] | null = null;
+      for (let r = 0; r <= 6 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r && !best; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) === r && ok(wx + dx, wy + dy)) best = [wx + dx, wy + dy];
+      }
+      if (!best || kept.some(([x, y]) => Math.abs(x - best![0]) + Math.abs(y - best![1]) <= 2)) return false;
+      kept.push(best);
+      i.x = best[0] - b.x; i.y = best[1] - b.y;
+      return true;
+    });
+  }
 }
