@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { EMOTE_ATLAS_KEY, emoteFor, hasEmotes } from '../art/emotes';
 import { FRAMES } from '../art/characters';
 import type { Dir } from '../core/types';
 import type { NpcAct } from '../data/characters';
@@ -27,7 +28,9 @@ export class Actor {
   sideSit = false;
   cast: Phaser.GameObjects.Sprite;
   private castSeen = -1;
-  bubble: Phaser.GameObjects.Text | null = null;
+  bubble: Phaser.GameObjects.Text | Phaser.GameObjects.Sprite | null = null;
+  /** what the current bubble says, even when it shows as a pack emote */
+  bubbleText = '';
   x: number; // feet position in px
   y: number;
   dir: Dir = 'down';
@@ -46,7 +49,7 @@ export class Actor {
   private blinking = 0;
   private actT = 0;
   private bubbleT = 0;
-  private fadingBubble: Phaser.GameObjects.Text | null = null;
+  private fadingBubble: Phaser.GameObjects.Text | Phaser.GameObjects.Sprite | null = null;
   onArrive: (() => void) | null = null;
   /** random offset so groups don't breathe in sync */
   private phase = Math.random() * 2;
@@ -128,6 +131,17 @@ export class Actor {
 
   emote(text: string, seconds = 1.6) {
     this.clearEmote();
+    this.bubbleText = text;
+    const icon = hasEmotes(this.scene) ? emoteFor(text) : null;
+    if (icon) {
+      // the pack's bubble: 16x32 cell, the tail ends 6px above the bottom
+      const s = this.scene.add.sprite(this.x, this.y - 30, EMOTE_ATLAS_KEY, `${icon}_0`).setOrigin(0.5, 26 / 32).setScale(0.1).setDepth(100000);
+      if (this.scene.anims.exists(`emote_${icon}`)) s.play(`emote_${icon}`);
+      this.bubble = s;
+      this.scene.tweens.add({ targets: s, scale: 1, duration: 220, ease: 'Back.out' });
+      this.bubbleT = seconds;
+      return;
+    }
     this.bubble = this.scene.add
       .text(this.x, this.y - 30, text, {
         fontFamily: 'Pixelify Sans, sans-serif',

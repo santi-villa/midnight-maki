@@ -1736,7 +1736,7 @@ export class WorldScene extends Phaser.Scene {
     this.speech.clear();
     const actor = this.speechActor;
     this.speechActor = null;
-    if (actor?.sprite?.active && (!line || actor.bubble?.text === line.text)) actor.clearEmote();
+    if (actor?.sprite?.active && (!line || actor.bubble && actor.bubbleText === line.text)) actor.clearEmote();
   }
 
   private releaseSpeechActor() {
@@ -1756,7 +1756,7 @@ export class WorldScene extends Phaser.Scene {
     ];
     for (const actor of actors) {
       if (actor === except || !actor.bubble || !actor.sprite?.active) continue;
-      if (flavor.has(actor.bubble.text)) continue;
+      if (flavor.has(actor.bubbleText)) continue;
       actor.clearEmote();
     }
   }
