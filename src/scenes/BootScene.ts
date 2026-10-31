@@ -5,6 +5,7 @@ import { INTERIOR_ATLAS_KEY, INTERIOR_ATLAS_URL, installInteriorAtlas, installLi
 import { BRIDGE_ATLAS_KEY, BRIDGE_ATLAS_URL, installBridgeAtlas } from '../art/bridges';
 import { FARM_ATLAS_KEY, FARM_ATLAS_URL, installFarmAtlas } from '../art/farm';
 import { ICON_ATLAS_KEY, ICON_ATLAS_URL, installIconAtlas } from '../art/iconArt';
+import { EMOTE_ATLAS_KEY, EMOTE_ATLAS_URL, installEmotes } from '../art/emotes';
 import { PETS_ATLAS_KEY, PETS_ATLAS_URL } from './pets';
 import { VILLAGE_ATLAS_KEY, VILLAGE_ATLAS_URL, installVillageAtlas } from '../art/villageAssets';
 import { JP_BUILDINGS_ATLAS_KEY, JP_BUILDINGS_ATLAS_URL, installJpBuildingsAtlas, jpBuildingsWanted } from '../art/japaneseBuildings';
@@ -32,6 +33,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(VILLAGE_ATLAS_KEY, VILLAGE_ATLAS_URL);
     this.load.image(FARM_ATLAS_KEY, FARM_ATLAS_URL);
     this.load.image(ICON_ATLAS_KEY, ICON_ATLAS_URL);
+    this.load.image(EMOTE_ATLAS_KEY, EMOTE_ATLAS_URL);
     this.load.image(PETS_ATLAS_KEY, PETS_ATLAS_URL);
   }
   create() {
@@ -46,6 +48,7 @@ export class BootScene extends Phaser.Scene {
     if (this.textures.exists(BRIDGE_ATLAS_KEY)) installBridgeAtlas(this.textures.get(BRIDGE_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     if (this.textures.exists(VILLAGE_ATLAS_KEY)) installVillageAtlas(this.textures.get(VILLAGE_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     if (this.textures.exists(FARM_ATLAS_KEY)) installFarmAtlas(this.textures.get(FARM_ATLAS_KEY).getSourceImage() as HTMLImageElement);
+    installEmotes(this);
     if (this.textures.exists(ICON_ATLAS_KEY)) installIconAtlas(this.textures.get(ICON_ATLAS_KEY).getSourceImage() as HTMLImageElement);
     const tip = document.getElementById('boot-tip');
     if (tip) tip.textContent = 'Dando color a Villa Nori…';

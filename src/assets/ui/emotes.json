@@ -1,0 +1,129 @@
+{
+ "source": "LimeZu Modern Interiors, 4_User_Interface_Elements",
+ "emotes": {
+  "thinking": {
+   "y": 0,
+   "w": 16,
+   "h": 32,
+   "frames": 8,
+   "durations": [
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    500
+   ]
+  },
+  "angry": {
+   "y": 32,
+   "w": 16,
+   "h": 32,
+   "frames": 4,
+   "durations": [
+    100,
+    100,
+    100,
+    500
+   ]
+  },
+  "tear": {
+   "y": 64,
+   "w": 16,
+   "h": 32,
+   "frames": 6,
+   "durations": [
+    100,
+    100,
+    100,
+    100,
+    100,
+    500
+   ]
+  },
+  "mail": {
+   "y": 96,
+   "w": 16,
+   "h": 32,
+   "frames": 6,
+   "durations": [
+    500,
+    100,
+    100,
+    500,
+    100,
+    100
+   ]
+  },
+  "arrow": {
+   "y": 128,
+   "w": 16,
+   "h": 16,
+   "frames": 6,
+   "durations": [
+    100,
+    100,
+    100,
+    100,
+    100,
+    100
+   ]
+  },
+  "heart": {
+   "y": 144,
+   "w": 16,
+   "h": 32,
+   "frames": 1,
+   "durations": [
+    1000
+   ]
+  },
+  "exclaim": {
+   "y": 176,
+   "w": 16,
+   "h": 32,
+   "frames": 1,
+   "durations": [
+    1000
+   ]
+  },
+  "alarm": {
+   "y": 208,
+   "w": 16,
+   "h": 32,
+   "frames": 1,
+   "durations": [
+    1000
+   ]
+  },
+  "sleep": {
+   "y": 240,
+   "w": 16,
+   "h": 32,
+   "frames": 1,
+   "durations": [
+    1000
+   ]
+  },
+  "music": {
+   "y": 272,
+   "w": 16,
+   "h": 32,
+   "frames": 1,
+   "durations": [
+    1000
+   ]
+  },
+  "sparkle": {
+   "y": 304,
+   "w": 16,
+   "h": 32,
+   "frames": 1,
+   "durations": [
+    1000
+   ]
+  }
+ }
+}
