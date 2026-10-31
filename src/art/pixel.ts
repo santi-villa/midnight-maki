@@ -15,6 +15,16 @@ export function ctx2d(c: HTMLCanvasElement): Ctx {
   return ctx;
 }
 
+/**
+ * A context for scratch canvases whose pixels get read back (layer contours): kept in CPU memory, so getImageData costs
+ * microseconds instead of a GPU round trip each time (this alone was most of the time to paint a character sheet).
+ */
+export function ctx2dRead(c: HTMLCanvasElement): Ctx {
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.imageSmoothingEnabled = false;
+  return ctx;
+}
+
 export function px(ctx: Ctx, x: number, y: number, color: string, w = 1, h = 1): void {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);

@@ -1,5 +1,6 @@
 /** Lazily converts generated canvases into Phaser textures (cached by key). */
 import { setPlaqueName } from '../art/izakaya';
+import { cachedSheet, storeSheet, type SheetMeta } from '../art/sheetCache';
 import Phaser from 'phaser';
 import { cozyObject } from '../art/cozyAssets';
 import { furnitureCanvas } from '../art/furniture';
@@ -44,25 +45,34 @@ export function ensureTileset(scene: Phaser.Scene) {
 }
 
 /** Returns a texture key for the character, regenerating it if their look changed. */
+/** A painted (or cached) sheet as a texture with its numbered frames. */
+function addSheet(scene: Phaser.Scene, key: string, canvas: HTMLCanvasElement, meta: SheetMeta) {
+  const tex = scene.textures.addCanvas(key, canvas)!;
+  for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * meta.fw, 0, meta.fw, meta.fh);
+  if (meta.pad != null) tex.customData = { pad: meta.pad };
+}
+
 export function charTexture(scene: Phaser.Scene, id: string): string {
   const look = appearanceKey(id);
   const key = 'ch_' + hashStr(look);
   if (!scene.textures.exists(key)) {
-    const build = RACCOON_BUILD[id];
-    const folk = FOLK_SPECS[id];
-    if (folk || (id === 'player' && isHeroLook(appearanceOf(id)))) {
-      const { canvas, fw, fh, pad } = folk ? buildFolkSheet(folk, folkCustom(id)) : heroSheet(appearanceOf(id));
-      const tex = scene.textures.addCanvas(key, canvas)!;
-      for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
-      tex.customData = { pad };
-    } else if (build) {
-      const { canvas, fw, fh } = buildRaccoonSheet(appearanceOf(id), build);
-      const tex = scene.textures.addCanvas(key, canvas)!;
-      for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
-    } else {
-      const sheet = buildCharacterSheet(appearanceOf(id), dropOf(id));
-      const tex = scene.textures.addCanvas(key, sheet)!;
-      for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * FW, 0, FW, FH);
+    const hit = cachedSheet(key);
+    if (hit) addSheet(scene, key, hit.canvas, hit.meta);
+    else {
+      const build = RACCOON_BUILD[id];
+      const folk = FOLK_SPECS[id];
+      let canvas: HTMLCanvasElement, meta: SheetMeta;
+      if (folk || (id === 'player' && isHeroLook(appearanceOf(id)))) {
+        const sheet = folk ? buildFolkSheet(folk, folkCustom(id)) : heroSheet(appearanceOf(id));
+        canvas = sheet.canvas; meta = { fw: sheet.fw, fh: sheet.fh, pad: sheet.pad };
+      } else if (build) {
+        const sheet = buildRaccoonSheet(appearanceOf(id), build);
+        canvas = sheet.canvas; meta = { fw: sheet.fw, fh: sheet.fh };
+      } else {
+        canvas = buildCharacterSheet(appearanceOf(id), dropOf(id)); meta = { fw: FW, fh: FH };
+      }
+      addSheet(scene, key, canvas, meta);
+      storeSheet(key, canvas, meta);
     }
   }
   const prev = charKeys.get(id);
@@ -83,8 +93,10 @@ export function hasCharTexture(scene: Phaser.Scene, id: string): boolean {
 export function lookTexture(scene: Phaser.Scene, a: import('../core/types').Appearance): string {
   const key = lookKey(a);
   if (!scene.textures.exists(key)) {
-    const tex = scene.textures.addCanvas(key, buildCharacterSheet(a))!;
-    for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * FW, 0, FW, FH);
+    const hit = cachedSheet(key);
+    const canvas = hit?.canvas ?? buildCharacterSheet(a);
+    addSheet(scene, key, canvas, { fw: FW, fh: FH });
+    if (!hit) storeSheet(key, canvas, { fw: FW, fh: FH });
   }
   return key;
 }

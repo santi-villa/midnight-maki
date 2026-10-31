@@ -8,7 +8,7 @@ import type { Appearance, Dir } from '../core/types';
 import { CLOTHES_BY_ID } from '../data/clothes';
 import type { Expr, Legs } from './characters';
 import type { ChibiArms } from './chibi';
-import { ctx2d, ellipse, makeCanvas, mix, outline, px, shade, type Ctx } from './pixel';
+import { ctx2d, ctx2dRead, ellipse, makeCanvas, mix, outline, px, shade, type Ctx } from './pixel';
 
 export type RaccoonBuild = 'small' | 'medium' | 'big';
 
@@ -56,7 +56,7 @@ function stack(W: number, H: number, layers: Layer[], after?: Layer): HTMLCanvas
   const o = ctx2d(out);
   for (const l of layers) {
     const c = makeCanvas(W, H);
-    l(ctx2d(c));
+    l(ctx2dRead(c));
     outline(c, INK);
     o.drawImage(c, 0, 0);
   }

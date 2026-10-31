@@ -3,7 +3,7 @@
  * shade rim at the bottom-right, no gradients), a fat ringed tail along a curve, and layer stacking with a 1px ink contour per
  * part, like folk.ts. Shapes use whole pixel centres and radii wherever possible, so edges fall between pixels and stay crisp.
  */
-import { ctx2d, makeCanvas, px, shade, type Ctx } from './pixel';
+import { ctx2d, ctx2dRead, makeCanvas, px, shade, type Ctx } from './pixel';
 
 export type Mask = (x: number, y: number) => boolean;
 
@@ -72,7 +72,7 @@ export function stack(W: number, H: number, ink: string, layers: Layer[], after:
   const o = ctx2d(out);
   for (const l of layers) {
     const cv = makeCanvas(W, H);
-    const g = ctx2d(cv);
+    const g = ctx2dRead(cv);
     l(g);
     const img = g.getImageData(0, 0, W, H);
     const a = img.data;

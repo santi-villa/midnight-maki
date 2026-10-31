@@ -64,6 +64,7 @@ async function startWorld(isNew: boolean) {
     installDaily();
     // Existing saves need their destination immediately. New games can prepare outdoor art
     // while reading the intro, rather than waiting for the whole village before its first picture.
+    await (await import('../art/sheetCache')).loadSheetCache();
     const title = phaser.scene.getScene('title');
     if (!isNew && title && outdoorWarmPending()) {
       await drainOutdoorWarm(title, (done, total) => load.set(done, total, 'Preparando Villa Nori…'));
