@@ -63,6 +63,7 @@ add('stool', 'Banquito', ['stool'], [(GEN, (73, 233, 14, 14))])
 add('zabuton_sand', 'Zabuton arena', ['cushion_rose'], [(JP1, (145, 154, 13, 12))])
 add('zabuton_sky', 'Zabuton celeste', ['cushion_indigo'], [(JP1, (129, 154, 13, 12))])
 add('zabuton_moss', 'Zabuton verde', ['bond_nap_cushion'], [(JP1, (161, 154, 13, 12))])
+add('bonsai', 'Bonsái en maceta', ['bonsai'], [(JP1, (112, 136, 16, 30))])
 add('tea_tray', 'Bandeja de té', ['tea_set'], [(JP1, (57, 53, 13, 9))])
 
 # Restaurant kitchen: the charcoal grill (with its fire) for the stove. The pack's counters are only an 11 px front and
