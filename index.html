@@ -30,7 +30,9 @@
       #boot .tip { z-index: 1; font-size: 14px; line-height: 1.5; color: #3a2a1e; background: #fbf3dc; border: 2px solid #dcc08e; border-radius: 8px; padding: 8px 10px; max-width: 300px; min-height: 42px; }
       #boot .boot-bar { z-index: 1; width: min(260px, 64vw); height: 14px; border: 2px solid #8b6a46; border-radius: 7px; background: #e3c98f; overflow: hidden; }
       #boot .boot-bar i { display: block; height: 100%; width: 8%; background: repeating-linear-gradient(90deg, #f2c66d 0 8px, #e0a94f 8px 10px); transition: width 260ms steps(8); }
-      #boot .petal { position: absolute; top: -20px; width: 8px; height: 8px; background: #f3b6c0; box-shadow: 2px 0 #e08fa0; opacity: .75; pointer-events: none; animation: petal-fall 7s linear infinite; }
+      .boot-petals { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+      #boot .petal { position: absolute; top: -20px; width: 8px; height: 6px; border-radius: 6px 1px 6px 2px; background: #f3b6c0; box-shadow: 2px 0 #e08fa0; opacity: .75; pointer-events: none; animation: petal-fall 10s linear infinite; }
+      #boot .petal:nth-child(3n) { width: 5px; height: 4px; opacity: .45; background: #ffd2df; }
       @keyframes petal-fall { to { transform: translate(40px, 110vh) rotate(260deg); } }
       @keyframes lantern-glow { 0%,100% { opacity: .8; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
       @media (prefers-reduced-motion: reduce) { #boot .petal { display: none; } #boot, #boot .boot-lantern { animation: none; transition: none; } }
@@ -52,12 +54,20 @@
       <div class="boot-bar" aria-hidden="true"><i id="boot-fill"></i></div>
       <div class="tip" id="boot-tip">Encendiendo los faroles…</div>
       </div>
-      <i class="petal" style="left:12%;animation-delay:0s"></i><i class="petal" style="left:34%;animation-delay:-2.4s"></i><i class="petal" style="left:58%;animation-delay:-4.6s"></i><i class="petal" style="left:79%;animation-delay:-1.2s"></i><i class="petal" style="left:91%;animation-delay:-5.8s"></i>
+      <div class="boot-petals" aria-hidden="true"></div>
     </div>
     <div id="game"></div>
     <div id="ui"></div>
     <script>
       (function () {
+        var field = document.querySelector('.boot-petals');
+        for (var n = 0; n < 28; n++) {
+          var petal = document.createElement('i'); petal.className = 'petal';
+          petal.style.left = (n * 37 % 100) + '%';
+          petal.style.animationDuration = (8 + n % 7) + 's';
+          petal.style.animationDelay = -(n * 1.73 % (8 + n % 7)) + 's';
+          field.appendChild(petal);
+        }
         var tips = ['Encendiendo los faroles…', 'Pip está buscando su cuchara…', 'Spicy calienta el wasabi…', 'Rigg ordena sus mapas…', 'Cocinando arroz para sushi…'];
         var i = 0, el = document.getElementById('boot-tip');
         window.__bootProgress = function (p) { var f = document.getElementById('boot-fill'); if (f) f.style.width = Math.max(8, Math.min(100, Math.round(p * 100))) + '%'; };
