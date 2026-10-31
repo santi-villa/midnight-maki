@@ -37,6 +37,7 @@ if (new URLSearchParams(location.search).has('debug')) {
 }
 applySettings();
 void import('./ui/account').then((m) => m.initAccountUi());
+void import('./restaurant/delivery').then((m) => m.startDeliveries());
 installSkin();
 
 /** Boot only once the container has a real size (hidden tabs / iOS standalone can report 0 at first). */

@@ -7,6 +7,7 @@ import { ITEMS_BY_ID, PACKS } from '../data/items';
 import { SUPPLY_GROUPS, pantryCapacity, pantryFree, pantryTotal, storeLoose, storePacks, whereToGet } from '../restaurant/supplies';
 import { h, panel, toast } from './dom';
 import type { ActionAnchor } from './actionPanel';
+import { deliveryCard } from './deliveryOrder';
 
 export function openPantry(anchor?: ActionAnchor) {
   const body = h('div', { class: 'col' });
@@ -34,6 +35,7 @@ export function openPantry(anchor?: ActionAnchor) {
             render();
           } }, loose.length ? 'Guardar ingredientes sueltos' : 'Mochila sin ingredientes sueltos'))),
     );
+    body.append(deliveryCard(render));
     for (const g of SUPPLY_GROUPS) {
       const grid = h('div', { class: 'grid' });
       for (const id of g.items) {

@@ -25,6 +25,7 @@ export interface GameEvents {
   'settings:changed': {};
   'input:method': { method: 'touch' | 'mouse' | 'keyboard' };
   'item:collected': { id: string; source: string };
+  'delivery:arrived': { units: number; toBag: number };
 }
 
 type Handler<T> = (payload: T) => void | Promise<void>;

@@ -258,6 +258,7 @@ export class WorldScene extends Phaser.Scene {
     this.dark = this.add.renderTexture(0, 0, 8, 8).setOrigin(0, 0).setDepth(200000).setBlendMode(Phaser.BlendModes.MULTIPLY);
     this.busOff.push(
       bus.on('time:changed', () => this.onPeriodChange()),
+      bus.on('delivery:arrived', () => this.courierVisit()),
       bus.on('decor:changed', () => {
         this.town.invalidate(); this.diningCache = null;
         for (const v of this.visitors.values()) for (const trip of v.trips) trip.replan();
@@ -2200,6 +2201,27 @@ export class WorldScene extends Phaser.Scene {
         a.teleport(tx, ty);
         res();
       }
+    });
+  }
+
+  /** A grocery order arriving while Sofi is in the restaurant: Taro walks in from the door, hands it over and leaves. */
+  private courierVisit() {
+    if (this.zoneId !== 'restaurant' || this.transitioning || this.npcs.has('taro') || this.extras.has('taro')) return;
+    const door = this.zone.def.doors.find((d) => ZONES[d.to]?.outdoor) ?? this.zone.def.doors[0];
+    const g = this.zone.grid, p = this.player;
+    const start = door && g.nearestWalkable(door.x, door.y);
+    const meet = g.nearestWalkable(p.tx, p.ty + 1);
+    if (!start || !meet) return;
+    const pause = (ms: number) => new Promise<void>((r) => this.time.delayedCall(ms, () => r()));
+    const walk = (x: number, y: number) => Promise.race([this.walk('taro', x, y), pause(12000)]);
+    void runTask('world:courier', async () => {
+      const a = this.actor('taro', start[0], start[1]);
+      await walk(meet[0], meet[1]);
+      a.faceTowards(p.x, p.y);
+      a.emote('✉', 1.8);
+      await pause(1800);
+      await walk(start[0], start[1]);
+      this.releaseActor('taro');
     });
   }
 
