@@ -795,7 +795,7 @@ export class WorldScene extends Phaser.Scene {
         const left = px - p.def.sw / 2, top = py - p.def.sh;
         const seed = lightSeed(px, py);
         const homeId = HOUSES.find(h => h.zone === this.zoneId && h.x === p.x && h.y === p.y)?.id;
-        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, r: 30, flicker: false, color: 0xffd27a, glow: 0.4, kind: 'spill', home: true, homeId, seed });
+        for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, gy: py + 5, r: 30, flicker: false, color: 0xffd27a, glow: 0.4, kind: 'spill', home: true, homeId, seed });
         this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 34, flicker: true, color: 0xffd56a, glow: 0.62, kind: 'spill', home: true, homeId, seed });
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front', undefined, homeId);
       }
@@ -3810,7 +3810,11 @@ export class WorldScene extends Phaser.Scene {
    */
   private updateLighting() {
     const cam = this.cameras.main;
-    const view = cam.worldView;
+    // the view straight from the camera: worldView is only refreshed when the frame is drawn, so right after the camera
+    // jumps (a border crossed, the follow restarted) it is stale or small and part of the screen went undarkened
+    const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
+    const vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
+    const view = { x: vx, y: vy, width: vw, height: vh, right: vx + vw, bottom: vy + vh };
     const rt = this.dark;
     const def = this.zone.def;
     const rain = game.flag('weather') === 'rain';
@@ -3850,8 +3854,8 @@ export class WorldScene extends Phaser.Scene {
     // The darkness is a plain 2D canvas at world resolution (drawing into the render texture never reached the screen):
     // the night's colour, then every light added on top as a soft coloured pool lying on the ground, so overlapping lights
     // add up like real light. Shown with a multiply blend and scaled up by the camera, it keeps the game's pixels.
-    const W = Math.ceil(view.width) + 8, H = Math.ceil(view.height) + 8;
-    const ox = Math.floor(view.x) - 4, oy = Math.floor(view.y) - 4;
+    const W = Math.ceil(view.width) + 96, H = Math.ceil(view.height) + 96;
+    const ox = Math.floor(view.x) - 48, oy = Math.floor(view.y) - 48;
     if (!this.darkCanvas || this.darkCanvas.width < W || this.darkCanvas.height < H) {
       this.darkCanvas = makeCanvas(Math.max(W, this.darkCanvas?.width ?? 0), Math.max(H, this.darkCanvas?.height ?? 0));
       if (this.textures.exists('darkness')) this.textures.remove('darkness');
@@ -3865,7 +3869,7 @@ export class WorldScene extends Phaser.Scene {
     const rgba = (c: number, a = 1) => `rgba(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255},${a})`;
     g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, this.darkCanvas.width, this.darkCanvas.height);
-    if (ls.tint !== 0xffffff) { g.fillStyle = rgba(ls.tint); g.fillRect(0, 0, W, H); }
+    if (ls.tint !== 0xffffff) { g.fillStyle = rgba(ls.tint); g.fillRect(0, 0, this.darkCanvas.width, this.darkCanvas.height); }
     const pool = (x: number, y: number, r: number, color: number, a: number, squash: number) => {
       if (a <= 0.01 || r <= 0) return;
       g.save();
@@ -3883,13 +3887,16 @@ export class WorldScene extends Phaser.Scene {
     const dim = lampPoolTint(ls.tint, 0xffd27a, 1) != null;
     if (lit.length) {
       if (dim) {
-        g.globalCompositeOperation = 'lighter';
+        // where lights overlap the strongest wins ('lighten'), so a row of windows or stalls never adds up to daylight
+        g.globalCompositeOperation = 'lighten';
         for (const { l, k } of lit) {
           // street lamps and the lighthouse light the street almost to day, lanterns and stalls a warm pool, windows softly
           const post = !l.kind && !l.facade && l.r >= 90;
           const spill = l.kind === 'spill' || l.kind === 'window';
           const color = l.color ?? 0xffd27a;
-          pool(l.x, l.gy ?? l.y, l.r * (ls.halo > 1 ? 1.08 : 1), color, (post ? 0.72 : spill ? 0.38 : 0.6) * k, 0.72);
+          // a lit window throws a wide, low band of light onto the ground in front of the wall
+          if (spill) pool(l.x, l.gy ?? l.y, l.r * 1.7, color, 0.5 * k, 0.42);
+          else pool(l.x, l.gy ?? l.y, l.r * (ls.halo > 1 ? 1.08 : 1), color, (post ? 0.72 : 0.6) * k, 0.72);
           if (l.gy !== undefined) pool(l.x, l.y, Math.max(10, l.r * 0.22), color, 0.85 * k, 1); // the lantern itself shines
         }
       } else {
@@ -3900,7 +3907,7 @@ export class WorldScene extends Phaser.Scene {
     }
     // Sofi carries a soft pool so the night stays readable, without a circle of daylight around her.
     if (ls.lamp > 0.1 && this.player && dim) {
-      g.globalCompositeOperation = 'lighter';
+      g.globalCompositeOperation = 'lighten';
       pool(this.player.x, this.player.y - 6, 36, 0xfff0dc, 0.32 * Math.min(1, ls.lamp), 0.8);
     }
     // vignette frames the screen
