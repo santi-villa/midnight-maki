@@ -190,42 +190,63 @@ export function ensureDefaultDecor() {
       for (const [id, x, y, rot] of housePieces(h, i)) arr.push({ uid: game.uid(), id, x, y, rot: rot ?? 0 });
     });
   }
-  // An extra fold-out bed for shared residences. Append only; never move existing furniture.
+  // An extra fold-out bed for shared residences, laid right beside the bed already there (two beds of one home share a corner)
   for (const [id, home] of Object.entries(EXTRA_HOMES)) {
+    const pieces = game.room(home);
+    if (!ZONES[home] || !pieces.length) continue;
+    // older saves dropped it on the first free tile, sometimes across the room: move it next to the bed once
+    game.once('resident_futon_v2_' + id, () => {
+      const uid = game.flag('resident_futon_' + id);
+      const at = pieces.findIndex((f) => f.uid === uid);
+      if (at < 0) return;
+      const [old] = pieces.splice(at, 1);
+      if (!placeExtraFuton(id, home, pieces)) pieces.push(old);
+    });
     if (game.has('resident_futon_' + id)) continue;
-    const pieces = game.room(home), zone = ZONES[home];
-    if (!zone || !pieces.length) continue;
-    const g = new Grid(zone.w, zone.h);
-    for (let y = 0; y < zone.h; y++) for (let x = 0; x < zone.w; x++) g.setSolid(x, y, !'ftkm'.includes(zone.ground[y][x]));
-    for (const f of pieces) {
-      const d = FURN_BY_ID[f.id]; if (!d || d.wall || d.walkable) continue;
-      const s = furnSize(d, f.rot);
-      for (let y = f.y; y < f.y + s.h; y++) for (let x = f.x; x < f.x + s.w; x++) g.setSolid(x, y, true);
-    }
-    const size = furnSize(FURN_BY_ID.futon_indigo, 1);
-    let placed = false;
-    for (let y = 4; y >= 2 && !placed; y--) for (let x = 1; x <= 7 && !placed; x++) {
-      const tiles: [number, number][] = [];
-      for (let dy = 0; dy < size.h; dy++) for (let dx = 0; dx < size.w; dx++) tiles.push([x + dx, y + dy]);
-      if (tiles.some(([tx, ty]) => g.isSolid(tx, ty)) || g.isSolid(x, y + size.h)) continue;
-      if (tiles.some(([tx, ty]) => tx === 5 && ty === 5)) continue;
-      if (zone.doors.some(d => tiles.some(([tx, ty]) => Math.abs(d.x - tx) + Math.abs(d.y - ty) <= 1))) continue;
-      const trial = g.clone(); for (const [tx, ty] of tiles) trial.setSolid(tx, ty, true);
-      const door = zone.doors[0];
-      if (!trial.path(door.x, door.y, x, y + size.h)) continue;
-      if (pieces.some(f => {
-        const d = FURN_BY_ID[f.id]; if (!d || !['bed', 'futon'].includes(d.kind)) return false;
-        const s = furnSize(d, f.rot), fy = f.y + s.h;
-        return !g.isSolid(f.x, fy) && (trial.isSolid(f.x, fy) || !trial.path(door.x, door.y, f.x, fy));
-      })) continue;
-      const uid = game.uid(); pieces.push({ uid, id: 'futon_indigo', x, y, rot: 1 });
-      game.setFlag('resident_futon_' + id, uid); placed = true;
-    }
+    placeExtraFuton(id, home, pieces);
   }
   widenSavedTables();
   spreadSavedTables();
   applyStageGrants(); // after the defaults (and the moves of older halls), so the new tables never land on them
   settleStoredGifts();
+}
+
+/** Lays the shared home's fold-out futon on the free spot nearest the existing bed, keeping every bed and the door reachable. */
+function placeExtraFuton(id: string, home: string, pieces: { uid: number; id: string; x: number; y: number; rot: number }[]): boolean {
+  const zone = ZONES[home];
+  const g = new Grid(zone.w, zone.h);
+  for (let y = 0; y < zone.h; y++) for (let x = 0; x < zone.w; x++) g.setSolid(x, y, !'ftkm'.includes(zone.ground[y][x]));
+  const beds: [number, number][] = [];
+  for (const f of pieces) {
+    const d = FURN_BY_ID[f.id]; if (!d || d.wall || d.walkable) continue;
+    const s = furnSize(d, f.rot);
+    for (let y = f.y; y < f.y + s.h; y++) for (let x = f.x; x < f.x + s.w; x++) { g.setSolid(x, y, true); if (d.kind === 'bed' || d.kind === 'futon') beds.push([x, y]); }
+  }
+  const size = furnSize(FURN_BY_ID.futon_indigo, 1);
+  const spots: [number, number][] = [];
+  for (let y = 2; y <= 4; y++) for (let x = 1; x <= 7; x++) spots.push([x, y]);
+  // nearest to a bed first (then higher on the wall), so the two sleep side by side
+  const near = (x: number, y: number) => beds.length ? Math.min(...beds.map(([bx, by]) => Math.abs(bx - x) + Math.abs(by - y))) : 0;
+  spots.sort((a, b) => near(a[0], a[1]) - near(b[0], b[1]) || a[1] - b[1] || a[0] - b[0]);
+  const door = zone.doors[0];
+  for (const [x, y] of spots) {
+    const tiles: [number, number][] = [];
+    for (let dy = 0; dy < size.h; dy++) for (let dx = 0; dx < size.w; dx++) tiles.push([x + dx, y + dy]);
+    if (tiles.some(([tx, ty]) => g.isSolid(tx, ty)) || g.isSolid(x, y + size.h)) continue;
+    if (tiles.some(([tx, ty]) => tx === 5 && ty === 5)) continue;
+    if (zone.doors.some(d => tiles.some(([tx, ty]) => Math.abs(d.x - tx) + Math.abs(d.y - ty) <= 1))) continue;
+    const trial = g.clone(); for (const [tx, ty] of tiles) trial.setSolid(tx, ty, true);
+    if (!trial.path(door.x, door.y, x, y + size.h)) continue;
+    if (pieces.some(f => {
+      const d = FURN_BY_ID[f.id]; if (!d || !['bed', 'futon'].includes(d.kind)) return false;
+      const s = furnSize(d, f.rot), fy = f.y + s.h;
+      return !g.isSolid(f.x, fy) && (trial.isSolid(f.x, fy) || !trial.path(door.x, door.y, f.x, fy));
+    })) continue;
+    const uid = game.uid(); pieces.push({ uid, id: 'futon_indigo', x, y, rot: 1 });
+    game.setFlag('resident_futon_' + id, uid);
+    return true;
+  }
+  return false;
 }
 
 /**

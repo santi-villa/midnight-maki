@@ -19,7 +19,7 @@ import { game } from '../core/state';
 import type { Dir } from '../core/types';
 import { CHAR_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
-import { ZONES, GARDEN_PLOT_POSITIONS } from '../data/zones';
+import { ZONES, GARDEN_PLOT_POSITIONS, type ZoneDef } from '../data/zones';
 import { STATION_BY_ID } from '../galley/layout';
 import { Actor, TILE, type Act } from '../entities/Actor';
 import { galleyOn } from '../galley/mode';
@@ -60,6 +60,7 @@ import { Journey, type Position } from '../systems/journeys';
 import { TownLife, type TownResident } from '../systems/townLife';
 import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
 import { clampFrameZoom, walkingZoom } from '../ui/frameMath';
+import { kitchenCameraFrame } from '../ui/kitchenFrame';
 import { layoutSpeech } from '../ui/speechLayout';
 import { SpeechTurns } from '../world/speechTurns';
 import { customerLook } from '../restaurant/customers';
@@ -294,6 +295,53 @@ export class WorldScene extends Phaser.Scene {
     else if (this.cookActive) this.cookFrame(0);
     else if (this.roomFrame) this.frameRoom(this.roomFrame.room, this.roomFrame.inset, 0);
     this.sizeDark(zoom);
+    this.syncKitchenCamera(true);
+  }
+
+  private kitchenFramed = false;
+  private kitchenFrameKey = '';
+  /** In the working aisle the camera frames the kitchen, instead of chasing Sofi into a HUD corner. */
+  private syncKitchenCamera(force = false) {
+    if (!this.player || !this.zone || this.framingZoom != null || this.roomFrame || this.cookActive) return;
+    const p = this.player;
+    const inside = this.zoneId === 'restaurant' && galleyOn() && p.tx >= 0 && p.tx <= 13 && p.ty <= (this.kitchenFramed ? 6 : 5);
+    const cam = this.cameras.main;
+    // stepping in or out glides the camera there (pan and zoom together) instead of cutting
+    const glide = !force && !settings.reduceMotion ? 420 : 0;
+    if (!inside) {
+      if (this.kitchenFramed) {
+        this.kitchenFramed = false; this.kitchenFrameKey = '';
+        if (!glide) {
+          this.layout(); this.applyBounds();
+          cam.startFollow(p.sprite, true, 1, 1, 0, 8); cam.centerOn(p.x, p.y);
+          return;
+        }
+        const zoom = walkingZoom(this.scale.width, this.scale.height, TILE);
+        this.sizeDark(Math.min(cam.zoom, zoom));
+        cam.startFollow(p.sprite, true, 0.12, 0.12, 0, 8);
+        if (zoom !== cam.zoom) cam.zoomTo(zoom, glide, 'Sine.easeInOut', true);
+        // the soft follow catches up with Sofi, then the usual tight follow and bounds come back
+        this.time.delayedCall(glide + 260, () => {
+          if (this.kitchenFramed || this.zoneId !== 'restaurant') return;
+          this.layout();
+          cam.startFollow(p.sprite, true, 1, 1, 0, 8);
+        });
+      }
+      return;
+    }
+    const key = `${this.scale.width}:${this.scale.height}`;
+    if (!force && this.kitchenFramed && this.kitchenFrameKey === key) return;
+    this.kitchenFramed = true; this.kitchenFrameKey = key;
+    const frame = kitchenCameraFrame(this.scale.width, this.scale.height);
+    cam.stopFollow(); cam.removeBounds();
+    if (glide) {
+      this.sizeDark(Math.min(cam.zoom, frame.zoom));
+      cam.pan(frame.x, frame.y, glide, 'Sine.easeInOut', true);
+      cam.zoomTo(frame.zoom, glide, 'Sine.easeInOut', true, (_c: Phaser.Cameras.Scene2D.Camera, t: number) => { if (t >= 1 && this.kitchenFramed) this.sizeDark(frame.zoom); });
+    } else {
+      cam.setZoom(frame.zoom); cam.centerOn(frame.x, frame.y);
+      this.sizeDark(frame.zoom);
+    }
   }
 
   /** Stop following the player so a phone photo can pan and zoom. */
@@ -326,7 +374,7 @@ export class WorldScene extends Phaser.Scene {
     this.framingZoom = null;
     this.inputLocked = Math.max(0, this.inputLocked - 1);
     this.layout();
-    if (this.cookActive || !this.player?.sprite?.active) return;
+    if (this.cookActive || this.kitchenFramed || !this.player?.sprite?.active) return;
     this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, 8);
     this.cameras.main.centerOn(this.player.x, this.player.y);
   }
@@ -362,7 +410,7 @@ export class WorldScene extends Phaser.Scene {
     cam.zoomTo(saved?.zoom ?? cam.zoom, 300);
     this.applyBounds();
     cam.startFollow(this.player.sprite, true, 0.12, 0.12, 0, 8);
-    this.time.delayedCall(400, () => { if (!this.roomFrame) cam.startFollow(this.player.sprite, true, 1, 1, 0, 8); });
+    this.time.delayedCall(400, () => { if (!this.roomFrame) { cam.startFollow(this.player.sprite, true, 1, 1, 0, 8); this.syncKitchenCamera(true); } });
   }
 
   // ------------------------------------------------------------------ cooking close-up
@@ -399,7 +447,7 @@ export class WorldScene extends Phaser.Scene {
     cam.zoomTo(this.cookSaved.zoom, 450);
     this.applyBounds();
     cam.startFollow(this.player.sprite, true, 0.12, 0.12, 0, 8);
-    this.time.delayedCall(500, () => { if (!this.cookActive) cam.startFollow(this.player.sprite, true, 1, 1, 0, 8); });
+    this.time.delayedCall(500, () => { if (!this.cookActive) { cam.startFollow(this.player.sprite, true, 1, 1, 0, 8); this.syncKitchenCamera(true); } });
     return true;
   }
 
@@ -502,51 +550,80 @@ export class WorldScene extends Phaser.Scene {
   private beams: Phaser.GameObjects.Image[] = [];
 
   // ------------------------------------------------------------------ the rest of the village around this district
-  private backdrops = new Map<string, { stamp: string; img: Phaser.GameObjects.Image }>();
+  private backdrops = new Map<string, { stamp: string; img: Phaser.GameObjects.Image; top: Phaser.GameObjects.Image }>();
+  /** What a district's cached drawing depends on: night, the restaurant's stage and its conditional props. */
+  private backdropStamp(z: ZoneDef) {
+    const night = clock.isNight() || clock.period === 2;
+    return `${night}|${game.save.restaurant.level}|${z.props.map((p) => (p.cond ? (condOk(p.cond) ? 1 : 0) : '')).join('')}`;
+  }
   /**
-   * Every other outdoor district is drawn around the current one (its ground and scenery, one cached image per district,
-   * redrawn only when its night look, obstacles or the restaurant's stage change), so walking out of a district shows the
-   * next one already there and crossing the border needs no fade.
+   * Every outdoor district is drawn once into two cached images (its ground, and its scenery with room for the treetops and
+   * roofs that rise past its edge) and shown around the current one, so walking out of a district shows the next one already
+   * there and crossing the border needs no fade. The current district is cached too (hidden), ready for the moment you leave it.
    */
   private updateBackdrop() {
     const here = this.zone.def;
     const night = clock.isNight() || clock.period === 2;
-    const others = Object.values(ZONES).filter((z) => z.outdoor && z.world && z.id !== here.id);
-    for (const [id, b] of this.backdrops) if (!here.outdoor || !here.world || id === here.id) b.img.setVisible(false);
+    const all = Object.values(ZONES).filter((z) => z.outdoor && z.world);
+    for (const [id, b] of this.backdrops) if (!here.outdoor || !here.world || id === here.id) { b.img.setVisible(false); b.top.setVisible(false); }
     if (!here.outdoor || !here.world) return;
     const sheet = this.textures.get('tiles').getSourceImage() as CanvasImageSource;
-    others.forEach((z, n) => {
-      const stamp = `${night}|${game.save.restaurant.level}|${z.props.map((p) => (p.cond ? (condOk(p.cond) ? 1 : 0) : '')).join('')}`;
-      const place = (img: Phaser.GameObjects.Image) => img.setPosition((z.world!.x - here.world!.x) * TILE, (z.world!.y - here.world!.y) * TILE).setVisible(true);
+    const PX = 4, PT = 8, PB = 2; // overhang room in tiles: sides, top, bottom
+    const place = (z: ZoneDef, b: { img: Phaser.GameObjects.Image; top: Phaser.GameObjects.Image }) => {
+      const cur = this.zone.def;
+      if (!cur.world || cur.id === z.id) { b.img.setVisible(false); b.top.setVisible(false); return; }
+      const x = (z.world!.x - cur.world.x) * TILE, y = (z.world!.y - cur.world.y) * TILE;
+      b.img.setPosition(x, y).setVisible(true);
+      b.top.setPosition(x - PX * TILE, y - PT * TILE).setVisible(true);
+    };
+    // the district just left first, then the rest one per frame, so entering the village never stalls on all of them
+    const order = [...all].sort((a, b) => Number(b.id === this.lastOutdoor) - Number(a.id === this.lastOutdoor));
+    let n = 0;
+    for (const z of order) {
+      const stamp = this.backdropStamp(z);
       const have = this.backdrops.get(z.id);
-      if (have && have.stamp === stamp) { place(have.img); return; }
-      // drawn one district per frame, so entering the village never stalls on all of them at once
-      this.time.delayedCall(n * 16, () => {
-        if (this.zone.def.id === z.id || !this.zone.def.world) return;
+      if (have && have.stamp === stamp) { place(z, have); continue; }
+      const draw = () => {
+        if (!this.zone.def.world) return;
         const built = buildZone(z.id, night);
+        this.seamGrids.set(z.id, { stamp, grid: built.grid });
         const c = makeCanvas(z.w * TILE, z.h * TILE), g = ctx2d(c);
         for (let y = 0; y < z.h; y++) for (let x = 0; x < z.w; x++) for (const t of [built.tiles[y][x], built.overlay[y][x]]) {
           if (t >= 0) g.drawImage(sheet, (t % TILESET_COLS) * TILE, Math.floor(t / TILESET_COLS) * TILE, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
         }
         for (const r of bridgeRails(z.ground)) g.drawImage(bridgeRailCanvas(r.axis, r.length), r.x * TILE - 2, r.y * TILE - 7);
+        const tc = makeCanvas((z.w + PX * 2) * TILE, (z.h + PT + PB) * TILE), tg = ctx2d(tc);
         for (const p of [...built.props].sort((a, b) => a.y + a.def.h - b.y - b.def.h)) {
           const img = propCanvas(p.key);
-          g.drawImage(img, Math.floor((p.x + p.def.w / 2) * TILE - img.width / 2), (p.y + p.def.h) * TILE - img.height);
+          const px = Math.floor((p.x + p.def.w / 2) * TILE - img.width / 2), py = (p.y + p.def.h) * TILE - img.height;
+          // flat pieces (rugs, paving) stay with the ground; everything standing goes on the scenery layer above it
+          if (p.def.ground) g.drawImage(img, px, py); else tg.drawImage(img, px + PX * TILE, py + PT * TILE);
         }
-        const key = 'backdrop_' + z.id;
-        if (this.textures.exists(key)) this.textures.remove(key);
-        this.textures.addCanvas(key, c);
+        const key = 'backdrop_' + z.id, topKey = 'backdrop_top_' + z.id;
+        for (const [k, cv] of [[key, c], [topKey, tc]] as const) {
+          if (this.textures.exists(k)) this.textures.remove(k);
+          this.textures.addCanvas(k, cv);
+        }
         const old = this.backdrops.get(z.id);
-        const img = old?.img.setTexture(key) ?? this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-12);
-        this.backdrops.set(z.id, { stamp, img });
-        const cur = this.zone.def;
-        if (cur.world && cur.id !== z.id) img.setPosition((z.world!.x - cur.world.x) * TILE, (z.world!.y - cur.world.y) * TILE).setVisible(true);
-      });
-    });
+        const b = {
+          stamp,
+          img: old?.img.setTexture(key) ?? this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-12),
+          // above this district's own ground (-10) and its edge overlay, below anything that stands in it
+          top: old?.top.setTexture(topKey) ?? this.add.image(0, 0, topKey).setOrigin(0, 0).setDepth(-8),
+        };
+        this.backdrops.set(z.id, b);
+        place(z, b);
+      };
+      if (n === 0 && z.id === this.lastOutdoor) draw(); else this.time.delayedCall(n * 16, draw);
+      n++;
+    }
+    this.lastOutdoor = here.id;
   }
+  /** The outdoor district the player stood in last, drawn first so leaving it never leaves a hole. */
+  private lastOutdoor = '';
 
   // ------------------------------------------------------------------ zones
-  async enterZone(id: string, tx: number, ty: number, dir: Dir = 'down', withFade = true, allowClosed = false): Promise<boolean> {
+  async enterZone(id: string, tx: number, ty: number, dir: Dir = 'down', withFade = true, allowClosed = false, at?: { x: number; y: number; sx: number; sy: number }): Promise<boolean> {
     if (this.transitioning) return false;
     if (!allowClosed && id !== this.zoneId) {
       const closed = closedLocalNotice(id);
@@ -565,8 +642,9 @@ export class WorldScene extends Phaser.Scene {
       const arrival = safeArrival(prepared, tx, ty);
       const load = async () => {
         try {
-          this.mountZone(prepared, arrival.x, arrival.y, dir);
-          await this.waitForRender();
+          this.mountZone(prepared, arrival.x, arrival.y, dir, at);
+          // walking over a district edge shows nothing new to wait for: the next district was already on screen
+          if (!at) await this.waitForRender();
         } catch (err) {
           if (previous && position) {
             try {
@@ -613,7 +691,8 @@ export class WorldScene extends Phaser.Scene {
     return [...flags].map((c) => c + (condOk(c) ? 1 : 0)).join(',');
   }
 
-  private mountZone(built: BuiltZone, tx: number, ty: number, dir: Dir) {
+  private mountZone(built: BuiltZone, tx: number, ty: number, dir: Dir, at?: { x: number; y: number; sx: number; sy: number }) {
+    this.kitchenFramed = false; this.kitchenFrameKey = '';
     this.buildZoneObjects(built.def.id, built);
     if (!this.player || !this.player.sprite.active) {
       this.player = new Actor(this, 'player', charTexture(this, 'player'), tx, ty);
@@ -622,6 +701,10 @@ export class WorldScene extends Phaser.Scene {
     this.player.face(dir);
     this.cameras.main.startFollow(this.player.sprite, true, 1, 1, 0, 8);
     this.cameras.main.centerOn(this.player.x, this.player.y);
+    if (at) {
+      this.player.x = at.x; this.player.y = at.y; this.player.sync();
+      this.cameras.main.setScroll(at.sx, at.sy);
+    }
     Object.assign(game.save.player, { zone: built.def.id, x: tx, y: ty, dir });
     this.spawnNpcs(false);
     this.blockKey = this.blockStamp();
@@ -2866,6 +2949,7 @@ export class WorldScene extends Phaser.Scene {
     if (!mirror.on) this.pollHours(dt);
     this.drawFishSpots();
     this.updatePlayer(dt);
+    this.syncKitchenCamera();
     this.tickTown(dt);
     this.updateConversation(dt);
     for (const [, n] of this.npcs) this.updateNpc(n, dt);
@@ -2960,6 +3044,7 @@ export class WorldScene extends Phaser.Scene {
     }
     const wasTile = `${p.tx},${p.ty}`;
     p.update(dt);
+    if (this.zone.def.world && !this.zone.grid.inside(p.tx, p.ty) && !this.transitioning) this.crossSeam();
     if (`${p.tx},${p.ty}` !== wasTile || (p.moving && p.manual)) this.checkWalkDoor();
     if (this.cookProp) this.cookProp.setPosition(p.x, p.y - 34);
     if (this.notingUntil && (p.moving || performance.now() >= this.notingUntil)) {
@@ -2983,7 +3068,8 @@ export class WorldScene extends Phaser.Scene {
       [nx + hw, ny - 0.5],
     ];
     for (const [x, y] of pts) {
-      if (g.isSolid(Math.floor(x / TILE), Math.floor(y / TILE))) return;
+      const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
+      if (g.inside(tx, ty) ? g.isSolid(tx, ty) : this.seamSolid(tx, ty)) return;
     }
     p.x = nx;
     p.y = ny;
@@ -3122,9 +3208,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Until this time the border doors stay quiet: the player is still finishing the step that crossed one. */
-  private seamUntil = 0;
   private checkWalkDoor() {
-    if (this.transitioning || this.inputLocked || performance.now() < this.seamUntil) return;
+    if (this.transitioning || this.inputLocked) return;
     const p = this.player;
     const d = this.zone.def.doors.find((dd) => dd.walk && dd.x === p.tx && dd.y === p.ty);
     if (!d) return;
@@ -3139,18 +3224,50 @@ export class WorldScene extends Phaser.Scene {
     }
     // between two outdoor districts the village is one place: you just keep walking (the next district is already drawn)
     const seamless = !!this.zone.def.outdoor && !!this.zone.def.world && !!ZONES[d.to]?.outdoor && !!ZONES[d.to]?.world;
-    if (!seamless) audio.sfxPlay('door');
+    if (seamless) { this.seamOpen.add(d.to); return; }
+    audio.sfxPlay('door');
     if (d.to.startsWith('shop_') || (this.zoneId.startsWith('shop_') && d.to === 'plaza')) audio.sfxPlay('bell');
-    if (!seamless) p.stop();
-    void runTask('world:walk-door', async () => {
-      const ok = await this.enterZone(d.to, d.tx, d.ty, d.dir, !seamless);
-      if (!ok || !seamless) return;
-      // the arrival tile lies one step past the border: start that step from the border so the walk never jumps
-      const step = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[d.dir];
-      const me = this.player, tx = me.tx, ty = me.ty;
-      me.x -= step[0] * TILE; me.y -= step[1] * TILE;
-      me.path = [[tx, ty]];
-      this.seamUntil = performance.now() + 450;
+    p.stop();
+    void runTask('world:walk-door', () => this.enterZone(d.to, d.tx, d.ty, d.dir, true));
+  }
+
+  /** Districts whose locked border the player was let through (lockHook) this session. */
+  private seamOpen = new Set<string>();
+  /** The district across the edge of this one at a tile just outside it, with that tile in its own coordinates. */
+  private seamNeighbor(tx: number, ty: number) {
+    const here = this.zone.def;
+    if (!here.outdoor || !here.world) return null;
+    const wx = tx + here.world.x, wy = ty + here.world.y;
+    const def = Object.values(ZONES).find((z) => z.outdoor && z.world && z.id !== here.id && wx >= z.world.x && wy >= z.world.y && wx < z.world.x + z.w && wy < z.world.y + z.h);
+    if (!def) return null;
+    // a locked or closed way in stays shut from every side
+    if (!this.seamOpen.has(def.id) && here.doors.some((d) => d.to === def.id && d.lock && !game.has(d.lock.flag))) return null;
+    if (closedLocalNotice(def.id)) return null;
+    return { def, x: wx - def.world!.x, y: wy - def.world!.y };
+  }
+  /** Outdoors the edge of a district is no wall: the tile across it decides, as the next district has it. */
+  private seamSolid(tx: number, ty: number) {
+    const n = this.seamNeighbor(tx, ty);
+    return !n || this.seamGrid(n.def.id).isSolid(n.x, n.y);
+  }
+  private seamGrids = new Map<string, { stamp: string; grid: import('../world/grid').Grid }>();
+  private seamGrid(id: string) {
+    const z = ZONES[id], stamp = this.backdropStamp(z);
+    let have = this.seamGrids.get(id);
+    if (!have || have.stamp !== stamp) this.seamGrids.set(id, have = { stamp, grid: buildZone(id, clock.isNight() || clock.period === 2).grid });
+    return have.grid;
+  }
+  /** Walked over the edge: the next district takes over with the player and the camera exactly where they were. */
+  private crossSeam() {
+    const p = this.player, here = this.zone.def, cam = this.cameras.main;
+    const n = this.seamNeighbor(p.tx, p.ty);
+    if (!n) return;
+    const dx = (here.world!.x - n.def.world!.x) * TILE, dy = (here.world!.y - n.def.world!.y) * TILE;
+    const at = { x: p.x + dx, y: p.y + dy, sx: cam.scrollX + dx, sy: cam.scrollY + dy };
+    const manual = p.manual, moving = p.moving;
+    void runTask('world:seam', async () => {
+      if (!(await this.enterZone(n.def.id, n.x, n.y, p.dir, false, false, at))) return;
+      this.player.manual = manual; this.player.moving = moving;
     });
   }
 

@@ -5,6 +5,8 @@
 .gl-fridge-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; color: var(--ui-brown, #765c47); }
 .gl-x { width: 32px; height: 32px; border: 2px solid #d8a993; border-radius: 10px; background: #f6e3dc; color: inherit; font: inherit; cursor: pointer; }
 .gl-fridge-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-height: 38vh; overflow-y: auto; }
+.gl-fridge.action-card { display: flex; flex-direction: column; overflow: visible; }
+.gl-fridge.action-card .gl-fridge-grid { min-height: 0; flex: 1; }
 .gl-choice { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px 4px; min-height: 64px; border: 1px solid var(--ui-line, #d3c09f); border-radius: 10px; background: #fffdf6; color: inherit; font: inherit; font-size: .78em; cursor: pointer; }
 .gl-choice:hover, .gl-choice:focus-visible { background: var(--ui-accent-soft, #f3e0c0); outline: 2px solid var(--ui-sage-dark, #536b58); outline-offset: 1px; }
 .gl-choice.wanted::after { content: ''; position: absolute; top: 4px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--ui-accent, #d7a46a); box-shadow: 0 0 0 1px #fff8ec; }

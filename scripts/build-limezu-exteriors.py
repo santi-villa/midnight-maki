@@ -182,6 +182,8 @@ add_single('garden_cart', 'Carrito con flores', ['garden_cart'], '17_Garden', 'G
 add_single('watering_can', 'Regadera', ['watering_can'], '17_Garden', 'Garden_16x16_Green_Watering_Can_Left_Full')
 add_single('mushroom', 'Hongos rojos', ['mushroom'], '11_Camping', 'Camping_16x16_Mushrooms_5')
 add_single('stump', 'Tocón', ['stump'], '11_Camping', 'Camping_16x16_Stump_1')
+# a lit hand lantern on the piers instead of the drawn paper lanterns
+add_single('pier_lantern', 'Farol del muelle', ['pier_lantern'], '11_Camping', 'Camping_16x16_Lantern_4')
 add_single('street_bin', 'Tacho de basura', ['street_bin'], '3_City_Props', 'City_Props_16x16_Small_Closed_Trash_Can')
 
 # Layout: tiles in a 16-wide grid at the top, pieces on shelves underneath.

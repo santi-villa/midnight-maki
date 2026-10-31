@@ -13,7 +13,7 @@ import { game } from '../../core/state';
 import { inDialogue } from '../../dialogue/dialogue';
 import { clock } from '../../systems/time';
 import { runTask } from '../../core/errors';
-import { h, modalOpen, openModal } from '../dom';
+import { h, modalOpen, openModal, mountModalHost } from '../dom';
 import { formatHudTime, hudTime } from '../hudClock';
 import { skinIconEl } from '../skin';
 import { phoneAppIcon, phoneCharm, phoneDeco, phoneSignals } from './appIcons';
@@ -40,9 +40,11 @@ let caseCanvas: HTMLCanvasElement;
 let screen: HTMLElement;
 let wall: HTMLCanvasElement;
 let view: HTMLElement;
+let appHost: HTMLElement;
+let unmountApps: (() => void) | null = null;
 let mounted = false;
 let phase: Phase = 'closed';
-let screenName: 'home' | 'custom' = 'home';
+let screenName: 'home' | 'custom' | 'app' = 'home';
 let openedAt = 0;
 let closeModal: (() => void) | null = null;
 let guard: HTMLElement | null = null;
@@ -50,6 +52,7 @@ let look: Look = { model: 'classic', color: 'crema', wallpaper: 'crema' };
 let draft: Look | null = null;
 let busyTimer = 0;
 let appBusy = false;
+let appLaunch = 0;
 let clockOff: (() => void) | null = null;
 let homePage = 0;
 let pageApi: { show: (page: number) => void } | null = null;
@@ -77,8 +80,8 @@ function layout() {
   const scale = normalizeUiScale(settings.uiScale);
   const logicalW = vw / scale;
   const s = safeInsets();
-  const availH = Math.max(300, vh - s.t - s.b - 16);
-  const availW = Math.max(200, vw - s.l - s.r - 16);
+  const availH = Math.max(160, (vh - s.t - s.b - 16) / scale);
+  const availW = Math.max(160, (vw - s.l - s.r - 16) / scale);
   let H = Math.min(availH, 780);
   let W = H * m.aspect;
   if (W > availW) { W = availW; H = W / m.aspect; }
@@ -109,6 +112,8 @@ function layout() {
   st.setProperty('--scr-w', geo.sw * pxs + 'px');
   st.setProperty('--scr-h', geo.sh * pxs + 'px');
   st.setProperty('--scr-r', m.screenRadius * pxs + 'px');
+  st.setProperty('--home-y', (geo.sy + geo.sh + m.bezel.bottom / 2) * pxs + 'px');
+  st.setProperty('--home-size', Math.min(36, Math.max(24, (m.bezel.bottom - 5) * pxs)) + 'px');
   st.setProperty('--closed-scale', closedScale.toFixed(3));
   st.setProperty('--peek-x', Math.round(cx - logicalW / 2) + 'px');
   st.setProperty('--peek-y', Math.round(cy - centreY) + 'px');
@@ -151,7 +156,15 @@ export function openPhone() {
   renderHome();
   guard = h('div', { class: 'noriphone-guard' });
   (guard as any).__close = closePhone;
-  closeModal = openModal(guard); // pauses the clock, blocks the character, and lets Escape close it
+  closeModal = openModal(guard, undefined, { focusRoot: device });
+  unmountApps = mountModalHost(appHost, device, depth => {
+    const active = depth > 0;
+    appHost.hidden = !active;
+    view.inert = active;
+    screen.classList.toggle('has-app', active);
+    if (active) { appBusy = false; screenName = 'app'; }
+    else if (phase === 'open' || phase === 'opening') renderHome();
+  });
   const quick = reduced();
   device.classList.toggle('instant', quick);
   screen.inert = false;
@@ -181,6 +194,9 @@ export function closePhone() {
   if (phase === 'closed' || phase === 'closing') return;
   if (draft) revertDraft();
   phase = 'closing';
+  appLaunch++; appBusy = false;
+  unmountApps?.(); unmountApps = null;
+  appHost.hidden = true; view.inert = false; screen.classList.remove('has-app');
   window.clearTimeout(busyTimer);
   closeModal?.(); // the world is released as soon as it starts to go down
   closeModal = null;
@@ -266,8 +282,9 @@ function appButton(app: PhoneApp, n: ReturnType<typeof noveltyCounts>) {
       markSeen(app.id);
       if (app.id === 'customize') { app.run(); return; }
       appBusy = true;
+      const launch = ++appLaunch;
       if (app.closePhone) closePhone();
-      void runTask('phone:' + app.id, app.run).finally(() => { appBusy = false; if (screenName === 'home' && phase === 'open') renderHome(); });
+      void runTask('phone:' + app.id, app.run).finally(() => { if (launch === appLaunch) appBusy = false; });
     },
   }, h('span', { class: 'pn-icon', 'aria-hidden': 'true' }, phoneAppIcon(app.id) ?? skinIconEl(app.icon), badgeFor(app.id, n) ? h('i', { class: 'pn-badge' }) : null), h('span', { class: 'pn-label' }, app.name));
 }
@@ -523,12 +540,14 @@ export function mountPhone() {
   caseCanvas = h('canvas', { class: 'noriphone-case', 'aria-hidden': 'true' });
   wall = h('canvas', { class: 'pn-wall', 'aria-hidden': 'true' });
   view = h('div', { class: 'pn-view' });
-  screen = h('div', { class: 'noriphone-screen is-busy' }, wall, h('div', { class: 'pn-shade' }), view);
+  appHost = h('div', { class: 'pn-app-host', hidden: true });
+  screen = h('div', { class: 'noriphone-screen is-busy' }, wall, h('div', { class: 'pn-shade' }), view, appHost);
   const gripTop = h('div', { class: 'noriphone-grip top' });
   const gripBottom = h('div', { class: 'noriphone-grip bottom' });
   const charm = phoneCharm();
   charm.classList.add('pn-charm');
-  device = h('div', { class: 'noriphone-device' }, caseCanvas, screen, charm, gripTop, gripBottom);
+  const homeButton = h('button', { type: 'button', class: 'noriphone-home-button', 'aria-label': 'Cerrar celular', title: 'Cerrar celular', onclick: (e: Event) => { e.stopPropagation(); closePhone(); } }, h('span', { 'aria-hidden': 'true' }));
+  device = h('div', { class: 'noriphone-device' }, caseCanvas, screen, charm, gripTop, gripBottom, homeButton);
   screen.inert = true;
   dim = h('div', { class: 'noriphone-dim' });
   dim.addEventListener('pointerdown', () => { if (phase === 'open' && performance.now() - openedAt > 450 && !modalOpen_top()) closePhone(); });

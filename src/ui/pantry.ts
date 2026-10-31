@@ -6,8 +6,9 @@ import { game } from '../core/state';
 import { ITEMS_BY_ID, PACKS } from '../data/items';
 import { SUPPLY_GROUPS, pantryCapacity, pantryFree, pantryTotal, storeLoose, storePacks, whereToGet } from '../restaurant/supplies';
 import { h, panel, toast } from './dom';
+import type { ActionAnchor } from './actionPanel';
 
-export function openPantry() {
+export function openPantry(anchor?: ActionAnchor) {
   const body = h('div', { class: 'col' });
   const render = () => {
     body.innerHTML = '';
@@ -48,5 +49,5 @@ export function openPantry() {
   };
   render();
   const off = bus.on('inventory:changed', render);
-  panel({ title: 'Despensa', wide: true, body, onClose: () => off() });
+  panel({ title: 'Despensa', wide: !anchor, body, anchor, onClose: () => off() });
 }

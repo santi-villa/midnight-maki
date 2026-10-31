@@ -2845,6 +2845,26 @@
    }
   },
   {
+   "id": "lx_pier_lantern",
+   "name": "Farol del muelle",
+   "replaces": [
+    "pier_lantern"
+   ],
+   "sheet": "ME_Theme_Sorter_16x16/11_Camping_Singles_16x16/ME_Singles_Camping_16x16_Lantern_4.png",
+   "rect": [
+    3,
+    0,
+    11,
+    16
+   ],
+   "atlas": {
+    "x": 217,
+    "y": 775,
+    "w": 11,
+    "h": 16
+   }
+  },
+  {
    "id": "lx_street_bin",
    "name": "Tacho de basura",
    "replaces": [
@@ -2858,7 +2878,7 @@
     22
    ],
    "atlas": {
-    "x": 217,
+    "x": 229,
     "y": 775,
     "w": 16,
     "h": 22

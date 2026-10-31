@@ -33,10 +33,10 @@ export interface ModelDef {
 }
 
 export const MODELS: ModelDef[] = [
-  { id: 'classic', name: 'NoriPhone Classic', note: 'Bordes gruesos, parlante bien visible. Simple y acogedor.', aspect: 0.5, bezel: { side: 6, top: 13, bottom: 10 }, radius: 4, screenRadius: 2, camera: 'dot', speaker: 'slot' },
-  { id: 'mini', name: 'NoriPhone Mini', note: 'Compacto, de bordes redondeados y cámara chiquita.', aspect: 0.47, bezel: { side: 5, top: 11, bottom: 9 }, radius: 7, screenRadius: 4, camera: 'small', speaker: 'short' },
-  { id: 'plus', name: 'NoriPhone Plus', note: 'Más pantalla y marcos finitos. Un poco más elegante.', aspect: 0.46, bezel: { side: 3, top: 9, bottom: 6 }, radius: 5, screenRadius: 3, camera: 'punch', speaker: 'thin', unlock: { how: 'Subí el restaurante al nivel 3.', test: (c) => c.level >= 3 } },
-  { id: 'moonberry', name: 'MoonBerry', note: 'Formas suaves, estrellas y estética nocturna.', aspect: 0.48, bezel: { side: 5, top: 12, bottom: 9 }, radius: 8, screenRadius: 5, camera: 'moon', speaker: 'star', unlock: { how: 'Seguí la historia hasta "Las mentiras de Villa Nori" (capítulo 5).', test: (c) => c.has('ch5_done') } },
+  { id: 'classic', name: 'NoriPhone Classic', note: 'Bordes gruesos, parlante bien visible. Simple y acogedor.', aspect: 0.5, bezel: { side: 6, top: 13, bottom: 18 }, radius: 4, screenRadius: 2, camera: 'dot', speaker: 'slot' },
+  { id: 'mini', name: 'NoriPhone Mini', note: 'Compacto, de bordes redondeados y cámara chiquita.', aspect: 0.47, bezel: { side: 5, top: 11, bottom: 18 }, radius: 7, screenRadius: 4, camera: 'small', speaker: 'short' },
+  { id: 'plus', name: 'NoriPhone Plus', note: 'Más pantalla y marcos finitos. Un poco más elegante.', aspect: 0.46, bezel: { side: 3, top: 9, bottom: 16 }, radius: 5, screenRadius: 3, camera: 'punch', speaker: 'thin', unlock: { how: 'Subí el restaurante al nivel 3.', test: (c) => c.level >= 3 } },
+  { id: 'moonberry', name: 'MoonBerry', note: 'Formas suaves, estrellas y estética nocturna.', aspect: 0.48, bezel: { side: 5, top: 12, bottom: 18 }, radius: 8, screenRadius: 5, camera: 'moon', speaker: 'star', unlock: { how: 'Seguí la historia hasta "Las mentiras de Villa Nori" (capítulo 5).', test: (c) => c.has('ch5_done') } },
 ];
 export const MODEL_BY_ID: Record<string, ModelDef> = Object.fromEntries(MODELS.map((m) => [m.id, m]));
 
