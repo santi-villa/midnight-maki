@@ -222,11 +222,12 @@ export function createVillageTerrain() {
     prop('buoy', 10, 70); prop('buoy_orange', 18, 69); prop('buoy_red', 6, 74);
   }
 
-  // Market shares the waterfront, with buildings behind its stalls and a walking aisle down the middle.
+  // The night market is one street: six stalls side by side along the north edge (one per stall interaction in
+  // villageWorld.ts), the aisle in front of them, garlands over it and a lantern at each end.
   rect(44, 59, 25, 4, 'p', true); rect(45, 62, 29, 3, 'b');
-  prop('jc_market_blue', 46, 60); prop('jc_market_red', 62, 60);
-  prop('stall_gold', 46, 64); prop('stall_night', 64, 64);
-  prop('lanternstring', 51, 61); prop('lantern_red', 44, 62); prop('lantern_cream', 69, 62);
+  prop('jc_market_blue', 45, 60); prop('stall_gold', 49, 60); prop('stall_night', 52, 60);
+  prop('stall_sage', 55, 60); prop('jc_market_red', 58, 60); prop('stall_rose', 62, 60);
+  prop('lanternstring', 47, 62); prop('lanternstring', 57, 62); prop('lantern_red', 44, 62); prop('lantern_cream', 66, 62);
   // Segmented wharves, two moorings and a separate lighthouse promontory.
   rect(55, 65, 36, 5, 'b'); rect(55, 69, 3, 8, 'b'); rect(69, 69, 3, 7, 'b'); rect(83, 69, 3, 6, 'b');
   bridge(89, 67, 9, 2);
@@ -237,7 +238,7 @@ export function createVillageTerrain() {
   if (exteriorsWanted()) {
     // Modern Exteriors: carts between the market stalls, cargo and benches against the south rail.
     // The aisle, the stall counters, both pier mouths and the house doors stay open.
-    prop('wharf_flower_cart', 57, 60); prop('wharf_candy_cart', 41, 60);
+    prop('wharf_flower_cart', 65, 60); prop('wharf_candy_cart', 41, 60);
     prop('wharf_flower_box', 44, 68); prop('wharf_barrel', 52, 68); prop('wharf_barrel', 53, 68);
     prop('wharf_flower_box', 60, 68); prop('wharf_bench', 64, 68);
     prop('wharf_boxes', 75, 68); prop('wharf_box', 77, 68); prop('wharf_barrel', 78, 68);
