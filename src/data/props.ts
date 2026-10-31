@@ -122,6 +122,10 @@ export const PROPS: Record<string, PropDef> = {
   planter_white: P('flowers', 2, 1, 32, 15, '#f6f3ee', '#ffffff', { sombra: 'contacto' }),
   // harbour and market (wharf_* may stand on the deck and the market paths); gulls never block the way
   wharf_barrel: P('barrel', 1, 1, 15, 26),
+  // fish market pieces (VectoRaith): a drying rack and crates of fish on the quay
+  wharf_fish_rack: P('crate', 3, 1, 46, 30, '#a0704a'),
+  wharf_fish_crate_b: P('crate', 3, 1, 46, 30, '#6f8fb8'),
+  wharf_fish_crate_r: P('crate', 3, 1, 46, 30, '#b8524f'),
   wharf_boxes: P('crate', 2, 1, 32, 36),
   wharf_box: P('crate', 1, 1, 16, 21),
   wharf_bench: P('bench', 2, 1, 32, 16, '#b07a4c'),

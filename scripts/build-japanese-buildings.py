@@ -78,6 +78,14 @@ piece('stairs', 'Escalón de piedra', ['stonestairs'], (16, 144, 16, 16))
 piece('board', 'Tablero de anuncios', ['board'], (96, 290, 32, 30))
 piece('well', 'Pozo', ['well'], (98, 320, 30, 48))
 piece('sakura', 'Cerezo', ['sakura'], (720, 1169, 48, 47))
+# The fish market sheet: small awning stalls (one per roof colour) for the market's stalls, and the harbour's fish
+# drying rack and crates of fish.
+piece('stall_blue', 'Puesto con toldo (azul)', ['stall_night', 'stall_rose'], (128, 1648, 48, 48))
+piece('stall_brown', 'Puesto con toldo (marrón)', ['stall_gold'], (128 + BROWN, 1648, 48, 48))
+piece('stall_green', 'Puesto con toldo (verde)', ['stall_sage'], (128 + GREEN, 1648, 48, 48))
+piece('fish_rack', 'Secadero de pescado', ['wharf_fish_rack'], (208, 1696, 48, 32))
+piece('fish_crate_blue', 'Cajón de pescado azul', ['wharf_fish_crate_b'], (208, 1632, 48, 32))
+piece('fish_crate_red', 'Cajón de pescado rojo', ['wharf_fish_crate_r'], (208, 1760, 48, 32))
 
 # Shelf packing, one facade per slot.
 W = 512
