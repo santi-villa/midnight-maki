@@ -197,6 +197,7 @@ export function createVillageTerrain() {
     for (let yy = y - 1; yy <= y + 1; yy++) for (let xx = x - 1; xx <= x + 1; xx++) if ('pcb'.includes(grid[yy]?.[xx] ?? '')) return false;
     return true;
   }
+  path([[0, 6], [18, 6]], 2); // the forest's west trail, on to the Bosque profundo (deepForest.ts); before the trees
   for (let y = 1; y < 47; y += 2) for (let x = 0; x < 32; x += 2) {
     const seed = (x * 13 + y * 37) % 17;
     const xx = x + seed % 2, yy = y + (seed % 3 === 0 ? 1 : 0);
