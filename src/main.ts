@@ -12,6 +12,7 @@ import { installAppShell, onBack } from './core/appShell';
 import { installMoveScrollGuard, installPcControls } from './input/shortcuts';
 import './ui/unify.css';
 import './ui/uiScale.css';
+import './ui/sproutUi.css';
 
 installErrorGuard();
 installAppShell();

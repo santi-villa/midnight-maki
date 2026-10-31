@@ -1,0 +1,12 @@
+/* Sprout Lands UI (Cup Nooble): cat-paw cursor and the dialog's bouncing "keep going" dot. See scripts/build-ui-assets.py. */
+html, body, #game canvas { cursor: url('../assets/ui/paw.png') 4 4, auto; }
+button, [role='button'], summary, a, .slot, .hud-quest, .dlg-catch, .cine-sub, .book-page, .gl-ticket { cursor: url('../assets/ui/paw_point.png') 6 2, pointer; }
+button:active, [role='button']:active, .slot:active { cursor: url('../assets/ui/paw_hold.png') 6 4, pointer; }
+button:disabled { cursor: url('../assets/ui/paw.png') 4 4, default; }
+.dlg .next {
+  width: 48px; height: 48px; right: 4px; bottom: -6px; font-size: 0; color: transparent;
+  background: url('../assets/ui/dialog_next.png') 0 0 / 336px 48px no-repeat; image-rendering: pixelated;
+  animation: dlg-next .9s steps(7) infinite;
+}
+@keyframes dlg-next { to { background-position: -336px 0; } }
+@media (prefers-reduced-motion: reduce) { .dlg .next { animation: none; } }

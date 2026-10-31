@@ -53,3 +53,13 @@ DEST.mkdir(parents=True, exist_ok=True)
 atlas.save(DEST / 'emotes.png', optimize=True)
 (DEST / 'emotes.json').write_text(json.dumps(dict(source='LimeZu Modern Interiors, 4_User_Interface_Elements', emotes=catalog), indent=1) + '\n', encoding='utf-8')
 print({k: (v['w'], v['h'], v['frames']) for k, v in catalog.items()})
+
+# Sprout Lands UI (Cup Nooble, free basic pack: non-commercial, no redistribution): cat-paw cursors and the dialog's
+# "click to continue" indicator. Point SPROUT_UI at the pack's "Sprite sheets" folder; skipped when unset.
+SPROUT = Path(os.environ.get('SPROUT_UI', ''))
+if (SPROUT / 'Mouse sprites').is_dir():
+    for name, file in {'paw': 'Catpaw Mouse icon', 'paw_point': 'Catpaw pointing Mouse icon', 'paw_hold': 'Catpaw holding Mouse icon'}.items():
+        im = Image.open(SPROUT / 'Mouse sprites' / f'{file}.png').convert('RGBA')
+        im.resize((32, 32), Image.NEAREST).save(DEST / f'{name}.png', optimize=True)
+    Image.open(SPROUT / 'Dialouge UI' / 'dialog box character finished talking click to continue indicator - spritesheet .png').convert('RGBA').save(DEST / 'dialog_next.png', optimize=True)
+    print('sprout lands: cursors + dialog indicator')
