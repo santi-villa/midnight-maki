@@ -119,7 +119,7 @@ export function createVillageTerrain() {
   path([[18, 23], [38, 23], [43, 28], [54, 28]], 2); bridge(31, 23, 9);
   path([[21, 38], [43, 38], [46, 38]], 3); bridge(29, 38, 10);
   path([[23, 53], [42, 53], [45, 52]], 2); bridge(29, 53, 11);
-  path([[43, 28], [69, 28]], 2);
+  path([[43, 28], [66, 28]], 2); // ends at the ring road, not in the river
   path([[44, 29], [44, 46], [46, 56], [63, 56], [66, 46], [66, 29]], 2);
   path([[64, 37], [83, 37], [90, 37]], 3); bridge(72, 37, 9);
   path([[90, 24], [90, 49], [98, 49], [98, 53]], 2);
@@ -244,7 +244,8 @@ export function createVillageTerrain() {
     prop('wharf_boxes', 75, 68); prop('wharf_box', 77, 68); prop('wharf_barrel', 78, 68);
     prop('wharf_bench', 86, 68);
   }
-  for (const [x, y] of [[55, 65], [63, 65], [78, 66], [90, 67], [97, 69]]) prop('lantern_cream', x, y);
+  // lanterns stand at the rail on both sides of each pier's mouth and by the lighthouse door, never mid-deck
+  for (const [x, y] of [[54, 68], [58, 68], [68, 68], [72, 68], [82, 68], [97, 75]]) prop('lantern_cream', x, y);
   // River walk remains on the residential bank, with a bridge to the wharf.
   path([[90, 49], [100, 49], [100, 52]], 2);
   rect(94, 52, 3, 13, 'b'); path([[94, 64], [90, 65]], 2, 'b');
