@@ -58,7 +58,7 @@ registerAction('wardrobe', async () => {
 });
 
 registerAction('pantry', () => {
-  import('../ui/pantry').then((m) => m.openPantry());
+  import('../ui/pantry').then((m) => m.openPantry(world.zoneId === 'restaurant' ? world.galleyView.anchorFor('fridge') : undefined));
 });
 
 registerAction('door', async (to) => {

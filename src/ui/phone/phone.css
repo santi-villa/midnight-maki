@@ -20,6 +20,37 @@
 .noriphone-screen { position: absolute; left: var(--scr-x); top: var(--scr-y); width: var(--scr-w); height: var(--scr-h); border-radius: var(--scr-r); overflow: hidden;
   background: #1b1830; color: #3b2a22; font-family: inherit; }
 .noriphone-screen.is-busy { pointer-events: none; }
+.noriphone-home-button { position: absolute; z-index: 6; left: 50%; top: var(--home-y); transform: translate(-50%, -50%); width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
+.noriphone-home-button::before { content: ''; position: absolute; width: var(--home-size); height: var(--home-size); border-radius: 50%; border: 2px solid #806c59; background: linear-gradient(145deg, #ffffff88, #342e2426); box-shadow: inset 0 1px 2px #3a2a2233, 0 1px 0 #ffffff99; }
+.noriphone-home-button span { z-index: 1; width: 9px; height: 9px; border: 1px solid #806c59; border-radius: 3px; }
+.noriphone-home-button:focus-visible { outline: 2px solid #5f785b; border-radius: 50%; outline-offset: 1px; }
+.noriphone-home-button:active::before { background: #342e2433; }
+.noriphone-device:not(.is-open) .noriphone-home-button { visibility: hidden; pointer-events: none; }
+.noriphone-screen.has-app > .pn-view { visibility: hidden; }
+.pn-app-host { position: absolute; inset: 0; z-index: 4; transform: translateZ(0); container-type: inline-size; background: #f8efd9; overflow: hidden; }
+.pn-app-host[hidden], .pn-app-host > [hidden] { display: none !important; }
+.pn-app-host > .panel-backdrop { position: absolute; inset: 0; padding: 0; background: transparent; display: flex; align-items: stretch; justify-content: stretch; }
+.pn-app-host .pn-app-panel { width: 100% !important; height: 100%; max-width: 100%; max-height: 100%; min-width: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; animation: none; padding: 0; overflow: hidden; }
+.pn-app-panel .panel-head { gap: 8px; padding: 10px 8px; flex: 0 0 auto; }
+.pn-app-panel .panel-head h2 { font-size: 1.1em; min-width: 0; line-height: 1.2; }
+.pn-app-panel .panel-head .pn-app-back { flex: 0 0 36px; width: 36px; height: 36px; padding: 0; border: 1px solid #b9a385; border-radius: 8px; background: #fff8ec; color: #5e6e54; font-size: 28px; line-height: 1; }
+.pn-app-back:focus-visible { outline: 2px solid #5e6e54; outline-offset: 2px; }
+.pn-camera { position: absolute; inset: 0; display: flex; flex-direction: column; background: #1f2440; color: #fff3dc; }
+.pn-camera .cam-top, .pn-camera .cam-bar { position: static; padding: 10px; flex: 0 0 auto; gap: 6px; }
+.pn-camera .cam-top { align-items: center; }
+.pn-camera .cam-hint { max-width: none; flex: 1 0 100%; font-size: 12px; }
+.cam-live-wrap { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+.cam-live { display: block; width: 100%; height: auto; max-height: 100%; object-fit: contain; image-rendering: pixelated; touch-action: none; }
+.pn-camera .cam-shutter { flex: 1 0 100%; }
+.pn-app-panel .panel-body { min-width: 0; min-height: 0; padding: 10px; border: 0; border-radius: 0; box-shadow: none; overflow: auto; overscroll-behavior: contain; }
+.pn-app-panel .panel-foot { flex: 0 0 auto; flex-wrap: wrap; padding: 8px; }
+.pn-app-panel .tabs { min-width: 0; flex-wrap: nowrap; overflow-x: auto; flex: 0 0 auto; }
+.pn-app-panel .tabs > * { flex-shrink: 0; }
+@container (max-width: 420px) {
+  .pn-app-panel .row { flex-wrap: wrap; }
+  .pn-app-panel .grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 100px), 1fr)); }
+  .pn-app-panel .card { min-width: 0; max-width: 100%; }
+}
 .pn-wall { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: cover; }
 .pn-shade { position: absolute; inset: 0; background: linear-gradient(rgba(255, 248, 230, .16), rgba(70, 42, 28, .08)); pointer-events: none; }
 .pn-view { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; }

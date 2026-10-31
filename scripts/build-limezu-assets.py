@@ -64,6 +64,8 @@ add('zabuton_sand', 'Zabuton arena', ['cushion_rose'], [(JP1, (145, 154, 13, 12)
 add('zabuton_sky', 'Zabuton celeste', ['cushion_indigo'], [(JP1, (129, 154, 13, 12))])
 add('zabuton_moss', 'Zabuton verde', ['bond_nap_cushion'], [(JP1, (161, 154, 13, 12))])
 add('bonsai', 'Bonsái en maceta', ['bonsai'], [(JP1, (112, 136, 16, 30))])
+# the paper globe of the Japanese theme replaces every drawn paper lantern (red or cream, on a wall or a stand)
+add('paper_lamp', 'Lámpara de papel', ['lantern_cream', 'lantern_red', 'wall_lantern_cream', 'wall_lantern_red'], [(JP1, (103, 71, 19, 21))])
 add('tea_tray', 'Bandeja de té', ['tea_set'], [(JP1, (57, 53, 13, 9))])
 
 # Restaurant kitchen: the charcoal grill (with its fire) for the stove. The pack's counters are only an 11 px front and

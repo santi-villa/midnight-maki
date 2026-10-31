@@ -19,6 +19,7 @@ import {
   type PhotoView,
 } from './frameMath';
 import { showHud } from './hud';
+import { isPhoneOpen } from './phone/phone';
 
 let framing = false;
 
@@ -44,20 +45,32 @@ export async function takePhoto() {
 export function openCamera() {
   if (!world?.player || framing || world.cookActive) return;
   framing = true;
+  const inPhone = isPhoneOpen();
   world.beginPhotoFrame();
-  showHud(false);
+  if (!inPhone) showHud(false);
 
   const zoomEl = h('span', { class: 'cam-zoom', 'aria-live': 'polite' }, '1×');
   const minus = h('button', { type: 'button', class: 'btn cam-step', 'aria-label': 'Alejar' }, '−');
   const plus = h('button', { type: 'button', class: 'btn cam-step', 'aria-label': 'Acercar' }, '+');
   const shutter = h('button', { type: 'button', class: 'btn primary cam-shutter' }, 'Sacar foto');
-  const cancel = h('button', { type: 'button', class: 'btn small' }, 'Cancelar');
+  const cancel = h('button', { type: 'button', class: 'btn small' }, inPhone ? '‹ Volver' : 'Cancelar');
+  const live = h('canvas', { class: 'cam-live', width: 480, height: 320, 'aria-label': 'Vista en vivo de la cámara' });
   const finder = h(
     'div',
-    { class: 'cam-finder', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Cámara' },
-    h('div', { class: 'cam-top' }, cancel, h('p', { class: 'cam-hint' }, 'Arrastrá para encuadrar. Pellizcá o usá + y − para acercar.')),
+    { class: 'cam-finder' + (inPhone ? ' pn-camera' : ''), role: inPhone ? 'region' : 'dialog', 'aria-modal': inPhone ? undefined : 'true', 'aria-label': 'Cámara' },
+    h('div', { class: 'cam-top' }, cancel, inPhone ? h('b', null, 'Cámara') : null, h('p', { class: 'cam-hint' }, 'Arrastrá para encuadrar. Pellizcá o usá + y − para acercar.')),
+    inPhone ? h('div', { class: 'cam-live-wrap' }, live) : null,
     h('div', { class: 'cam-bar' }, minus, zoomEl, plus, shutter),
   );
+  let lastPreview = 0;
+  const paintPreview = () => {
+    const now = performance.now(); if (now - lastPreview < 50 || !live.isConnected) return;
+    lastPreview = now;
+    const source = world.game.canvas, height = Math.max(1, Math.round(480 * source.height / source.width));
+    if (live.height !== height) live.height = height;
+    const ctx = live.getContext('2d')!; ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(source, 0, 0, live.width, live.height);
+  };
 
   const ac = new AbortController();
   const listen = { signal: ac.signal };
@@ -72,13 +85,15 @@ export function openCamera() {
     if (closed) return;
     closed = true;
     ac.abort();
+    if (inPhone) world.game.events.off('postrender', paintPreview);
     closeModal();
     world.endPhotoFrame();
-    showHud(true);
+    if (!inPhone) showHud(true);
     framing = false;
   };
   (finder as HTMLElement & { __close?: () => void }).__close = finish;
   closeModal = openModal(finder, () => { if (!closed) finish(); });
+  if (inPhone) world.game.events.on('postrender', paintPreview);
 
   const fit = () => walkingZoom(world.scale.width, world.scale.height, TILE);
   const refreshZoom = () => {
@@ -171,7 +186,11 @@ export function openCamera() {
 
   function gamePoint(clientX: number, clientY: number) {
     const cam = world.cameras.main;
-    const rect = world.game.canvas.getBoundingClientRect();
+    const rect = (inPhone ? live : world.game.canvas).getBoundingClientRect();
+    if (inPhone) {
+      const aspect = live.width / live.height, width = Math.min(rect.width, rect.height * aspect), height = width / aspect;
+      return { x: (clientX - rect.left - (rect.width - width) / 2) * cam.width / width, y: (clientY - rect.top - (rect.height - height) / 2) * cam.height / height };
+    }
     const sx = rect.width > 0 ? cam.width / rect.width : 1;
     const sy = rect.height > 0 ? cam.height / rect.height : 1;
     return { x: (clientX - rect.left) * sx, y: (clientY - rect.top) * sy };

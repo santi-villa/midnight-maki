@@ -38,6 +38,7 @@ import { clock } from '../systems/time';
 import { tooTiredToCook } from '../systems/fatigue';
 import type { ContextAction, Target } from '../world/contextActions';
 import { toast } from '../ui/dom';
+import type { ActionAnchor } from '../ui/actionPanel';
 import { closeFridgePicker, cutting, fridgeOpen, openFridgePicker, removeGalleyUi, runCutBar, showTickets, showTutorial, type FridgeChoice } from '../ui/galleyUi';
 
 /** What the view needs from the world scene (kept as an interface so this file does not import it). */
@@ -106,6 +107,14 @@ export class GalleyView {
   private clock = 0;
 
   constructor(private host: GalleyHost) {}
+  anchorFor(stationId: string): ActionAnchor {
+    return () => {
+      const s = STATION_BY_ID[stationId], scene = this.host.scene, cam = scene.cameras.main;
+      const r = scene.game.canvas.getBoundingClientRect();
+      const x = (s.x + s.w / 2) * TILE, y = (s.y + s.h) * TILE;
+      return { x: r.left + (x - cam.worldView.x) * cam.zoom * r.width / cam.width, y: r.top + (y - cam.worldView.y) * cam.zoom * r.height / cam.height };
+    };
+  }
 
   // ------------------------------------------------------------------ lifecycle
   get on() { return this.active; }
@@ -742,7 +751,7 @@ export class GalleyView {
       audio.sfxPlay('fridge_close');
       this.onEvents(res.events);
       saveGalley();
-    }, () => audio.sfxPlay('fridge_close'));
+    }, () => audio.sfxPlay('fridge_close'), this.anchorFor('fridge'));
     // the door swings open for a moment
     this.openDoor();
   }
@@ -788,7 +797,7 @@ export class GalleyView {
         this.onEvents(res.events);
         saveGalley();
         this.host.scene.time.delayedCall(420, () => { this.host.galleyBusy = false; this.host.player.setAct('idle'); });
-      }, { n: verdicts.length + 1, of: total, icon: ITEMS_BY_ID[item.ing]?.icon });
+      }, { n: verdicts.length + 1, of: total, icon: ITEMS_BY_ID[item.ing]?.icon }, this.anchorFor(stationId));
     };
     next();
   }

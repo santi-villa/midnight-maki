@@ -1,6 +1,6 @@
 /**
  * The small pieces of screen the physical kitchen needs: the fridge picker, the cutting-board reflex bar and the order tickets.
- * None of them pauses the game or covers the kitchen: they are paper cards at the edge of the screen.
+ * They leave cooking time running; action cards sit beside their station and tickets stay at the edge.
  */
 import { iconCanvas, iconElement, type IconSpec } from '../art/icons';
 import { lowFx } from '../core/perf';
@@ -11,6 +11,7 @@ import { pinTicket, type Ticket } from '../galley/tickets';
 import { settings } from '../core/settings';
 import { normalizeUiScale } from '../core/uiScale';
 import './galley.css';
+import { followActionPanel, type ActionAnchor } from './actionPanel';
 
 const root = () => document.getElementById('ui')!;
 
@@ -19,17 +20,19 @@ export interface FridgeChoice { id: string; name: string; icon: IconSpec; have: 
 
 let fridgeEl: HTMLElement | null = null;
 let fridgeKeys: ((e: KeyboardEvent) => void) | null = null;
+let stopFridgeAnchor: (() => void) | null = null;
 
 export function fridgeOpen(): boolean { return !!fridgeEl; }
 
 export function closeFridgePicker() {
+  stopFridgeAnchor?.(); stopFridgeAnchor = null;
   fridgeEl?.remove();
   fridgeEl = null;
   if (fridgeKeys) window.removeEventListener('keydown', fridgeKeys, true);
   fridgeKeys = null;
 }
 
-export function openFridgePicker(choices: FridgeChoice[], onPick: (id: string) => void, onClose: () => void) {
+export function openFridgePicker(choices: FridgeChoice[], onPick: (id: string) => void, onClose: () => void, anchor?: ActionAnchor) {
   closeFridgePicker();
   const buttons: HTMLButtonElement[] = [];
   const grid = h('div', { class: 'gl-fridge-grid', role: 'listbox', 'aria-label': 'Ingredientes de la heladera' });
@@ -47,6 +50,7 @@ export function openFridgePicker(choices: FridgeChoice[], onPick: (id: string) =
     h('div', { class: 'gl-fridge-head' }, h('b', null, 'Heladera'), h('button', { type: 'button', class: 'gl-x', 'aria-label': 'Cerrar', onclick: () => { closeFridgePicker(); onClose(); } }, '✕')),
     choices.length ? grid : empty);
   root().append(fridgeEl);
+  if (anchor) stopFridgeAnchor = followActionPanel(fridgeEl, anchor);
   buttons[0]?.focus({ preventScroll: true });
   fridgeKeys = (e) => {
     if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeFridgePicker(); onClose(); return; }
@@ -131,7 +135,7 @@ function sliceBoard(icon: IconSpec | undefined, total: number) {
  * for the series, a streak counter and the ingredient being sliced. With reduced motion or low effects only the dots, the streak
  * and the sliced ingredient remain (no trail, flash, sparks or shake).
  */
-export function runCutBar(spec: CutSpec, label: string, onDone: (verdict: CutVerdict) => void, step?: { n: number; of: number; icon?: IconSpec }): CutRun {
+export function runCutBar(spec: CutSpec, label: string, onDone: (verdict: CutVerdict) => void, step?: { n: number; of: number; icon?: IconSpec }, anchor?: ActionAnchor): CutRun {
   cutStop?.();
   if (!step || step.n === 1) { series.verdicts = []; series.streak = 0; series.best = 0; }
   const fx = !lowFx();
@@ -155,6 +159,7 @@ export function runCutBar(spec: CutSpec, label: string, onDone: (verdict: CutVer
     h('div', { class: 'gl-bar-wrap' }, bar, sparks),
     verdict, press);
   root().append(cutEl);
+  if (anchor) followActionPanel(cutEl, anchor);
   const el = cutEl;
   const t0 = performance.now();
   let raf = 0;

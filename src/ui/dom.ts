@@ -6,6 +6,7 @@ import { cancelKeyCapture, isCapturingKey, isCodeSwallowed, swallowCode } from '
 import { clock } from '../systems/time';
 import { settings } from '../core/settings';
 import type { TransitionKind } from '../world/zoneTransition';
+import { followActionPanel, type ActionAnchor } from './actionPanel';
 
 type Child = Node | string | number | null | undefined | false;
 type Attrs = Record<string, any>;
@@ -31,25 +32,44 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs | 
 export const uiRoot = () => document.getElementById('ui')!;
 
 // ------------------------------------------------------------------ modal stack
-interface ModalRec { el: HTMLElement; onClose?: () => void; }
+interface ModalRec { el: HTMLElement; onClose?: () => void; close?: () => void; host?: ModalHost; focusRoot?: HTMLElement; }
+interface ModalHost { element: HTMLElement; focusRoot: HTMLElement; changed: (depth: number) => void; }
 const stack: ModalRec[] = [];
 let panelSeq = 0;
+let modalHost: ModalHost | undefined;
+
+/** Apps and their nested screens share the phone's viewport and the normal modal lifecycle. */
+export function mountModalHost(element: HTMLElement, focusRoot: HTMLElement, changed: (depth: number) => void): () => void {
+  const host: ModalHost = { element, focusRoot, changed };
+  modalHost = host;
+  return () => {
+    if (modalHost === host) modalHost = undefined;
+    for (const rec of [...stack].reverse()) if (rec.host === host) rec.close?.();
+  };
+}
+function refreshModalHost(host: ModalHost) {
+  const records = stack.filter(r => r.host === host);
+  records.forEach((r, i) => { r.el.hidden = i !== records.length - 1; r.el.inert = r.el.hidden; });
+  host.changed(records.length);
+}
 
 export function modalOpen() {
   return stack.length > 0;
 }
 
 /** `keepTime`: the window does not stop the game clock (the kitchen: cooking takes time). */
-export function openModal(el: HTMLElement, onClose?: () => void, opts?: { keepTime?: boolean }): () => void {
+export function openModal(el: HTMLElement, onClose?: () => void, opts?: { keepTime?: boolean; focusRoot?: HTMLElement }): () => void {
   const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const rec: ModalRec = { el, onClose };
+  const host = modalHost;
+  const rec: ModalRec = { el, onClose, host, focusRoot: opts?.focusRoot ?? host?.focusRoot };
   stack.push(rec);
-  uiRoot().append(el);
+  (host?.element ?? uiRoot()).append(el);
+  if (host) refreshModalHost(host);
   const stopsTime = !opts?.keepTime;
   if (stopsTime) clock.pause();
   bus.emit('ui:modal', { open: true });
   let closed = false;
-  return () => {
+  const close = () => {
     if (closed) return;
     closed = true;
     const i = stack.indexOf(rec);
@@ -58,9 +78,12 @@ export function openModal(el: HTMLElement, onClose?: () => void, opts?: { keepTi
     if (stopsTime) clock.resume();
     cancelKeyCapture();
     rec.onClose?.();
+    if (host && modalHost === host) refreshModalHost(host);
     bus.emit('ui:modal', { open: stack.length > 0 });
     if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
   };
+  rec.close = close;
+  return close;
 }
 
 /** Standard panel: header with title + close, scrollable body, optional footer. */
@@ -72,6 +95,7 @@ export function panel(opts: {
   wide?: boolean;
   onClose?: () => void;
   closable?: boolean;
+  anchor?: ActionAnchor;
 }): { close: () => void; body: HTMLElement; root: HTMLElement } {
   const body = h('div', { class: 'panel-body' }, ...(Array.isArray(opts.body) ? opts.body : [opts.body]));
   let close = () => {};
@@ -88,7 +112,16 @@ export function panel(opts: {
     if (e.target === back && opts.closable !== false) close();
   });
   audio.sfxPlay('open');
-  close = openModal(back, opts.onClose);
+  let stopAnchor: (() => void) | undefined;
+  close = openModal(back, () => { stopAnchor?.(); opts.onClose?.(); });
+  if (opts.anchor && !modalHost) { back.classList.add('action-backdrop'); stopAnchor = followActionPanel(p, opts.anchor); }
+  if (modalHost) {
+    p.classList.add('pn-app-panel');
+    p.removeAttribute('aria-modal');
+    p.setAttribute('role', 'region');
+    const backButton = head.querySelector<HTMLButtonElement>('.close-x');
+    if (backButton) { backButton.classList.replace('close-x', 'pn-app-back'); backButton.textContent = '‹'; backButton.setAttribute('aria-label', 'Volver'); head.prepend(backButton); }
+  }
   (back as any).__close = close;
   queueMicrotask(() => {
     if (!back.isConnected || p.contains(document.activeElement)) return;
@@ -99,7 +132,7 @@ export function panel(opts: {
 
 function focusables(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((el) => {
-    if (el.hasAttribute('disabled') || el.getAttribute('aria-hidden') === 'true') return false;
+    if (el.hasAttribute('disabled') || el.getAttribute('aria-hidden') === 'true' || el.closest('[inert], [hidden]')) return false;
     return el.getClientRects().length > 0;
   });
 }
@@ -108,7 +141,9 @@ function focusables(root: HTMLElement): HTMLElement[] {
 function onModalKey(e: KeyboardEvent) {
   if (!stack.length || isCodeSwallowed(e.code)) return;
   if (e.key === 'Escape' && isCapturingKey()) return;
-  const top = stack[stack.length - 1].el;
+  const rec = stack[stack.length - 1];
+  const top = rec.el;
+  const focusRoot = rec.focusRoot ?? top;
   if (e.key === 'Escape') {
     const closer = top as HTMLElement & { __close?: () => void };
     if (closer.__close && !top.dataset.noesc) {
@@ -121,7 +156,7 @@ function onModalKey(e: KeyboardEvent) {
   }
   if (isTypingTarget(e.target) && e.key !== 'Tab') return;
   if (e.key === 'Tab') {
-    const items = focusables(top);
+    const items = focusables(focusRoot);
     if (!items.length) {
       e.preventDefault();
       return;
@@ -135,7 +170,8 @@ function onModalKey(e: KeyboardEvent) {
     return;
   }
   if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
-  const items = focusables(top).filter((el) => el.tagName === 'BUTTON' || el.getAttribute('role') === 'button');
+  if (top.classList.contains('noriphone-guard')) return; // the home screen owns horizontal paging
+  const items = focusables(focusRoot).filter((el) => el.tagName === 'BUTTON' || el.getAttribute('role') === 'button');
   if (items.length < 2) return;
   e.preventDefault();
   e.stopPropagation();
@@ -304,6 +340,7 @@ export function openStartLoad(): { set: (done: number, total: number, text?: str
   const count = h('div', { class: 'start-load-count' }, '');
   const tip = h('div', { class: 'start-load-tip' }, START_TIPS[0]);
   const root = h('div', { class: 'start-load', role: 'status', 'aria-live': 'polite', 'aria-busy': 'true' },
+    h('div', { class: 'load-petals', 'aria-hidden': 'true' }, ...Array.from({ length: 28 }, (_, i) => h('i', { style: { left: `${i * 37 % 100}%`, animationDuration: `${8 + i % 7}s`, animationDelay: `${-(i * 1.73 % (8 + i % 7))}s` } }))),
     h('div', { class: 'start-load-card' },
       h('div', { class: 'start-load-lantern', 'aria-hidden': 'true', html: START_LANTERN }),
       h('div', { class: 'start-load-title' }, 'Maki & Mapaches'),

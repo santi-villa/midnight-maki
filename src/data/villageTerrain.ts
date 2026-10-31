@@ -232,11 +232,11 @@ export function createVillageTerrain() {
   }
 
   // The night market is one street: six stalls side by side along the north edge (one per stall interaction in
-  // villageWorld.ts), the aisle in front of them, garlands over it and a lantern at each end.
+  // villageWorld.ts) and the aisle in front of them; the stalls light themselves.
   rect(44, 59, 25, 4, 'p', true); rect(45, 62, 29, 3, 'b');
   prop('jc_market_blue', 45, 60); prop('stall_gold', 49, 60); prop('stall_night', 52, 60);
   prop('stall_sage', 55, 60); prop('jc_market_red', 58, 60); prop('stall_rose', 62, 60);
-  prop('lanternstring', 47, 62); prop('lanternstring', 57, 62); prop('lantern_red', 44, 62); prop('lantern_cream', 66, 62);
+
   // Segmented wharves, two moorings and a separate lighthouse promontory.
   rect(55, 65, 36, 5, 'b'); rect(55, 69, 3, 8, 'b'); rect(69, 69, 3, 7, 'b'); rect(83, 69, 3, 6, 'b');
   bridge(89, 67, 9, 2);
@@ -256,7 +256,7 @@ export function createVillageTerrain() {
     prop('wharf_fish_rack', 80, 66); prop('wharf_fish_crate_b', 84, 66); prop('wharf_fish_crate_r', 45, 67);
   }
   // lanterns stand at the rail on both sides of each pier's mouth and by the lighthouse door, never mid-deck
-  for (const [x, y] of [[54, 68], [58, 68], [68, 68], [72, 68], [82, 68], [97, 75]]) prop('lantern_cream', x, y);
+  for (const [x, y] of [[54, 68], [58, 68], [68, 68], [72, 68], [82, 68], [97, 75]]) prop('pier_lantern', x, y);
   // River walk remains on the residential bank, with a bridge to the wharf.
   path([[90, 49], [100, 49], [100, 52]], 2);
   rect(94, 52, 3, 13, 'b'); path([[94, 64], [90, 65]], 2, 'b');
