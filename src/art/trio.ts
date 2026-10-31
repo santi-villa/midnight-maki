@@ -266,9 +266,12 @@ function eyesFront(g: Ctx, s: Geo, id: TrioId, expr: FolkExpr, lx: number, rx: n
   one(rx, false);
 }
 
+/** The little tongue only shows on the second wave frame, so it peeks out now and then instead of on every happy face. */
+let TONGUE = false;
+
 function mouthFront(g: Ctx, cx: number, my: number, expr: FolkExpr, col: string) {
   switch (expr) {
-    case 'happy': px(g, cx - 2, my, col, 4, 1); px(g, cx - 1, my + 1, '#d98b8b', 2, 1); break;
+    case 'happy': px(g, cx - 2, my, col, 4, 1); if (TONGUE) px(g, cx - 1, my + 1, '#d98b8b', 2, 1); else { px(g, cx - 3, my - 1, col); px(g, cx + 2, my - 1, col); } break;
     case 'surprised': px(g, cx - 1, my, col, 2, 2); break;
     case 'sad': px(g, cx - 1, my, col, 2, 1); px(g, cx - 2, my + 1, col); px(g, cx + 1, my + 1, col); break;
     case 'smug': px(g, cx - 2, my + 1, col, 3, 1); px(g, cx + 1, my, col); break;
@@ -372,6 +375,7 @@ function bandana(g: Ctx, s: Geo) {
 /** One frame of Pip, Rigg or Spicy Bacon. `left` is the mirror of `right`. */
 export function trioFrame(id: TrioId, pose: FolkPose, custom?: FolkCustom): HTMLCanvasElement {
   const L = LOOKS[id];
+  TONGUE = pose.arms === 'wave2';
   const view: View = pose.dir === 'down' ? 'front' : pose.dir === 'up' ? 'back' : 'side';
   const s = geo(L, pose, view);
   const layers: Layer[] = [];
