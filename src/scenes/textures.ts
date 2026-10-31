@@ -32,6 +32,7 @@ import { FURN_BY_ID, furnSize } from '../data/furniture';
 import { PROPS } from '../data/props';
 import { appearanceKey, appearanceOf, dropOf, folkCustom } from '../systems/appearance';
 import { jpBuildingObject } from '../art/japaneseBuildings';
+import { stairsObject } from '../art/stairs';
 
 /** The three raccoons use the chibi renderer (art/raccoon.ts). */
 export const RACCOON_BUILD: Record<string, RaccoonBuild> = { spicy: 'small', rigg: 'medium', pip: 'big' };
@@ -142,7 +143,7 @@ export function customerTexture(scene: Phaser.Scene, id: CustomerId, seed = '', 
 /** The drawing of a map prop as a plain canvas (the same art propTexture hands to Phaser), for menus. */
 export function propCanvas(key: string, closed = false, sign = game.save.player.restaurantName || 'Midnight Maki'): HTMLCanvasElement {
   const d = PROPS[key];
-  return jpBuildingObject(key, d.sw, d.sh, d.label) ?? sereneObject(key, d.sw, d.sh) ?? japaneseCityObject(key, d.sw, d.sh) ?? farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed, sign) ?? exteriorObject(key, d.sw, d.sh) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed);
+  return stairsObject(key, d.sw, d.sh) ?? jpBuildingObject(key, d.sw, d.sh, d.label) ?? sereneObject(key, d.sw, d.sh) ?? japaneseCityObject(key, d.sw, d.sh) ?? farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed, sign) ?? exteriorObject(key, d.sw, d.sh) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed);
 }
 
 export function propTexture(scene: Phaser.Scene, key: string, closed = false): string {

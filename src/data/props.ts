@@ -198,6 +198,7 @@ export const PROPS: Record<string, PropDef> = {
   bamboo: P('bamboo', 1, 1, 16, 36, '#6f9e5a', '#3b4470'),
   andon: P('andon', 1, 1, 16, 28, '#f6e3b0', '', { sombra: 'contacto', light: '#ffe08a' }),
   stairs: P('stairs', 1, 1, 16, 16, '', '', { solid: false }),
+  stairs_up: P('stairs', 2, 2, 32, 40, '', '', { solid: false, sombra: 'ninguna' }),
   stairs_down: P('stairs', 1, 1, 16, 16, '', '', { solid: false, variant: 1 }),
   door_storage: P('walldoor', 1, 1, 16, 16, '', '', { variant: 0 }),
   door_storage_open: P('walldoor', 1, 1, 16, 16, '', '', { variant: 1 }),

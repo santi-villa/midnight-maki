@@ -129,7 +129,7 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case 'V': return TILE_INDEX[(night ? 'windowN_' : 'window_') + st.wall] ?? TILE_INDEX.window_cream;
     case 'f': return hasLimezuFloor(st.floor) ? TILE_INDEX[`lzfloor_${st.floor}_${(x % 2) + 2 * (y % 2)}`] : varied('floor_' + st.floor, x, y, 3) || TILE_INDEX.floor_wood;
     case 'U': return TILE_INDEX['upper_' + st.wall] ?? TILE_INDEX['walltop_' + st.wall] ?? TILE_INDEX.walltop_cream;
-    case 'k': return varied('kitchen', x, y, 3);
+    case 'k': return hasLimezuFloor('checker') ? TILE_INDEX[`lzfloor_checker_${(x % 2) + 2 * (y % 2)}`] : varied('kitchen', x, y, 3);
     case 't': return hasLimezuFloor('tatami') ? TILE_INDEX[`lzfloor_tatami_${(x % 2) + 2 * (y % 2)}`] : varied('floor_tatami', x, y, 3);
     case 'm': return TILE_INDEX.mat;
     case 'g': return grassAt(x, y);
@@ -280,7 +280,7 @@ const SPREAD: { from: Piece[]; to: Piece[] }[] = [
   { from: [['table_dark', 13, 10], ['chair_dark', 13, 9], ['chair_dark', 14, 9], ['chair_dark', 13, 11], ['chair_dark', 14, 11]],
     to: [['table_long', 11, 11], ['chair_dark', 11, 10], ['chair_dark', 13, 10], ['chair_dark', 11, 12], ['chair_dark', 13, 12]] },
   { from: [['table_round', 15, 7], ['chair_dark', 15, 6], ['chair_dark', 15, 8]], to: [['table_round', 4, 11], ['chair_dark', 4, 10], ['chair_dark', 4, 12]] },
-  { from: [['lantern_red', 10, 6]], to: [['lantern_red', 7, 6]] },
+  { from: [['lantern_red', 10, 6]], to: [['lantern_red', 22, 12]] },
   { from: [['bamboo_pot', 16, 6]], to: [['bamboo_pot', 22, 7]] },
   { from: [['andon', 11, 12]], to: [['andon', 14, 12]] },
 ];
