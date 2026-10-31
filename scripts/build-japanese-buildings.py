@@ -74,6 +74,9 @@ piece('stone_lantern', 'Farol de piedra', ['stonelantern'], (176, 514, 16, 30))
 piece('komainu_l', 'Komainu', ['komainu_l'], (144, 526, 16, 34))
 piece('komainu_r', 'Komainu', ['komainu_r'], (160, 526, 16, 34))
 piece('pine', 'Pino japonés', ['pine'], (8, 640, 48, 47))
+piece('stairs', 'Escalón de piedra', ['stonestairs'], (16, 144, 16, 16))
+piece('board', 'Tablero de anuncios', ['board'], (96, 290, 32, 30))
+piece('well', 'Pozo', ['well'], (98, 320, 30, 48))
 piece('sakura', 'Cerezo', ['sakura'], (720, 1169, 48, 47))
 
 # Shelf packing, one facade per slot.
