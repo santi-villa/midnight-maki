@@ -37,6 +37,8 @@ if (new URLSearchParams(location.search).has('debug')) {
 }
 applySettings();
 void import('./ui/account').then((m) => m.initAccountUi());
+// painted character sheets from an earlier visit, read while the title screen comes up
+void import('./art/sheetCache').then((m) => m.loadSheetCache());
 void import('./restaurant/delivery').then((m) => m.startDeliveries());
 installSkin();
 

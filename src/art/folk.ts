@@ -7,7 +7,7 @@
  * gets its own 1px dark contour and is stacked, so heads, ears, arms and tails separate like in the reference art.
  */
 import type { Dir } from '../core/types';
-import { ctx2d, makeCanvas, mix, px, shade, type Ctx } from './pixel';
+import { ctx2d, ctx2dRead, makeCanvas, mix, px, shade, type Ctx } from './pixel';
 import { bodyAcc, headAcc } from './raccoon';
 import { trioFrame, type TrioId } from './trio';
 import { drawHeroAccessories, drawHeroFace, drawHeroHair, type FaceParams, type HeroSpec, type Kit } from './hero';
@@ -158,11 +158,11 @@ type Layer = ((c: Ctx) => void) & { inner?: string };
 function stack(spec: FolkSpec, layers: Layer[], after?: (c: Ctx) => void): HTMLCanvasElement {
   const OW = Math.round(FW * K);
   const out = makeCanvas(OW, FOLK_H);
-  const o = ctx2d(out);
+  const o = ctx2dRead(out);
   const ink = spec.ink ?? '#2c2230';
   for (const l of layers) {
     const cv = makeCanvas(OW, FOLK_H);
-    const g = ctx2d(cv);
+    const g = ctx2dRead(cv);
     g.translate(0, FOLK_PAD);
     l(g);
     g.setTransform(1, 0, 0, 1, 0, 0);

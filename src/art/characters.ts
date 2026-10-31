@@ -6,7 +6,7 @@
  */
 import type { Appearance, Dir, Species } from '../core/types';
 import { CLOTHES_BY_ID } from '../data/clothes';
-import { ctx2d, drawTemplate, makeCanvas, mix, px, shade, type Ctx } from './pixel';
+import { ctx2d, ctx2dRead, drawTemplate, makeCanvas, mix, px, shade, type Ctx } from './pixel';
 import { softVolume } from './shade';
 import { CH, CW, drawChibi } from './chibi';
 
@@ -1029,7 +1029,7 @@ export function buildCharacterSheet(a: Appearance, drop: number[] = []): HTMLCan
     ...EXTRA_POSES,
   ];
   const frame = makeCanvas(FW, FH);
-  const fctx = ctx2d(frame);
+  const fctx = ctx2dRead(frame); // softVolume reads every frame back
   specs.forEach((s, i) => {
     fctx.clearRect(0, 0, FW, FH);
     drawCharacter(fctx, 0, 0, a, s);
