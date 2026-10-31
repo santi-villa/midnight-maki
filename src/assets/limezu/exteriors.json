@@ -2684,6 +2684,46 @@
    }
   },
   {
+   "id": "lx_mushroom",
+   "name": "Hongos rojos",
+   "replaces": [
+    "mushroom"
+   ],
+   "sheet": "ME_Theme_Sorter_16x16/11_Camping_Singles_16x16/ME_Singles_Camping_16x16_Mushrooms_5.png",
+   "rect": [
+    3,
+    3,
+    11,
+    11
+   ],
+   "atlas": {
+    "x": 145,
+    "y": 776,
+    "w": 11,
+    "h": 11
+   }
+  },
+  {
+   "id": "lx_stump",
+   "name": "Tocón",
+   "replaces": [
+    "stump"
+   ],
+   "sheet": "ME_Theme_Sorter_16x16/11_Camping_Singles_16x16/ME_Singles_Camping_16x16_Stump_1.png",
+   "rect": [
+    7,
+    2,
+    17,
+    14
+   ],
+   "atlas": {
+    "x": 157,
+    "y": 776,
+    "w": 17,
+    "h": 14
+   }
+  },
+  {
    "id": "lx_street_bin",
    "name": "Tacho de basura",
    "replaces": [
@@ -2697,7 +2737,7 @@
     22
    ],
    "atlas": {
-    "x": 145,
+    "x": 175,
     "y": 776,
     "w": 16,
     "h": 22
