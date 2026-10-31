@@ -263,6 +263,10 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
   const occupied = new Set<string>();
   const structural = (p: PropPlace) => ['building', 'townhouse', 'sidehouse', 'lighthouse', 'fountain', 'stall', 'torii', 'shrine'].includes(PROPS[p.id].kind);
   props.sort((a, b) => Number(structural(b)) - Number(structural(a)));
+  // one kind of tree per district, so a swaying dark tree never stands beside a still light one (cherries stay as accents)
+  const ZONE_TREE: Partial<Record<VillageZone, string>> = { forest: 'tree_dark', station: 'tree_dark', shrine: 'pine' };
+  const TREES = new Set(['tree', 'tree_dark', 'tree_autumn', 'pine', 'village_pine']);
+  for (const p of props) if (TREES.has(p.id)) p.id = ZONE_TREE[villageSpot(p.x, p.y).zone] ?? 'tree';
   for (const p of props) {
     const d = PROPS[p.id]; if (!d) throw new Error(`Unknown prop ${p.id}`);
     const at = villageSpot(p.x, p.y), z = zones[at.zone], b = bounds[at.zone];

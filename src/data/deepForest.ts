@@ -25,7 +25,7 @@ export function deepForest(): ZoneDef {
   b.rect(12, 10, 8, 6, 'g'); // the clearing
   // the pond, north of the trail's last stretch: a rounded shape, not a square
   for (let y = 14; y < 21; y++) for (let x = 26; x < 35; x++) if (((x + 0.5 - 30.5) / 4) ** 2 + ((y + 0.5 - 17.3) / 2.8) ** 2 < 1) b.g[y][x] = 'w';
-  treeBorder(b, [[W - 1, door], [W - 1, door + 1]], ['pine', 'tree_dark', 'tree_dark']);
+  treeBorder(b, [[W - 1, door], [W - 1, door + 1]], ['tree_dark']);
   b.prop('stump', 15, 12).prop('stonelantern', 12, 10).prop('stonelantern', 19, 10).prop('bench', 13, 15)
     .prop('mushroom', 17, 14).prop('mushroom', 18, 11).prop('flowers_lav', 12, 14).prop('bush_berry', 19, 15)
     .prop('reeds', 27, 15).prop('reeds', 33, 15).prop('reeds', 33, 19).prop('bigrock', 26, 20)
@@ -38,8 +38,7 @@ export function deepForest(): ZoneDef {
   };
   for (let y = 2; y < H - 1; y += 2) for (let x = 1 + (y / 2) % 2; x < W - 1; x += 2) {
     if (b.g[y][x] !== 'G' || open(x, y) || b.props.some((p) => p.y === y && Math.abs(p.x - x) <= 1)) continue;
-    const h = (x * 7 + y * 13) % 5;
-    b.prop(h === 0 ? 'tree' : h < 3 ? 'pine' : 'tree_dark', x, y);
+    b.prop('tree_dark', x, y); // the forest's one kind of tree
   }
   return {
     ...zone(b, {
