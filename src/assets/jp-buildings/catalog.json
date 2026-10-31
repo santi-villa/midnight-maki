@@ -582,6 +582,63 @@
    }
   },
   {
+   "id": "jp_stairs",
+   "name": "Escalón de piedra",
+   "replaces": [
+    "stonestairs"
+   ],
+   "rect": [
+    16,
+    144,
+    16,
+    16
+   ],
+   "atlas": {
+    "x": 96,
+    "y": 258,
+    "w": 16,
+    "h": 16
+   }
+  },
+  {
+   "id": "jp_board",
+   "name": "Tablero de anuncios",
+   "replaces": [
+    "board"
+   ],
+   "rect": [
+    97,
+    295,
+    30,
+    25
+   ],
+   "atlas": {
+    "x": 113,
+    "y": 258,
+    "w": 30,
+    "h": 25
+   }
+  },
+  {
+   "id": "jp_well",
+   "name": "Pozo",
+   "replaces": [
+    "well"
+   ],
+   "rect": [
+    98,
+    323,
+    27,
+    45
+   ],
+   "atlas": {
+    "x": 144,
+    "y": 258,
+    "w": 27,
+    "h": 45
+   }
+  },
+  {
    "id": "jp_sakura",
    "name": "Cerezo",
    "replaces": [
@@ -594,7 +651,7 @@
     47
    ],
    "atlas": {
-    "x": 96,
+    "x": 172,
     "y": 258,
     "w": 44,
     "h": 47
