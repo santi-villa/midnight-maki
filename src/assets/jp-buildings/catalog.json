@@ -772,5 +772,18 @@
     "h": 30
    }
   }
- ]
+ ],
+ "paths": {
+  "sheet": "vectoraith_tileset_terrains_3x3.png",
+  "rect": [
+   16,
+   0,
+   64,
+   64
+  ],
+  "atlas": {
+   "x": 0,
+   "y": 306
+  }
+ }
 }
