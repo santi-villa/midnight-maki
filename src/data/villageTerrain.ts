@@ -252,6 +252,8 @@ export function createVillageTerrain() {
     prop('wharf_flower_box', 60, 68); prop('wharf_bench', 64, 68);
     prop('wharf_boxes', 75, 68); prop('wharf_box', 77, 68); prop('wharf_barrel', 78, 68);
     prop('wharf_bench', 86, 68);
+    // the fishermen's quay: fish drying in front of the fish houses, crates of the day's catch beside them
+    prop('wharf_fish_rack', 80, 66); prop('wharf_fish_crate_b', 84, 66); prop('wharf_fish_crate_r', 45, 67);
   }
   // lanterns stand at the rail on both sides of each pier's mouth and by the lighthouse door, never mid-deck
   for (const [x, y] of [[54, 68], [58, 68], [68, 68], [72, 68], [82, 68], [97, 75]]) prop('lantern_cream', x, y);

@@ -656,6 +656,121 @@
     "w": 44,
     "h": 47
    }
+  },
+  {
+   "id": "jp_stall_blue",
+   "name": "Puesto con toldo (azul)",
+   "replaces": [
+    "stall_night",
+    "stall_rose"
+   ],
+   "rect": [
+    129,
+    1651,
+    46,
+    45
+   ],
+   "atlas": {
+    "x": 217,
+    "y": 258,
+    "w": 46,
+    "h": 45
+   }
+  },
+  {
+   "id": "jp_stall_brown",
+   "name": "Puesto con toldo (marrón)",
+   "replaces": [
+    "stall_gold"
+   ],
+   "rect": [
+    385,
+    1651,
+    46,
+    45
+   ],
+   "atlas": {
+    "x": 264,
+    "y": 258,
+    "w": 46,
+    "h": 45
+   }
+  },
+  {
+   "id": "jp_stall_green",
+   "name": "Puesto con toldo (verde)",
+   "replaces": [
+    "stall_sage"
+   ],
+   "rect": [
+    641,
+    1651,
+    46,
+    45
+   ],
+   "atlas": {
+    "x": 311,
+    "y": 258,
+    "w": 46,
+    "h": 45
+   }
+  },
+  {
+   "id": "jp_fish_rack",
+   "name": "Secadero de pescado",
+   "replaces": [
+    "wharf_fish_rack"
+   ],
+   "rect": [
+    209,
+    1697,
+    46,
+    30
+   ],
+   "atlas": {
+    "x": 358,
+    "y": 258,
+    "w": 46,
+    "h": 30
+   }
+  },
+  {
+   "id": "jp_fish_crate_blue",
+   "name": "Cajón de pescado azul",
+   "replaces": [
+    "wharf_fish_crate_b"
+   ],
+   "rect": [
+    209,
+    1632,
+    46,
+    30
+   ],
+   "atlas": {
+    "x": 405,
+    "y": 258,
+    "w": 46,
+    "h": 30
+   }
+  },
+  {
+   "id": "jp_fish_crate_red",
+   "name": "Cajón de pescado rojo",
+   "replaces": [
+    "wharf_fish_crate_r"
+   ],
+   "rect": [
+    209,
+    1761,
+    46,
+    30
+   ],
+   "atlas": {
+    "x": 452,
+    "y": 258,
+    "w": 46,
+    "h": 30
+   }
   }
  ]
 }
