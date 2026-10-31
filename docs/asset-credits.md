@@ -195,3 +195,14 @@ Faro (31/10/2026, `docs/limezu-faro.png`): el faro del pack (`Example_Lighthouse
 reemplaza al del juego. Para que la torre no tape las casas de la ribera ni el muelle, el islote
 bajó hacia mar abierto (centro en 100,72), el muelle sigue hasta él y la puerta pasó a 100,75.
 Con `?exteriors=classic` vuelven el islote y el faro anteriores.
+
+## Interfaz: emotes de Modern Interiors y Sprout Lands UI
+
+- **Burbujas de los personajes** (LimeZu, *Modern Interiors*, `4_User_Interface_Elements`):
+  `scripts/build-ui-assets.py` junta en `src/assets/ui/emotes.png` los emotes animados
+  (pensando, enojo, lágrima, carta, flecha) y burbujas quietas de `UI_16x16.png` (corazón,
+  exclamación, alarma, zzz, nota, brillo). `Actor.emote` muestra la burbuja del pack para
+  `!`, `!!`, `...`, `z`, `*`, `♪`, `ñam`, `té`; cualquier otra frase sigue como globo de texto.
+- **Sprout Lands UI Pack** (Cup Nooble, versión básica gratuita: uso no comercial, sin
+  redistribuir): cursor de pata de gato (normal, señalando sobre botones, apretando al hacer clic)
+  y el indicador animado de "seguir" del cuadro de diálogo (`src/ui/sproutUi.css`).
