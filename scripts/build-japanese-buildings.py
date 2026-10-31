@@ -97,7 +97,50 @@ for f in facades + pieces:
     f['atlas'] = dict(x=x, y=y, w=w, h=h)
     x += w + 1
     shelf = max(shelf, h)
-atlas = Image.new('RGBA', (W, y + shelf))
+# Paths: the terrain sheet's sandy path on grass (an autotile: 3x3 edges and corners at 32..80, narrow pieces in column 16
+# and row 48), copied as one 64x64 block; the game picks each tile from its neighbours (art/japaneseBuildings.ts).
+TERRAIN = Image.open(SRC / 'vectoraith_tileset_terrains_3x3.png').convert('RGBA')
+path_block = TERRAIN.crop((16, 0, 80, 64))
+
+
+def drop_guide_dots(im):
+    """The sheet marks its tiles with small grass dots inside the sand: paint each isolated speck with the sand around it."""
+    px = im.load()
+    W_, H_ = im.size
+    grass = lambda c: c[3] > 0 and c[1] > c[0]
+    out = im.copy(); po = out.load()
+    for yy in range(H_):
+        for xx in range(W_):
+            if not grass(px[xx, yy]):
+                continue
+            win = [px[i, j] for j in range(max(0, yy - 3), min(H_, yy + 4)) for i in range(max(0, xx - 3), min(W_, xx + 4))]
+            g = sum(1 for c in win if grass(c))
+            if g < 16:
+                sand = [c for c in win if c[3] > 0 and not grass(c)]
+                if sand:
+                    po[xx, yy] = max(set(sand), key=sand.count)
+    return out
+
+
+path_block = drop_guide_dots(path_block)
+# The sheet builds tiles from quarters (RPG Maker style), so even the middle tile has grass in its corners. Corners that
+# face more path (both sides along it are path) are filled with sand taken from the clean middle of the centre tile.
+PIECES = {15: (2, 1), 14: (2, 0), 11: (2, 2), 7: (1, 1), 13: (3, 1), 6: (1, 0), 12: (3, 0), 3: (1, 2), 9: (3, 2),
+          5: (0, 1), 4: (0, 0), 1: (0, 2), 10: (2, 3), 2: (1, 3), 8: (3, 3), 0: (0, 3)}
+sand = path_block.crop((32 + 4, 16 + 4, 32 + 12, 16 + 12))
+bp = path_block.load(); sp = sand.load()
+for mask, (col, row) in PIECES.items():
+    n, e, s_, w = mask & 1, mask & 2, mask & 4, mask & 8
+    for corner, ok in (((0, 0), n and w), ((11, 0), n and e), ((0, 11), s_ and w), ((11, 11), s_ and e)):
+        if not ok:
+            continue
+        for dy in range(5):
+            for dx in range(5):
+                x0, y0 = col * 16 + corner[0] + dx, row * 16 + corner[1] + dy
+                bp[x0, y0] = sp[x0 % 8, y0 % 8]
+terrain_at = dict(x=0, y=y + shelf + 1)
+atlas = Image.new('RGBA', (W, y + shelf + 1 + 64))
+atlas.paste(path_block, (terrain_at['x'], terrain_at['y']))
 for f in facades + pieces:
     sx, sy, sw, sh = f['rect']
     atlas.paste(atlas_src.crop((sx, sy, sx + sw, sy + sh)), (f['atlas']['x'], f['atlas']['y']))
@@ -105,6 +148,7 @@ for f in facades + pieces:
 DEST.mkdir(parents=True, exist_ok=True)
 atlas.save(DEST / 'atlas.png', optimize=True)
 (DEST / 'catalog.json').write_text(json.dumps(dict(
-    source='VectoRaith, Traditional Japanese Buildings Tileset (16x16, ATLAS sheet)', facades=facades, pieces=pieces),
+    source='VectoRaith, Traditional Japanese Buildings Tileset (16x16, ATLAS sheet)', facades=facades, pieces=pieces,
+    paths=dict(sheet='vectoraith_tileset_terrains_3x3.png', rect=[16, 0, 64, 64], atlas=terrain_at)),
     indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
 print(f'{len(facades)} facades, {len(pieces)} pieces -> {atlas.width}x{atlas.height}')

@@ -17,6 +17,7 @@ import { Grid } from './grid';
 import { bridgeMask } from './bridge';
 import { settleStoredGifts } from './furnGift';
 import { hasLimezuFloor } from '../art/interiors';
+import { hasJpPaths } from '../art/japaneseBuildings';
 
 export interface PropInstance { key: string; def: PropDef; x: number; y: number; }
 export interface FurnInstance { room: string; f: PlacedFurniture; def: FurnitureDef; }
@@ -134,7 +135,12 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case 'm': return TILE_INDEX.mat;
     case 'g': return grassAt(x, y);
     case 'G': return varied('dgrass', x, y, 2);
-    case 'p': return varied('dirt', x, y, 3);
+    case 'p': {
+      if (!def.outdoor || !hasJpPaths()) return varied('dirt', x, y, 3);
+      // the path's edges grow grass only against grass: never toward paving, decks, sand or the district's border
+      const along = (i: number, j: number) => { const ch = def.ground[y + j]?.[x + i]; return ch === undefined || 'pcbshCS'.includes(ch); };
+      return TILE_INDEX['jpath' + ((along(0, -1) ? 1 : 0) | (along(1, 0) ? 2 : 0) | (along(0, 1) ? 4 : 0) | (along(-1, 0) ? 8 : 0))];
+    }
     case 'c': return varied(def.id === 'plaza' && x >= 15 && x < 33 && y >= 8 && y < 21 ? 'civic' : 'cobble', x, y, 3);
     case 's': return varied('sand', x, y, 3);
     case 'h': return TILE_INDEX.shore;

@@ -78,3 +78,19 @@ export function jpBuildingObject(id: string, W: number, H: number, label?: strin
   if (label) drawPlaque(c, L.sign.x, L.sign.y, label, { wood: '#d9b482' });
   return canvas;
 }
+
+/** Sandy path pieces by neighbour mask (bit 1 north, 2 east, 4 south, 8 west are path too): [column, row] in the block. */
+const PATH_PIECE: Record<number, [number, number]> = {
+  15: [2, 1], 14: [2, 0], 11: [2, 2], 7: [1, 1], 13: [3, 1], 6: [1, 0], 12: [3, 0], 3: [1, 2], 9: [3, 2],
+  5: [0, 1], 4: [0, 0], 1: [0, 2], 10: [2, 3], 2: [1, 3], 8: [3, 3], 0: [0, 3],
+};
+const pathBlock = (catalog as { paths?: { atlas: { x: number; y: number } } }).paths?.atlas;
+export const hasJpPaths = () => !!atlas && !!pathBlock && jpBuildingsWanted();
+/** Draws the path tile for a neighbour mask; false when the pack is not loaded. */
+export function drawJpPath(c: Ctx, x: number, y: number, mask: number): boolean {
+  if (!atlas || !pathBlock) return false;
+  const [col, row] = PATH_PIECE[mask] ?? PATH_PIECE[15];
+  c.drawImage(atlas, pathBlock.x + col * 16, pathBlock.y + row * 16, 16, 16, x, y, 16, 16);
+  return true;
+}
+

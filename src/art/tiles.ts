@@ -6,6 +6,7 @@ import { barFloor, plankFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWa
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
 import { drawExteriorTile, SEA_FRAMES } from './exteriors';
 import { drawVillageCliff } from './serene';
+import { drawJpPath } from './japaneseBuildings';
 import { drawLimezuFloor, drawLimezuWall, LIMEZU_FLOORS } from './interiors';
 
 export const TS = 16;
@@ -205,6 +206,8 @@ add('grass5', false, brightGrass(1));
 add('dgrass', false, darkGrassBright);
 add('dgrass1', false, darkGrassBright);
 add('dirt', false, pathTile(0));
+// VectoRaith sandy paths with grass edges, one tile per neighbour mask (art/japaneseBuildings.ts)
+for (let m = 0; m < 16; m++) add('jpath' + m, false, (c, x, y, r) => { if (!drawJpPath(c, x, y, m)) pathTile(0)(c, x, y, r); });
 add('dirt1', false, pathTile(1));
 add('dirt2', false, pathTile(2));
 for (let i = 0; i < 3; i++) add('cobble' + (i || ''), false, paverTile(i));
