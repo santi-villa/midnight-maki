@@ -74,6 +74,9 @@ export const PROPS: Record<string, PropDef> = {
   fountain: P('fountain', 3, 2, 48, 56, '', '', { anim: 'water' }),
   // frames of the fountain's running water (Modern Exteriors), cycled by the scene; never placed on their own
   ...Object.fromEntries([0, 1, 2, 3, 4, 5].map((f) => [`fountain_frame_${f}`, P('fountain', 3, 2, 48, 56)])),
+  // a crackling campfire (Modern Exteriors), its warm flickering light and its six frames
+  campfire: P('stonelantern', 1, 1, 16, 32, '#f08a3c', '', { light: '#ffb050', sombra: 'contacto' }),
+  ...Object.fromEntries([0, 1, 2, 3, 4, 5].map((f) => [`campfire_frame_${f}`, P('stonelantern', 1, 1, 16, 32)])),
   deco_breadcart: P('deco_breadcart', 2, 1, 32, 34, '#c2604a', ''),
   deco_vegcrates: P('deco_vegcrates', 2, 1, 32, 28),
   deco_sacks: P('deco_sacks', 2, 1, 32, 26, '#e6dcc2'),
