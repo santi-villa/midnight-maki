@@ -60,7 +60,7 @@ describe('daily rhythm', () => {
     expect(stopFor('taro', 0)?.zone).toBe('shop_taro');
     at(1, 85);
     const leaving = stopFor('taro', 1);
-    const door = { x: 5, y: 3 }; // the counter stays staffed while that shop is open
+    const door = { x: 9, y: 3 }; // the counter stays staffed while that shop is open (the keeper's spot in the wider shop)
     expect(leaving?.zone).toBe('shop_taro');
     expect(leaving?.x).toBe(door.x);
     expect(leaving?.y).toBe(door.y);

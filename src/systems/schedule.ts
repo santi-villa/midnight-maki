@@ -34,9 +34,9 @@ export const EARLY_HOURS = { openAt: 8 * 60, closeAt: 20 * 60, hours: '08:00–2
 export const LATE_HOURS = { openAt: 8 * 60, closeAt: 22 * 60, hours: '08:00–22:00' } as const;
 export const BUSINESS_HOURS = LATE_HOURS;
 export const SHOP_PLACES: ShopPlace[] = [
-  { ...LATE_HOURS, id: 'taro', title: 'Almacén de Taro', zone: 'shop_taro', keeper: 'taro', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 24, y: 17 } },
-  { ...EARLY_HOURS, id: 'yuki', title: 'Ropa de Yuki', zone: 'shop_yuki', keeper: 'yuki', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 23, y: 5 } },
-  { ...EARLY_HOURS, id: 'bento', title: 'Panadería de Bento', zone: 'shop_bento', keeper: 'bento', counter: { x: 5, y: 3, act: 'work' }, sign: { x: 3, y: 7 }, outdoor: { zone: 'plaza', x: 8, y: 17 } },
+  { ...LATE_HOURS, id: 'taro', title: 'Almacén de Taro', zone: 'shop_taro', keeper: 'taro', counter: { x: 9, y: 3, act: 'work' }, sign: { x: 7, y: 7 }, outdoor: { zone: 'plaza', x: 24, y: 17 } },
+  { ...EARLY_HOURS, id: 'yuki', title: 'Ropa de Yuki', zone: 'shop_yuki', keeper: 'yuki', counter: { x: 9, y: 3, act: 'work' }, sign: { x: 7, y: 7 }, outdoor: { zone: 'plaza', x: 23, y: 5 } },
+  { ...EARLY_HOURS, id: 'bento', title: 'Panadería de Bento', zone: 'shop_bento', keeper: 'bento', counter: { x: 9, y: 3, act: 'work' }, sign: { x: 7, y: 7 }, outdoor: { zone: 'plaza', x: 8, y: 17 } },
   { ...EARLY_HOURS, id: 'ren', title: 'Carpintería de Ren', zone: 'plaza', counter: { x: 25, y: 23, act: 'work' }, sign: { x: 24, y: 23 } },
   { ...EARLY_HOURS, id: 'sumi', title: 'Puesto de Sumi', zone: 'plaza', keeper: 'sumi', counter: { x: 21, y: 21, act: 'paint' }, sign: { x: 20, y: 21 } },
   { ...EARLY_HOURS, id: 'nami', title: 'Puesto de pescado', zone: 'beach', keeper: 'nami', counter: { x: 6, y: 9, act: 'work' }, sign: { x: 6, y: 9 } },

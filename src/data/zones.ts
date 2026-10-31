@@ -121,32 +121,44 @@ function restaurant(): ZoneDef {
 }
 
 // ================================================================== SHOP INTERIORS
+// 18 wide: the counter, the keeper's spot (9,3) and the door (9,7) sit in the middle, with three free columns of
+// displays on each side (systems/schedule.ts and data/characters.ts point the keepers at the same spot).
 function shopRoom(id: string, name: string, walls: string, floor: string, exit: [number, number], build: (b: Builder) => void, action: string, label: string): ZoneDef {
-  const b = new Builder(10, 8, '#');
-  b.room(0, 0, 10, 8, [2, 7]);
-  b.set(5, 7, 'm');
+  const b = new Builder(18, 8, '#');
+  b.room(0, 0, 18, 8, [3, 7, 10, 14]);
+  b.set(9, 7, 'm');
   build(b);
   return zone(b, {
     id, name, music: 'town', outdoor: false, walls, floor,
-    doors: [{ x: 5, y: 7, to: 'plaza', tx: exit[0], ty: exit[1], dir: 'down', walk: true }],
-    interact: [4, 5, 6].map((x) => ({ id: id + '_c' + x, x, y: 4, label, action })),
+    doors: [{ x: 9, y: 7, to: 'plaza', tx: exit[0], ty: exit[1], dir: 'down', walk: true }],
+    interact: [8, 9, 10].map((x) => ({ id: id + '_c' + x, x, y: 4, label, action })),
     rooms: [],
     gather: [],
   });
 }
 const shopYuki = () => shopRoom('shop_yuki', 'Ropa de Yuki', 'rose', 'rose', [26, 7], (b) => {
-  b.prop('wallshelf', 1, 1).prop('wallshelf', 7, 1).prop('clothes_rack', 1, 3).prop('clothes_rack_b', 7, 3)
-    .prop('shop_counter_rose', 4, 4).prop('shop_counter_rose', 5, 4).prop('shop_counter_rose', 6, 4)
-    .prop('pot_rose', 1, 6).prop('pot_cream', 8, 6).prop('shop_rug', 4, 6).prop('lantern_cream', 3, 2).prop('lantern_cream', 6, 2);
+  // racks along both side walls, folded clothes on the back shelves, a mannequin by the window, the till in the middle
+  b.prop('wallshelf', 2, 1).prop('wallshelf', 5, 1).prop('wallshelf', 11, 1).prop('wallshelf', 14, 1)
+    .prop('clothes_rack', 1, 3).prop('clothes_rack_b', 1, 5).prop('clothes_rack_b', 15, 3).prop('clothes_rack', 15, 5)
+    .prop('deco_mannequin', 4, 3).prop('deco_mannequin', 13, 3).prop('deco_clothesrack', 4, 5).prop('deco_clothesrack', 12, 5)
+    .prop('shop_counter_rose', 8, 4).prop('shop_counter_rose', 9, 4).prop('shop_counter_rose', 10, 4)
+    .prop('pot_rose', 1, 2).prop('pot_cream', 16, 2).prop('shop_rug', 8, 6).prop('lantern_cream', 7, 2).prop('lantern_cream', 11, 2);
 }, 'shop:yuki', 'Ropa de Yuki');
 const shopTaro = () => shopRoom('shop_taro', 'Almacén de Taro', 'wood', 'wood', [27, 19], (b) => {
-  b.prop('wallshelf', 1, 1).prop('wallshelf', 3, 1).prop('wallshelf', 6, 1).prop('crate', 1, 3).prop('crate', 1, 4).prop('barrel', 8, 3)
-    .prop('barrel', 8, 4).prop('sack', 2, 6).prop('crate', 7, 6)
-    .prop('shop_counter', 4, 4).prop('shop_counter_reg', 5, 4).prop('shop_counter', 6, 4).prop('shop_rug', 4, 6).prop('lantern_red', 3, 2).prop('lantern_red', 7, 2);
+  // a grocer's: vegetable crates and sacks on one side, barrels and the display table on the other, shelves behind
+  b.prop('wallshelf', 2, 1).prop('wallshelf', 5, 1).prop('wallshelf', 11, 1).prop('wallshelf', 14, 1)
+    .prop('deco_vegcrates', 1, 3).prop('deco_sacks', 1, 5).prop('crate', 4, 3).prop('sack', 4, 5)
+    .prop('barrel', 16, 3).prop('barrel', 16, 4).prop('jc_shop_display', 13, 3).prop('deco_vegcrates', 13, 5).prop('crate', 16, 6)
+    .prop('shop_counter', 8, 4).prop('shop_counter_reg', 9, 4).prop('shop_counter', 10, 4)
+    .prop('shop_rug', 8, 6).prop('lantern_red', 7, 2).prop('lantern_red', 11, 2);
 }, 'shop:taro', 'Almacén de Taro');
 const shopBento = () => shopRoom('shop_bento', 'Panadería de Bento', 'cream', 'checker', [5, 19], (b) => {
-  b.prop('wallshelf', 1, 1).prop('wallshelf', 7, 1).prop('bread_case', 1, 3).prop('flour_sack', 8, 3).prop('flour_sack', 8, 5)
-    .prop('shop_counter', 4, 4).prop('shop_counter_reg', 5, 4).prop('shop_counter', 6, 4).prop('pot_cream', 1, 6).prop('shop_rug', 4, 6).prop('lantern_cream', 3, 2).prop('lantern_cream', 6, 2);
+  // bread cases along the walls, the bread cart by the door, flour in the corner, a bench to wait on
+  b.prop('wallshelf', 2, 1).prop('wallshelf', 5, 1).prop('wallshelf', 11, 1).prop('wallshelf', 14, 1)
+    .prop('bread_case', 1, 3).prop('bread_case', 15, 3).prop('bread_case', 4, 3).prop('deco_breadcart', 13, 5)
+    .prop('flour_sack', 1, 5).prop('flour_sack', 1, 6).prop('flour_sack', 2, 6).prop('bench', 4, 6)
+    .prop('shop_counter', 8, 4).prop('shop_counter_reg', 9, 4).prop('shop_counter', 10, 4)
+    .prop('pot_cream', 16, 6).prop('shop_rug', 8, 6).prop('lantern_cream', 7, 2).prop('lantern_cream', 11, 2);
 }, 'shop:bento', 'Panadería de Bento');
 
 // ================================================================== LIBRARY
