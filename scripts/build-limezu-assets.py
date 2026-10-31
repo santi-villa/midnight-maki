@@ -31,8 +31,8 @@ def sheet(stem):
         if not match:
             sys.exit(f'missing sheet {stem} in {SRC}')
         im = Image.open(match[0]).convert('RGBA')
-        k = im.width // 256  # the theme sheets are 16 tiles wide
-        if k > 1:
+        k = im.width // 256  # the theme sheets are 16 tiles wide (sheets named *16x16 are native already)
+        if k > 1 and '16x16' not in match[0].name:
             im = im.resize((im.width // k, im.height // k), Image.NEAREST)
         _sheets[stem] = im
     return _sheets[stem]
@@ -98,6 +98,14 @@ FLOORS = {
     'night': (RB, 128, 320), 'stone': (RB, 128, 544),
 }
 floors = {}
+# Walls: the Room Builder's two-row walls (upper part, lower part with its skirting) match the game's two wall rows
+# ('U' and 'W'); each decor wall style takes the seamless middle column of one block (16x32).
+RBW = 'Room_Builder_Walls'
+WALLS = {
+    'cream': (RBW, 0, 96), 'sage': (RBW, 352, 448), 'rose': (RBW, 352, 0), 'night': (RBW, 352, 64),
+    'shoji': (RBW, 352, 224), 'wood': (RBW, 192, 0), 'lav': (RBW, 352, 96),
+}
+walls = {}
 
 # Pack: shelf packing, 1px gap so no neighbour bleeds into a frame.
 crops = []
@@ -105,6 +113,9 @@ for p in pieces:
     for f in p['frames']:
         x, y, w, h = f['rect']
         crops.append((f, sheet(f['sheet']).crop((x, y, x + w, y + h))))
+for key, (sh, wx, wy) in WALLS.items():
+    walls[key] = dict(sheet=sh, rect=[wx + 16, wy, 16, 32])
+    crops.append((walls[key], sheet(sh).crop((wx + 16, wy, wx + 32, wy + 32))))
 for key, (sh, fx, fy) in FLOORS.items():
     floors[key] = dict(sheet=sh, rect=[fx, fy, 32, 32], whole=sh != RB)
     crops.append((floors[key], sheet(sh).crop((fx, fy, fx + 32, fy + 32))))
@@ -125,7 +136,7 @@ atlas.save(DEST / 'atlas.png', optimize=True)
 catalog = dict(
     author='LimeZu', pack='Modern Interiors (full version)', url='https://limezu.itch.io/moderninteriors',
     license='Use in commercial and non-commercial projects allowed; redistribution of the asset is not. Credits required.',
-    width=W, height=H, pieces=pieces, floors=floors,
+    width=W, height=H, pieces=pieces, floors=floors, walls=walls,
 )
 (DEST / 'catalog.json').write_text(json.dumps(catalog, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
 print(f'{len(pieces)} pieces, {len(crops)} frames, atlas {W}x{H}')

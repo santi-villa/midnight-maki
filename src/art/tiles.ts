@@ -6,7 +6,7 @@ import { barFloor, plankFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWa
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
 import { drawExteriorTile, SEA_FRAMES } from './exteriors';
 import { drawVillageCliff } from './serene';
-import { drawLimezuFloor, LIMEZU_FLOORS } from './interiors';
+import { drawLimezuFloor, drawLimezuWall, LIMEZU_FLOORS } from './interiors';
 
 export const TS = 16;
 
@@ -276,8 +276,10 @@ add('floor_izakaya1', false, izakayaFloor(5));
 add('floor_izakaya2', false, izakayaFloor(9));
 for (const [k, w] of Object.entries(WALL_STYLES)) {
   add('walltop_' + k, true, wallTop(w.base));
-  add('wall_' + k, true, wallFace(w.base, w.accent, w.pattern));
-  add('upper_' + k, true, wallUpper(w.base, w.accent, w.pattern));
+  // Modern Interiors walls for the same styles when their atlas is installed (art/interiors.ts)
+  const face = wallFace(w.base, w.accent, w.pattern), upper = wallUpper(w.base, w.accent, w.pattern);
+  add('wall_' + k, true, (c, x, y, r) => { if (!drawLimezuWall(c as CanvasRenderingContext2D, x, y, k, 1)) face(c, x, y, r); });
+  add('upper_' + k, true, (c, x, y, r) => { if (!drawLimezuWall(c as CanvasRenderingContext2D, x, y, k, 0)) upper(c, x, y, r); });
   add('window_' + k, true, windowTile(w.base, false));
   add('windowN_' + k, true, windowTile(w.base, true));
 }
