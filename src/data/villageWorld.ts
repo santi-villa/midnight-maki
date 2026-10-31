@@ -165,7 +165,8 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
   interaction('forest', 'cabin', 9, 23);
   for (const [id, x, y] of [['pond', 13, 43], ['merge', 15, 34], ['koi_fish1', 8, 41], ['koi_fish2', 17, 41]] as [string, number, number][]) interaction('garden', id, x, y);
   for (const [i, [x, y]] of gardenPlots.entries()) zones.garden.interact.push({ id: 'plot' + i, x, y, label: 'Parcela', action: 'plot:' + i, ...(i >= 6 ? { cond: 'proj_garden_lanterns_4' } : {}) });
-  const marketPositions: Point[] = [[47, 61], [63, 61], [47, 65], [65, 65], [49, 67], [67, 67]];
+  // in front of the six stalls of the market street (villageTerrain.ts): sweets, rare things, clothes, decoration, memory game, fortune
+  const marketPositions: Point[] = [[47, 61], [50, 61], [63, 61], [59, 61], [56, 61], [53, 61]];
   old.market.interact.filter(i => !i.id.startsWith('project_')).forEach((i, n) => {
     const [x, y] = marketPositions[n]; interaction('market', i.id, x, y);
     const at = villageSpot(x, y); zones[at.zone].interact.find(it => it.id === i.id)!.cond = 'market_open';
