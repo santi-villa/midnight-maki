@@ -443,9 +443,14 @@ export class WorldScene extends Phaser.Scene {
     const mh = this.zone.def.h * TILE;
     const vw = cam.width / cam.zoom;
     const vh = cam.height / cam.zoom;
-    const bx = mw < vw ? -(vw - mw) / 2 : 0;
-    const by = mh < vh ? -(vh - mh) / 2 : 0;
-    cam.setBounds(bx, by, Math.max(mw, vw), Math.max(mh, vh));
+    // indoors the camera may travel past the walls by the height of the HUD bars (top and bottom) and a little to the
+    // sides, so the corners of a room never stay under the interface
+    const inside = !this.zone.def.outdoor;
+    const padX = inside ? 40 / cam.zoom : 0, padTop = inside ? 72 / cam.zoom : 0, padBottom = inside ? 96 / cam.zoom : 0;
+    const w = mw + padX * 2, h = mh + padTop + padBottom;
+    const bx = w < vw ? -(vw - mw) / 2 : -padX;
+    const by = h < vh ? -(vh - mh) / 2 : -padTop;
+    cam.setBounds(bx, by, Math.max(w, vw), Math.max(h, vh));
   }
 
   // ------------------------------------------------------------------ zones

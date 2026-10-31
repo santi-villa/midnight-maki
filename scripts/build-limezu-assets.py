@@ -93,7 +93,7 @@ add('reading_desk', 'Mesa de lectura', ['library_table'], [(LIB, (9, 154, 28, 22
 # (its first column carries edge shading); the tatami mat from the Japanese theme is tiled as a whole 2x2 block. Keys are the game's FLOOR_STYLES (art/tiles.ts), so saved choices keep working.
 RB = 'Room_Builder_Floors'
 FLOORS = {
-    'wood': (RB, 64, 192), 'darkwood': (RB, 192, 416), 'tatami': (JP1, 0, 0), 'izakaya': (RB, 0, 192),
+    'wood': (RB, 64, 192), 'darkwood': (RB, 192, 416), 'tatami': (JP1, 128, 0), 'izakaya': (RB, 0, 192),
     'checker': (RB, 64, 32), 'rose': (RB, 128, 128), 'lavcarpet': (RB, 128, 288), 'moss': (RB, 0, 224),
     'night': (RB, 128, 320), 'stone': (RB, 128, 544),
 }

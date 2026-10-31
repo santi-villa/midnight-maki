@@ -24,7 +24,7 @@ export const STAGE_GRANTS: Record<number, [string, number, number, number?][]> =
   // A grid of table blocks (a chair row, the table, a chair row) with a one-tile aisle between blocks; the columns
   // x = 8..9 in front of the door, row 9 and the tiles under the kitchen gates stay free on purpose.
   1: [['table_long', 3, 7], ['chair_dark', 3, 6, 0], ['chair_dark', 5, 6, 0], ['chair_dark', 3, 8, 2], ['chair_dark', 5, 8, 2]],
-  2: [['table_long', 11, 11], ['chair_dark', 11, 10, 0], ['chair_dark', 13, 10, 0], ['chair_dark', 11, 12, 2], ['chair_dark', 13, 12, 2], ['lantern_red', 7, 6]],
+  2: [['table_long', 11, 11], ['chair_dark', 11, 10, 0], ['chair_dark', 13, 10, 0], ['chair_dark', 11, 12, 2], ['chair_dark', 13, 12, 2], ['lantern_red', 22, 12]],
   3: [['table_round', 4, 11], ['chair_dark', 4, 10, 0], ['chair_dark', 4, 12, 2]],
 };
 

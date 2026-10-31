@@ -63,7 +63,8 @@ function restaurant(): ZoneDef {
     else if (s.alt) b.prop(s.prop, s.x, s.y, '!upgrade:' + s.alt.needs).prop(s.alt.prop, s.x, s.y, 'upgrade:' + s.alt.needs);
     else b.prop(s.prop, s.x, s.y);
   }
-  b.prop('stairs', 16, 2)
+  // a real flight up to the rooms: two tiles wide, climbing into the back wall
+  b.prop('stairs_up', 16, 1)
     .prop('door_storage', 13, 1, '!storage_open')
     .prop('door_storage_open', 13, 1, 'storage_open')
     .prop('wallshelf', 1, 1)
@@ -80,21 +81,14 @@ function restaurant(): ZoneDef {
     .prop('sake_barrel', 19, 3)
     .prop('sake_barrel', 1, 9)
     .prop('sake_barrel', 1, 10)
-    .prop('barrel', 2, 10)
     .prop('bamboo', 1, 12)
-    .prop('bamboo', 6, 12)
     // the look of the restaurant grows with its level (restaurant/stages.ts): clutter goes away, comfort arrives
     .prop('crate', 1, 7, 'stage<1')
     .prop('sack', 1, 8, 'stage<1')
     .prop('barrel', 3, 12, 'stage<1')
     .prop('andon', 14, 3, 'stage>=1')
-    .prop('pot_cream', 3, 12, 'stage>=1')
     .prop('wall_lantern_cream', 8, 1, 'stage>=1')
-    .prop('pot_rose', 4, 12, 'stage>=2')
     .prop('wallshelf', 10, 1, 'stage>=2')
-    .prop('andon', 15, 5, 'stage>=2')
-    .prop('stonelantern', 15, 3, 'stage>=3')
-    .prop('flowers', 14, 4, 'stage>=3')
     .prop('wall_lantern_red', 9, 1, 'stage>=3');
   return zone(b, {
     id: 'restaurant', name: 'Midnight Maki', music: 'restaurant', outdoor: false, walls: 'izakaya', floor: 'izakaya',
@@ -102,6 +96,7 @@ function restaurant(): ZoneDef {
       { x: 8, y: 13, to: 'plaza', tx: 5, ty: 7, dir: 'down', walk: true },
       { x: 9, y: 13, to: 'plaza', tx: 5, ty: 7, dir: 'down', walk: true },
       { x: 16, y: 2, to: 'home', tx: 14, ty: 9, dir: 'up', walk: true, label: 'Arriba' },
+      { x: 17, y: 2, to: 'home', tx: 14, ty: 9, dir: 'up', walk: true, label: 'Arriba' },
       { x: 13, y: 2, to: 'storage', tx: 4, ty: 6, dir: 'up', walk: false, label: 'Depósito', lock: { flag: 'storage_open', msg: 'La puerta del depósito está cerrada con llave.' } },
     ],
     interact: [
