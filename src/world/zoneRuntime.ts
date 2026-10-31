@@ -87,8 +87,8 @@ export function waterDepthAt(ground: string[], x: number, y: number): 's' | 'm' 
   return 's';
 }
 
-/** The open sea is drawn with the Modern Exteriors water (8 frames, a 2x2 pattern) when its atlas is installed. */
-export const usesSea = (def: ZoneDef) => def.fishing === 'sea' && hasExteriors();
+/** Outdoor water (sea, rivers and ponds) is drawn with the Modern Exteriors water (8 frames, a 2x2 pattern) when its atlas is installed. */
+export const usesSea = (def: ZoneDef) => !!def.outdoor && hasExteriors();
 export const seaParity = (x: number, y: number) => (x % 2) + 2 * (y % 2);
 
 const seaWater = (ch: string | undefined) => ch === undefined || 'wdhb'.includes(ch);
@@ -116,7 +116,7 @@ export function seaEdge(ground: string[], x: number, y: number): string | null {
 
 export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = false): number {
   if (usesSea(def)) {
-    if (ch === 'p') return TILE_INDEX.sandpath;
+    if (ch === 'p' && def.fishing === 'sea') return TILE_INDEX.sandpath; // the coast's walks are packed sand
     if (ch === 'h' || ch === 'w' || ch === 'd') {
       const edge = seaEdge(def.ground, x, y);
       return TILE_INDEX[edge ? `${edge}_0` : `seac${seaDepthAt(def.ground, x, y)}${seaParity(x, y)}_0`];
