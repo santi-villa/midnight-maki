@@ -6,6 +6,7 @@ import { barFloor, plankFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWa
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
 import { drawExteriorTile, SEA_FRAMES } from './exteriors';
 import { drawVillageCliff } from './serene';
+import { drawLimezuFloor, LIMEZU_FLOORS } from './interiors';
 
 export const TS = 16;
 
@@ -261,6 +262,10 @@ add('kitchen', false, barFloor);
 add('kitchen1', false, barFloor);
 add('kitchen2', false, barFloor);
 for (const [k, f] of Object.entries(FLOOR_STYLES)) add('floor_' + k, false, f.draw);
+// Modern Interiors floors for the same styles (art/interiors.ts), one tile per quarter of their 2x2 pattern
+for (const k of LIMEZU_FLOORS) for (let q = 0; q < 4; q++) add(`lzfloor_${k}_${q}`, false, (c, x, y, r) => {
+  if (!drawLimezuFloor(c as CanvasRenderingContext2D, x, y, k, q)) (FLOOR_STYLES[k]?.draw ?? FLOOR_STYLES.wood.draw)(c, x, y, r);
+});
 add('floor_wood1', false, plankFloor('#b98252', '#7e4f31', 5));
 add('floor_wood2', false, plankFloor('#b98252', '#7e4f31', 9));
 add('floor_darkwood1', false, plankFloor('#7a5038', '#4e3426', 5));

@@ -89,12 +89,25 @@ add('bookcase', 'Biblioteca', ['shelf_books'], [(LIB, (130, 219, 27, 31))])
 add('bookcase_dark', 'Biblioteca de colores', ['shelf_dark'], [(LIB, (9, 183, 28, 25))])
 add('reading_desk', 'Mesa de lectura', ['library_table'], [(LIB, (9, 154, 28, 22))])
 
+# Floors: each decor floor style takes a 2x2 block (32x32). Room Builder floors repeat their seamless middle column
+# (its first column carries edge shading); the tatami mat from the Japanese theme is tiled as a whole 2x2 block. Keys are the game's FLOOR_STYLES (art/tiles.ts), so saved choices keep working.
+RB = 'Room_Builder_Floors'
+FLOORS = {
+    'wood': (RB, 64, 192), 'darkwood': (RB, 192, 416), 'tatami': (JP1, 0, 0), 'izakaya': (RB, 0, 192),
+    'checker': (RB, 64, 32), 'rose': (RB, 128, 128), 'lavcarpet': (RB, 128, 288), 'moss': (RB, 0, 224),
+    'night': (RB, 128, 320), 'stone': (RB, 128, 544),
+}
+floors = {}
+
 # Pack: shelf packing, 1px gap so no neighbour bleeds into a frame.
 crops = []
 for p in pieces:
     for f in p['frames']:
         x, y, w, h = f['rect']
         crops.append((f, sheet(f['sheet']).crop((x, y, x + w, y + h))))
+for key, (sh, fx, fy) in FLOORS.items():
+    floors[key] = dict(sheet=sh, rect=[fx, fy, 32, 32], whole=sh != RB)
+    crops.append((floors[key], sheet(sh).crop((fx, fy, fx + 32, fy + 32))))
 W = 256
 x = y = row = 0
 for f, im in sorted(crops, key=lambda c: -c[1].height):
@@ -112,7 +125,7 @@ atlas.save(DEST / 'atlas.png', optimize=True)
 catalog = dict(
     author='LimeZu', pack='Modern Interiors (full version)', url='https://limezu.itch.io/moderninteriors',
     license='Use in commercial and non-commercial projects allowed; redistribution of the asset is not. Credits required.',
-    width=W, height=H, pieces=pieces,
+    width=W, height=H, pieces=pieces, floors=floors,
 )
-(DEST / 'catalog.json').write_text(json.dumps(catalog, ensure_ascii=False, indent=1) + '\n')
+(DEST / 'catalog.json').write_text(json.dumps(catalog, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
 print(f'{len(pieces)} pieces, {len(crops)} frames, atlas {W}x{H}')

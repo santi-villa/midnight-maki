@@ -16,6 +16,7 @@ import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
 import { bridgeMask } from './bridge';
 import { settleStoredGifts } from './furnGift';
+import { hasLimezuFloor } from '../art/interiors';
 
 export interface PropInstance { key: string; def: PropDef; x: number; y: number; }
 export interface FurnInstance { room: string; f: PlacedFurniture; def: FurnitureDef; }
@@ -126,10 +127,10 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case '#': return TILE_INDEX['walltop_' + st.wall] ?? TILE_INDEX.walltop_cream;
     case 'W': return TILE_INDEX['wall_' + st.wall] ?? TILE_INDEX.wall_cream;
     case 'V': return TILE_INDEX[(night ? 'windowN_' : 'window_') + st.wall] ?? TILE_INDEX.window_cream;
-    case 'f': return varied('floor_' + st.floor, x, y, 3) || TILE_INDEX.floor_wood;
+    case 'f': return hasLimezuFloor(st.floor) ? TILE_INDEX[`lzfloor_${st.floor}_${(x % 2) + 2 * (y % 2)}`] : varied('floor_' + st.floor, x, y, 3) || TILE_INDEX.floor_wood;
     case 'U': return TILE_INDEX['upper_' + st.wall] ?? TILE_INDEX['walltop_' + st.wall] ?? TILE_INDEX.walltop_cream;
     case 'k': return varied('kitchen', x, y, 3);
-    case 't': return varied('floor_tatami', x, y, 3);
+    case 't': return hasLimezuFloor('tatami') ? TILE_INDEX[`lzfloor_tatami_${(x % 2) + 2 * (y % 2)}`] : varied('floor_tatami', x, y, 3);
     case 'm': return TILE_INDEX.mat;
     case 'g': return grassAt(x, y);
     case 'G': return varied('dgrass', x, y, 2);

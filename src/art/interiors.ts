@@ -39,6 +39,18 @@ function limezuObject(id: string, width: number, height: number, rot: number): H
   return canvas;
 }
 
+/** Room Builder floors (by decor floor style): a seamless 2x2 block; quarter q = x % 2 + 2 * (y % 2). */
+const lzFloors = (limezu as { floors?: Record<string, { atlas: { x: number; y: number }; whole?: boolean }> }).floors ?? {};
+export const LIMEZU_FLOORS = Object.keys(lzFloors);
+export const hasLimezuFloor = (style: string) => !!lzAtlas && !!lzFloors[style];
+export function drawLimezuFloor(c: CanvasRenderingContext2D, x: number, y: number, style: string, q: number): boolean {
+  const f = lzFloors[style];
+  if (!lzAtlas || !f) return false;
+  // Room Builder floors repeat their seamless middle column; a whole mat (tatami) uses all four quarters
+  c.drawImage(lzAtlas, f.atlas.x + (f.whole ? (q % 2) * 16 : 16), f.atlas.y + (q >> 1) * 16, 16, 16, x, y, 16, 16);
+  return true;
+}
+
 /** True when this furniture ID is drawn by a LimeZu piece (the piece already has its own rotations). */
 export const hasLimezu = (id: string) => !!lzAtlas && lzFor.has(id);
 
