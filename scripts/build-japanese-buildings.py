@@ -57,10 +57,29 @@ add('clothes', 'Ropa de Yuki', ['bld_clothes'], SHOP, GREEN)
 add('store', 'Almacén de Taro', ['bld_store'], SHOP, BLUE)
 add('library', 'Biblioteca', ['bld_library'], TOWNHALL, BLUE)
 
+# Scenery: whole pieces drawn bottom-centred at native size. `tiles` (optional) is the footprint the piece needs.
+pieces = []
+
+
+def piece(key, name, replaces, rect, tiles=None):
+    x, y, w, h = rect
+    left, top, right, bottom = atlas_src.crop((x, y, x + w, y + h)).getbbox()
+    pieces.append(dict(id='jp_' + key, name=name, replaces=replaces, rect=[x + left, y + top, right - left, bottom - top],
+                       **({'tiles': list(tiles)} if tiles else {})))
+
+
+piece('shrine', 'Santuario', ['shrine'], (178, 640, 78, 108), (6, 1))
+piece('torii', 'Torii', ['torii_w6', 'torii_w4'], (178, 576, 78, 64))
+piece('stone_lantern', 'Farol de piedra', ['stonelantern'], (176, 514, 16, 30))
+piece('komainu_l', 'Komainu', ['komainu_l'], (144, 526, 16, 34))
+piece('komainu_r', 'Komainu', ['komainu_r'], (160, 526, 16, 34))
+piece('pine', 'Pino japonés', ['pine'], (8, 640, 48, 47))
+piece('sakura', 'Cerezo', ['sakura'], (720, 1169, 48, 47))
+
 # Shelf packing, one facade per slot.
 W = 512
 x = y = shelf = 0
-for f in facades:
+for f in facades + pieces:
     w, h = f['rect'][2], f['rect'][3]
     if x + w > W:
         x, y, shelf = 0, y + shelf + 1, 0
@@ -68,13 +87,13 @@ for f in facades:
     x += w + 1
     shelf = max(shelf, h)
 atlas = Image.new('RGBA', (W, y + shelf))
-for f in facades:
+for f in facades + pieces:
     sx, sy, sw, sh = f['rect']
     atlas.paste(atlas_src.crop((sx, sy, sx + sw, sy + sh)), (f['atlas']['x'], f['atlas']['y']))
 
 DEST.mkdir(parents=True, exist_ok=True)
 atlas.save(DEST / 'atlas.png', optimize=True)
 (DEST / 'catalog.json').write_text(json.dumps(dict(
-    source='VectoRaith, Traditional Japanese Buildings Tileset (16x16, ATLAS sheet)', facades=facades),
+    source='VectoRaith, Traditional Japanese Buildings Tileset (16x16, ATLAS sheet)', facades=facades, pieces=pieces),
     indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
-print(f'{len(facades)} facades -> {atlas.width}x{atlas.height}')
+print(f'{len(facades)} facades, {len(pieces)} pieces -> {atlas.width}x{atlas.height}')

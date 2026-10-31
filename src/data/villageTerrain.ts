@@ -1,6 +1,7 @@
 /** Authored study 02: a civic square, private plots and streets that connect their actual door positions. */
 import { PROPS } from './props';
 import { exteriorsWanted } from '../art/exteriors';
+import { jpBuildingsWanted } from '../art/japaneseBuildings';
 import { buildingLayout } from '../art/nature';
 import { villageShopLayout } from '../art/village';
 import { restaurantFacadeLayout } from '../art/restaurantFacade';
@@ -177,7 +178,12 @@ export function createVillageTerrain() {
   for (const [x, y] of [[7, 38], [16, 42], [18, 40], [8, 44], [26, 35], [12, 29]]) prop('flowers', x, y);
 
   // Sanctuary, old station and a forest cabin retain their own forecourts.
-  rect(48, 10, 11, 7, 'c'); prop('bld_house', 50, 8); prop('shrine', 54, 13); prop('torii_w6', 51, 17);
+  rect(48, 10, 11, 7, 'c');
+  // With the VectoRaith shrine (six tiles wide) it stands alone at the head of the path, guarded by two komainu;
+  // the classic art keeps the keeper's house beside a small shrine.
+  if (jpBuildingsWanted()) { prop('shrine', 51, 13); prop('komainu_l', 51, 15); prop('komainu_r', 57, 15); }
+  else { prop('bld_house', 50, 8); prop('shrine', 54, 13); }
+  prop('torii_w6', 51, 17);
   for (const [x, y] of [[48, 13], [59, 13], [50, 18], [58, 18]]) prop('stonelantern', x, y);
   for (const [x, y] of [[44, 9], [47, 6], [58, 6], [62, 9], [45, 15], [62, 15]]) prop('sakura', x, y);
   prop('bld_station', 82, 9); prop('block_vines', 90, 16); prop('crate', 94, 11); prop('barrel', 95, 11);

@@ -460,5 +460,145 @@
     "h": 128
    }
   }
+ ],
+ "pieces": [
+  {
+   "id": "jp_shrine",
+   "name": "Santuario",
+   "replaces": [
+    "shrine"
+   ],
+   "rect": [
+    178,
+    648,
+    78,
+    100
+   ],
+   "tiles": [
+    6,
+    1
+   ],
+   "atlas": {
+    "x": 350,
+    "y": 129,
+    "w": 78,
+    "h": 100
+   }
+  },
+  {
+   "id": "jp_torii",
+   "name": "Torii",
+   "replaces": [
+    "torii_w6",
+    "torii_w4"
+   ],
+   "rect": [
+    178,
+    576,
+    78,
+    61
+   ],
+   "atlas": {
+    "x": 429,
+    "y": 129,
+    "w": 78,
+    "h": 61
+   }
+  },
+  {
+   "id": "jp_stone_lantern",
+   "name": "Farol de piedra",
+   "replaces": [
+    "stonelantern"
+   ],
+   "rect": [
+    176,
+    519,
+    16,
+    25
+   ],
+   "atlas": {
+    "x": 0,
+    "y": 258,
+    "w": 16,
+    "h": 25
+   }
+  },
+  {
+   "id": "jp_komainu_l",
+   "name": "Komainu",
+   "replaces": [
+    "komainu_l"
+   ],
+   "rect": [
+    144,
+    526,
+    16,
+    34
+   ],
+   "atlas": {
+    "x": 17,
+    "y": 258,
+    "w": 16,
+    "h": 34
+   }
+  },
+  {
+   "id": "jp_komainu_r",
+   "name": "Komainu",
+   "replaces": [
+    "komainu_r"
+   ],
+   "rect": [
+    160,
+    526,
+    16,
+    34
+   ],
+   "atlas": {
+    "x": 34,
+    "y": 258,
+    "w": 16,
+    "h": 34
+   }
+  },
+  {
+   "id": "jp_pine",
+   "name": "Pino japonés",
+   "replaces": [
+    "pine"
+   ],
+   "rect": [
+    10,
+    641,
+    44,
+    46
+   ],
+   "atlas": {
+    "x": 51,
+    "y": 258,
+    "w": 44,
+    "h": 46
+   }
+  },
+  {
+   "id": "jp_sakura",
+   "name": "Cerezo",
+   "replaces": [
+    "sakura"
+   ],
+   "rect": [
+    722,
+    1169,
+    44,
+    47
+   ],
+   "atlas": {
+    "x": 96,
+    "y": 258,
+    "w": 44,
+    "h": 47
+   }
+  }
  ]
 }
