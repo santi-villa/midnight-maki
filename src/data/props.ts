@@ -112,6 +112,9 @@ export const PROPS: Record<string, PropDef> = {
   sea_rock_arch: P('rock', 2, 1, 22, 35, '#8d8790', '', { solid: false, sombra: 'ninguna' }),
   beach_grass: P('bush', 1, 1, 19, 19, '#5db449', '#5db449', { solid: false, sombra: 'contacto' }),
   // plaza dressing from the same pack: planters on the square's flower beds.
+  // benches seen from the side, so seats can face what they look at instead of the camera
+  bench_side_l: P('bench', 1, 2, 16, 48, '#b07a4c'),
+  bench_side_r: P('bench', 1, 2, 16, 48, '#b07a4c'),
   planter_pink: P('flowers', 2, 1, 32, 15, '#f47fa0', '#ffffff', { sombra: 'contacto' }),
   planter_red: P('flowers', 2, 1, 32, 15, '#e0504a', '#ffffff', { sombra: 'contacto' }),
   planter_white: P('flowers', 2, 1, 32, 15, '#f6f3ee', '#ffffff', { sombra: 'contacto' }),

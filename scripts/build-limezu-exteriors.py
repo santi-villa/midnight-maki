@@ -138,6 +138,8 @@ def add_single(key, name, replaces, folder, single):
 add_single('fountain', 'Fuente de la plaza', ['fountain'], '17_Garden', 'Garden_16x16_Fountain_3_4')
 add_single('bench', 'Banco de plaza', ['bench', 'wharf_bench'], '3_City_Props', 'City_Props_16x16_Bench_7')
 add_single('street_lamp', 'Farol', ['lamppost', 'street_lamp_l', 'street_lamp_r'], '3_City_Props', 'City_Props_16x16_Street_Lamp_5')
+add_single('bench_side_l', 'Banco de costado (mira a la derecha)', ['bench_side_l'], '3_City_Props', 'City_Props_16x16_Bench_6')
+add_single('bench_side_r', 'Banco de costado (mira a la izquierda)', ['bench_side_r'], '3_City_Props', 'City_Props_16x16_Bench_5')
 add_single('mailbox', 'Buzón', ['mailbox'], '3_City_Props', 'City_Props_16x16_Mailbox_1')
 add_single('pot_pink', 'Maceta con flores rosas', ['pot_rose'], '17_Garden', 'Garden_16x16_Big_Pink_Flower_Vase')
 add_single('pot_topiary', 'Maceta con arbusto', ['pot_cream'], '17_Garden', 'Garden_16x16_Bush_Potted_3')

@@ -138,8 +138,10 @@ export function createVillageTerrain() {
     rect(48, 40, 2, 2, 'l'); rect(60, 40, 2, 2, 'r');
   }
   prop('fountain', 53, 36);
-  prop('bench', 50, 37); prop('bench', 58, 37);
-  prop('bench', 52, 41); prop('board', 47, 31);
+  // seats face the fountain from both sides (the pack's side-view benches); nothing sits in the middle of the square
+  if (exteriorsWanted()) { prop('bench_side_l', 50, 36); prop('bench_side_r', 58, 36); }
+  else { prop('bench', 50, 37); prop('bench', 58, 37); prop('bench', 52, 41); }
+  prop('board', 47, 31);
   for (const [x, y] of [[50, 32], [58, 32], [50, 42], [58, 42]]) prop('street_lamp_l', x, y);
 
   // Shops stand on their own small front gardens. All paths begin at the actual texture's doorway.
