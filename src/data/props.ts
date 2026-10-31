@@ -147,8 +147,8 @@ export const PROPS: Record<string, PropDef> = {
   pier: P('pier', 1, 1, 16, 8, '', '', { solid: false }),
   stars: P('stars', 2, 1, 32, 16, '#f2c66d', '', { solid: false, light: '#f8e3a0' }),
   // street details
-  vending_blue: P('vending', 1, 1, 22, 30, '#6f8fb8'),
-  vending_red: P('vending', 1, 1, 22, 30, '#b8524f'),
+  vending_blue: P('vending', 1, 1, 22, 30, '#6f8fb8', '', { light: '#bfe4ff' }),
+  vending_red: P('vending', 1, 1, 22, 30, '#b8524f', '', { light: '#ffd9d0' }),
   // GuttyKreum Japanese City FREE: small urban accents; retain native pixels (art/japaneseCity.ts).
   jc_power_pole: P('lamppost', 1, 1, 16, 80, '', '', { sombra: 'contacto' }),
   jc_power_pole_transformer: P('lamppost', 1, 1, 24, 80, '', '', { sombra: 'contacto' }),
@@ -231,7 +231,7 @@ export const PROPS: Record<string, PropDef> = {
   bld_gallery: P('building', 5, 3, 80, 72, '#f6ecd6', '#7a5fb0', { variant: 8, label: 'GALERÍA' }),
   lighthouse: P('lighthouse', 3, 2, 48, 112),
   // the Modern Exteriors lighthouse (7x16 tiles): its round base is the footprint, the door sits below its middle
-  lighthouse_tall: P('lighthouse', 5, 3, 112, 240),
+  lighthouse_tall: P('lighthouse', 5, 3, 112, 240, '', '', { light: '#fff6d8' }),
   // side-entrance townhouses: `variant` = trade * 2 + (1 when the porch is on the right)
   bld_th_home_l: P('townhouse', 6, 3, 96, 80, '#f3e3c3', '#5d6b7a', { variant: 0 }),
   bld_th_home_r: P('townhouse', 6, 3, 96, 80, '#efe0c2', '#7a5a4a', { variant: 1 }),

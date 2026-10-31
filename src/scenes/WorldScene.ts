@@ -54,7 +54,7 @@ import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { arrange, idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, seaDepthAt, seaEdge, seaParity, usesSea, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { propCanvas, cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
+import { propCanvas, cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife, type TownResident } from '../systems/townLife';
@@ -93,7 +93,8 @@ export type { Target };
 
 interface NpcState { out?: boolean; actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; micro?: boolean; barkAt?: number; }
 /** kind: lamp (default), spill = light from a facade, window = interior window light. */
-interface Light { x: number; y: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window'; facade?: boolean; home?: boolean; homeId?: string; seed?: number; shop?: string }
+/** gy: where the light falls on the ground (a post's foot), when it differs from where the source glows (its lantern) */
+interface Light { x: number; y: number; gy?: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window'; facade?: boolean; home?: boolean; homeId?: string; seed?: number; shop?: string }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
 interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
@@ -158,7 +159,6 @@ export class WorldScene extends Phaser.Scene {
   private castList: CastShadow[] = [];
   private shadowKey = '';
   private dark!: Phaser.GameObjects.RenderTexture;
-  private lightStamp!: Phaser.GameObjects.Image;
   private rainFx: RainFx | null = null;
   private wetGround = new WetGround();
   private weatherKey = '';
@@ -254,7 +254,6 @@ export class WorldScene extends Phaser.Scene {
     this.events.once('shutdown', () => this.game.events.off('blur', this.releaseSteer, this));
     this.scale.on('resize', () => this.layout());
     this.dark = this.add.renderTexture(0, 0, 8, 8).setOrigin(0, 0).setDepth(200000).setBlendMode(Phaser.BlendModes.MULTIPLY);
-    this.lightStamp = this.make.image({ key: lightTexture(this) }, false);
     this.busOff.push(
       bus.on('time:changed', () => this.onPeriodChange()),
       bus.on('decor:changed', () => {
@@ -461,6 +460,28 @@ export class WorldScene extends Phaser.Scene {
     const by = h < vh ? -(vh - mh) / 2 : -padTop;
     cam.setBounds(bx, by, Math.max(w, vw), Math.max(h, vh));
   }
+
+  /** The lighthouse's beam: a long soft cone turning slowly round the lantern at night (added light, never a solid shape). */
+  private addBeacon(x: number, y: number) {
+    if (lowFx()) return;
+    const key = 'beacon_cone';
+    if (!this.textures.exists(key)) {
+      const W = 220, H = 64, c = makeCanvas(W, H), g = ctx2d(c);
+      const img = g.createImageData(W, H);
+      for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < W; xx++) {
+        const t = xx / W, spread = 0.12 + t * 0.88, dy = Math.abs(yy + 0.5 - H / 2) / (H / 2);
+        const a = dy > spread ? 0 : (1 - dy / spread) ** 1.6 * (1 - t) ** 1.2 * 0.75;
+        const i = (yy * W + xx) * 4; img.data[i] = 255; img.data[i + 1] = 246; img.data[i + 2] = 216; img.data[i + 3] = Math.round(a * 255);
+      }
+      g.putImageData(img, 0, 0);
+      this.textures.addCanvas(key, c);
+    }
+    const beam = this.add.image(x, y, key).setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(200003).setAlpha(0);
+    this.objs.push(beam);
+    this.tweens.add({ targets: beam, angle: 360, duration: 9000, repeat: -1 });
+    this.beams.push(beam);
+  }
+  private beams: Phaser.GameObjects.Image[] = [];
 
   // ------------------------------------------------------------------ the rest of the village around this district
   private backdrops = new Map<string, { stamp: string; img: Phaser.GameObjects.Image }>();
@@ -718,7 +739,12 @@ export class WorldScene extends Phaser.Scene {
       }
       // a pack sprite taller than its definition (Modern Exteriors lamps) keeps the glow on its lantern, not mid-pole
       const tall = img.height > p.def.sh;
-      if (p.def.light) this.lamps.push({ x: px, y: tall ? py - img.height + 8 : py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 96 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 1.4 : 0.5 });
+      if (p.def.light) {
+        const kind = p.def.kind, beacon = kind === 'lighthouse';
+        const r = beacon ? 170 : kind === 'lamppost' ? 104 : kind === 'stall' || kind === 'carpstall' ? 84 : kind === 'vending' ? 48 : 74;
+        this.lamps.push({ x: px, y: beacon ? py - img.height + 34 : tall ? py - img.height + 8 : py - p.def.sh * 0.7, gy: py - 4, r, flicker: kind !== 'lamppost' && kind !== 'vending' && !beacon, color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: kind === 'lamppost' || beacon ? 1.4 : 0.7 });
+        if (beacon) this.addBeacon(px, py - img.height + 34);
+      }
       this.objs.push(img);
       this.propImgs.set(`${p.x},${p.y}`, img);
       if (!onWall && !p.def.ground && p.def.sombra !== 'ninguna') {
@@ -3593,7 +3619,6 @@ export class WorldScene extends Phaser.Scene {
   private glowPool: Phaser.GameObjects.Image[] = [];
   /** the glass of every lit street lamp, so the lamp itself reads as on (not only the light around it) */
   private bulbGfx: Phaser.GameObjects.Graphics | null = null;
-  private vignette: Phaser.GameObjects.Image | null = null;
 
   /**
    * Projected shadow: the sprite's silhouette, flipped onto the ground and pivoted on the object's feet.
@@ -3812,6 +3837,9 @@ export class WorldScene extends Phaser.Scene {
     const visible = this.lamps.filter((l) => l.x > view.x - margin && l.x < view.right + margin && l.y > view.y - margin && l.y < view.bottom + margin);
     const lit = visible.map((l) => ({ l, k: Math.round(this.lampLevel(l, ls) * 100) / 100 })).filter((e) => e.k > 0.02);
     this.updateLightHalos(lit, ls, time, lo, actors);
+    // the lighthouse beam turns only once the lamps are on
+    this.beams = this.beams.filter((b) => b.active);
+    for (const b of this.beams) b.setAlpha(Math.min(0.8, ls.lamp * 0.8));
     const px = Math.floor(this.player.x);
     const py = Math.floor(this.player.y);
     const levels = lit.map(({ l, k }) => `${l.x},${l.y},${k}`).join(';');
@@ -3819,62 +3847,74 @@ export class WorldScene extends Phaser.Scene {
     if (key === this.lightKey) return;
     this.lightKey = key;
     this.lightRedraws++;
-    const needW = Math.ceil(view.width) + 8;
-    const needH = Math.ceil(view.height) + 8;
-    if (rt.width < needW || rt.height < needH) rt.resize(needW, needH);
-    rt.setPosition(Math.floor(view.x) - 4, Math.floor(view.y) - 4);
-    rt.setVisible(true);
-    rt.clear();
-    if (ls.tint !== 0xffffff) rt.fill(ls.tint, 1);
-    // Once the street is dark, a full erase shows the daytime tiles. Paint a dim warm colour instead.
+    // The darkness is a plain 2D canvas at world resolution (drawing into the render texture never reached the screen):
+    // the night's colour, then every light added on top as a soft coloured pool lying on the ground, so overlapping lights
+    // add up like real light. Shown with a multiply blend and scaled up by the camera, it keeps the game's pixels.
+    const W = Math.ceil(view.width) + 8, H = Math.ceil(view.height) + 8;
+    const ox = Math.floor(view.x) - 4, oy = Math.floor(view.y) - 4;
+    if (!this.darkCanvas || this.darkCanvas.width < W || this.darkCanvas.height < H) {
+      this.darkCanvas = makeCanvas(Math.max(W, this.darkCanvas?.width ?? 0), Math.max(H, this.darkCanvas?.height ?? 0));
+      if (this.textures.exists('darkness')) this.textures.remove('darkness');
+      this.darkTex = this.textures.addCanvas('darkness', this.darkCanvas)!;
+      if (this.darkImg) this.darkImg.setTexture('darkness');
+      else this.darkImg = this.add.image(0, 0, 'darkness').setOrigin(0, 0).setDepth(200000).setBlendMode(Phaser.BlendModes.MULTIPLY);
+    }
+    rt.setVisible(false);
+    this.darkImg!.setPosition(ox, oy).setVisible(true);
+    const g = this.darkCanvas.getContext('2d')!;
+    const rgba = (c: number, a = 1) => `rgba(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255},${a})`;
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, this.darkCanvas.width, this.darkCanvas.height);
+    if (ls.tint !== 0xffffff) { g.fillStyle = rgba(ls.tint); g.fillRect(0, 0, W, H); }
+    const pool = (x: number, y: number, r: number, color: number, a: number, squash: number) => {
+      if (a <= 0.01 || r <= 0) return;
+      g.save();
+      g.translate(x - ox, y - oy);
+      g.scale(1, squash);
+      const grad = g.createRadialGradient(0, 0, 0, 0, 0, r);
+      grad.addColorStop(0, rgba(color, a));
+      grad.addColorStop(0.3, rgba(color, a * 0.78));
+      grad.addColorStop(0.65, rgba(color, a * 0.3));
+      grad.addColorStop(1, rgba(color, 0));
+      g.fillStyle = grad;
+      g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+      g.restore();
+    };
     const dim = lampPoolTint(ls.tint, 0xffd27a, 1) != null;
     if (lit.length) {
-      for (const { l, k } of lit) {
-        const scale = (l.r * 2 * (ls.halo > 1 ? 1.08 : 1)) / 64;
-        if (dim) {
-          // street lamps light a wider, warmer pool than a window or a candle
-          const post = !l.kind && !l.facade && l.r >= 90;
-          const col = (post ? lampPoolTint(ls.tint, l.color ?? 0xffd27a, k, 225, 0.85) : lampPoolTint(ls.tint, l.color ?? 0xffd27a, k))!;
-          this.lightStamp.setScale(scale).setTint(col).setAlpha(1);
-          rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
-          if (post) { // tighter passes fill the middle of the pool so the lamp reads as lit
-            for (const f of [0.75, 0.5]) {
-              this.lightStamp.setScale(scale * f);
-              rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
-            }
-          }
-        } else {
-          this.lightStamp.clearTint().setScale(scale).setAlpha(Math.min(1, k));
-          rt.erase(this.lightStamp, l.x - rt.x, l.y - rt.y);
-        }
-      }
-      if (!dim) {
+      if (dim) {
+        g.globalCompositeOperation = 'lighter';
         for (const { l, k } of lit) {
-          this.lightStamp.setScale((l.r * 1.85 * ls.halo) / 64).setTint(l.color ?? 0xffd27a).setAlpha(0.62 * k * (ls.halo > 1 ? 0.85 : 1));
-          rt.draw(this.lightStamp, l.x - rt.x, l.y - rt.y);
+          // street lamps and the lighthouse light the street almost to day, lanterns and stalls a warm pool, windows softly
+          const post = !l.kind && !l.facade && l.r >= 90;
+          const spill = l.kind === 'spill' || l.kind === 'window';
+          const color = l.color ?? 0xffd27a;
+          pool(l.x, l.gy ?? l.y, l.r * (ls.halo > 1 ? 1.08 : 1), color, (post ? 0.72 : spill ? 0.38 : 0.6) * k, 0.72);
+          if (l.gy !== undefined) pool(l.x, l.y, Math.max(10, l.r * 0.22), color, 0.85 * k, 1); // the lantern itself shines
         }
+      } else {
+        // dusk: each light clears the evening tint around it
+        g.globalCompositeOperation = 'destination-out';
+        for (const { l, k } of lit) pool(l.x, l.gy ?? l.y, l.r, 0xffffff, Math.min(1, k), 0.78);
       }
-      this.lightStamp.clearTint().setAlpha(1);
     }
     // Sofi carries a soft pool so the night stays readable, without a circle of daylight around her.
-    if (ls.lamp > 0.1 && this.player) {
-      if (dim) {
-        const self = lampPoolTint(ls.tint, 0xfff0dc, Math.min(1, ls.lamp), 180);
-        if (self != null) {
-          this.lightStamp.setScale(1.05).setTint(self).setAlpha(1);
-          rt.draw(this.lightStamp, this.player.x - rt.x, this.player.y - 10 - rt.y);
-        }
-      } else if (lit.length) {
-        this.lightStamp.clearTint().setScale(1.5).setAlpha(Math.min(1, ls.lamp));
-        rt.erase(this.lightStamp, this.player.x - rt.x, this.player.y - 10 - rt.y);
-      }
-      this.lightStamp.clearTint().setAlpha(1);
+    if (ls.lamp > 0.1 && this.player && dim) {
+      g.globalCompositeOperation = 'lighter';
+      pool(this.player.x, this.player.y - 6, 36, 0xfff0dc, 0.32 * Math.min(1, ls.lamp), 0.8);
     }
-    // vignette frames the screen (drawn into the same low-res layer)
-    if (!this.vignette) this.vignette = this.make.image({ key: vignetteTexture(this) }, false);
-    this.vignette.setDisplaySize(rt.width, rt.height).setAlpha(ls.vig);
-    rt.draw(this.vignette, rt.width / 2, rt.height / 2);
+    // vignette frames the screen
+    g.globalCompositeOperation = 'source-over';
+    if (ls.vig > 0.01) {
+      g.globalAlpha = ls.vig;
+      g.drawImage(this.textures.get(vignetteTexture(this)).getSourceImage() as CanvasImageSource, 0, 0, W, H);
+      g.globalAlpha = 1;
+    }
+    this.darkTex!.refresh();
   }
+  private darkCanvas: HTMLCanvasElement | null = null;
+  private darkTex: Phaser.Textures.CanvasTexture | null = null;
+  private darkImg: Phaser.GameObjects.Image | null = null;
 
   /** Animate inexpensive additive images even when the cached darkness texture stays untouched. */
   private updateLightHalos(lit: { l: Light; k: number }[], ls: LightState, time: number, lo: boolean, actors: Actor[]) {
