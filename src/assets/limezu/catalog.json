@@ -435,6 +435,30 @@
    ]
   },
   {
+   "id": "lz_k_grill",
+   "name": "Parrilla konro",
+   "replaces": [
+    "k_stove"
+   ],
+   "frames": [
+    {
+     "sheet": "Japanese_Interiors_01",
+     "rect": [
+      208,
+      114,
+      16,
+      22
+     ],
+     "atlas": {
+      "x": 235,
+      "y": 76,
+      "w": 16,
+      "h": 22
+     }
+    }
+   ]
+  },
+  {
    "id": "lz_wardrobe_oak",
    "name": "Ropero de roble",
    "replaces": [

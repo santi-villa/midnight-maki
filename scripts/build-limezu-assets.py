@@ -65,6 +65,10 @@ add('zabuton_sky', 'Zabuton celeste', ['cushion_indigo'], [(JP1, (129, 154, 13, 
 add('zabuton_moss', 'Zabuton verde', ['bond_nap_cushion'], [(JP1, (161, 154, 13, 12))])
 add('tea_tray', 'Bandeja de té', ['tea_set'], [(JP1, (57, 53, 13, 9))])
 
+# Restaurant kitchen: the charcoal grill (with its fire) for the stove. The pack's counters are only an 11 px front and
+# read as floor-level drawers, so the counters, rice pots, board, bin and drinks keep their own art.
+add('k_grill', 'Parrilla konro', ['k_stove'], [(JP1, (208, 114, 16, 22))])
+
 # Rooms and houses: storage, desks, lamps, plants, paintings.
 add('wardrobe_oak', 'Ropero de roble', ['wardrobe_wood'], [(LIV, (130, 4, 27, 39))])
 add('wardrobe_glass', 'Ropero con vidrios', ['wardrobe_white'], [(LIV, (195, 9, 27, 32))])
