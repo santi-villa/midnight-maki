@@ -54,12 +54,12 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
   street([[39, 39], [45, 39]], 3);
   street([[40, 53], [44, 53]], 2);
   rect(21, 46, 3, 3, 'c'); street([[21, 48], [22, 48], [22, 53]], 2);
-  street([[44, 31], [44, 58], [66, 58], [66, 40], [64, 40]], 2);
+  street([[66, 40], [64, 40]], 2);
   street([[52, 57], [52, 64]], 3);
   street([[64, 37], [72, 37]], 3);
   street([[79, 37], [119, 37]], 3);
   street([[89, 24], [89, 58], [119, 58]], 2);
-  for (const x of [99, 109, 118]) street([[x, 28], [x, 58]], 2);
+  for (const x of [99, 109, 118]) street([[x, 37], [x, 58]], 2);
   street([[81, 47], [119, 47]], 3);
   street([[90, 20], [90, 27]], 2);
   // A footpath round the lakeshore leads to the abandoned station, never through the shrine cliff.
@@ -97,7 +97,7 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
   // Restore streets after lawns are drawn. These strips lie between the private lots.
   street([[79, 37], [119, 37]], 3); street([[81, 47], [119, 47]], 3);
   street([[89, 24], [89, 58], [119, 58]], 2);
-  for (const x of [99, 109, 118]) street([[x, 28], [x, 58]], 2);
+  for (const x of [99, 109, 118]) street([[x, 37], [x, 58]], 2);
   if (exteriorsWanted()) {
     // Modern Exteriors: each home gets a mailbox and a bin on the first free lawn cells beside its entrance path
     // (after the streets, so no street cell is taken); every other lawn gets a bird house, in turn three colours.
@@ -114,6 +114,29 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
       }
       if (n % 2 === 0 && free(x - 1, y + 3)) prop(['birdhouse_blue', 'birdhouse_pink', 'birdhouse_brown'][(n / 2) % 3], x - 1, y + 3);
     });
+  }
+  // Street lamps where people walk at night: crossings, both ends of every bridge, the ring round the restaurant and
+  // the corners of the residential streets. Each one stands on the grass right beside the street, never on it, so the
+  // main streets stay open across their full width.
+  const onStreet = (x: number, y: number) => 'pc'.includes(terrain[y]?.[x] ?? '!');
+  // a tile is taken by a prop's footprint or by the part of a tall sprite above it (roofs)
+  const taken = (x: number, y: number) => props.some(p => {
+    const d = PROPS[p.id]; if (!d) return false;
+    const top = p.y + d.h - Math.ceil(d.sh / 16);
+    return x >= p.x && x < p.x + d.w && y >= Math.min(p.y, top) && y < p.y + d.h;
+  });
+  for (const [ax, ay] of [
+    [21, 32], [21, 44], [30, 22], [40, 22], [28, 37], [40, 37], [28, 52], [41, 52],
+    [48, 27], [60, 27], [50, 57], [60, 57], [66, 34], [66, 46], [71, 36], [82, 36],
+    [88, 30], [88, 42], [88, 54], [99, 39], [109, 39], [118, 39], [99, 49], [109, 49], [118, 49], [104, 57], [114, 57],
+  ] as Point[]) {
+    let at: Point | null = null;
+    for (let r = 0; r <= 2 && !at; r++) for (let dy = -r; dy <= r && !at; dy++) for (let dx = -r; dx <= r && !at; dx++) {
+      const x = ax + dx, y = ay + dy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !'gG'.includes(terrain[y]?.[x] ?? '!') || taken(x, y)) continue;
+      if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([i, j]) => onStreet(x + i, y + j))) at = [x, y];
+    }
+    if (at) prop('street_lamp_l', ...at);
   }
   // Wooden promenade and working quay connect the coast, fish houses and lighthouse.
   rect(37, 65, 54, 5, 'b'); street([[44, 63], [55, 63], [55, 68]], 2, 'b');
