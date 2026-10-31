@@ -16,3 +16,15 @@ Orden: de lo más acotado a lo más grande, con un commit por punto y tests exis
 6. **Luz.** Noche con color (luna fría arriba, calor cerca de las luces) en vez de un tinte plano; charcos de luz
    elípticos sobre el piso con caída suave y color según la fuente; más cosas que emiten luz (faroles de piedra y papel,
    puestos, máquinas expendedoras, el faro con su haz, ventanas, la fuente, luciérnagas).
+
+## Estado al cierre
+
+Hecho, un commit por punto: pesca (cada lugar sobre la baldosa caminable más cercana que toca agua; fuera los
+duplicados), un árbol por zona, cámara de interiores con margen, restaurante ordenado (escalera ancha con baranda,
+cocina con baldosa, una sola madera, tatami con borde), exterior sin transiciones (zonas vecinas dibujadas alrededor,
+cruce sin fundido) y luz nueva (canvas en lugar del render texture que nunca mostraba los charcos; cada fuente con su
+color y alcance, faro con haz).
+
+Pendiente: las escaleras entre zonas (santuario, playa) siguen siendo las mismas; con el cruce sin fundido se pasan
+caminando, pero al cruzar el borde se avanza una baldosa de golpe. Las barandas de un puente partido entre dos zonas se
+ven solo del lado de la zona actual. En las zonas vecinas no se ven los personajes ni sus luces de noche.
