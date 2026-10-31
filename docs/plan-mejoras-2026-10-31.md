@@ -58,3 +58,27 @@ Grocery store, Clothing store, Classroom and library y Fishing.
 
 Typecheck, los tests existentes y capturas por zona (día y noche donde aplique). Sin tests nuevos salvo cuando un
 comportamiento nuevo lo requiera.
+
+## Estado al cierre (31/10/2026)
+
+Hecho, con un commit por bloque:
+- **A.** Mercado con la luz del día; aves quietas fuera y bandadas que se van juntas (`data/flocks.ts`); salón de 24 de
+  ancho con mesas en grilla y pasillos, migrando las mesas de partidas viejas que siguen donde las puso el juego.
+- **B.** Pisos de Room Builder para los diez estilos de piso (todos los interiores); casas del barrio con futones,
+  andon, bonsái y faroles de papel.
+- **C.** Santuario, torii, faroles de piedra, komainu, pinos japoneses y cerezos de VectoRaith; ríos y estanques con el
+  agua animada del mar.
+- **D.** Mercado nocturno en una calle con seis puestos; 31 faroles de calle en cruces, puentes y esquinas (en el pasto,
+  nunca sobre la calle); faroles del puerto en las bocas de los muelles; caminos sin finales en el río, sin anillo
+  duplicado ni calles que suben al pasto; Bosque profundo al oeste del bosque.
+
+No hecho, y por qué:
+- **Fachadas de las 16 casas del barrio**: cada casa tiene la puerta en un costado y su interior abre por ese lado; las
+  fachadas del pack la tienen en otro lugar, y cambiarlas desalinearía entrada e interior. Las casas actuales ya están
+  armadas con piezas de este mismo pack.
+- **Muebles de las tiendas**: los mostradores y vitrinas de Modern Interiors son de supermercado moderno o muebles de
+  frente que taparían al tendero detrás del mostrador. Las tiendas tienen los pisos nuevos; agrandarlas y amueblarlas
+  queda pendiente.
+- **Caminos con bordes (autotile)** y **carteles/tablero del pack**: el usuario dijo que los caminos están bien salvo las
+  conexiones (arregladas), y los carteles del pack no llevan texto propio.
+

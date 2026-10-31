@@ -79,6 +79,10 @@ en el medio de una baldosa.
 
 `?buildings=classic` vuelve a las fachadas anteriores. Ver `docs/jp-centro.png` y `docs/jp-restaurante-etapas.png`.
 
+Escenografía del mismo pack (catálogo `pieces`, dibujada a tamaño nativo y centrada abajo): santuario de madera (huella de
+seis baldosas), torii, faroles de piedra, komainu, pinos japoneses y cerezos. Con `?buildings=classic` vuelven el
+santuario chico con la casa del cuidador y el arte anterior de árboles y faroles.
+
 ### Lámina completa aportada por el usuario
 
 El PNG de 1013×1181 recibido en `Imagen de ChatGPT 17 oct 2026, 01_34_44.zip` se conserva en `art-source/village/lamina-aportada.png`. `scripts/build-village-assets.py` recorta 18 piezas de esa imagen de VectoRaith: las tres fachadas elegidas para Midnight Maki, botes, arbustos, faroles, guirnalda, recipientes y accesorios pesqueros y tres fachadas pequeñas para puestos de mercado. Su atlas de 512×256 ocupa unos 45 KiB de PNG; la lámina completa no entra en la carga del juego. `src/assets/village/catalog.json` registra el hash, origen de cada recorte y geometría de las fachadas. Se mantiene la mención de VectoRaith en los créditos del juego.
@@ -118,7 +122,7 @@ Por eso el pack **no está en el repositorio** (`ASSETS DESCARGADOS/NUEVO/` est�
 LIMEZU_SRC=/ruta/a/las/hojas/por/tema python3 scripts/build-limezu-assets.py
 ```
 
-Cada pieza declara qué muebles o props del juego viste (`replaces`): los IDs guardados, las huellas en la grilla y el comportamiento no cambian, solo el dibujo. Las piezas se dibujan a tamaño nativo, nunca escaladas. Una pieza con una sola vista no se usa girada de costado (ahí queda el dibujo anterior). Con `?interiors=classic` en la URL el juego carga sin el pack, para comparar.
+Los diez estilos de piso (los que se compran y eligen en Decorar) usan baldosas del Room Builder del pack; el tatami sale del tema japonés. Se repite la columna central de cada piso, que no tiene sombreado de borde. Cada pieza declara qué muebles o props del juego viste (`replaces`): los IDs guardados, las huellas en la grilla y el comportamiento no cambian, solo el dibujo. Las piezas se dibujan a tamaño nativo, nunca escaladas. Una pieza con una sola vista no se usa girada de costado (ahí queda el dibujo anterior). Con `?interiors=classic` en la URL el juego carga sin el pack, para comparar.
 
 Primera prueba (32 piezas): sillas de izakaya en cuatro direcciones, mesas, chabudai, zabutones, banquito, bandeja de té, roperos, aparador, escritorio, mesita de luz, lámparas, plantas, pecera, cuadros, kakejiku y bibliotecas.
 

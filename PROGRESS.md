@@ -80,7 +80,15 @@ Registro de avances **verificados** (✅ probado en navegador o por tests) y pen
 
 ## Edificios japoneses (VectoRaith, pack completo)
 - Restaurante (cuatro etapas, cada una un edificio), panadería, ropa, almacén y biblioteca con fachadas del pack. `?buildings=classic` compara. Ver docs/asset-credits.md.
-- Siguen: las 16 casas del barrio (hoy armadas con módulos de la demo), estación, casa del santuario y cabaña.
+- Santuario (santuario, torii, faroles de piedra, komainu), pinos japoneses y cerezos del pack.
+- Siguen: las 16 casas del barrio (hoy armadas con módulos de la demo; la puerta lateral impide cambiar la fachada sin
+  rehacer los interiores), estación y cabaña.
+
+## Mejoras del 31/10/2026 (ver docs/plan-mejoras-2026-10-31.md)
+- Mercado con luz de día; bandadas de aves que se van juntas (sin aves quietas); salón más ancho con mesas en grilla.
+- Pisos de Modern Interiors en todos los interiores; dormitorios japoneses en las casas del barrio.
+- Mercado nocturno en una calle; faroles en cruces, puentes y esquinas; caminos sin conexiones raras; Bosque profundo.
+- Ríos y estanques con el agua del mar.
 
 ## Pendiente / próximos pasos
 - Jugar varias horas reales para afinar balance (precios de pescados ya reducidos).
