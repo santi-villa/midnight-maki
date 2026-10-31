@@ -9,6 +9,7 @@ import { houseDoorDef, houseEntrancePaths, housePropId, housesIn, houseZones } f
 import { installVillageWorld } from './villageWorld';
 import { KITCHEN, STATIONS } from '../galley/layout';
 import { exteriorsWanted } from '../art/exteriors';
+import { DEEP_FOREST, deepForest } from './deepForest';
 export { Builder, treeBorder, zone, RESTAURANT_ENTRY };
 
 export interface PropPlace { id: string; x: number; y: number; cond?: string; }
@@ -536,5 +537,8 @@ const SIGNPOSTS: Record<string, [string, number, number][]> = {
 };
 for (const [zid, list] of Object.entries(SIGNPOSTS)) for (const [id, x, y] of list) ZONES[zid]?.props.push({ id, x, y });
 installVillageWorld(ZONES, GARDEN_PLOT_POSITIONS);
+// The forest grows west into the Bosque profundo, entered from the path that reaches the forest's west edge.
+ZONES[DEEP_FOREST.id] = deepForest();
+ZONES.forest.doors.push(...[DEEP_FOREST.door, DEEP_FOREST.door + 1].map((y) => ({ x: 0, y, to: DEEP_FOREST.id, tx: DEEP_FOREST.w - 2, ty: y, dir: 'left' as const, walk: true, label: 'Bosque profundo' })));
 
 export const ZONE_LIST = Object.keys(ZONES);

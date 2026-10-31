@@ -21,4 +21,7 @@ const AT: [x: number, y: number, n: number, species: BirdSpecies][] = [
   [20, 8, 4, 'sparrow'], // the forest path's clearing
 ];
 
-export const FLOCKS: Flock[] = AT.map(([x, y, n, species]) => { const at = villageSpot(x, y); return { zone: at.zone, x: at.x, y: at.y, n, species }; });
+export const FLOCKS: Flock[] = [
+  ...AT.map(([x, y, n, species]) => { const at = villageSpot(x, y); return { zone: at.zone, x: at.x, y: at.y, n, species }; }),
+  { zone: 'deepforest', x: 16, y: 13, n: 5, species: 'sparrow' }, // the Bosque profundo's clearing
+];
