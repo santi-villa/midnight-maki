@@ -33,9 +33,10 @@ export type FolkArms = 'cook1' | 'cook2' | 'wave1' | 'wave2' | 'read';
 export interface FolkPose { dir: Dir; legs: 'idle' | 'a' | 'b'; expr: FolkExpr; bob?: number; arms?: FolkArms; sit?: boolean }
 
 // ------------------------------------------------------------------ spec
-export type EarKind = 'pointy' | 'round' | 'long' | 'cat' | 'none';
-export type TailKind = 'bushy' | 'ringed' | 'thin' | 'puff' | 'nub' | 'none';
-export type HatKind = 'none' | 'bandana' | 'straw' | 'witch' | 'chef' | 'cap' | 'beret' | 'bow' | 'beanie' | 'headband';
+export type EarKind = 'pointy' | 'round' | 'long' | 'cat' | 'none' | 'floppy' | 'tuft' | 'leaf';
+export type TailKind = 'bushy' | 'ringed' | 'thin' | 'puff' | 'nub' | 'none' | 'curl' | 'paddle';
+export type HatKind = 'none' | 'bandana' | 'straw' | 'witch' | 'chef' | 'cap' | 'beret' | 'bow' | 'beanie' | 'headband' | 'flower';
+export type Snout = 'short' | 'fox' | 'bear' | 'bunny' | 'dog' | 'owl';
 export type HairKind = 'none' | 'bob' | 'bun' | 'short' | 'bald';
 
 export type Deco =
@@ -62,7 +63,8 @@ export type Deco =
   | { k: 'chain'; c: string; pendant?: boolean }
   | { k: 'scarf'; c: string; c2: string }
   | { k: 'cape'; c: string; c2: string }
-  | { k: 'bag'; c: string; c2: string; kind: string };
+  | { k: 'bag'; c: string; c2: string; kind: string }
+  | { k: 'paint'; c: string };
 
 /** Wardrobe override: a hat / body item picked by the player replaces the character's own. */
 export interface FolkCustom {
@@ -79,6 +81,8 @@ export interface FolkSpec {
   mask?: string; // raccoon mask colour
   nose: string;
   eye: string;
+  /** muzzle, beak and whiskers. People leave this unset. */
+  snout?: Snout;
   blush?: string;
   headMark?: string; // forehead stripe etc.
   hat?: { kind: HatKind; c: string; c2?: string };
@@ -109,8 +113,8 @@ interface Box { x0: number; y0: number; x1: number; y1: number }
 
 /** Fills the pixels where `inside` holds, in 3 tones decided by the position inside the box. */
 function fill(c: Ctx, box: Box, inside: Test, base: string, o: { lt?: string; dk?: string; flat?: boolean } = {}) {
-  const lt = o.lt ?? shade(base, 0.2);
-  const dk = o.dk ?? shade(base, -0.2);
+  const lt = o.lt ?? shade(base, 0.28);
+  const dk = o.dk ?? shade(base, -0.22);
   const w = Math.max(1, box.x1 - box.x0);
   const h = Math.max(1, box.y1 - box.y0);
   // sample the analytic shape at the centre of every OUTPUT pixel: crisp edges, no blur
@@ -123,8 +127,9 @@ function fill(c: Ctx, box: Box, inside: Test, base: string, o: { lt?: string; dk
       const v = (dy - box.y0) / h;
       let col = base;
       if (!o.flat) {
-        if (v > 0.74 || (u > 0.8 && v > 0.35)) col = dk;
-        else if (u + v < 0.62 && v < 0.55) col = lt;
+        // a thin rim, so the real colour stays readable instead of turning into a dark blob
+        if (v > 0.84 || (u > 0.88 && v > 0.55)) col = dk;
+        else if (u < 0.34 && v < 0.4) col = lt;
       }
       px(c, x, y, col);
     }
@@ -168,10 +173,12 @@ function stack(spec: FolkSpec, layers: Layer[], after?: (c: Ctx) => void): HTMLC
     const pts: number[] = [];
     for (let y = 0; y < FOLK_H; y++)
       for (let x = 0; x < OW; x++) if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1))) pts.push(x, y);
-    // a layer with `inner` (the hair) only gets the dark ink where it borders empty space; over other parts it uses its own soft colour
-    const under = l.inner ? o.getImageData(0, 0, OW, FOLK_H).data : null;
+    // full ink only on the outer silhouette; where a part overlaps another, a softer seam keeps the read without a sticker outline
+    const under = o.getImageData(0, 0, OW, FOLK_H).data;
+    const seam = l.inner ?? '#6a5c68';
     for (let i = 0; i < pts.length; i += 2) {
-      g.fillStyle = under && under[(pts[i + 1] * OW + pts[i]) * 4 + 3] > 0 ? l.inner! : ink;
+      const over = under[(pts[i + 1] * OW + pts[i]) * 4 + 3] > 40;
+      g.fillStyle = over ? seam : ink;
       g.fillRect(pts[i], pts[i + 1], 1, 1);
     }
     o.drawImage(cv, 0, 0);
@@ -278,12 +285,54 @@ function earsLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
           fill(c, { x0: bx - 8, y0: cy - 22, x1: bx + 8, y1: cy - 6 }, t2, inner, { flat: true });
         }
       }
+    } else if (spec.ears === 'floppy') {
+      const bx = view === 'side' ? cx - 2.2 : ex;
+      const lean = view === 'side' ? -1.2 : s * 1.5;
+      const by = cy + 1.6;
+      fill(c, boxOf(bx + lean, by, 2.7, 4.6), ell(bx + lean, by, 2.7, 4.6, 2.2), earFur);
+      if (view !== 'back') fill(c, boxOf(bx + lean * 0.8, by + 0.4, 1.4, 2.8), ell(bx + lean * 0.8, by + 0.4, 1.4, 2.8), inner, { flat: true });
+    } else if (spec.ears === 'tuft') {
+      const bx = view === 'side' ? cx - 1.6 : ex;
+      const topY = cy - 14;
+      const lean = view === 'side' ? -0.6 : s * 1.1;
+      fill(c, { x0: bx - 2.4, y0: topY, x1: bx + 2.4, y1: cy - 6 }, tri(bx - 1.7, cy - 7, bx + 1.7, cy - 7, bx + lean, topY), earFur);
+      if (view !== 'back') fill(c, { x0: bx - 1.3, y0: topY + 3, x1: bx + 1.3, y1: cy - 7 }, tri(bx - 0.9, cy - 7.2, bx + 0.9, cy - 7.2, bx + lean * 0.5, topY + 3.4), inner, { flat: true });
+    } else if (spec.ears === 'leaf') {
+      const bx = view === 'side' ? cx - 2.2 : ex;
+      const topY = cy - 12.4;
+      const lean = view === 'side' ? 0.3 : s * 0.7;
+      const test: Test = (x, y) => {
+        if (y > cy - 6 || y < topY) return false;
+        const t = (cy - 6 - y) / (cy - 6 - topY);
+        return Math.abs(x - (bx + lean * t)) <= 2.5 * (1 - t * 0.7);
+      };
+      fill(c, { x0: bx - 4, y0: topY, x1: bx + 4, y1: cy - 5 }, test, earFur);
+      if (view !== 'back') {
+        const innerT: Test = (x, y) => {
+          if (y > cy - 7 || y < topY + 2.6) return false;
+          const t = (cy - 7 - y) / (cy - 7 - (topY + 2.6));
+          return Math.abs(x - (bx + lean * t)) <= 1.15 * (1 - t * 0.45);
+        };
+        fill(c, { x0: bx - 3, y0: topY, x1: bx + 3, y1: cy - 6 }, innerT, inner, { flat: true });
+      }
     }
   }
 }
 
 // ------------------------------------------------------------------ face
 // Faces are drawn straight in OUTPUT pixels (not design units) so both eyes always match exactly.
+function owlEye(c: Ctx, x0: number, ey: number, iris: string, expr: FolkExpr) {
+  if (expr === 'blink' || expr === 'sleep') {
+    px(c, x0, ey + 2, iris, 4, 1);
+    return;
+  }
+  const y = expr === 'surprised' ? ey - 1 : ey;
+  px(c, x0, y, iris, 4, expr === 'surprised' ? 5 : 4);
+  px(c, x0 + 1, y + 1, '#1c1420', 2, 2);
+  px(c, x0 + 1, y + 1, '#fff6d0');
+  if (expr === 'happy' || expr === 'smug') px(c, x0, y, shade(iris, -0.3), 4, 1);
+}
+
 function faceFront(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
   const { headCx, headCy } = g;
   const cx = Math.round(headCx * K);
@@ -300,10 +349,21 @@ function faceFront(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
     }
     fill(c, boxOf(headCx, dcy, 2, 3.4), rect(headCx - 2, dcy - 2.6, headCx + 2, dcy + 3), mask, { flat: true });
   }
-  if (spec.furLight) fill(c, boxOf(headCx, dcy + 5.6, 5.8, 3.8), ell(headCx, dcy + 5.6, 5.8, 3.8, 2.2), spec.furLight, { lt: shade(spec.furLight, 0.1), dk: shade(spec.furLight, -0.1) });
+  const sn = spec.snout ?? 'short';
+  if (sn === 'owl') {
+    const disc = spec.furLight ?? shade(spec.fur, 0.16);
+    fill(c, boxOf(headCx, dcy + 1.4, 8.2, 6.4), ell(headCx, dcy + 1.4, 8.2, 6.4, 2.05), disc, { lt: shade(disc, 0.1), dk: shade(disc, -0.1) });
+  } else if (spec.furLight) {
+    const m = sn === 'fox' ? [4.2, 3.5, 6.8] : sn === 'bear' ? [7, 4.2, 5.6] : sn === 'dog' ? [5.4, 3.6, 6] : sn === 'bunny' ? [3.8, 2.6, 5.6] : [5.2, 3.4, 5.8];
+    fill(c, boxOf(headCx, dcy + m[2], m[0], m[1]), ell(headCx, dcy + m[2], m[0], m[1], 2.2), spec.furLight, { lt: shade(spec.furLight, 0.12), dk: shade(spec.furLight, -0.1) });
+  }
   if (spec.headMark) fill(c, boxOf(headCx, dcy - 7, 1.6, 2.5), rect(headCx - 1.6, dcy - 9, headCx + 1.6, dcy - 5), spec.headMark, { flat: true });
   for (const left of [true, false]) {
     const x0 = left ? cx - 6 : cx + 3;
+    if (sn === 'owl') {
+      owlEye(c, x0 - 1, ey, eyeCol, expr);
+      continue;
+    }
     switch (expr) {
       case 'blink':
       case 'sleep':
@@ -337,10 +397,18 @@ function faceFront(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
     px(c, cx - 8, ey + 3, spec.blush, 2, 1);
     px(c, cx + 6, ey + 3, spec.blush, 2, 1);
   }
-  const ny = ey + 4;
-  px(c, cx - 1, ny, spec.nose, 2, 1);
-  const my = ny + 2;
-  const mc = shade(spec.nose, -0.1);
+  const ny = ey + (sn === 'fox' ? 5 : 4);
+  if (sn === 'owl') {
+    const beak = spec.nose;
+    px(c, cx - 1, ey + 4, beak, 2, 2);
+    px(c, cx - 1, ey + 4, shade(beak, 0.28));
+    px(c, cx - 1, ey + 6, shade(beak, -0.2), 2, 1);
+  } else if (sn === 'bear') px(c, cx - 2, ny, spec.nose, 4, 2);
+  else if (sn === 'dog') px(c, cx - 1, ny, spec.nose, 2, 2);
+  else px(c, cx - 1, ny, spec.nose, 2, 1);
+  const my = ny + (sn === 'bear' ? 3 : 2);
+  const mc = shade(spec.nose, -0.15);
+  if (sn !== 'owl') {
   if (expr === 'happy') {
     px(c, cx - 2, my, mc);
     px(c, cx + 1, my, mc);
@@ -353,10 +421,22 @@ function faceFront(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
   } else if (expr === 'smug') {
     px(c, cx - 2, my + 1, mc, 3, 1);
     px(c, cx + 1, my, mc);
+  } else if (sn === 'bunny') {
+    px(c, cx - 2, my, mc);
+    px(c, cx + 1, my, mc);
+    px(c, cx - 1, my + 1, '#fff8f2', 2, 1);
   } else {
     px(c, cx - 2, my, mc);
     px(c, cx - 1, my + 1, mc, 2, 1);
     px(c, cx + 1, my, mc);
+  }
+  }
+  if (sn === 'short' || sn === 'fox' || sn === 'dog') {
+    const wc = shade(spec.fur, -0.45);
+    px(c, cx - 9, ny + 1, wc, 3, 1);
+    px(c, cx - 8, ny + 3, wc, 2, 1);
+    px(c, cx + 6, ny + 1, wc, 3, 1);
+    px(c, cx + 5, ny + 3, wc, 2, 1);
   }
   if (spec.glasses) {
     for (const left of [true, false]) {
@@ -429,10 +509,18 @@ function faceSide(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
   const ey = Math.round(headCy * K - 1.7);
   const ex = cx + 3;
   const dcy = headCy;
+  const sn = spec.snout ?? 'short';
   if (spec.mask) fill(c, boxOf(headCx + 4.4, dcy + 0.4, 5.2, 4.2), ell(headCx + 4.4, dcy + 0.4, 5.2, 4.2, 2.2), spec.mask, { flat: true });
-  if (spec.furLight) fill(c, boxOf(headCx + 7.4, dcy + 5.2, 4.6, 3.4), ell(headCx + 7.4, dcy + 5.2, 4.6, 3.4, 2.2), spec.furLight, { lt: shade(spec.furLight, 0.1), dk: shade(spec.furLight, -0.1) });
+  if (sn === 'owl') {
+    const disc = spec.furLight ?? shade(spec.fur, 0.16);
+    fill(c, boxOf(headCx + 3.2, dcy + 1.2, 6.4, 5.4), ell(headCx + 3.2, dcy + 1.2, 6.4, 5.4, 2.05), disc, { lt: shade(disc, 0.08), dk: shade(disc, -0.08) });
+  } else if (spec.furLight) {
+    const reach = sn === 'fox' ? 8.4 : sn === 'bear' ? 6.6 : 7.2;
+    fill(c, boxOf(headCx + reach, dcy + 5.2, sn === 'fox' ? 3.6 : 4.4, 3.2), ell(headCx + reach, dcy + 5.2, sn === 'fox' ? 3.6 : 4.4, 3.2, 2.2), spec.furLight, { lt: shade(spec.furLight, 0.1), dk: shade(spec.furLight, -0.1) });
+  }
   if (spec.headMark) fill(c, boxOf(headCx + 3, dcy - 7, 2, 2), rect(headCx + 1, dcy - 9, headCx + 5, dcy - 5), spec.headMark, { flat: true });
-  if (expr === 'blink' || expr === 'sleep') px(c, ex, ey + 2, spec.eye, 3, 1);
+  if (sn === 'owl') owlEye(c, ex - 1, ey, spec.eye, expr);
+  else if (expr === 'blink' || expr === 'sleep') px(c, ex, ey + 2, spec.eye, 3, 1);
   else if (expr === 'happy') {
     px(c, ex, ey + 2, spec.eye);
     px(c, ex + 1, ey + 1, spec.eye);
@@ -441,9 +529,16 @@ function faceSide(spec: FolkSpec, g: Geo, expr: FolkExpr, c: Ctx) {
     px(c, ex, ey - (expr === 'surprised' ? 1 : 0), spec.eye, 2, expr === 'surprised' ? 5 : 4);
     px(c, ex, ey - (expr === 'surprised' ? 1 : 0), '#ffffff');
   }
-  if (spec.blush) px(c, ex - 3, ey + 3, spec.blush, 2, 1);
-  px(c, cx + 7, ey + 3, spec.nose, 2, 2);
-  px(c, cx + 5, ey + 6, shade(spec.nose, -0.1), 2, 1);
+  if (spec.blush && sn !== 'owl') px(c, ex - 3, ey + 3, spec.blush, 2, 1);
+  if (sn === 'owl') {
+    px(c, cx + 7, ey + 3, spec.nose, 3, 2);
+    px(c, cx + 8, ey + 3, shade(spec.nose, 0.25));
+    px(c, cx + 7, ey + 5, shade(spec.nose, -0.2), 2, 1);
+  } else {
+    px(c, cx + (sn === 'fox' ? 8 : 7), ey + 3, spec.nose, 2, 2);
+    px(c, cx + 5, ey + 6, shade(spec.nose, -0.15), 2, 1);
+    if (sn === 'short' || sn === 'fox' || sn === 'dog') px(c, cx + 6, ey + 5, shade(spec.fur, -0.45), 3, 1);
+  }
   if (spec.glasses) {
     px(c, ex - 1, ey - 1, spec.glasses, 4, 1);
     px(c, ex - 1, ey + 4, spec.glasses, 4, 1);
@@ -565,10 +660,19 @@ function hatLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: Ct
       break;
     }
     case 'bow': {
-      const bx = view === 'side' ? cx - 2 : cx + 6.4;
-      fill(c, boxOf(bx - 3, top + 2, 3, 2.4), tri(bx, top + 2.4, bx - 6, top - 1, bx - 6, top + 6), col, { flat: true });
-      fill(c, boxOf(bx + 3, top + 2, 3, 2.4), tri(bx, top + 2.4, bx + 6, top - 1, bx + 6, top + 6), col, { flat: true });
-      dot(c, bx - 1, top + 1, c2, 2, 3);
+      const bx = view === 'side' ? cx + 1 : cx;
+      fill(c, boxOf(bx - 3, top + 2, 3, 2.4), tri(bx, top + 2.4, bx - 5.2, top, bx - 5.2, top + 5.4), col, { flat: true });
+      fill(c, boxOf(bx + 3, top + 2, 3, 2.4), tri(bx, top + 2.4, bx + 5.2, top, bx + 5.2, top + 5.4), col, { flat: true });
+      dot(c, bx - 1, top + 1.4, c2, 2, 2.4);
+      break;
+    }
+    case 'flower': {
+      const bx = view === 'back' ? cx : view === 'side' ? cx - 3.4 : cx + 4.6;
+      const by = top + 3.4;
+      for (const [dx, dy] of [[0, -2], [1.8, -0.5], [-1.8, -0.5], [1.1, 1.5], [-1.1, 1.5]] as [number, number][]) {
+        fill(c, boxOf(bx + dx, by + dy, 1.6, 1.6), ell(bx + dx, by + dy, 1.6, 1.6), col, { lt: shade(col, 0.22) });
+      }
+      fill(c, boxOf(bx, by, 1.15, 1.15), ell(bx, by, 1.15, 1.15), c2, { flat: true });
       break;
     }
   }
@@ -836,6 +940,13 @@ function torsoLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: 
           dot(c, cx - 0.8, g.torsoTop + 1.8, '#f2c66d', 1.6, 1.6);
         } else dot(c, cx - 5, g.torsoTop + 0.6, d.c, 3, g.torsoBot - g.torsoTop + 2.4);
         break;
+      case 'paint':
+        if (view === 'front') {
+          dot(c, cx - hw + 2.2, g.torsoTop + 3.4, d.c, 1.4, 1.4);
+          dot(c, cx + 1.2, g.torsoTop + 5.2, shade(d.c, 0.2), 1.6, 1.6);
+          dot(c, cx - 1.6, g.torsoBot - 2.2, shade(d.c, -0.25), 1.3, 1.3);
+        }
+        break;
       case 'bag':
         if (d.kind === 'satchel') {
           if (view !== 'side') {
@@ -932,6 +1043,17 @@ function tailLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
     } else if (t.kind === 'puff') fill(c, boxOf(AX, by - 0.5, 2.8, 2.6), ell(AX, by - 0.5, 2.8, 2.6), col, { lt: '#ffffff' });
     else if (t.kind === 'nub') fill(c, boxOf(AX, by - 0.5, 2, 2), ell(AX, by - 0.5, 2, 2), col);
     else if (t.kind === 'thin') fill(c, { x0: AX + 1, y0: by - 8, x1: AX + 4, y1: by + 2 }, rect(AX + 1, by - 6, AX + 3.4, by + 3), col);
+    else if (t.kind === 'curl') {
+      fill(c, boxOf(AX + 3.2, by - 1, 3, 2.8), ell(AX + 3.2, by - 1, 3, 2.8), col);
+      fill(c, boxOf(AX + 4.2, by - 6.4, 3.4, 3.2), ell(AX + 4.2, by - 6.4, 3.4, 3.2), col);
+      fill(c, boxOf(AX + 2.6, by - 10.4, 2.4, 2.2), ell(AX + 2.6, by - 10.4, 2.4, 2.2), t.tip ?? shade(col, 0.22), { flat: true });
+    } else if (t.kind === 'paddle') {
+      const test: Test = (x, y) => {
+        const k = (y - (by - 1)) / 8;
+        return k >= 0 && k <= 1 && Math.abs(x - AX) <= 3.2 * (1 - k * 0.5);
+      };
+      fill(c, { x0: AX - 5, y0: by - 1, x1: AX + 5, y1: by + 8 }, test, col);
+    }
     return;
   }
   if (!behind && view === 'front') return;
@@ -954,6 +1076,20 @@ function tailLayer(spec: FolkSpec, g: Geo, view: 'front' | 'side' | 'back', c: C
     fill(c, boxOf(sx + 1, by - 2, 3, 3), ell(sx + 1, by - 2, 3, 3), col, { lt: '#ffffff' });
   } else if (t.kind === 'nub') {
     fill(c, boxOf(sx + 1, by - 2, 2.2, 2.2), ell(sx + 1, by - 2, 2.2, 2.2), col);
+  } else if (t.kind === 'curl') {
+    const dir = view === 'side' ? -1 : 1;
+    const x0 = view === 'side' ? AX - 5 : AX + 5;
+    fill(c, boxOf(x0, by - 1, 3, 2.8), ell(x0, by - 1, 3, 2.8), col);
+    fill(c, boxOf(x0 + dir * 2.4, by - 6.2, 3.5, 3.3), ell(x0 + dir * 2.4, by - 6.2, 3.5, 3.3), col);
+    fill(c, boxOf(x0 + dir * 0.4, by - 10.6, 2.5, 2.3), ell(x0 + dir * 0.4, by - 10.6, 2.5, 2.3), t.tip ?? shade(col, 0.22), { flat: true });
+  } else if (t.kind === 'paddle') {
+    const dir = view === 'side' ? -1 : 1;
+    const x0 = view === 'side' ? AX - 3.5 : AX + 3.2;
+    const test: Test = (x, y) => {
+      const k = (y - (by - 1)) / 8;
+      return k >= 0 && k <= 1 && Math.abs(x - (x0 + dir * k)) <= 2.7 * (1 - k * 0.45);
+    };
+    fill(c, { x0: x0 - 5, y0: by - 2, x1: x0 + 5, y1: by + 8 }, test, col);
   }
 }
 
@@ -1004,10 +1140,11 @@ export function folkFrame(spec: FolkSpec, pose: FolkPose, custom?: FolkCustom): 
     (c) => skirtLayer(spec, g, view, c),
     (c) => torsoLayer(spec, g, view, c),
     (c) => armLayer(spec, g, pose, view, c, view === 'side' ? 'r' : 'both'),
-    (c) => earsLayer(spec, g, view, c),
     (c) => headLayer(spec, g, view, c),
     hairL,
     (c) => hatLayer(spec, g, view, c),
+    // ears in front of hair and hats, so a beret, bow or toque does not swallow the silhouette
+    (c) => earsLayer(spec, g, view, c),
     (c) => tailLayer(spec, g, view, c, false),
   ];
   // the face sits inside the head silhouette, drawn after the contour pass of the head
@@ -1042,13 +1179,24 @@ const SPECS: Omit<FolkPose, 'bob'>[] = [
   { dir: 'down', legs: 'idle', expr: 'neutral', arms: 'read' }, { dir: 'down', legs: 'idle', expr: 'smug', sit: true },
 ];
 
-export function buildFolkSheet(spec: FolkSpec, custom?: FolkCustom): { canvas: HTMLCanvasElement; fw: number; fh: number } {
+function topPad(frame: HTMLCanvasElement): number {
+  const g = ctx2d(frame);
+  const { width, height } = frame;
+  const data = g.getImageData(0, 0, width, height).data;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) if (data[(y * width + x) * 4 + 3] > 20) return y;
+  }
+  return 0;
+}
+
+export function buildFolkSheet(spec: FolkSpec, custom?: FolkCustom): { canvas: HTMLCanvasElement; fw: number; fh: number; pad: number } {
   const frames = SPECS.map((sp, i) => folkFrame(spec, { ...sp, bob: sp.legs !== 'idle' ? -1 : i >= 20 && i < 24 ? 1 : 0 }, custom));
   const fw = frames[0].width;
-  const canvas = makeCanvas(fw * frames.length, FOLK_H);
+  const fh = frames[0].height;
+  const canvas = makeCanvas(fw * frames.length, fh);
   const g = ctx2d(canvas);
   frames.forEach((f, i) => g.drawImage(f, i * fw, 0));
-  return { canvas, fw, fh: FOLK_H };
+  return { canvas, fw, fh, pad: topPad(frames[0]) };
 }
 
 /** Head-and-shoulders portrait from the front frame, upscaled with crisp pixels. */

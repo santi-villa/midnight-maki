@@ -3,6 +3,7 @@ import type { Dir } from '../core/types';
 import type { RoutineStop } from '../data/characters';
 import { ZONES, type DoorDef } from '../data/zones';
 import type { Grid } from '../world/grid';
+import { game } from '../core/state';
 
 export interface Position { zone: string; x: number; y: number }
 
@@ -14,6 +15,7 @@ export function routeDoor(from: string, to: string): DoorDef | null {
   for (let i = 0; i < queue.length; i++) {
     const current = queue[i];
     for (const door of ZONES[current.zone]?.doors ?? []) {
+      if (door.lock && !game.has(door.lock.flag)) continue;
       if (seen.has(door.to)) continue;
       const first = current.first ?? door;
       if (door.to === to) return first;

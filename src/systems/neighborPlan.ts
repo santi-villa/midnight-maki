@@ -6,6 +6,7 @@
  */
 import { rng } from '../art/pixel';
 import type { Dir } from '../core/types';
+import type { NpcAct } from '../data/characters';
 import { NEIGHBORS, type Like, type Neighbor } from '../data/neighbors';
 import { ZONES } from '../data/zones';
 import { restPhase } from './residentSleep';
@@ -253,6 +254,20 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
     out.set(fid, { ...spot, withFriend: n.id });
     if (!a.seatLift) out.set(n.id, { ...a, dir: faceToward(a, spot), act: a.act === 'sit' || a.act === 'read' ? a.act : 'talk' });
     else out.set(n.id, { ...a, dir: faceToward(a, spot) });
+  }
+  // a few neighbours keep one gesture for the part of the day, so the plaza is readable at a glance
+  const signature: Record<string, Partial<Record<number, NpcAct>>> = {
+    haru: { 0: 'read', 1: 'read' },
+    tomo: { 1: 'fish', 2: 'fish' },
+    goro: { 1: 'sit', 2: 'sit' },
+    fuyu: { 2: 'sit' },
+    oto: { 2: 'play', 3: 'play' },
+  };
+  for (const [id, byPeriod] of Object.entries(signature)) {
+    const act = byPeriod[ctx.period];
+    const p = out.get(id);
+    if (!act || !p || p.kind === 'home' || p.kind === 'shop' || p.kind === 'chat' || p.act === 'sleep' || p.act === 'talk') continue;
+    out.set(id, { ...p, act });
   }
   return out;
 }

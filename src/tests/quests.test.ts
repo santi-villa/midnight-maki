@@ -5,6 +5,7 @@ import { validateSave } from '../persistence/validate';
 import { buildZone, doorLeadingTo } from '../world/zoneRuntime';
 import { currentQuestTarget, questDef, startQuest } from '../quests/quests';
 import '../quests/side';
+import { ZONES } from '../data/zones';
 
 beforeEach(() => {
   game.load(newSave('Tester'));
@@ -58,8 +59,7 @@ describe('quest routing and door navigation', () => {
     const toRestaurant = doorLeadingTo('plaza', 'restaurant');
     expect(toRestaurant).toBeDefined();
     expect(toRestaurant?.to).toBe('restaurant');
-    expect(toRestaurant?.x).toBe(5);
-    expect(toRestaurant?.y).toBe(6);
+    expect(toRestaurant).toMatchObject({ x: ZONES.plaza.doors.find(d => d.to === 'restaurant')!.x, y: ZONES.plaza.doors.find(d => d.to === 'restaurant')!.y });
 
     const toBeach = doorLeadingTo('plaza', 'beach');
     expect(toBeach).toBeDefined();
@@ -76,13 +76,13 @@ describe('quest routing and door navigation', () => {
     expect(plazaToHome).toBeDefined();
     expect(plazaToHome?.to).toBe('restaurant');
 
-    // From plaza to lighthouse goes through beach
+    // The lighthouse now belongs to the eastern harbour.
     const plazaToLighthouse = doorLeadingTo('plaza', 'lighthouse');
     expect(plazaToLighthouse).toBeDefined();
-    expect(plazaToLighthouse?.to).toBe('beach');
+    expect(plazaToLighthouse?.to).toBe('residential');
 
     // From beach to lighthouse is direct
-    const beachToLighthouse = doorLeadingTo('beach', 'lighthouse');
+    const beachToLighthouse = doorLeadingTo('harbor', 'lighthouse');
     expect(beachToLighthouse).toBeDefined();
     expect(beachToLighthouse?.to).toBe('lighthouse');
   });
@@ -94,8 +94,8 @@ describe('quest routing and door navigation', () => {
     expect(restaurantZone.grid.isSolid(13, 2)).toBe(true);
 
     // Lighthouse door in beach is at (3, 4) with walk: false
-    const beachZone = buildZone('beach');
-    expect(beachZone.grid.isSolid(3, 4)).toBe(true);
+    const harbor = buildZone('harbor'), door = ZONES.harbor.doors.find(d => d.to === 'lighthouse')!;
+    expect(harbor.grid.isSolid(door.x, door.y)).toBe(true);
   });
 });
 

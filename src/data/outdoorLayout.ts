@@ -13,7 +13,8 @@ const DECOR = new Set(['lamppost', 'stonelantern', 'lantern_red', 'lantern_cream
   'crate', 'barrel', 'sack', 'flowers', 'flowers_lav', 'bush', 'bush_flower', 'bush_berry',
   'pot_rose', 'pot_cream', 'bicycle', 'bicycle_rose', 'vending_blue', 'vending_red',
   'lanternstring', 'reeds', 'puddle', 'fence', 'boat', 'sign', 'menuboard', 'library_books',
-  'village_net', 'village_bank_w', 'village_bank_e', 'boat_rope', 'village_fish_crate']);
+  'village_net', 'village_bank_w', 'village_bank_e', 'boat_rope', 'village_fish_crate',
+  'jc_shop_display', 'jc_power_pole', 'jc_power_pole_transformer', 'jc_shop_sign_left', 'jc_shop_sign_right']);
 const TREES = new Set(['tree', 'tree_dark', 'pine', 'sakura']);
 
 export const STREET_PLANS: Record<string, StreetPlan> = {
@@ -41,12 +42,14 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['flowers', 9, 9], ['flowers_lav', 10, 9], ['flowers', 21, 16], ['flowers_lav', 22, 16],
       ['tree', 5, 11], ['bush_flower', 3, 11],
       // Shop displays against their own frontages, never across a threshold.
-      ['pot_cream', 28, 6], ['street_lamp_r', 28, 11],
+      ['pot_cream', 28, 6], ['jc_power_pole', 28, 11],
       ['deco_mannequin', 21, 5], // one display beside Yuki; the rack no longer hides behind the cherry tree
       ['deco_breadcart', 7, 19], ['street_lamp_l', 9, 19], // Bento: a bread cart by the door
-      ['deco_vegcrates', 22, 19], ['deco_sacks', 20, 18], ['street_lamp_r', 31, 19], // Taro: sacks and crates of vegetables
+      ['jc_shop_display', 22, 19], ['deco_sacks', 20, 18], ['street_lamp_r', 31, 19], // Taro: sacks and a shop counter
       ['vending_blue', 31, 18],
-      ['pot_cream', 5, 24], ['street_lamp_l', 5, 25], ['street_lamp_r', 14, 24],
+      // Japanese City accents follow the authored shop walk, with doors and signs readable.
+      ['jc_shop_sign_left', 22, 6], ['jc_shop_sign_right', 28, 18],
+      ['pot_cream', 5, 24], ['jc_power_pole_transformer', 5, 25], ['street_lamp_r', 14, 24],
       ['bench', 4, 26], ['flowers_lav', 4, 24], ['deco_bookcart', 6, 22], // library: books to return
       ['bicycle_rose', 21, 23], ['pot_rose', 22, 22],
       // West river landing: a tea garden and shaded seat beside the crossing.
@@ -87,8 +90,8 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['deco_fishrack', 34, 6], // drying fish by the fishmonger's cabin
       ['vending_red', 23, 6], ['bicycle', 20, 6], ['pot_cream', 29, 5],
       ['bench', 25, 8], ['pot_rose', 28, 8],
-      ['crate', 22, 12], ['barrel', 18, 12], ['lantern_cream', 17, 12], ['lantern_cream', 21, 12],
-      ['boat_rope', 23, 14], ['boat', 31, 14], ['boat_rope', 44, 14],
+      // Keep fishing gear with the stalls and homes, leaving the central sand and pier approach clear.
+      ['boat', 31, 14], ['boat_rope', 44, 14],
       ['village_beach_pier', 19, 12], ['village_beach_pier', 38, 12],
       // Cove homes: work gear beside walls, seats overlooking the water, clear pier mouths.
       ['street_lamp_l', 29, 8], ['street_lamp_r', 46, 7], ['street_lamp_r', 37, 6],
@@ -97,7 +100,7 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       ['tree', 30, 2], ['tree', 38, 2], ['pot_rose', 39, 6],
       ['village_pine', 38, 5],
       ['bush_flower', 30, 4],
-      ['reeds', 1, 14], ['reeds', 12, 14], ['reeds', 30, 14], ['reeds', 47, 14],
+      ['reeds', 1, 14], ['reeds', 47, 14],
       ['sign_plaza_up', 17, 2], ['sign_lighthouse', 5, 6], ['puddle', 12, 12, 'rain'],
     ],
   },
@@ -167,6 +170,8 @@ export const STREET_PLANS: Record<string, StreetPlan> = {
       // Tea / memory corner between stalls, seats and bins against the boundaries.
       ['bench', 15, 10], ['bench', 31, 10], ['pot_rose', 8, 10], ['pot_cream', 17, 10], ['pot_rose', 30, 10], ['pot_cream', 36, 10],
       ['crate', 7, 11], ['barrel', 22, 11], ['vending_red', 15, 15],
+      ['jc_power_pole', 39, 15], ['jc_power_pole_transformer', 1, 15],
+      ['jc_shop_sign_left', 27, 4], ['jc_shop_sign_right', 35, 4],
       ['crate', 29, 15], ['barrel', 36, 15], ['bush_flower', 1, 8], ['bush_flower', 38, 3], ['bush', 25, 3],
       ['sign_plaza_down', 17, 15],
     ],

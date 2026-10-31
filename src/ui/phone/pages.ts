@@ -52,6 +52,34 @@ export function phonePages<T>(apps: readonly T[], perPage = APPS_PER_PAGE): T[][
   return pages;
 }
 
+/** Home screens, in the order the player swipes. Apps missing from the list still appear, on the last page that has room. */
+export const PHONE_GROUPS: { title: string; ids: readonly string[] }[] = [
+  { title: 'Jugar', ids: ['quests', 'map', 'bag', 'recipes', 'restaurant', 'supplies', 'staff', 'agenda', 'camera'] },
+  { title: 'Gente', ids: ['friends', 'clients', 'photos', 'collections', 'calendar', 'memories', 'investigation'] },
+  { title: 'Sistema', ids: ['customize', 'settings', 'more'] },
+];
+
+export function groupPhoneApps<T extends { id: string }>(apps: readonly T[]): { title: string; apps: T[] }[] {
+  const pending = new Map(apps.map((app) => [app.id, app]));
+  const pages = PHONE_GROUPS.map((group) => {
+    const list: T[] = [];
+    for (const id of group.ids) {
+      const app = pending.get(id);
+      if (!app) continue;
+      list.push(app);
+      pending.delete(id);
+    }
+    return { title: group.title, apps: list };
+  }).filter((page) => page.apps.length);
+  if (pending.size) {
+    const rest = [...pending.values()];
+    const last = pages[pages.length - 1];
+    if (last && last.apps.length + rest.length <= 9) last.apps.push(...rest);
+    else pages.push({ title: 'Más', apps: rest });
+  }
+  return pages.length ? pages : [{ title: 'Jugar', apps: [] }];
+}
+
 export function clampPage(page: number, count: number): number {
   if (count <= 0) return 0;
   const n = Number.isFinite(page) ? Math.floor(page) : 0;

@@ -82,6 +82,13 @@ function onKey(e: KeyboardEvent) {
     return;
   }
   const action = actionForCode(e.code, bindingMap(settings.bindings));
+  if (e.code === 'F8' && !action) {
+    e.preventDefault();
+    e.stopPropagation();
+    swallowCode(e.code);
+    void import('../ui/devMode').then((m) => m.openDevMode());
+    return;
+  }
   if (!action) return;
   e.preventDefault();
   e.stopPropagation();

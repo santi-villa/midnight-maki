@@ -1,0 +1,14 @@
+{
+  "author": "LimeZu",
+  "pack": "Serene Village revamped v1.9",
+  "source": "https://limezu.itch.io/serenevillagerevamped",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "sourceSha256": "9ce9572960f061299dbde449d20cb8e88bcda777c00dc3f150eac414cf7fe1f7",
+  "rect": [
+    16,
+    160,
+    16,
+    16
+  ],
+  "changes": "Native cliff crop; green palette matched to Villa Nori; second variant replaces grass cap with stone for tall faces."
+}

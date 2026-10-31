@@ -5,6 +5,7 @@ import { runTask } from '../core/errors';
 import { game } from '../core/state';
 import { mirror } from '../restaurant/mirror';
 import { restaurantPhase } from '../systems/schedule';
+import { currentMapTarget } from '../world/questLocations';
 
 export type QuestTarget =
   | { kind: 'location'; zone: string; x?: number; y?: number; label?: string }
@@ -44,6 +45,7 @@ const REG = new Map<string, QuestDef>();
 
 export function defineQuests(list: QuestDef[]) {
   for (const q of list) {
+    for (const step of q.steps) if (step.target) step.target = currentMapTarget(step.target);
     if (REG.has(q.id)) console.warn('[quests] duplicate id', q.id);
     REG.set(q.id, q);
   }

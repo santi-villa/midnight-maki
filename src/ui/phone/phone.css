@@ -61,7 +61,8 @@
 
 .pn-pager { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; z-index: 1; }
 .pn-track { display: flex; align-items: stretch; min-height: 100%; transition: transform 280ms cubic-bezier(.22, .8, .3, 1); will-change: transform; }
-.pn-page { flex: 0 0 100%; width: 100%; min-width: 100%; box-sizing: border-box; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: clamp(4px, 1.6vh, 12px) 4px; align-content: stretch; padding: 6px 0 2px; }
+.pn-page { flex: 0 0 100%; width: 100%; min-width: 100%; box-sizing: border-box; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto repeat(3, minmax(0, 1fr)); gap: clamp(4px, 1.6vh, 12px) 4px; align-content: stretch; padding: 6px 0 2px; }
+.pn-section { grid-column: 1 / -1; justify-self: center; align-self: center; max-width: 100%; padding: 2px 14px 3px; color: #3b2416; font-weight: 700; letter-spacing: .04em; border: 3px solid #5a3822; border-radius: 12px; box-shadow: 0 2px 0 #5a3824, inset 0 1px 0 rgba(255, 248, 220, .8); background: repeating-linear-gradient(90deg, #f0d7a4 0 3px, #e2b56a 3px 4px, #f0d7a4 4px 8px, #d7a45c 8px 9px); }
 .pn-app { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 0; padding: 2px; border: 0; background: transparent; color: #4a3424; font: inherit; font-size: clamp(7px, calc(var(--scr-w) / 30), 12px); line-height: 1.05; cursor: pointer; text-shadow: none; }
 .pn-icon { position: relative; display: grid; place-items: center; width: min(74%, 74px); aspect-ratio: 1; background: linear-gradient(#fffaf3, #f4e4c8); border: 3px solid #6b4e38; border-radius: 22%; box-shadow: 0 3px 0 #4a3424, inset 0 2px 0 rgba(255, 255, 255, .85); }
 .pn-icon .pn-art { width: 82%; height: 82%; image-rendering: pixelated; pointer-events: none; display: block; }

@@ -1,6 +1,6 @@
 import type { Appearance } from '../core/types';
 import type { Dir } from '../core/types';
-import { benchSpots, shoreSpots, type Place } from '../systems/neighborSpots';
+import { benchSpots, shoreSpots, clearings, type Place } from '../systems/neighborSpots';
 
 /** Poses a character can hold. Walking is separate: it is just moving between these. */
 export type NpcAct = 'sleep' | 'cook' | 'read' | 'sit' | 'play' | 'work' | 'fish' | 'paint' | 'stars' | 'eat' | 'drink' | 'clean' | 'talk' | 'look';
@@ -242,6 +242,15 @@ export const CHARACTERS: CharacterDef[] = [
     bio: 'Fundó Midnight Maki y cuidó el faro durante años. Ahora vuelve de visita.', birthday: 207, voice: 0.75, needsFlag: 'akio_visit',
   },
 ];
+
+// Outdoor anchors follow the new district's real walks, seats and shores.
+for (const [index, c] of CHARACTERS.entries()) for (const [period, stop] of c.routine.entries()) {
+  if (!['plaza', 'forest', 'garden', 'beach', 'market', 'station'].includes(stop.zone)) continue;
+  const pool = stop.act === 'fish' ? shoreSpots(stop.zone) : stop.act === 'sit' ? benchSpots(stop.zone) : clearings(stop.zone, 'stroll', 20);
+  const fallback = clearings(stop.zone, 'stroll', 20);
+  const at = (pool.length ? pool : fallback)[(index + period) % (pool.length || fallback.length)];
+  if (at) Object.assign(stop, { x: at.x, y: at.y, wander: Math.min(stop.wander ?? 0, 2), ...(at.kind === 'bench' ? { seatLift: 12, dir: at.dir } : {}) });
+}
 
 /** Two nearby spots, so a pair can sit or talk without sharing a tile. */
 function nearPair(spots: Place[]): [Place, Place] | null {

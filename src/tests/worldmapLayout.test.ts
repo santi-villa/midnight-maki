@@ -8,11 +8,15 @@ describe('map layout from the real doors', () => {
     expect(at.plaza).toMatchObject({ x: 0, y: 0 });
   });
   it('places each neighbour on the side where its door is, and never on top of another zone', () => {
-    expect(at.forest.y + at.forest.z.h).toBe(0);      // door on the north edge
-    expect(at.market.y + at.market.z.h).toBe(0);
-    expect(at.beach.y).toBe(at.plaza.z.h);            // door on the south edge
-    expect(at.station.x + at.station.z.w).toBe(0);    // door on the west edge
-    expect(at.garden.x).toBe(at.plaza.z.w);           // door on the east edge
+    expect(at.forest.x + at.forest.z.w).toBe(0);
+    expect(at.forest.y).toBeLessThan(at.garden.y);
+    expect(at.garden.x + at.garden.z.w).toBe(0);
+    expect(at.beach.y).toBe(at.garden.y + at.garden.z.h);
+    expect(at.market.y).toBe(at.plaza.z.h);
+    expect(at.station.y + at.station.z.h).toBe(0);
+    expect(at.residential.x).toBe(at.plaza.z.w);
+    expect(at.shrine.y + at.shrine.z.h).toBe(0);
+    expect(at.harbor.y).toBe(at.market.y);
     const all = Object.values(at);
     for (const a of all) for (const b of all) {
       if (a === b) continue;

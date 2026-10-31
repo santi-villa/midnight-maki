@@ -125,10 +125,11 @@ describe('nearby actions', () => {
   });
 
   it('uses enter, exit, up and down, and collapses twin doors', () => {
+    const restaurantDoor = ZONES.plaza.doors.find(d => d.to === 'restaurant')!;
     const enter = resolveContext(sense({
       zoneId: 'plaza',
       dir: 'up',
-      ...at(5, 7),
+      ...at(restaurantDoor.x, restaurantDoor.y + 1),
       doors: ZONES.plaza.doors,
     }));
     expect(enter.primary?.label).toBe('Entrar');

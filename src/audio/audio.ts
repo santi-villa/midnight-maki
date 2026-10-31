@@ -7,7 +7,7 @@ import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
 import { voiceNote, voicePhraseCount, voiceWhen, type VoiceNote } from './voices';
 
-type Track = 'title' | 'town' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'kitchen_hard' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
+type Track = 'title' | 'town' | 'town_night' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'kitchen_hard' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
 
 interface TrackDef {
   bpm: number;
@@ -35,6 +35,7 @@ const MIYAKO = [0, 1, 5, 7, 8]; // in-scale japanese flavour
 const TRACKS: Record<Exclude<Track, 'none'>, TrackDef> = {
   title: { bpm: 70, scale: PENTA, root: 57, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'piano', density: 0.35, bass: true, swing: 0.1 },
   town: { bpm: 84, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [7, 11, 14, 17]], lead: 'pluck', density: 0.5, bass: true, swing: 0.15, beat: true },
+  town_night: { bpm: 60, scale: PENTA, root: 55, chords: [[0, 4, 7, 11], [-5, -1, 2, 7], [5, 9, 12, 16], [0, 4, 7, 11]], lead: 'bell', density: 0.18, bass: true, swing: 0.05 },
   restaurant: { bpm: 78, scale: PENTA, root: 62, chords: [[0, 4, 7, 11], [5, 9, 12, 16], [-1, 2, 5, 9], [4, 7, 11, 14]], lead: 'piano', density: 0.45, bass: true, swing: 0.2, beat: true },
   // a cheerful lunchtime kitchen: koto-like pluck theme, marimba answers, wood-block chopping and a walking bass (16 bars: A B A' B')
   kitchen: { bpm: 96, scale: PENTA, root: 60, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'pluck', density: 0.3, bass: true, swing: 0.1, groove: {}, beat: true },
@@ -56,6 +57,7 @@ const TRACKS: Record<Exclude<Track, 'none'>, TrackDef> = {
 const MELODIES: Partial<Record<Exclude<Track, 'none'>, string>> = {
   title:      '4 - 5 - 7 - 5 4 | 2 - - - . . 2 4 | 5 - 4 2 4 - 2 0 | 2 - - - - - . . ',
   town:       '2 - 4 5 4 - 2 - | 0 - 2 - 4 - . . | 2 - 4 5 7 - 5 - | 4 - 2 - 0 - . . ',
+  town_night: '4 - - 2 - - 0 - | 2 - - - . . . . | 0 - - 2 - - 4 - | 2 - - - - - . . ',
   restaurant: '4 - 5 - 4 2 - 2 | 0 - 2 4 - . . . | 5 - 7 5 4 - 2 4 | 2 - 0 - . . . . ',
   kitchen:    '0 - 2 - 4 - 3 2 | 1 - 2 - 1 0 . . | 2 - 3 - 4 - 5 4 | 3 - 2 1 0 - . . ',
   kitchen_hard: '0 2 4 2 0 2 4 5 | 4 2 1 - 0 - . . | 2 3 4 3 2 3 5 4 | 3 - 2 - 0 - . . ',
@@ -78,7 +80,7 @@ const MELODIES_B: Partial<Record<Exclude<Track, 'none'>, string>> = {
   kitchen:      '4 - 5 - 4 2 0 - | 1 - 2 - 4 - . . | 5 - 4 - 2 - 4 5 | 4 - 2 - 0 - . . ',
   kitchen_hard: '4 5 4 2 0 2 4 - | 5 4 2 - 1 - . . | 4 5 6 5 4 2 4 5 | 4 2 1 - 0 - . . ',
 };
-const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { kitchen_hard: true, title: true, town: true, restaurant: true, restaurant_night: true, kitchen: true, home: true, garden: true, stars: true, emotional: true, intro: true, beach: true };
+const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { kitchen_hard: true, title: true, town: true, town_night: true, restaurant: true, restaurant_night: true, kitchen: true, home: true, garden: true, stars: true, emotional: true, intro: true, beach: true };
 
 function parseMelody(src: string): (number | null | '-')[] {
   return src.replace(/\|/g, ' ').trim().split(/\s+/).map((t) => (t === '.' ? null : t === '-' ? '-' : Number(t)));
@@ -98,7 +100,14 @@ const BEACH_FILES = import.meta.glob('./beach-waves*.mp3', { eager: true, query:
 /** Real rain recordings: `rain-outside.mp3` and `rain-inside.mp3` (the muffled one indoors). Without them the synthesized rain plays. */
 const RAIN_FILES = import.meta.glob('./rain-*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const rainUrl = (inside: boolean) => Object.entries(RAIN_FILES).find(([name]) => name.includes(inside ? 'inside' : 'outside'))?.[1];
-const SONG_MATCH: Partial<Record<Track, RegExp>> = { title: /menu|title|principal/i, intro: /intro/i, kitchen: /^(?!.*(hard|dificil|difícil)).*(kitchen|cocina)/i, kitchen_hard: /(kitchen|cocina).*(hard|dificil|difícil)/i };
+const SONG_MATCH: Partial<Record<Track, RegExp>> = {
+  title: /menu|title|principal/i,
+  intro: /intro/i,
+  kitchen: /^(?!.*(hard|dificil|difícil)).*(kitchen|cocina)/i,
+  kitchen_hard: /(kitchen|cocina).*(hard|dificil|difícil)/i,
+  town: /^(?!.*(night|noche)).*(town|plaza|pueblo)/i,
+  town_night: /(town|plaza|pueblo).*(night|noche)|(night|noche).*(town|plaza|pueblo)/i,
+};
 
 /** Opus and Ogg first: Chromium plays them. AAC in m4a stays as the next try. */
 function songRank(name: string): number {

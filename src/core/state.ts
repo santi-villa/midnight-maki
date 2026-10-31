@@ -10,6 +10,7 @@ import { STARTER_CLOTHES } from '../data/clothes';
 import { HERO_DEFAULTS } from '../art/hero';
 import { STARTER_RECIPES } from '../data/recipes';
 import { INGREDIENT_ALIASES } from '../data/items';
+import { VILLAGE_REVISION } from '../data/villageGeography';
 
 export const SAVE_VERSION = 1;
 
@@ -39,7 +40,7 @@ export function newSave(name = 'Sofi', appearance: Appearance = defaultAppearanc
     orders: [],
     nextUid: 1,
     relationships: {},
-    flags: { starter_decor: true },
+    flags: { starter_decor: true, village_layout: VILLAGE_REVISION },
     quests: { active: {}, done: [], tracked: null },
     story: { chapter: 0, clues: [], decisions: {}, seenScenes: [] },
     decor: {},

@@ -818,7 +818,7 @@ export class GalleyView {
         }
         case 'ready': { const s = STATION_BY_ID[e.station]; audio.sfxPlay('ready'); this.sparkle(s.x * TILE + 8, s.y * TILE - 4, 5); break; }
         case 'over': audio.sfxPlay('error'); this.say(STATION_BY_ID[e.station], 'Se pasa…', '#f2c66d'); break;
-        case 'burnt': audio.sfxPlay('burnt'); this.say(STATION_BY_ID[e.station], 'Se quemó', '#e0766a'); toast('Se quemó lo que estaba en la cocción.'); break;
+        case 'burnt': audio.sfxPlay('burnt'); game.stat('burnt'); this.say(STATION_BY_ID[e.station], 'Se quemó', '#e0766a'); toast('Se quemó lo que estaba en la cocción.'); break;
         case 'mixed': { const s = STATION_BY_ID[e.station]; audio.sfxPlay('ready'); this.sparkle(s.x * TILE + 8, s.y * TILE - 2, 4); this.say(s, 'Lista', '#f6ecd6'); break; }
         case 'assembling': audio.sfxPlay('assemble'); break;
         case 'assembled': {

@@ -14,12 +14,24 @@ function reloadWith(text: string) {
   void confirmBox(text, 'Reiniciar ahora', 'Después').then((yes) => { if (yes) { markResumeOnce(); location.reload(); } });
 }
 
+/** Set while a conflict chooses the cloud copy. summarize() turns it into one line and clears it. */
+let cloudReplaced = false;
+
 /** Both sides changed since the last sync. The cloud copy wins; the device copy is replaced. */
 function resolveConflict(): Promise<ConflictChoice> {
+  cloudReplaced = true;
   return Promise.resolve('remote');
 }
 
 function summarize(s: SyncSummary, auto: boolean) {
+  const replaced = cloudReplaced;
+  cloudReplaced = false;
+  if (replaced && (s.pulled > 0 || s.reload)) {
+    const line = 'La copia de la nube reemplazó la partida de este dispositivo.';
+    if (s.reload) reloadWith(line);
+    else toast(line);
+    return;
+  }
   if (s.reload) { reloadWith('Se trajo una partida más nueva de tu cuenta. Reiniciá para usarla.'); return; }
   if (auto && !s.pushed && !s.pulled) return;
   const parts = [s.pushed ? `${s.pushed} subida${s.pushed > 1 ? 's' : ''}` : '', s.pulled ? `${s.pulled} descargada${s.pulled > 1 ? 's' : ''}` : '', s.skipped ? `${s.skipped} pendiente${s.skipped > 1 ? 's' : ''}` : ''].filter(Boolean);

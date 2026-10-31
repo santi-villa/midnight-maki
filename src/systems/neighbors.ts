@@ -36,7 +36,8 @@ export const BIKE_TILES = 5.2;
 
 export function planContext(): PlanContext {
   const t = game.save.time;
-  const open = new Set<string>(['plaza', 'library']);
+  const open = new Set<string>(['plaza', 'library', 'residential', 'shrine']);
+  if (game.has('unlock_beach')) { open.add('harbor'); open.add('market'); }
   for (const [flag, zone] of [['unlock_beach', 'beach'], ['unlock_garden', 'garden'], ['unlock_forest', 'forest']] as const) if (game.has(flag)) open.add(zone);
   if (game.flag('market_open')) open.add('market');
   return { day: t.day, period: Math.max(0, Math.min(3, t.period)), minutes: t.minutes, half: t.minutes >= 45 ? 1 : 0, part: Math.max(0, Math.min(3, Math.floor(t.minutes / 22.5))) as 0 | 1 | 2 | 3, rain: game.flag('weather') === 'rain', open };

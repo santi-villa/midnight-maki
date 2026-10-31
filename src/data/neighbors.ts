@@ -27,7 +27,7 @@ export interface Neighbor {
 }
 
 /** Ren's carpentry stall in the plaza: the prop's top-left tile; the counter is the row below it. */
-export const REN_STALL = { x: 24, y: 22 } as const;
+export const REN_STALL = { x: 38, y: 23 } as const;
 
 const look = (species: Appearance['species'], skin: string, hairColor: string, top: string, extra: Partial<Appearance> = {}): Appearance =>
   ({ species, skin, hairStyle: 1, hairColor, eyes: 0, eyeColor: '#3b2a22', top, bottom: '', shoes: '', head: '', face: '', extra: '', bag: '', ...extra });
