@@ -82,6 +82,8 @@ if (SPROUT / 'Sprite sheet for Basic Pack.png').is_file():
         'tile_dark': tight(basic, (11, 155, 37, 183)),
         'frame': tight(basic, (153, 57, 183, 87)),
         'close': tight(basic, (825, 0, 870, 30)),
+        'round': tight(basic, (311, 37, 329, 57)),
+        'round_down': tight(basic, (343, 38, 361, 57)),
         'panel': tight(menu, (128, 0, 256, 144)),
         'dialog': tight(dlg, (7, 0, 176, 48)),
     }
