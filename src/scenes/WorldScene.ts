@@ -54,7 +54,7 @@ import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { arrange, idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, doorLeadingTo, roomAt, seaDepthAt, seaEdge, seaParity, usesSea, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
+import { propCanvas, cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife, type TownResident } from '../systems/townLife';
@@ -439,6 +439,15 @@ export class WorldScene extends Phaser.Scene {
 
   private applyBounds() {
     const cam = this.cameras.main;
+    const here = this.zone.def;
+    if (here.outdoor && here.world) {
+      // outdoors the village is one place: the camera roams over every district, drawn around this one (updateBackdrop)
+      const all = Object.values(ZONES).filter((z) => z.outdoor && z.world);
+      const x0 = Math.min(...all.map((z) => z.world!.x)), y0 = Math.min(...all.map((z) => z.world!.y));
+      const x1 = Math.max(...all.map((z) => z.world!.x + z.w)), y1 = Math.max(...all.map((z) => z.world!.y + z.h));
+      cam.setBounds((x0 - here.world.x) * TILE, (y0 - here.world.y) * TILE, (x1 - x0) * TILE, (y1 - y0) * TILE);
+      return;
+    }
     const mw = this.zone.def.w * TILE;
     const mh = this.zone.def.h * TILE;
     const vw = cam.width / cam.zoom;
@@ -451,6 +460,50 @@ export class WorldScene extends Phaser.Scene {
     const bx = w < vw ? -(vw - mw) / 2 : -padX;
     const by = h < vh ? -(vh - mh) / 2 : -padTop;
     cam.setBounds(bx, by, Math.max(w, vw), Math.max(h, vh));
+  }
+
+  // ------------------------------------------------------------------ the rest of the village around this district
+  private backdrops = new Map<string, { stamp: string; img: Phaser.GameObjects.Image }>();
+  /**
+   * Every other outdoor district is drawn around the current one (its ground and scenery, one cached image per district,
+   * redrawn only when its night look, obstacles or the restaurant's stage change), so walking out of a district shows the
+   * next one already there and crossing the border needs no fade.
+   */
+  private updateBackdrop() {
+    const here = this.zone.def;
+    const night = clock.isNight() || clock.period === 2;
+    const others = Object.values(ZONES).filter((z) => z.outdoor && z.world && z.id !== here.id);
+    for (const [id, b] of this.backdrops) if (!here.outdoor || !here.world || id === here.id) b.img.setVisible(false);
+    if (!here.outdoor || !here.world) return;
+    const sheet = this.textures.get('tiles').getSourceImage() as CanvasImageSource;
+    others.forEach((z, n) => {
+      const stamp = `${night}|${game.save.restaurant.level}|${z.props.map((p) => (p.cond ? (condOk(p.cond) ? 1 : 0) : '')).join('')}`;
+      const place = (img: Phaser.GameObjects.Image) => img.setPosition((z.world!.x - here.world!.x) * TILE, (z.world!.y - here.world!.y) * TILE).setVisible(true);
+      const have = this.backdrops.get(z.id);
+      if (have && have.stamp === stamp) { place(have.img); return; }
+      // drawn one district per frame, so entering the village never stalls on all of them at once
+      this.time.delayedCall(n * 16, () => {
+        if (this.zone.def.id === z.id || !this.zone.def.world) return;
+        const built = buildZone(z.id, night);
+        const c = makeCanvas(z.w * TILE, z.h * TILE), g = ctx2d(c);
+        for (let y = 0; y < z.h; y++) for (let x = 0; x < z.w; x++) for (const t of [built.tiles[y][x], built.overlay[y][x]]) {
+          if (t >= 0) g.drawImage(sheet, (t % TILESET_COLS) * TILE, Math.floor(t / TILESET_COLS) * TILE, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
+        }
+        for (const r of bridgeRails(z.ground)) g.drawImage(bridgeRailCanvas(r.axis, r.length), r.x * TILE - 2, r.y * TILE - 7);
+        for (const p of [...built.props].sort((a, b) => a.y + a.def.h - b.y - b.def.h)) {
+          const img = propCanvas(p.key);
+          g.drawImage(img, Math.floor((p.x + p.def.w / 2) * TILE - img.width / 2), (p.y + p.def.h) * TILE - img.height);
+        }
+        const key = 'backdrop_' + z.id;
+        if (this.textures.exists(key)) this.textures.remove(key);
+        this.textures.addCanvas(key, c);
+        const old = this.backdrops.get(z.id);
+        const img = old?.img.setTexture(key) ?? this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-12);
+        this.backdrops.set(z.id, { stamp, img });
+        const cur = this.zone.def;
+        if (cur.world && cur.id !== z.id) img.setPosition((z.world!.x - cur.world.x) * TILE, (z.world!.y - cur.world.y) * TILE).setVisible(true);
+      });
+    });
   }
 
   // ------------------------------------------------------------------ zones
@@ -737,6 +790,7 @@ export class WorldScene extends Phaser.Scene {
     this.placeGather();
     this.placeCrops();
     this.applyBounds();
+    this.updateBackdrop();
     this.setupAmbient();
     this.spawnBugs();
     this.syncGuests();
@@ -3036,10 +3090,12 @@ export class WorldScene extends Phaser.Scene {
       this.blockDoor(d.dir, closed);
       return;
     }
-    audio.sfxPlay('door');
+    // between two outdoor districts the village is one place: you just keep walking (the next district is already drawn)
+    const seamless = !!this.zone.def.outdoor && !!this.zone.def.world && !!ZONES[d.to]?.outdoor && !!ZONES[d.to]?.world;
+    if (!seamless) audio.sfxPlay('door');
     if (d.to.startsWith('shop_') || (this.zoneId.startsWith('shop_') && d.to === 'plaza')) audio.sfxPlay('bell');
-    p.stop();
-    void runTask('world:walk-door', () => this.enterZone(d.to, d.tx, d.ty, d.dir));
+    if (!seamless) p.stop();
+    void runTask('world:walk-door', () => this.enterZone(d.to, d.tx, d.ty, d.dir, !seamless));
   }
 
   private updateNpc(n: NpcState, dt: number) {
