@@ -18,27 +18,27 @@ const RESIDENTS = ['ren', 'mika', 'haru', 'tomo', 'nene', 'goro', 'fuyu', 'sato'
 const LAYOUTS: Record<string, HouseSpot[]> = {
   // carpenter: chest, stool, wood
   ren: [
-    ['shelf_books', 1, 2], ['wardrobe_wood', 4, 2], ['lamp_table', 6, 2], ['bed_sage', 7, 2], ['plant_fern', 8, 2],
+    ['shelf_books', 1, 2], ['wardrobe_wood', 4, 2], ['andon', 6, 2], ['futon_indigo', 7, 2], ['bonsai', 8, 2],
     ['chest_wood', 3, 3], ['table_round', 4, 4], ['chair_wood', 4, 5, 2], ['rug_cream', 2, 5], ['stool', 8, 6],
   ],
   // courier: lamp, plush, striped rug
   mika: [
-    ['bed_sage', 1, 2], ['plush_cat', 2, 3], ['wardrobe_wood', 3, 2], ['lamp_rose', 5, 2], ['shelf_books', 6, 2],
-    ['plant_fern', 8, 2], ['table_round', 4, 4], ['chair_rose', 4, 5, 2], ['rug_stripes', 1, 5],
+    ['futon_indigo', 1, 2], ['plush_cat', 2, 3], ['wardrobe_wood', 3, 2], ['lantern_cream', 5, 2], ['shelf_books', 6, 2],
+    ['bonsai', 8, 2], ['table_round', 4, 4], ['chair_rose', 4, 5, 2], ['rug_stripes', 1, 5],
   ],
   // student: desk, shelves, book piles
   haru: [
-    ['bed_sage', 1, 2], ['bookstack', 2, 3], ['desk_wood', 3, 2], ['lamp_table', 5, 2], ['shelf_books', 6, 2],
+    ['futon_indigo', 1, 2], ['bookstack', 2, 3], ['desk_wood', 3, 2], ['andon', 5, 2], ['shelf_books', 6, 2],
     ['bookstack', 8, 3], ['table_round', 4, 4], ['chair_wood', 4, 5, 2], ['rug_indigo', 2, 5],
   ],
   // fisherman: aquarium
   tomo: [
-    ['shelf_kitchen', 1, 2], ['wardrobe_wood', 4, 2], ['lamp_table', 6, 2], ['bed_sage', 7, 2], ['plant_fern', 8, 2],
+    ['shelf_kitchen', 1, 2], ['wardrobe_wood', 4, 2], ['andon', 6, 2], ['futon_indigo', 7, 2], ['bonsai', 8, 2],
     ['aquarium', 5, 3], ['table_round', 4, 4], ['chair_wood', 4, 5, 2], ['rug_cream', 2, 5],
   ],
   // florist: vases and a bonsai
   nene: [
-    ['bed_rose', 1, 2], ['vase_tulips', 2, 2], ['wardrobe_white', 3, 2], ['lamp_cream', 5, 2], ['shelf_books', 6, 2],
+    ['futon_rose', 1, 2], ['vase_tulips', 2, 2], ['wardrobe_white', 3, 2], ['lantern_cream', 5, 2], ['shelf_books', 6, 2],
     ['plant_monstera', 2, 3], ['bonsai', 8, 3], ['table_round', 4, 4], ['chair_rose', 4, 5, 2], ['rug_round', 6, 5], ['vase_lav', 8, 6],
   ],
   // elder: futon, low table, cushions, andon
@@ -53,27 +53,27 @@ const LAYOUTS: Record<string, HouseSpot[]> = {
   ],
   // postman: desk and a wall clock
   sato: [
-    ['shelf_books', 1, 2], ['desk_wood', 4, 2], ['lamp_table', 6, 2], ['bed_sage', 7, 2], ['plant_fern', 8, 2],
+    ['shelf_books', 1, 2], ['desk_wood', 4, 2], ['andon', 6, 2], ['futon_indigo', 7, 2], ['bonsai', 8, 2],
     ['clock', 8, 1], ['table_round', 4, 4], ['chair_wood', 4, 5, 2], ['rug_cream', 2, 5], ['chest_wood', 8, 6],
   ],
   // bakery helper: kitchen shelf and tea
   mame: [
-    ['bed_sage', 1, 2], ['plant_herbs', 2, 2], ['wardrobe_wood', 3, 2], ['lamp_table', 5, 2], ['shelf_kitchen', 6, 2],
+    ['futon_indigo', 1, 2], ['plant_herbs', 2, 2], ['wardrobe_wood', 3, 2], ['andon', 5, 2], ['shelf_kitchen', 6, 2],
     ['tea_set', 8, 3], ['table_round', 4, 4], ['chair_wood', 4, 5, 2], ['rug_cream', 2, 5],
   ],
   // photographer: easel, frame, landscape
   kai: [
-    ['shelf_books', 1, 2], ['wardrobe_wood', 4, 2], ['lamp_table', 6, 2], ['bed_sage', 7, 2], ['plant_fern', 8, 2],
+    ['shelf_books', 1, 2], ['wardrobe_wood', 4, 2], ['andon', 6, 2], ['futon_indigo', 7, 2], ['bonsai', 8, 2],
     ['pt_landscape', 5, 1], ['easel', 3, 3], ['table_round', 4, 4], ['chair_wood', 4, 5, 2], ['rug_cream', 2, 5], ['photo_frame', 8, 6],
   ],
   // runner: bed, a bench, little else
   rin: [
-    ['wardrobe_wood', 4, 2], ['lamp_table', 6, 2], ['bed_sage', 7, 2], ['plant_fern', 8, 2],
+    ['wardrobe_wood', 4, 2], ['andon', 6, 2], ['futon_indigo', 7, 2], ['bonsai', 8, 2],
     ['table_round', 4, 4], ['chair_wood', 4, 5, 2], ['bench_wood', 6, 6],
   ],
   // musician: piano and a radio
   oto: [
-    ['bed_sage', 1, 2], ['plant_fern', 2, 2], ['wardrobe_wood', 3, 2], ['lamp_table', 5, 2], ['shelf_books', 6, 2],
+    ['futon_indigo', 1, 2], ['bonsai', 2, 2], ['wardrobe_wood', 3, 2], ['andon', 5, 2], ['shelf_books', 6, 2],
     ['piano', 5, 3], ['radio', 8, 3], ['table_round', 4, 4], ['chair_wood', 4, 5, 2], ['rug_indigo', 2, 5],
   ],
 };
@@ -89,12 +89,12 @@ const EMPTY: Record<number, HouseSpot[]> = {
     ['tea_set', 3, 3], ['table_low', 5, 4], ['cushion_indigo', 4, 5], ['rug_cream', 2, 5],
   ],
   13: [
-    ['bed_sage', 1, 2], ['vase_tulips', 2, 2], ['wardrobe_wood', 3, 2], ['lamp_cream', 5, 2], ['shelf_books', 6, 2],
+    ['futon_indigo', 1, 2], ['vase_tulips', 2, 2], ['wardrobe_wood', 3, 2], ['lantern_cream', 5, 2], ['shelf_books', 6, 2],
     ['bonsai', 8, 3], ['table_round', 4, 4], ['chair_sage', 4, 5, 2], ['rug_round', 2, 5], ['plant_monstera', 8, 6],
   ],
   15: [
-    ['bed_rose', 1, 2], ['vase_lav', 2, 2], ['wardrobe_white', 3, 2], ['lamp_rose', 5, 2], ['shelf_dark', 6, 2],
-    ['bonsai', 2, 3], ['plant_fern', 8, 2], ['table_round', 4, 4], ['chair_rose', 4, 5, 2], ['rug_stripes', 1, 5], ['vase_tulips', 8, 6],
+    ['futon_rose', 1, 2], ['vase_lav', 2, 2], ['wardrobe_white', 3, 2], ['lantern_cream', 5, 2], ['shelf_dark', 6, 2],
+    ['bonsai', 2, 3], ['bonsai', 8, 2], ['table_round', 4, 4], ['chair_rose', 4, 5, 2], ['rug_stripes', 1, 5], ['vase_tulips', 8, 6],
   ],
 };
 
