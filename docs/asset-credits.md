@@ -54,6 +54,31 @@ La página oficial permite usar el arte en juegos comerciales y gratuitos y modi
 
 La demo aporta además una conífera pequeña, buzón rojo, cartel cubierto y caja de madera, incorporados mediante `scripts/build-exterior-details.py`. Los arbustos exteriores reutilizan su recorte nativo de arbusto florido. Una entrega posterior incorpora barcos y las tres fachadas elegidas a partir de la lámina completa aportada por el usuario, descrita abajo; no se atribuyen esas piezas al ZIP de demostración.
 
+### Pack completo (31/10/2026)
+
+Ahora está el pack completo en `ASSETS DESCARGADOS/NUEVO/Traditional Japanese Buildings Tileset/` (ignorado por git; su
+licencia no permite redistribuir el recurso suelto). `scripts/build-japanese-buildings.py` recorta fachadas enteras de
+la hoja `ATLAS` de 16 px, a tamaño nativo, a `src/assets/jp-buildings/atlas.png` (512×257) con su `catalog.json`:
+
+```
+JP_BUILDINGS_SRC=/ruta/a/Original/16x16 python3 scripts/build-japanese-buildings.py
+```
+
+Cada fachada guarda su puerta, ventanas y cartel. `art/japaneseBuildings.ts` las dibuja y alimenta la geometría que ya
+usaban el restaurante (`restaurantFacadeLayout`) y los comercios (`villageShopLayout`), así que la baldosa de la puerta,
+el camino, la persiana del comercio cerrado, los faroles y el brillo nocturno de las ventanas siguen a la fachada nueva.
+La huella crece a baldosas enteras alrededor de la fachada, y la fachada se corre unos píxeles para que su puerta caiga
+en el medio de una baldosa.
+
+- **Midnight Maki**: una fachada por etapa — casa vieja de techo oscuro, la misma casa restaurada (techo gris verdoso),
+  la casa grande azul y la posada de dos pisos. El cartel con el nombre del restaurante, los faroles y las ventanas
+  tapiadas de "cerrado" se mantienen. La puerta queda en la misma baldosa en las cuatro etapas.
+- **Panadería, Ropa de Yuki y Almacén de Taro**: el comercio con toldo y mercadería, cada uno con su color de techo y su
+  cartel.
+- **Biblioteca**: la casa grande de dos pisos.
+
+`?buildings=classic` vuelve a las fachadas anteriores. Ver `docs/jp-centro.png` y `docs/jp-restaurante-etapas.png`.
+
 ### Lámina completa aportada por el usuario
 
 El PNG de 1013×1181 recibido en `Imagen de ChatGPT 17 oct 2026, 01_34_44.zip` se conserva en `art-source/village/lamina-aportada.png`. `scripts/build-village-assets.py` recorta 18 piezas de esa imagen de VectoRaith: las tres fachadas elegidas para Midnight Maki, botes, arbustos, faroles, guirnalda, recipientes y accesorios pesqueros y tres fachadas pequeñas para puestos de mercado. Su atlas de 512×256 ocupa unos 45 KiB de PNG; la lámina completa no entra en la carga del juego. `src/assets/village/catalog.json` registra el hash, origen de cada recorte y geometría de las fachadas. Se mantiene la mención de VectoRaith en los créditos del juego.
@@ -114,7 +139,7 @@ El catálogo tiene dos partes:
 
 Con `?exteriors=classic` en la URL el juego carga sin el pack (arena, agua y orilla anteriores, y sin los props nuevos), para comparar.
 
-Primera zona: Playa de las Conchas (`docs/limezu-playa-antes-despues.png`). El faro del pack no se usó todavía: mide 7×16 baldosas y no entra donde está el faro actual sin rehacer esa esquina del mapa.
+Primera zona: Playa de las Conchas (`docs/limezu-playa-antes-despues.png`). El faro del pack (7×16 baldosas) se usa desde el 31/10/2026: ver más abajo.
 
 Segunda zona: la plaza (`docs/limezu-plaza-antes-despues.png`). Fuente redonda con agua (`Garden Fountain_3_4`), bancos (`Bench_7`), faroles (`Street_Lamp_5`, también en las demás zonas), buzón, dos macetas del pack de jardín, cuatro canteros en lugar de los canteros planos del piso, y dos palomas. Las piezas salen de las carpetas *Singles* del pack, recortadas a sus píxeles visibles. El cartel de anuncios y el empedrado siguen siendo los del juego.
 
@@ -161,3 +186,8 @@ Jardín y barrio residencial (31/10/2026, `docs/limezu-jardin-barrio.png`):
 - **Barrio**: cada casa tiene buzón y tacho en los primeros casilleros de pasto libres junto a
   su sendero de entrada (se calculan después de trazar las calles, en `villageWorld.ts`), y una
   de cada dos casas tiene una casita de pájaros, alternando celeste, rosa y marrón.
+
+Faro (31/10/2026, `docs/limezu-faro.png`): el faro del pack (`Example_Lighthouse`, 7×16 baldosas)
+reemplaza al del juego. Para que la torre no tape las casas de la ribera ni el muelle, el islote
+bajó hacia mar abierto (centro en 100,72), el muelle sigue hasta él y la puerta pasó a 100,75.
+Con `?exteriors=classic` vuelven el islote y el faro anteriores.
