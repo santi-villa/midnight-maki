@@ -3102,8 +3102,10 @@ export class WorldScene extends Phaser.Scene {
     p.teleport(p.tx + bx, p.ty + by);
   }
 
+  /** Until this time the border doors stay quiet: the player is still finishing the step that crossed one. */
+  private seamUntil = 0;
   private checkWalkDoor() {
-    if (this.transitioning || this.inputLocked) return;
+    if (this.transitioning || this.inputLocked || performance.now() < this.seamUntil) return;
     const p = this.player;
     const d = this.zone.def.doors.find((dd) => dd.walk && dd.x === p.tx && dd.y === p.ty);
     if (!d) return;
@@ -3121,7 +3123,16 @@ export class WorldScene extends Phaser.Scene {
     if (!seamless) audio.sfxPlay('door');
     if (d.to.startsWith('shop_') || (this.zoneId.startsWith('shop_') && d.to === 'plaza')) audio.sfxPlay('bell');
     if (!seamless) p.stop();
-    void runTask('world:walk-door', () => this.enterZone(d.to, d.tx, d.ty, d.dir, !seamless));
+    void runTask('world:walk-door', async () => {
+      const ok = await this.enterZone(d.to, d.tx, d.ty, d.dir, !seamless);
+      if (!ok || !seamless) return;
+      // the arrival tile lies one step past the border: start that step from the border so the walk never jumps
+      const step = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[d.dir];
+      const me = this.player, tx = me.tx, ty = me.ty;
+      me.x -= step[0] * TILE; me.y -= step[1] * TILE;
+      me.path = [[tx, ty]];
+      this.seamUntil = performance.now() + 450;
+    });
   }
 
   private updateNpc(n: NpcState, dt: number) {
