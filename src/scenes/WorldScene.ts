@@ -462,14 +462,14 @@ export class WorldScene extends Phaser.Scene {
     cam.setBounds(bx, by, Math.max(w, vw), Math.max(h, vh));
   }
 
-  /** The square's fountain runs: the pack's six frames cycled on the prop's image (still when effects are low). */
-  private animateFountain(img: Phaser.GameObjects.Image, w: number, h: number) {
+  /** The pack's animated props (the fountain's water, the campfire): six frames cycled on the prop's image (still when effects are low). */
+  private animateProp(id: string, img: Phaser.GameObjects.Image, w: number, h: number) {
     if (lowFx() || settings.reduceMotion) return;
     const keys: string[] = [];
     for (let f = 0; f < 6; f++) {
-      const key = `fountain_anim_${f}`;
+      const key = `${id}_anim_${f}`;
       if (!this.textures.exists(key)) {
-        const c = exteriorObject(`fountain_frame_${f}`, w, h);
+        const c = exteriorObject(`${id}_frame_${f}`, w, h);
         if (!c) return;
         this.textures.addCanvas(key, c);
       }
@@ -736,7 +736,7 @@ export class WorldScene extends Phaser.Scene {
       const px = p.x * TILE + (p.def.w * TILE) / 2;
       const py = (p.y + p.def.h) * TILE;
       const img = this.add.image(px, py, key).setOrigin(0.5, 1);
-      if (p.key === 'fountain') this.animateFountain(img, p.def.sw, p.def.sh);
+      if (p.key === 'fountain' || p.key === 'campfire') this.animateProp(p.key, img, p.def.sw, p.def.sh);
       // wall-mounted props (on wall face rows) render behind actors
       const onWall = def.ground[p.y]?.[p.x] === 'W' || def.ground[p.y]?.[p.x] === 'V';
       // awnings and posters sit on building fronts; puddles lie on the ground

@@ -28,6 +28,7 @@ SHEETS = {
     'sea': 'Animated_16x16/Animated_Terrains_16x16/Sea_Water_Tileset_Basic_16x16.png',
     'seacorner': 'Animated_16x16/Animated_Terrains_16x16/Sea_Water_Tileset_Outer_Corners_16x16.png',
     'fountain_anim': 'Animated_16x16/Animated_sheets_16x16/Garden_Fountain_5_16x16.png',
+    'campfire_anim': 'Animated_16x16/Animated_sheets_16x16/Campfire_16x16.png',
 }
 _sheets = {}
 
@@ -138,6 +139,10 @@ def add_single(key, name, replaces, folder, single):
 # Plaza: the fountain, its benches, street lamps, mailbox, pots and planters on the flower beds.
 # the square's fountain with running water: the pack's six-frame animation (frame 0 is the still drawing)
 add('fountain', 'Fuente de la plaza', ['fountain', 'fountain_frame_0'], 'fountain_anim', (0, 0, 64, 80))
+# a campfire for the forest clearing: six frames of 16x32
+add('campfire', 'Fogata', ['campfire', 'campfire_frame_0'], 'campfire_anim', (0, 0, 16, 32))
+for f in range(1, 6):
+    add(f'campfire_f{f}', f'Fogata (cuadro {f})', [f'campfire_frame_{f}'], 'campfire_anim', (f * 16, 0, 16, 32))
 for f in range(1, 6):
     add(f'fountain_f{f}', f'Fuente de la plaza (cuadro {f})', [f'fountain_frame_{f}'], 'fountain_anim', (f * 64, 0, 64, 80))
 add_single('bench', 'Banco de plaza', ['bench', 'wharf_bench'], '3_City_Props', 'City_Props_16x16_Bench_7')
