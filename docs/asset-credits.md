@@ -126,3 +126,38 @@ nueva de la playa se reduce de 17 a seis piezas: una sombrilla con toallón, una
 gaviota, una mata, un peñasco en el borde oeste y una boya junto al muelle este.
 También se despeja la franja central de cajas, barriles, faroles, botes y piedras
 sueltas. Comparación actual: `docs/playa-antes.png` y `docs/playa-ajustada.png`.
+
+Playa en el mapa nuevo (31/10/2026). Ese ajuste era del mapa anterior; en el mapa
+unificado solo habían quedado cuatro piezas y el agua cortaba en escalones contra
+la arena. Ahora:
+- **Orilla completa**: además del borde de arriba, los costados y las esquinas del
+  estanque del pack (`Sea_Water_Tileset_Basic`) y las esquinas interiores
+  (`Sea_Water_Tileset_Outer_Corners`), animados con el agua. Solo junto a arena: la
+  costa de pasto del puerto no lleva espuma.
+- **Profundidad por distancia a tierra** en todas las zonas de mar: agua clara junto
+  a la costa y al islote del faro, más oscura mar adentro (antes todo el mar era
+  "profundo").
+- **Arena más cálida**, cerca del color de los caminos de tierra (antes se veía casi
+  blanca junto a ellos). Los castillos usan el mismo crema, conservando su sombreado.
+- **Decoración**: segunda sombrilla con toallón, castillo con muralla y torre, tres
+  matas, cuatro rocas y tres boyas mar adentro. Quedan libres los puntos de conchas,
+  los puestos, el mirador del atardecer y los lugares de pesca.
+Comparación: `docs/limezu-playa-antes-despues.png`.
+
+Puerto, mercado y estación (31/10/2026, `docs/limezu-puerto-mercado-estacion.png`):
+- **Mercado**: carro de flores entre los dos puestos grandes, carrito de golosinas junto a
+  la casa del oeste, cajones con flores, dos barriles y un banco contra la baranda sur.
+- **Puerto**: pila de cajas, caja y barril junto a la primera casa, un banco frente al
+  muelle y gaviotas sobre las barandas.
+- **Estación**: banco de andén donde ya estaba la acción de sentarse, valija, bolso y
+  carro de equipaje en la fila de atrás del andén, y dos macetas a los lados del edificio.
+Las piezas del muelle usan el prefijo `wharf_`: el mapa (`villageWorld.ts`) no deja objetos
+sólidos sobre tablas ni caminos, salvo estas, ubicadas a mano contra las barandas y bordes.
+Quedan libres el pasillo, los mostradores, las bocas de los dos muelles y las puertas.
+
+Jardín y barrio residencial (31/10/2026, `docs/limezu-jardin-barrio.png`):
+- **Jardín**: estatua junto al estanque, banco con macetas en el césped, carrito con flores
+  al lado de las huertas del este, dos casitas de pájaros y una regadera junto a la huerta oeste.
+- **Barrio**: cada casa tiene buzón y tacho en los primeros casilleros de pasto libres junto a
+  su sendero de entrada (se calculan después de trazar las calles, en `villageWorld.ts`), y una
+  de cada dos casas tiene una casita de pájaros, alternando celeste, rosa y marrón.

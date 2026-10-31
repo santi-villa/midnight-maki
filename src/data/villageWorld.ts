@@ -6,6 +6,7 @@ import { HOUSES, houseDoorDef, houseDoorTile, housePropId } from './houses';
 import { PROPS } from './props';
 import { PROJECT_AMENITIES, PROJECT_PROPS, PROJECTS, PROJECT_GATHER } from './projects';
 import { RESTAURANT_ENTRY } from './zoneKit';
+import { exteriorsWanted } from '../art/exteriors';
 
 export const VILLAGE_SQUARE = civicSquare;
 export const VILLAGE_WIDTH = 120, VILLAGE_HEIGHT = 80;
@@ -87,10 +88,33 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
     }
     if (h.zone === 'residential') for (let xx = x; xx < x + 6; xx++) if (Math.abs(xx - gx) > 1) prop('fence', xx, roadY - 1);
   }
+  if (exteriorsWanted()) {
+    // Modern Exteriors in the garden: a statue looking over the pond, a planter bench on the lawn by the paths,
+    // a flower cart beside the east beds, bird houses and a watering can left by the west bed.
+    prop('garden_statue', 17, 38); prop('garden_flower_bench', 14, 32); prop('garden_cart', 24, 36);
+    prop('birdhouse_pink', 18, 29); prop('birdhouse_blue', 19, 44); prop('watering_can', 13, 37);
+  }
   // Restore streets after lawns are drawn. These strips lie between the private lots.
   street([[79, 37], [119, 37]], 3); street([[81, 47], [119, 47]], 3);
   street([[89, 24], [89, 58], [119, 58]], 2);
   for (const x of [99, 109, 118]) street([[x, 28], [x, 58]], 2);
+  if (exteriorsWanted()) {
+    // Modern Exteriors: each home gets a mailbox and a bin on the first free lawn cells beside its entrance path
+    // (after the streets, so no street cell is taken); every other lawn gets a bird house, in turn three colours.
+    const free = (x: number, y: number) => terrain[y]?.[x] === 'g' && !props.some(p => {
+      const d = PROPS[p.id]; return x >= p.x && x < p.x + d.w && y >= p.y && y < p.y + d.h;
+    });
+    HOUSES.filter(h => h.zone === 'residential').forEach((h, n) => {
+      const b = bounds.residential, x = b.x + h.x, y = b.y + h.y, gx = b.x + houseDoorTile(h)[0];
+      const roadY = y < 35 ? 37 : y < 46 ? 47 : 58;
+      const spots = [[gx + 1, roadY - 2], [gx - 1, roadY - 2], [gx + 2, roadY - 2], [gx - 2, roadY - 2], [gx + 1, roadY - 3], [gx - 1, roadY - 3]];
+      for (const id of ['mailbox', 'street_bin']) {
+        const at = spots.find(([sx, sy]) => free(sx, sy));
+        if (at) prop(id, at[0], at[1]);
+      }
+      if (n % 2 === 0 && free(x - 1, y + 3)) prop(['birdhouse_blue', 'birdhouse_pink', 'birdhouse_brown'][(n / 2) % 3], x - 1, y + 3);
+    });
+  }
   // Wooden promenade and working quay connect the coast, fish houses and lighthouse.
   rect(37, 65, 54, 5, 'b'); street([[44, 63], [55, 63], [55, 68]], 2, 'b');
   rect(94, 52, 3, 13, 'b'); street([[94, 64], [90, 65], [90, 68]], 2, 'b');
@@ -211,7 +235,9 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
     if (p.x + d.w > b.x + b.w || p.y + d.h > b.y + b.h) continue;
     const cells: string[] = [];
     for (let y = p.y; y < p.y + d.h; y++) for (let x = p.x; x < p.x + d.w; x++) cells.push(`${x},${y}`);
-    if (d.solid && d.kind !== 'boat' && !structural(p) && cells.some(key => occupied.has(key) || reserved.has(key) || (() => { const [x, y] = key.split(',').map(Number); return 'wdCpb'.includes(terrain[y][x]); })())) continue;
+    // wharf_* pieces are authored against the deck's rails and the market's edges, so decks and paths do not reject them
+    const paved = p.id.startsWith('wharf_') ? 'wdC' : 'wdCpb';
+    if (d.solid && d.kind !== 'boat' && !structural(p) && cells.some(key => occupied.has(key) || reserved.has(key) || (() => { const [x, y] = key.split(',').map(Number); return paved.includes(terrain[y][x]); })())) continue;
     if (d.solid && d.kind !== 'boat' && cells.some(key => occupied.has(key)) && !p.cond?.startsWith('stage=')) continue;
     z.props.push({ ...p, x: at.x, y: at.y });
     if (d.solid && d.kind !== 'boat') cells.forEach(key => occupied.add(key));

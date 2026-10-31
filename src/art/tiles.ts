@@ -234,8 +234,10 @@ for (const rain of [false, true])
       for (const tint of [SEA_TINT[depth], rain ? 'rgba(96,104,120,0.28)' : '']) if (tint) { c.fillStyle = tint; c.fillRect(x, y, 16, 16); }
     });
 // the sea's waterline under dry sand (a two-tile pattern)
-for (let p = 0; p < 2; p++) for (let f = 0; f < SEA_FRAMES; f++) add(`seashore${p}_${f}`, true, (c, x, y, r) => {
-  if (!drawExteriorTile(c, x, y, `seashore${p}_${f}`)) shoreTileFrame(f % 4)(c, x, y, r);
+// plus its sides and corners where the coast steps (see seaEdge in zoneRuntime): seashore<kind><parity>_<frame>
+export const SEA_EDGES = [['', 2], ['W', 2], ['E', 2], ['NW', 1], ['NE', 1], ['IW', 1], ['IE', 1]] as const;
+for (const [kind, parities] of SEA_EDGES) for (let p = 0; p < parities; p++) for (let f = 0; f < SEA_FRAMES; f++) add(`seashore${kind}${p}_${f}`, true, (c, x, y, r) => {
+  if (!drawExteriorTile(c, x, y, `seashore${kind}${p}_${f}`)) shoreTileFrame(f % 4)(c, x, y, r);
 });
 add('bridge', false, bridgeTile);
 for (let mask = 0; mask < 256; mask++) add('bridge_' + mask, false, (c, x, y) => drawBridgeTile(c, x, y, mask));
@@ -297,8 +299,8 @@ export const SHORE_FRAMES = [TILE_INDEX.shore, TILE_INDEX.shore1, TILE_INDEX.sho
 export function seaFrames(depth: 's' | 'm' | 'd', parity: number, rain: boolean): number[] {
   return Array.from({ length: SEA_FRAMES }, (_, f) => TILE_INDEX[`sea${rain ? 'r' : 'c'}${depth}${parity}_${f}`]);
 }
-export function seaShoreFrames(parity: number): number[] {
-  return Array.from({ length: SEA_FRAMES }, (_, f) => TILE_INDEX[`seashore${parity}_${f}`]);
+export function seaShoreFrames(edge: string): number[] {
+  return Array.from({ length: SEA_FRAMES }, (_, f) => TILE_INDEX[`${edge}_${f}`]);
 }
 
 export const TILESET_COLS = 16;

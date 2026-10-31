@@ -90,11 +90,36 @@ export function waterDepthAt(ground: string[], x: number, y: number): 's' | 'm' 
 export const usesSea = (def: ZoneDef) => def.fishing === 'sea' && hasExteriors();
 export const seaParity = (x: number, y: number) => (x % 2) + 2 * (y % 2);
 
+const seaWater = (ch: string | undefined) => ch === undefined || 'wdhb'.includes(ch);
+/** Sea depth by distance to land (piers count as water): a light band along the coast, deep water further out. */
+export function seaDepthAt(ground: string[], x: number, y: number): 's' | 'm' | 'd' {
+  let near = 25;
+  for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (!seaWater(ground[y + dy]?.[x + dx])) near = Math.min(near, dx * dx + dy * dy);
+  // round distances keep the bands as soft curves instead of square steps
+  return near <= 4 ? 's' : near <= 16 ? 'm' : 'd';
+}
+/** The waterline tile family of a sea cell that touches sand (its base key without the frame), or null for open water. */
+export function seaEdge(ground: string[], x: number, y: number): string | null {
+  if (ground[y]?.[x] === 'h') return `seashore${x % 2}`;
+  const sand = (dx: number, dy: number) => ground[y + dy]?.[x + dx] === 's';
+  const n = sand(0, -1), w = sand(-1, 0), e = sand(1, 0);
+  if (n && w) return 'seashoreNW0';
+  if (n && e) return 'seashoreNE0';
+  if (n) return `seashore${x % 2}`;
+  if (w) return `seashoreW${y % 2}`;
+  if (e) return `seashoreE${y % 2}`;
+  if (sand(-1, -1)) return 'seashoreIW0';
+  if (sand(1, -1)) return 'seashoreIE0';
+  return null;
+}
+
 export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = false): number {
   if (usesSea(def)) {
-    if (ch === 'h') return TILE_INDEX[`seashore${x % 2}_0`];
     if (ch === 'p') return TILE_INDEX.sandpath;
-    if (ch === 'w' || ch === 'd') return TILE_INDEX[`seac${ch === 'd' ? 'd' : waterDepthAt(def.ground, x, y)}${seaParity(x, y)}_0`];
+    if (ch === 'h' || ch === 'w' || ch === 'd') {
+      const edge = seaEdge(def.ground, x, y);
+      return TILE_INDEX[edge ? `${edge}_0` : `seac${seaDepthAt(def.ground, x, y)}${seaParity(x, y)}_0`];
+    }
   }
   const st = roomStyle(roomAt(def, x, y), def);
   switch (ch) {

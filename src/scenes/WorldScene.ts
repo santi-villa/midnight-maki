@@ -53,7 +53,7 @@ import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { arrange, idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
-import { buildZone, condOk, doorLeadingTo, roomAt, seaParity, usesSea, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
+import { buildZone, condOk, doorLeadingTo, roomAt, seaDepthAt, seaEdge, seaParity, usesSea, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
@@ -140,7 +140,7 @@ export class WorldScene extends Phaser.Scene {
   private waterTiles: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[] = [];
   /** the beach's sea: the pack's water, twice as many frames as the drawn ponds */
   private sea = false;
-  private shoreTiles: { x: number; y: number }[] = [];
+  private shoreTiles: { x: number; y: number; edge?: string }[] = [];
   private bankTiles: { x: number; y: number; mask: number }[] = [];
   private waterFrame = 0;
   private waterT = 0;
@@ -619,7 +619,9 @@ export class WorldScene extends Phaser.Scene {
     for (let y = 0; y < def.h; y++)
       for (let x = 0; x < def.w; x++) {
         const ch = def.ground[y][x];
-        if (ch === 'w' || ch === 'd') this.waterTiles.push({ x, y, depth: waterDepthAt(def.ground, x, y), v: waterVariant(x, y) });
+        const edge = this.sea && 'wdh'.includes(ch) ? seaEdge(def.ground, x, y) : null;
+        if (edge) this.shoreTiles.push({ x, y, edge });
+        else if (ch === 'w' || ch === 'd') this.waterTiles.push({ x, y, depth: this.sea ? seaDepthAt(def.ground, x, y) : waterDepthAt(def.ground, x, y), v: waterVariant(x, y) });
         else if (ch === 'h') this.shoreTiles.push({ x, y });
         const m = bankIdx.get(this.zone.overlay[y][x]);
         if (m) this.bankTiles.push({ x, y, mask: m });
@@ -3406,7 +3408,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.sea) {
       // one shared frame for the whole sea: the pack's pattern only lines up when every tile moves together
       for (const w of this.waterTiles) L.putTileAt(seaFrames(w.depth, seaParity(w.x, w.y), rain)[frame], w.x, w.y);
-      for (const t of this.shoreTiles) L.putTileAt(seaShoreFrames(t.x % 2)[frame], t.x, t.y);
+      for (const t of this.shoreTiles) L.putTileAt(seaShoreFrames(t.edge ?? `seashore${t.x % 2}`)[frame], t.x, t.y);
     } else {
       const f = frame >> 1;
       for (const w of this.waterTiles) L.putTileAt(waterFrames(w.depth, w.v, rain)[(f + w.v) % 4], w.x, w.y);

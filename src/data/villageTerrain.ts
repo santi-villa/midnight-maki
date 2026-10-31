@@ -182,6 +182,12 @@ export function createVillageTerrain() {
   for (const [x, y] of [[48, 13], [59, 13], [50, 18], [58, 18]]) prop('stonelantern', x, y);
   for (const [x, y] of [[44, 9], [47, 6], [58, 6], [62, 9], [45, 15], [62, 15]]) prop('sakura', x, y);
   prop('bld_station', 82, 9); prop('block_vines', 90, 16); prop('crate', 94, 11); prop('barrel', 95, 11);
+  if (exteriorsWanted()) {
+    // Modern Exteriors: the waiting bench where the 'sit' spot already was, luggage and a trolley on the back row of the
+    // platform (the front row stays a clear walk), and two potted trees flanking the building.
+    prop('station_bench', 90, 13); prop('station_suitcase', 78, 13); prop('station_baggage', 79, 13);
+    prop('station_trolley', 100, 13); prop('station_plant', 81, 11); prop('station_plant', 90, 11);
+  }
   house('bld_cabin', 7, 20, [5, 17, 10, 8], [13, 24], [18, 24], false);
   prop('waterfall', 32, 4); prop('stump', 23, 18); prop('bigrock', 5, 8);
 
@@ -207,6 +213,15 @@ export function createVillageTerrain() {
   prop('beach_umbrella_blue', 10, 53); prop('beach_towel_sky', 11, 54);
   prop('seagull', 22, 59); prop('boat_rope', 27, 56); prop('bigrock', 3, 57); prop('beach_grass', 5, 50);
   prop('bench', 24, 49);
+  if (exteriorsWanted()) {
+    // Modern Exteriors: a second shade below the pier walk, castles on the wet sand, and the sea's own landmarks offshore.
+    // Shell spots, the stalls, the sunset view and the fishing spots stay clear.
+    prop('beach_umbrella_green', 29, 60); prop('beach_towel_lilac', 27, 60);
+    prop('sandcastle_wide', 13, 59); prop('sandcastle_tower', 16, 60);
+    prop('beach_grass', 1, 50); prop('beach_grass', 28, 52); prop('beach_grass', 19, 49);
+    prop('sea_rock_big', 2, 68); prop('sea_rock_tall', 25, 67); prop('sea_rock_small', 12, 66); prop('sea_rock_arch', 28, 72);
+    prop('buoy', 10, 70); prop('buoy_orange', 18, 69); prop('buoy_red', 6, 74);
+  }
 
   // Market shares the waterfront, with buildings behind its stalls and a walking aisle down the middle.
   rect(44, 59, 25, 4, 'p', true); rect(45, 62, 29, 3, 'b');
@@ -220,6 +235,15 @@ export function createVillageTerrain() {
   prop('bld_sh_fish_l', 74, 63); prop('village_fish_crate', 60, 67); prop('barrel', 79, 67);
   prop('lighthouse', 98, 67); prop('boat', 59, 74); prop('boat_rope', 74, 73); prop('boat', 87, 72);
   rails.push({ x: 57, y: 69, span: 32, axis: 'h' });
+  if (exteriorsWanted()) {
+    // Modern Exteriors: carts between the market stalls, cargo and benches against the south rail, gulls on the rails.
+    // The aisle, the stall counters, both pier mouths and the house doors stay open.
+    prop('wharf_flower_cart', 57, 60); prop('wharf_candy_cart', 41, 60);
+    prop('wharf_flower_box', 44, 68); prop('wharf_barrel', 52, 68); prop('wharf_barrel', 53, 68);
+    prop('wharf_flower_box', 60, 68); prop('wharf_bench', 64, 68); prop('gull_right', 59, 69);
+    prop('wharf_boxes', 75, 68); prop('wharf_box', 77, 68); prop('wharf_barrel', 78, 68);
+    prop('wharf_bench', 86, 68); prop('gull_left', 80, 69); prop('gull_right', 92, 69);
+  }
   for (const [x, y] of [[55, 65], [63, 65], [78, 66], [90, 67], [97, 69]]) prop('lantern_cream', x, y);
   // River walk remains on the residential bank, with a bridge to the wharf.
   path([[90, 49], [100, 49], [100, 52]], 2);
