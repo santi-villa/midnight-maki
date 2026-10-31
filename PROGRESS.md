@@ -100,3 +100,8 @@ Registro de avances **verificados** (✅ probado en navegador o por tests) y pen
 - Nueve distritos en coordenadas compartidas; dieciséis casas conservan sus IDs e interiores. Caminos, puertas, NPCs, misiones, comercios, cultivos y proyectos reubicados.
 - Migración única de posiciones exteriores antiguas sin borrar progreso. El paseo del mercado se recorre de día y sus actividades respetan el horario nocturno.
 - Validación: 643 pruebas, compilación y recorrido real automatizado con partida antigua, cruces, restaurante, noche y celular. Documentación: docs/villa-nori-mapa.md.
+
+## Segunda tanda del 31/10/2026 (ver docs/plan-mejoras-2026-10-31-b.md)
+- Pesca corregida, un árbol por zona, cámara de interiores con margen, restaurante ordenado con escalera ancha.
+- Exterior sin transiciones: las zonas vecinas se dibujan alrededor y cruzar un borde no hace fundido.
+- Luz nueva: la oscuridad es un canvas 2D; cada luz pinta su charco de color en el piso; faro con haz.
