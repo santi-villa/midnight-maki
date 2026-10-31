@@ -15,14 +15,16 @@ describe('village sample keeps the saved village playable', () => {
       .toEqual(['restaurant_1', 'restaurant_2', 'restaurant_3', 'restaurant_3']);
   });
   it('keeps the selected facade doors on the saved threshold and every light within its sprite', () => {
-    const placed = ZONES.plaza.props.find(p => p.id === 'bld_restaurant_s0')!;
     const door = ZONES.plaza.doors.find(d => d.to === 'restaurant')!;
     for (const stage of [0, 1, 2, 3]) {
-      const L = restaurantFacadeLayout(112, 112, stage);
+      // each stage may be its own building and size; its doorway stays on the saved threshold
+      const id = `bld_restaurant_s${stage}`, def = PROPS[id];
+      const placed = ZONES.plaza.props.find(p => p.id === id)!;
+      const L = restaurantFacadeLayout(def.sw, def.sh, stage);
       expect(Math.abs(placed.x * 16 + L.door.x + L.door.w / 2 - (door.x * 16 + 8))).toBeLessThanOrEqual(0.5);
-      expect((placed.y + 3) * 16 - 112 + L.door.y + L.door.h).toBe(door.y * 16 + 14);
+      expect((placed.y + def.h) * 16 - def.sh + L.door.y + L.door.h).toBe(door.y * 16 + 14);
       expect(L.x).toBeGreaterThanOrEqual(0); expect(L.y).toBeGreaterThanOrEqual(0);
-      expect(L.x + L.w).toBeLessThanOrEqual(112); expect(L.y + L.h).toBeLessThanOrEqual(112);
+      expect(L.x + L.w).toBeLessThanOrEqual(def.sw); expect(L.y + L.h).toBeLessThanOrEqual(def.sh);
       for (const w of L.windows) {
         expect(w.x).toBeGreaterThanOrEqual(L.x); expect(w.y).toBeGreaterThanOrEqual(L.y);
         expect(w.x + w.w).toBeLessThanOrEqual(L.x + L.w); expect(w.y + w.h).toBeLessThanOrEqual(L.y + L.h);

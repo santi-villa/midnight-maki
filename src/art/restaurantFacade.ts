@@ -1,8 +1,15 @@
 /** Shared geometry for the chosen source facades, their saved doorway and warm panes. */
 import catalog from '../assets/village/catalog.json';
+import { jpFacadeLayout } from './japaneseBuildings';
 
 export function restaurantFacadeLayout(W: number, H: number, stage: number) {
   const spec = catalog.facades[Math.min(2, Math.max(0, stage))];
+  // With the VectoRaith facades each stage is its own building; the doorway still lands on the same street tile.
+  const jp = jpFacadeLayout(`bld_restaurant_s${Math.min(3, Math.max(0, stage))}`, W, H);
+  if (jp) return {
+    frame: spec.frame as keyof typeof catalog.frames, x: jp.x, y: jp.y, w: jp.w, h: jp.h, door: jp.door, windows: jp.windows,
+    sign: jp.sign, lanterns: [jp.door.x - 7, jp.door.x + jp.door.w + 7].map(lx => ({ x: lx, y: jp.door.y + 2 })),
+  };
   const frame = catalog.frames[spec.frame as keyof typeof catalog.frames];
   const scale = Math.min((W - 8) / frame.w, (H - 2) / frame.h, spec.maxHeight / frame.h);
   const w = Math.round(frame.w * scale), h = Math.round(frame.h * scale);

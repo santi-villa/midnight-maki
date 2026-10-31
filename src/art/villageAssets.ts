@@ -4,6 +4,7 @@ import catalog from '../assets/village/catalog.json';
 import { ctx2d, makeCanvas, px, type Ctx } from './pixel';
 import { drawPlaque, pixTextWidth } from './pixfont';
 import { restaurantFacadeLayout } from './restaurantFacade';
+import { drawJpFacade } from './japaneseBuildings';
 
 export const VILLAGE_ATLAS_KEY = 'village-source';
 export const VILLAGE_ATLAS_URL = atlasURL;
@@ -40,7 +41,7 @@ export function villageObject(id: string, W: number, H: number, stage = 0, close
   const canvas = makeCanvas(W, H), c = ctx2d(canvas);
   if (restaurant) {
     const L = restaurantFacadeLayout(W, H, stage);
-    frame(c, L.frame, L.x, L.y, L.w, L.h);
+    if (!drawJpFacade(c, `bld_restaurant_s${Math.min(3, Math.max(0, stage))}`, W, H)) frame(c, L.frame, L.x, L.y, L.w, L.h);
     if (closed) {
       for (const window of L.windows) px(c, window.x, window.y, '#70543f', window.w, window.h);
       px(c, L.door.x + 1, L.door.y + 1, '#79573f', L.door.w - 2, L.door.h - 1);

@@ -1,4 +1,5 @@
 /** Static world props (not part of the decoration catalog). Footprint in tiles, sprite in px. */
+import { jpFootprint } from '../art/japaneseBuildings';
 export interface PropDef {
   kind: string;
   c1: string;
@@ -233,6 +234,8 @@ export const PROPS: Record<string, PropDef> = {
   bld_station: P('building', 8, 3, 128, 80, '#d8d0c4', '#5d5864', { variant: 5, label: 'ESTACIÓN VILLA NORI' }),
   bld_gallery: P('building', 5, 3, 80, 72, '#f6ecd6', '#7a5fb0', { variant: 8, label: 'GALERÍA' }),
   lighthouse: P('lighthouse', 3, 2, 48, 112),
+  // the Modern Exteriors lighthouse (7x16 tiles): its round base is the footprint, the door sits below its middle
+  lighthouse_tall: P('lighthouse', 5, 3, 112, 240),
   // side-entrance townhouses: `variant` = trade * 2 + (1 when the porch is on the right)
   bld_th_home_l: P('townhouse', 6, 3, 96, 80, '#f3e3c3', '#5d6b7a', { variant: 0 }),
   bld_th_home_r: P('townhouse', 6, 3, 96, 80, '#efe0c2', '#7a5a4a', { variant: 1 }),
@@ -291,3 +294,6 @@ export const PROPS: Record<string, PropDef> = {
   sign_plaza_right: P('signpost', 2, 1, 40, 30, '', '', { solid: false, label: 'PLAZA →' }),
   sign_lighthouse: P('signpost', 2, 1, 44, 30, '', '', { solid: false, label: 'FARO ↑' }),
 };
+
+// VectoRaith facades (art/japaneseBuildings.ts) bring their own size: the footprint grows to whole tiles around them.
+for (const id of Object.keys(PROPS)) { const fp = jpFootprint(id); if (fp) Object.assign(PROPS[id], fp); }

@@ -155,6 +155,7 @@ add_single('wharf_box', 'Caja', ['wharf_box'], '6_Garage_Sales', 'Garage_Sales_1
 add_single('wharf_flower_cart', 'Carro de flores', ['wharf_flower_cart'], '17_Garden', 'Garden_16x16_Big_Wood_Cart_Full_1')
 add_single('wharf_flower_box', 'Cajón con flores', ['wharf_flower_box'], '17_Garden', 'Garden_16x16_Wood_Box_Full_2')
 add_single('wharf_candy_cart', 'Carrito de golosinas', ['wharf_candy_cart'], '3_City_Props', 'City_Props_16x16_Candies_Cart_1')
+add_single('lighthouse', 'Faro', ['lighthouse_tall'], '21_Beach', '21_Beach_16x16_Example_Lighthouse')
 add_single('gull_left', 'Gaviota mirando a la izquierda', ['gull_left'], '21_Beach', '21_Beach_16x16_Seagull_Left')
 add_single('gull_right', 'Gaviota mirando a la derecha', ['gull_right'], '21_Beach', '21_Beach_16x16_Seagull_Right')
 

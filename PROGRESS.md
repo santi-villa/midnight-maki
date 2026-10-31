@@ -76,7 +76,11 @@ Registro de avances **verificados** (✅ probado en navegador o por tests) y pen
 - Plaza hecha: fuente con agua, bancos, faroles (su luz nocturna sale de la linterna), buzón, macetas, canteros sobre el empedrado y dos palomas. Bancos, faroles, buzón y macetas cambian en todas las zonas porque son los mismos objetos.
 - Puerto, mercado y estación hechos: carros, cajones, barriles, cajas, bancos y gaviotas en el muelle; banco, equipaje y macetas en el andén.
 - Jardín y barrio hechos: estatua, banco con macetas, carrito, casitas de pájaros y regadera; buzón y tacho en cada casa.
-- Sigue: faro (el del pack mide 7×16 y no entra en el islote).
+- Faro hecho: el del pack (7×16), en un islote nuevo más al sur con el muelle extendido hasta su puerta.
+
+## Edificios japoneses (VectoRaith, pack completo)
+- Restaurante (cuatro etapas, cada una un edificio), panadería, ropa, almacén y biblioteca con fachadas del pack. `?buildings=classic` compara. Ver docs/asset-credits.md.
+- Siguen: las 16 casas del barrio (hoy armadas con módulos de la demo), estación, casa del santuario y cabaña.
 
 ## Pendiente / próximos pasos
 - Jugar varias horas reales para afinar balance (precios de pescados ya reducidos).

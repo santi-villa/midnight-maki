@@ -121,11 +121,20 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
   street([[99, 51], [94, 51], [94, 54]], 2, 'b');
   street([[89, 58], [99, 58]], 2, 'b');
   // The lighthouse's land is rounded at tile resolution instead of a square grass platform.
+  // With Modern Exteriors the pack's 7x16 lighthouse needs open sky above it: its islet moves south into open water,
+  // clear of the riverside homes and the quay, and the jetty runs on to reach it.
+  const tallLighthouse = exteriorsWanted();
+  const islet = tallLighthouse ? { cx: 100.5, cy: 72, r: 5 } : { cx: 99, cy: 68, r: 4.5 };
   rect(95, 63, 9, 10, 'd');
-  for (let y = 63; y < 73; y++) for (let x = 94; x < 104; x++) if (((x + .5 - 99) / 4.5) ** 2 + ((y + .5 - 68) / 4.5) ** 2 < 1) set(x, y, 'g');
-  street([[90, 67], [99, 67], [99, 69]], 2, 'b');
+  for (let y = 60; y < 80; y++) for (let x = 92; x < 110; x++) if (((x + .5 - islet.cx) / islet.r) ** 2 + ((y + .5 - islet.cy) / islet.r) ** 2 < 1) set(x, y, 'g');
+  if (tallLighthouse) {
+    street([[90, 67], [96, 67], [96, 72]], 2, 'b');
+    props = props.filter(p => p.id !== 'lighthouse');
+    prop('lighthouse_tall', 98, 72);
+  } else street([[90, 67], [99, 67], [99, 69]], 2, 'b');
   props = props.filter(p => p.id !== 'bld_restaurant_s2');
-  for (let stage = 0; stage < 4; stage++) prop(`bld_restaurant_s${stage}`, 49, 49, `stage=${stage}`);
+  // every stage keeps its doorway on the same street tile, whatever its width (the inn is wider than the houses)
+  for (let stage = 0; stage < 4; stage++) prop(`bld_restaurant_s${stage}`, Math.round(52.5 - PROPS[`bld_restaurant_s${stage}`].w / 2), 49, `stage=${stage}`);
   prop('menuboard', 48, 54); prop('stall_wood', 69, 46); prop('stall_rose', 68, 53);
   prop('stall_sage', 6, 50); prop('stall_rose', 15, 50);
   prop('sign_forest', 28, 23); prop('sign_garden', 39, 41); prop('sign_beach', 40, 55);
@@ -171,8 +180,9 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
     const p = study.plots.find(p => p.id === id)!; entrance(to, ...p.door, tx, ty, name);
   }
   for (const h of HOUSES) zones[h.zone].doors.push(houseDoorDef(h));
-  entrance('lighthouse', 99, 69, 6, 10, 'Faro', false, { flag: 'lighthouse_open', msg: 'La puerta del faro tiene tres huecos con forma de estrella.' });
-  interaction('beach', 'lh_door', 99, 69);
+  const lhDoor: Point = tallLighthouse ? [100, 75] : [99, 69];
+  entrance('lighthouse', ...lhDoor, 6, 10, 'Faro', false, { flag: 'lighthouse_open', msg: 'La puerta del faro tiene tres huecos con forma de estrella.' });
+  interaction('beach', 'lh_door', ...lhDoor);
   // Seam crossings follow the actual continuous streets. Arrival is one tile inside, avoiding a return-door loop.
   const open = (x: number, y: number) => 'pcb'.includes(terrain[y]?.[x] ?? '!');
   const solidAt = (x: number, y: number) => props.some(p => {

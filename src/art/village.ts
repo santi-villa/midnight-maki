@@ -3,6 +3,7 @@
  */
 import { ellipse, px, shade, type Ctx } from './pixel';
 import { buildingLayout } from './nature';
+import { jpFacadeLayout } from './japaneseBuildings';
 import { cozyRoofRow } from './cozyAssets';
 
 const INK = '#4b3c32', WOOD = '#a07952', DARK = '#705239', LIGHT = '#d6b284';
@@ -51,8 +52,11 @@ function planter(c: Ctx, x: number, y: number, flowers: boolean) {
 }
 
 /** Same coordinates drive the shop art and the existing warm-window mask. */
+const SHOP_PROP: Record<number, string> = { 20: 'bld_store', 21: 'bld_bakery', 22: 'bld_clothes', 23: 'bld_library' };
 export function villageShopLayout(W: number, H: number, variant: number) {
   const base = buildingLayout(W, H);
+  const jp = jpFacadeLayout(SHOP_PROP[variant] ?? '', W, H);
+  if (jp) return { ...base, dx: jp.door.x, doorY: jp.door.y, doorW: jp.door.w, doorH: jp.door.h, windows: jp.windows };
   const centre = variant === 23 ? W / 2 + 8 : variant === 20 || variant === 22 ? W - 24 : 24;
   const wy = base.wallY + 13;
   return { ...base, dx: centre - 7, windows: variant === 23
