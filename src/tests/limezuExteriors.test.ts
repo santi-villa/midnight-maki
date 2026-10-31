@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import catalog from '../assets/limezu/exteriors.json';
 import { PROPS } from '../data/props';
-import { TILE_INDEX } from '../art/tiles';
+import { SEA_EDGES, TILE_INDEX } from '../art/tiles';
+import { seaDepthAt, seaEdge } from '../world/zoneRuntime';
 import { SEA_FRAMES } from '../art/exteriors';
 import { ZONES } from '../data/zones';
 
@@ -25,6 +26,24 @@ describe('LimeZu exterior pieces', () => {
       for (let p = 0; p < 2; p++) expect(TILE_INDEX[`seashore${p}_${f}`] && tiles[`seashore${p}_${f}`]).toBeTruthy();
     }
     expect(tiles.sand && tiles.sandpath).toBeTruthy();
+    for (const [kind, parities] of SEA_EDGES) for (let p = 0; p < parities; p++) for (let f = 0; f < SEA_FRAMES; f++) {
+      expect(tiles[`seashore${kind}${p}_${f}`], `seashore${kind}${p}_${f}`).toBeTruthy();
+      expect(TILE_INDEX[`seashore${kind}${p}_${f}`]).toBeGreaterThan(0);
+    }
+  });
+
+  it('follow a stepped coast with sides and corners, and lighten the sea near land', () => {
+    expect(seaEdge(['ddd', 'dds', 'ddd'], 1, 1)).toBe('seashoreE1'); // sand to the right only
+    expect(seaEdge(['ddd', 'sdd', 'ddd'], 1, 1)).toBe('seashoreW1'); // sand to the left only
+    expect(seaEdge(['ssd', 'sdd', 'ddd'], 1, 1)).toBe('seashoreNW0'); // sand above and to the left
+    expect(seaEdge(['dss', 'dds', 'ddd'], 1, 1)).toBe('seashoreNE0'); // sand above and to the right
+    expect(seaEdge(['ddd', 'sss', 'ddd'], 1, 2)).toBe('seashore1'); // sand above
+    expect(seaEdge(['dds', 'ddd', 'ddd'], 1, 1)).toBe('seashoreIE0'); // sand only diagonally up-right
+    expect(seaEdge(['ddd', 'ddd', 'ddd'], 1, 1)).toBeNull();
+    const coast = ['sssss', ...Array(8).fill('ddddd')];
+    expect(seaDepthAt(coast, 2, 2)).toBe('s');
+    expect(seaDepthAt(coast, 2, 8)).toBe('d');
+    expect(seaEdge(['gg', 'dd'], 0, 1)).toBeNull(); // grass gets no sandy foam
   });
 
   it('dress the plaza square: no earlier pack draws its props first, and the planters stand where the flat beds were', async () => {

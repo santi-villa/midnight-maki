@@ -72,9 +72,11 @@ Registro de avances **verificados** (✅ probado en navegador o por tests) y pen
 - Diálogo con borde doble y estrellitas.
 
 ## Exteriores con Modern Exteriors (LimeZu)
-- Playa hecha: arena, paseo de arena compacta, mar animado y orilla del pack; sombrillas, toallones, castillos, gaviota, boyas y rocas en el mar. `?exteriors=classic` compara. Ver docs/asset-credits.md.
+- Playa hecha (mapa nuevo): arena cálida, mar animado con orilla que sigue la costa (costados y esquinas), agua clara junto a tierra en todas las zonas de mar; dos sombrillas, castillos, gaviota, matas, rocas y boyas. `?exteriors=classic` compara. Ver docs/asset-credits.md.
 - Plaza hecha: fuente con agua, bancos, faroles (su luz nocturna sale de la linterna), buzón, macetas, canteros sobre el empedrado y dos palomas. Bancos, faroles, buzón y macetas cambian en todas las zonas porque son los mismos objetos.
-- Siguen: faro, plaza, mercado, calles, alrededores del restaurante, estación.
+- Puerto, mercado y estación hechos: carros, cajones, barriles, cajas, bancos y gaviotas en el muelle; banco, equipaje y macetas en el andén.
+- Jardín y barrio hechos: estatua, banco con macetas, carrito, casitas de pájaros y regadera; buzón y tacho en cada casa.
+- Sigue: faro (el del pack mide 7×16 y no entra en el islote).
 
 ## Pendiente / próximos pasos
 - Jugar varias horas reales para afinar balance (precios de pescados ya reducidos).
