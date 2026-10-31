@@ -10,3 +10,65 @@ button:disabled { cursor: url('../assets/ui/paw.png') 4 4, default; }
 }
 @keyframes dlg-next { to { background-position: -336px 0; } }
 @media (prefers-reduced-motion: reduce) { .dlg .next { animation: none; } }
+
+/* Sprout Lands frames for every menu (cut 3x in scripts/build-ui-assets.py; 9-slice, center filled). Loaded last, so it wins. */
+body .panel, body .pause-board, body .pause-card, body .load-card {
+  background: none; border-radius: 0; box-shadow: 0 14px 30px rgba(20, 12, 8, .4);
+  border: 15px solid transparent; border-image: url('../assets/ui/sl_panel.png') 15 fill / 15px stretch;
+}
+body .panel-head { background: transparent; border-radius: 0; border-bottom: 3px solid #c69a68; padding: 4px 6px 8px; }
+body .panel-foot { border-top: 3px solid #c69a68; }
+body .panel-body { padding: 10px 6px; }
+body .dlg {
+  background: none; border-radius: 0; box-shadow: 0 10px 24px rgba(20, 12, 8, .35);
+  border: 15px solid transparent; border-image: url('../assets/ui/sl_dialog.png') 15 15 18 15 fill / 15px 15px 18px 15px stretch;
+  padding: 2px 6px 0;
+}
+body .dlg .portrait { border: 12px solid transparent; border-image: url('../assets/ui/sl_frame.png') 15 fill / 12px stretch; border-radius: 0; background: none; }
+body .dlg .name, body .tabs .tab, body .btn, body .icon-btn, body .dlg .choices button {
+  background: none; border-radius: 0; box-shadow: none; text-shadow: none; color: #4a3020;
+  border: 12px solid transparent; border-image: url('../assets/ui/sl_btn.png') 12 12 15 12 fill / 12px 12px 15px 12px stretch;
+}
+body .btn { padding: 0 8px; }
+body .dlg .name { padding: 0 8px; top: -26px; }
+body .btn:hover:not(:disabled), body .icon-btn:hover, body .dlg .choices button:hover { background: none; filter: brightness(1.05); }
+body .btn:active, body .icon-btn:active, body .dlg .choices button:active, body .tab.active {
+  transform: translateY(2px); box-shadow: none; background: none;
+  border-image: url('../assets/ui/sl_btn_down.png') 12 12 12 12 fill / 12px stretch;
+}
+body .btn.primary { filter: saturate(1.35) hue-rotate(-8deg); }
+body .btn.rose { filter: hue-rotate(-28deg) saturate(1.2); }
+body .btn.sage { filter: hue-rotate(40deg) saturate(.8); }
+body .btn.ghost { filter: none; color: #f8eed3; border-image: none; border: 2px solid #dcc08e; }
+body .tabs { background: transparent; border-bottom: 3px solid #c69a68; }
+body .tab.active { transform: none; }
+body .close-x {
+  width: 40px; height: 40px; font-size: 0; color: transparent; border: 0; border-radius: 0; box-shadow: none;
+  background: url('../assets/ui/sl_close.png') center / 36px 40px no-repeat; image-rendering: pixelated;
+}
+body .slot, body .card {
+  background: none; border-radius: 0;
+  border: 12px solid transparent; border-image: url('../assets/ui/sl_tile.png') 12 12 15 12 fill / 12px 12px 15px 12px stretch;
+}
+body .slot { padding: 0; }
+body .slot.selected { background: none; border-image-source: url('../assets/ui/sl_tile_dark.png'); }
+
+/* loading screens: the pack's panel, a pressed-button track and a dialog box for the tips */
+.start-load { background: radial-gradient(ellipse at 50% 45%, rgba(58, 42, 34, .72) 0%, rgba(18, 14, 28, .9) 70%); }
+.start-load-card {
+  width: min(400px, 90vw); gap: 10px; padding: 10px 14px 6px; background: none; box-shadow: 0 18px 40px rgba(0, 0, 0, .5);
+  border: 15px solid transparent; border-image: url('../assets/ui/sl_panel.png') 15 fill / 15px stretch;
+}
+.start-load-title, .start-load-label, .start-load-count { color: #4a3020; text-shadow: none; }
+.start-load-title { font-size: 1.7em; color: #6b3f22; }
+.start-load-count { color: #8b6a46; }
+.start-load-bar {
+  width: min(280px, 72vw); height: 30px; padding: 0; background: none; overflow: hidden;
+  border: 9px solid transparent; border-image: url('../assets/ui/sl_btn_down.png') 12 fill / 9px stretch;
+}
+.start-load-bar i { background: linear-gradient(#bfe08a 0 35%, #8fbf5a 35% 80%, #6f9e45 80%); border-radius: 2px; }
+.start-load-tip {
+  min-height: 56px; padding: 0 4px; display: grid; place-items: center; background: none; color: #4a3020;
+  border: 15px solid transparent; border-image: url('../assets/ui/sl_dialog.png') 15 15 18 15 fill / 15px 15px 18px 15px stretch;
+}
+body .load-tip { color: #6b4f33; }

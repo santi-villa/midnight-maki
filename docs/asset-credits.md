@@ -205,4 +205,8 @@ Con `?exteriors=classic` vuelven el islote y el faro anteriores.
   `!`, `!!`, `...`, `z`, `*`, `♪`, `ñam`, `té`; cualquier otra frase sigue como globo de texto.
 - **Sprout Lands UI Pack** (Cup Nooble, versión básica gratuita: uso no comercial, sin
   redistribuir): cursor de pata de gato (normal, señalando sobre botones, apretando al hacer clic)
-  y el indicador animado de "seguir" del cuadro de diálogo (`src/ui/sproutUi.css`).
+  y el indicador animado de "seguir" del cuadro de diálogo (`src/ui/sproutUi.css`). Los menús usan
+  los marcos del pack con `border-image` (recortados al triple): panel del menú de opciones para
+  paneles y pantallas de carga, el botón ancho (y su versión apretada) para botones, pestañas y
+  opciones, la caja de diálogo para el diálogo y los consejos, el marco de madera para el retrato,
+  las baldosas para casilleros y la X del pack para cerrar.
