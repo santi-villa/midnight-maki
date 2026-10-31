@@ -33,7 +33,7 @@ describe('houses seen from the side', () => {
       const [dx, dy] = houseDoorTile(h);
       expect(dx, h.id).toBe(h.x + (h.side === 'l' ? 0 : 5));
       expect(ZONES[h.zone].props.some((p) => p.id === `bld_sh_${h.trade}_${h.side}` && p.x === h.x && p.y === h.y), `${h.id} prop`).toBe(true);
-      expect('pc'.includes(ZONES[h.zone].ground[dy + 1][dx]), `${h.id} path below the door`).toBe(true);
+      expect('pcb'.includes(ZONES[h.zone].ground[dy + 1][dx]), `${h.id} path below the door`).toBe(true);
     }
   });
 });
@@ -61,7 +61,7 @@ describe('outdoor zones', () => {
     for (const d of def.doors) {
       if (!d.lock) continue;
       const closed = buildZone('plaza');
-      expect(closed.grid.path(from[0], from[1], d.x, d.y, 30000), `closed ${d.to}`).toBeNull();
+      expect(closed.grid.isSolid(d.x, d.y), `closed ${d.to}`).toBe(true);
       expect(closed.props.some((p) => p.key.startsWith('block_')), 'an obstacle prop exists').toBe(true);
       game.setFlag(d.lock.flag);
       expect(buildZone('plaza').grid.path(from[0], from[1], d.x, d.y, 30000), `open ${d.to}`).not.toBeNull();

@@ -1,0 +1,6 @@
+Serene Village - revamped v1.9 by LimeZu
+https://limezu.itch.io/serenevillagerevamped
+Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+https://creativecommons.org/licenses/by/4.0/
+Changes for Midnight Maki: selected crops, transparent margins trimmed,
+greens and dirt palette adapted, packed in a small atlas. Native pixel size retained.

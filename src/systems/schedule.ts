@@ -45,6 +45,16 @@ export const SHOP_PLACES: ShopPlace[] = [
 ];
 
 const SHOP_BY_ID: Record<string, ShopPlace> = Object.fromEntries(SHOP_PLACES.map((s) => [s.id, s]));
+// Shop plaques are attached to their current facade, while stall staff stand in front of their counter.
+for (const [id, prop] of [['taro', 'bld_store'], ['yuki', 'bld_clothes'], ['bento', 'bld_bakery'], ['library', 'bld_library']]) {
+  const p = ZONES.plaza.props.find(p => p.id === prop)!;
+  SHOP_BY_ID[id].outdoor = { zone: 'plaza', x: p.x + 1, y: p.y + 1 };
+}
+for (const [id, interact] of [['ren', 'ren_stall'], ['sumi', 'sumi_stall'], ['nami', 'market_stall'], ['shells', 'market_stall2']]) {
+  const z = Object.values(ZONES).find(z => z.interact.some(i => i.id === interact))!;
+  const i = z.interact.find(i => i.id === interact)!;
+  Object.assign(SHOP_BY_ID[id], { zone: z.id, sign: { x: i.x, y: i.y }, ...(SHOP_BY_ID[id].counter ? { counter: { ...SHOP_BY_ID[id].counter, x: i.x, y: i.y + 1 } } : {}) });
+}
 
 /** On a festival afternoon or evening these neighbors come to the plaza. Shopkeepers stay at work. */
 export const FESTIVAL_SPOT: Record<string, RoutineStop> = {

@@ -3,7 +3,7 @@
  * ambient effects and interaction detection. Gameplay decisions are delegated to systems/actions.
  */
 import Phaser from 'phaser';
-import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, waterFrames } from '../art/tiles';
+import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
 import { RainFx } from './rainFx';
 import { rainCells, WetGround } from './rainmath';
@@ -53,7 +53,7 @@ import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { arrange, idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
-import { buildZone, condOk, doorLeadingTo, roomAt, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
+import { buildZone, condOk, doorLeadingTo, roomAt, seaParity, usesSea, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, lightTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
@@ -138,6 +138,8 @@ export class WorldScene extends Phaser.Scene {
   private pointerSteer = false;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private waterTiles: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[] = [];
+  /** the beach's sea: the pack's water, twice as many frames as the drawn ponds */
+  private sea = false;
   private shoreTiles: { x: number; y: number }[] = [];
   private bankTiles: { x: number; y: number; mask: number }[] = [];
   private waterFrame = 0;
@@ -609,6 +611,7 @@ export class WorldScene extends Phaser.Scene {
     this.overLayer.setDepth(-9.5);
     this.waterTiles = [];
     this.shoreTiles = [];
+    this.sea = usesSea(def);
     this.bankTiles = [];
     this.waterRain = null;
     const bankIdx = new Map<number, number>();
@@ -643,7 +646,7 @@ export class WorldScene extends Phaser.Scene {
           bounds: {
             left: px - p.def.sw / 2,
             right: px + p.def.sw / 2,
-            top: py - p.def.sh,
+            top: py - Math.max(p.def.sh, img.height),
             bottom: py,
           },
         });
@@ -651,7 +654,9 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.anim === 'sway' && !lowFx() && !settings.reduceMotion) {
         this.tweens.add({ targets: img, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
-      if (p.def.light) this.lamps.push({ x: px, y: py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 96 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 1.4 : 0.5 });
+      // a pack sprite taller than its definition (Modern Exteriors lamps) keeps the glow on its lantern, not mid-pole
+      const tall = img.height > p.def.sh;
+      if (p.def.light) this.lamps.push({ x: px, y: tall ? py - img.height + 8 : py - p.def.sh * 0.7, r: p.def.kind === 'lamppost' ? 96 : 62, flicker: p.def.kind !== 'lamppost', color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: p.def.kind === 'lamppost' ? 1.4 : 0.5 });
       this.objs.push(img);
       this.propImgs.set(`${p.x},${p.y}`, img);
       if (!onWall && !p.def.ground && p.def.sombra !== 'ninguna') {
@@ -706,7 +711,7 @@ export class WorldScene extends Phaser.Scene {
         this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 34, flicker: true, color: 0xffd56a, glow: 0.62, kind: 'spill', home: true, homeId, seed });
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front', undefined, homeId);
       }
-      if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - p.def.sh + 6);
+      if (p.def.anim === 'water' && !lowFx()) this.addFountainSpray(px, py - Math.max(p.def.sh, img.height) + 6);
     }
     // The deck is continuous terrain; railings follow its actual shoreline, including the L-shaped join.
     for (const rail of bridgeRails(def.ground)) {
@@ -950,6 +955,10 @@ export class WorldScene extends Phaser.Scene {
   private impatientParties = new Set<string>();
   private ateParties = new Set<string>();
   private hostId: string | null = null;
+  /** Last restaurant phase seen, so opening the doors plays once. */
+  private serviceSeen: string | null = null;
+  /** Seconds Pip stays at the door after the bell. */
+  private serviceHold = 0;
   private hostWait = 0;
   private speech = new SpeechTurns();
   private speechActor: Actor | null = null;
@@ -1142,9 +1151,32 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  /** Lights, the door bell and Pip at the entrance, once, when dinner service starts. */
+  private watchService(dt: number) {
+    const phase = restaurantPhase(clock.period, game.save.time.minutes);
+    if (this.serviceHold > 0) {
+      this.serviceHold = Math.max(0, this.serviceHold - dt);
+      if (this.serviceHold === 0 && !this.hostId) this.town.duty('pip', null);
+    }
+    if (this.serviceSeen === null) { this.serviceSeen = phase; return; }
+    if (phase === this.serviceSeen) return;
+    const prev = this.serviceSeen;
+    this.serviceSeen = phase;
+    if (prev === 'open' || phase !== 'open' || !game.has('intro_done') || this.hostId) return;
+    audio.sfxPlay('bell');
+    this.refreshShopFacades();
+    this.note('Midnight Maki abre. Pip está en la puerta.');
+    this.rememberResidents();
+    this.town.duty('pip', { zone: 'restaurant', x: 8, y: 12, wander: 0, act: 'look', dir: 'down' });
+    this.serviceHold = 8;
+    if (this.zoneId === 'restaurant') this.sayLine('pip', '¡Ya abrimos! Pasen, pasen.', 3.5);
+  }
+
   /** Visitors keep walking and meals finish even while Sofi is in another map. */
   private pumpFloor(dt: number) {
-    if (!game.has('intro_done') || !this.zone || this.transitioning || this.inputLocked || this.decorMode || clock.paused || this.mealBusy) return;
+    if (!game.has('intro_done') || !this.zone || this.transitioning || this.inputLocked || this.decorMode || clock.paused) return;
+    this.watchService(dt);
+    if (this.mealBusy) return;
     const pieces = this.diningPieces();
     canAcceptGuest(pieces);
     if (!this.restoredDining) { this.restoredDining = true; this.restoreVisitors(); }
@@ -1157,7 +1189,7 @@ export class WorldScene extends Phaser.Scene {
       const customers = town ? [town] : chooseParty(pieces);
       if (customers.length) {
         const customer = customers[0];
-        const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
+        const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 18, y: 14 } : { zone: 'plaza', x: 14, y: 34 };
         const spots = this.partySpots(customers.length, 'reception');
         const trips = Array.from({ length: customers.length }, (_, i) => {
           const trip = new Journey({ ...origin, x: origin.x + i }, this.town.grid, 2.5);
@@ -1254,7 +1286,7 @@ export class WorldScene extends Phaser.Scene {
     const reserved = new Set<string>();
     for (const g of guestViews()) {
       if (this.visitors.has(g.id)) continue;
-      const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 17, y: 10 } : { zone: 'plaza', x: 15, y: 24 };
+      const origin: Position = game.has('unlock_station') ? { zone: 'station', x: 18, y: 14 } : { zone: 'plaza', x: 14, y: 34 };
       const seated = ['seated', 'waiting_order', 'waiting_food', 'eating', 'paying'].includes(g.phase);
       const waiting = g.phase === 'queued' || g.phase === 'reception' || g.phase === 'outside';
       const spots = waiting ? this.partySpots(g.members.length, g.phase === 'queued' ? 'wait' : 'reception', g.id, reserved) : [];
@@ -1289,6 +1321,17 @@ export class WorldScene extends Phaser.Scene {
           art.fillStyle(ready[i].kind === 'drink' ? 0x8ab9ad : 0xf6ecd6).fillRect(6 * TILE + i * 4, 4 * TILE + 10, 3, 3);
         }
         if (drinksUnlocked()) { art.fillStyle(0xe9d8b1).fillRect(2 * TILE + 4, 2 * TILE + 2, 5, 5); art.fillStyle(0x91ab69).fillRect(2 * TILE + 5, 2 * TILE + 3, 3, 2); }
+      }
+      // a plate on the table while they eat, and a coin while they pay, so the salon reads from across the room
+      for (const view of guestViews()) {
+        if (view.phase !== 'eating' && view.phase !== 'paying') continue;
+        const f = this.zone.furniture.find((fi) => String(fi.f.uid) === view.tableId);
+        if (!f) continue;
+        const size = furnSize(f.def, f.f.rot);
+        const x = f.f.x * TILE + size.w * TILE / 2;
+        const y = f.f.y * TILE + 8;
+        art.fillStyle(0xf6efe2).fillCircle(x, y, 5);
+        art.fillStyle(view.phase === 'paying' ? 0xf2c66d : 0xc45c48).fillCircle(x, y, 2);
       }
       // guests waiting for a free table show how much patience they have left; at zero they leave
       for (const view of guestViews()) {
@@ -1606,7 +1649,7 @@ export class WorldScene extends Phaser.Scene {
     const party = views.find((v) => v.phase === 'reception' || v.phase === 'queued');
     if (!party) {
       this.hostId = null;
-      this.town.duty('pip', null);
+      if (this.serviceHold <= 0) this.town.duty('pip', null);
       return;
     }
     const visitor = this.visitors.get(party.id);
@@ -1986,10 +2029,11 @@ export class WorldScene extends Phaser.Scene {
 
   playZoneAudio() {
     let track = (this.zone.def.music || 'town') as Track;
+    if (this.zoneId === 'market' && !game.has('market_open')) track = 'town';
     if (track === 'restaurant' && clock.period >= 2) track = 'restaurant_night';
     if (game.flag('festival_today') && this.zone.def.outdoor && this.zoneId === 'plaza') track = 'festival';
     // outdoors at night the crickets (and the sea) are the music: nothing on top, so the night feels like night
-    if (this.zone.def.outdoor && clock.isNight() && track !== 'festival' && this.zoneId !== 'market') track = 'none' as Track;
+    if (this.zone.def.outdoor && clock.isNight() && track !== 'festival' && this.zoneId !== 'market') track = (this.zoneId === 'plaza' ? 'town_night' : 'none') as Track;
     audio.play(track);
     const rain = game.flag('weather') === 'rain';
     audio.ambience(rain ? (this.zone.def.outdoor ? 'rain' : 'rain_inside') : this.zoneId === 'beach' ? (clock.isNight() ? 'waves_night' : 'waves') : clock.isNight() && this.zone.def.outdoor ? 'night' : 'none');
@@ -3359,10 +3403,17 @@ export class WorldScene extends Phaser.Scene {
   private applyWater(frame: number, rain: boolean) {
     const L = this.layer;
     if (!L) return;
-    for (const w of this.waterTiles) L.putTileAt(waterFrames(w.depth, w.v, rain)[(frame + w.v) % 4], w.x, w.y);
-    for (const t of this.shoreTiles) L.putTileAt(SHORE_FRAMES[(frame + t.x) % 4], t.x, t.y);
+    if (this.sea) {
+      // one shared frame for the whole sea: the pack's pattern only lines up when every tile moves together
+      for (const w of this.waterTiles) L.putTileAt(seaFrames(w.depth, seaParity(w.x, w.y), rain)[frame], w.x, w.y);
+      for (const t of this.shoreTiles) L.putTileAt(seaShoreFrames(t.x % 2)[frame], t.x, t.y);
+    } else {
+      const f = frame >> 1;
+      for (const w of this.waterTiles) L.putTileAt(waterFrames(w.depth, w.v, rain)[(f + w.v) % 4], w.x, w.y);
+      for (const t of this.shoreTiles) L.putTileAt(SHORE_FRAMES[(f + t.x) % 4], t.x, t.y);
+    }
     const O = this.overLayer;
-    if (O) for (const b of this.bankTiles) O.putTileAt(TILE_INDEX[((frame >> 1) + b.x + b.y) % 2 ? 'bkb' + b.mask : 'bk' + b.mask], b.x, b.y);
+    if (O) for (const b of this.bankTiles) O.putTileAt(TILE_INDEX[((frame >> 2) + b.x + b.y) % 2 ? 'bkb' + b.mask : 'bk' + b.mask], b.x, b.y);
   }
 
   /** Water animation: 4 frames at ~2 fps. Battery / reduced-motion mode keeps one still frame (but still follows the rain). */
@@ -3377,10 +3428,11 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     this.waterT += dt;
-    if (this.waterT < 0.45 && this.waterRain === rain) return;
+    // 8 steps per cycle: the sea shows each one, the drawn ponds every other one (still 0.45 s per frame)
+    if (this.waterT < 0.225 && this.waterRain === rain) return;
     this.waterT = 0;
     this.waterRain = rain;
-    this.waterFrame = (this.waterFrame + 1) % 4;
+    this.waterFrame = (this.waterFrame + 1) % 8;
     this.applyWater(this.waterFrame, rain);
   }
 

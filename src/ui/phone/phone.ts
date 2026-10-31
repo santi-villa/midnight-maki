@@ -20,7 +20,7 @@ import { phoneAppIcon, phoneCharm, phoneDeco, phoneSignals } from './appIcons';
 import { caseGeometry, drawCase, SIDE_MARGIN } from './caseArt';
 import { COLORS, COLOR_BY_ID, MODELS, MODEL_BY_ID, WALLPAPERS, WALLPAPER_BY_ID, type PhoneKind } from './catalog';
 import { phoneExplore, phoneKeyIntent } from './phoneKey';
-import { APPS_PER_PAGE, clampPage, orderPhoneApps, phonePages } from './pages';
+import { clampPage, groupPhoneApps, orderPhoneApps } from './pages';
 import { choose, isUnlocked, markDesignsSeen, noveltyCounts, phonePrefs, refreshUnlocks, unseenDesigns } from './prefs';
 import { wallpaperCanvas, wallpaperTile } from './wallpapers';
 import './phone.css';
@@ -283,13 +283,14 @@ function renderHome() {
   view.className = 'pn-view is-home';
   view.innerHTML = '';
   const apps = allApps();
-  const pages = phonePages(apps, APPS_PER_PAGE);
+  const pages = groupPhoneApps(apps);
   homePage = clampPage(homePage, pages.length);
   const n = noveltyCounts();
   const track = h('div', { class: 'pn-track' });
   pages.forEach((page, i) => {
-    const grid = h('div', { class: 'pn-page', role: 'group', 'aria-label': `Página ${i + 1} de ${pages.length}` });
-    for (const app of page) grid.append(appButton(app, n));
+    const grid = h('div', { class: 'pn-page', role: 'group', 'aria-label': `${page.title}, página ${i + 1} de ${pages.length}` });
+    grid.append(h('div', { class: 'pn-section' }, page.title));
+    for (const app of page.apps) grid.append(appButton(app, n));
     track.append(grid);
   });
   const pager = h('div', { class: 'pn-pager' });
@@ -326,13 +327,13 @@ function renderHome() {
     }
   };
   pages.forEach((page, i) => {
-    const alert = page.some((app) => badgeFor(app.id, n));
+    const alert = page.apps.some((app) => badgeFor(app.id, n));
     dots.append(h('button', {
       type: 'button',
       class: 'pn-dot' + (i === homePage ? ' on' : '') + (alert ? ' has-badge' : ''),
       role: 'tab',
       'aria-selected': String(i === homePage),
-      'aria-label': `Página ${i + 1} de ${pages.length}`,
+      'aria-label': `${page.title}, página ${i + 1} de ${pages.length}`,
       onclick: () => { if (i !== homePage) show(i); },
     }));
   });

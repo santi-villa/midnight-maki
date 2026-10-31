@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { phoneArtGrids } from '../ui/phone/appIcons';
-import { APPS_PER_PAGE, clampPage, HOME_ORDER, orderPhoneApps, phonePages } from '../ui/phone/pages';
+import { APPS_PER_PAGE, clampPage, groupPhoneApps, HOME_ORDER, orderPhoneApps, phonePages } from '../ui/phone/pages';
 
 const ids = ['camera', 'photos', 'map', 'quests', 'friends', 'collections', 'recipes', 'restaurant', 'calendar', 'memories', 'investigation', 'bag', 'settings', 'more', 'customize'];
 
@@ -20,6 +20,14 @@ describe('NoriPhone home pages', () => {
     expect(clampPage(8, 3)).toBe(2);
     expect(clampPage(Number.NaN, 3)).toBe(0);
     expect(phonePages([])).toEqual([[]]);
+  });
+
+  it('groups the home screen into jugar, gente and sistema', () => {
+    const pages = groupPhoneApps(orderPhoneApps(ids.map((id) => ({ id }))));
+    expect(pages.map((page) => page.title)).toEqual(['Jugar', 'Gente', 'Sistema']);
+    expect(pages[0].apps.map((app) => app.id)).toEqual(['quests', 'map', 'bag', 'recipes', 'restaurant', 'camera']);
+    expect(pages[1].apps.map((app) => app.id)).toEqual(['friends', 'photos', 'collections', 'calendar', 'memories', 'investigation']);
+    expect(pages[2].apps.map((app) => app.id)).toEqual(['customize', 'settings', 'more']);
   });
 
   it('draws an icon for every home app', () => {

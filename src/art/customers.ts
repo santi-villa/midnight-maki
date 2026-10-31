@@ -108,7 +108,11 @@ function head(s: CustomerStyle, side: boolean, blink: boolean, chew = false, bac
       b.ellipse(muzzleX, 18, side ? 4 : 5, 2, s.light);
       eyes(b, side, 12, blink, cx);
       b.hline(muzzleX, 16, 2, OUT).set(muzzleX, 17, OUT);
-      if (s.id === 'hana') for (const dx of [-6, 5]) b.hline(cx + dx, 17, 3, s.shade);
+      if (s.id === 'hana' || s.id === 'kuri') for (const dx of [-7, 4]) b.hline(cx + dx, 16, 3, s.shade);
+      if (!side) {
+        b.set(cx - 6, 15, PINK);
+        b.set(cx + 6, 15, PINK);
+      }
       break;
     }
     case 'oli':
@@ -302,6 +306,10 @@ function customerFrame(s: CustomerStyle, p: Pose = {}) {
   body.rect(x - 6, top + 2, 13, seated ? 4 : 7, shirt);
   body.vline(x - 4, top + 2, seated ? 4 : 7, penguin ? s.light : s.shirtLight);
   body.vline(x + 5, top + 2, seated ? 4 : 7, penguin ? s.shade : s.shirtShade);
+  if (!back && !penguin && !giraffe) {
+    body.hline(x - 2, top, 5, s.shirtShade);
+    body.set(x, top + 1, s.shirtLight);
+  }
 
   if (back) {
     if (giraffe) body.rect(x - 1, y - 3, 3, 7, s.fur);

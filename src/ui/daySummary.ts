@@ -5,6 +5,7 @@
 import { audio } from '../audio/audio';
 import { game } from '../core/state';
 import { CHAR_BY_ID } from '../data/characters';
+import { NEIGHBOR_BY_ID } from '../data/neighbors';
 import { portraitURL } from '../systems/appearance';
 import { h, panel } from './dom';
 
@@ -14,6 +15,7 @@ type Snap = { stats: Record<string, number>; friends: Record<string, number> };
 function current(): Snap {
   const stats: Record<string, number> = {};
   for (const k of TRACKED) stats[k] = game.save.stats[k] ?? 0;
+  stats.burnt = game.save.stats.burnt ?? 0;
   const friends: Record<string, number> = {};
   for (const [id, r] of Object.entries(game.save.relationships)) friends[id] = r.points;
   return { stats, friends };
@@ -61,6 +63,23 @@ function comment(served: number, friendsUp: number, coins: number): { who: strin
   return calm[game.save.time.day % calm.length];
 }
 
+/** One human thing from the day: who ate, what burned, who you talked to, or who you missed. */
+function humanLine(burnt: number): string | null {
+  const day = game.save.time.day;
+  if (burnt > 0) return burnt === 1 ? 'En la cocina se quemó algo. Mañana sale mejor.' : `En la cocina se quemaron ${burnt} preparaciones.`;
+  const came = Object.entries(game.save.clients?.regulars ?? {})
+    .filter(([, r]) => r.last === day)
+    .map(([id]) => NEIGHBOR_BY_ID[id]?.name)
+    .filter((name): name is string => !!name);
+  if (came.length === 1) return `Hoy comió en el salón ${came[0]}.`;
+  if (came.length > 1) return `Hoy pasaron por el salón ${came.slice(0, 3).join(', ')}.`;
+  const talked = Object.entries(game.save.relationships).find(([id, r]) => r.lastTalkDay === day && !!CHAR_BY_ID[id] && !['pip', 'spicy', 'rigg'].includes(id));
+  if (talked) return `Hoy hablaste con ${CHAR_BY_ID[talked[0]].name}.`;
+  const missed = ['pip', 'spicy', 'rigg'].find((id) => (game.save.relationships[id]?.lastTalkDay ?? 0) !== day);
+  if (missed && game.has('intro_done')) return `Hoy no alcanzaste a hablar con ${CHAR_BY_ID[missed].name}.`;
+  return null;
+}
+
 /** Shows the day summary and resolves when the player closes it. */
 export function showDaySummary(): Promise<void> {
   const now = current();
@@ -80,11 +99,14 @@ export function showDaySummary(): Promise<void> {
   }
   const coins = (now.stats.coinsEarned ?? 0) - (prev.stats.coinsEarned ?? 0);
   const served = (now.stats.served ?? 0) - (prev.stats.served ?? 0);
+  const burnt = prev.stats.burnt == null ? 0 : (now.stats.burnt ?? 0) - prev.stats.burnt;
   const c = comment(served, friendsUp, coins);
+  const memory = humanLine(burnt);
   const body = h('div', { class: 'ds' },
     h('div', { class: 'ds-title' }, `Día ${game.save.time.day}`),
     rows.length ? h('div', { class: 'ds-grid' }, ...rows) : h('p', { class: 'hint' }, 'Un día tranquilo, sin apuros.'),
     friendRows.length ? h('div', null, h('div', { class: 'cr-label' }, 'Amistades que crecieron'), h('div', { class: 'ds-friends' }, ...friendRows)) : null,
+    memory ? h('p', { class: 'hint' }, memory) : null,
     h('div', { class: 'ds-comment' }, h('img', { src: portraitURL(c.who, 'happy'), alt: '' }), h('div', null, h('b', null, CHAR_BY_ID[c.who]?.name ?? ''), h('div', null, c.text))),
   );
   audio.sfxPlay('success');

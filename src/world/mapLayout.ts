@@ -6,6 +6,7 @@ export interface Placed { z: ZoneDef; x: number; y: number }
 /** Places every outdoor zone next to the one it connects to, door against door. */
 export function layout(): Placed[] {
   const root = ZONES.plaza;
+  if (root.world) return Object.values(ZONES).filter(z => z.outdoor && z.world).map(z => ({ z, x: z.world!.x - root.world!.x, y: z.world!.y - root.world!.y }));
   const placed = new Map<string, Placed>([[root.id, { z: root, x: 0, y: 0 }]]);
   const queue = [root.id];
   while (queue.length) {

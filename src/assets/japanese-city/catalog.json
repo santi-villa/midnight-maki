@@ -1,0 +1,268 @@
+{
+  "author": "GuttyKreum",
+  "pack": "The Japan Collection: Japanese City (Free Version)",
+  "url": "https://guttykreum.itch.io/free-japanese-city-game-assets",
+  "source": "Free_Version/Tilemap/Tilemap.png",
+  "sourceSha256": "2b57f857269a1270884b702ba3fbf15a2105994587222953f6bd93bc09a889b6",
+  "sourceTileSize": 32,
+  "scale": 1,
+  "width": 256,
+  "height": 128,
+  "pieces": [
+    {
+      "id": "vending_red",
+      "name": "Expendedora roja",
+      "replaces": [
+        "vending_red"
+      ],
+      "sourceRects": [
+        [
+          384,
+          64,
+          32,
+          32
+        ]
+      ],
+      "trim": [
+        5,
+        6,
+        27,
+        32
+      ],
+      "atlas": {
+        "x": 0,
+        "y": 0,
+        "w": 22,
+        "h": 26
+      }
+    },
+    {
+      "id": "vending_white",
+      "name": "Expendedora blanca",
+      "replaces": [
+        "vending_blue"
+      ],
+      "sourceRects": [
+        [
+          416,
+          64,
+          32,
+          32
+        ]
+      ],
+      "trim": [
+        5,
+        6,
+        27,
+        32
+      ],
+      "atlas": {
+        "x": 24,
+        "y": 0,
+        "w": 22,
+        "h": 26
+      }
+    },
+    {
+      "id": "power_pole",
+      "name": "Poste eléctrico",
+      "replaces": [
+        "jc_power_pole"
+      ],
+      "sourceRects": [
+        [
+          448,
+          64,
+          32,
+          96
+        ]
+      ],
+      "trim": [
+        11,
+        13,
+        21,
+        90
+      ],
+      "atlas": {
+        "x": 48,
+        "y": 0,
+        "w": 10,
+        "h": 77
+      }
+    },
+    {
+      "id": "power_pole_transformer",
+      "name": "Poste con transformador",
+      "replaces": [
+        "jc_power_pole_transformer"
+      ],
+      "sourceRects": [
+        [
+          480,
+          64,
+          32,
+          96
+        ]
+      ],
+      "trim": [
+        11,
+        13,
+        27,
+        90
+      ],
+      "atlas": {
+        "x": 60,
+        "y": 0,
+        "w": 16,
+        "h": 77
+      }
+    },
+    {
+      "id": "shop_sign_left",
+      "name": "Letrero comercial izquierdo",
+      "replaces": [
+        "jc_shop_sign_left"
+      ],
+      "sourceRects": [
+        [
+          672,
+          224,
+          32,
+          32
+        ]
+      ],
+      "trim": [
+        0,
+        0,
+        24,
+        32
+      ],
+      "atlas": {
+        "x": 78,
+        "y": 0,
+        "w": 24,
+        "h": 32
+      }
+    },
+    {
+      "id": "shop_sign_right",
+      "name": "Letrero comercial derecho",
+      "replaces": [
+        "jc_shop_sign_right"
+      ],
+      "sourceRects": [
+        [
+          704,
+          224,
+          32,
+          32
+        ]
+      ],
+      "trim": [
+        8,
+        0,
+        32,
+        32
+      ],
+      "atlas": {
+        "x": 104,
+        "y": 0,
+        "w": 24,
+        "h": 32
+      }
+    },
+    {
+      "id": "shop_display",
+      "name": "Expositor de comercio",
+      "replaces": [
+        "jc_shop_display"
+      ],
+      "sourceRects": [
+        [
+          512,
+          144,
+          32,
+          16
+        ]
+      ],
+      "trim": [
+        0,
+        2,
+        32,
+        16
+      ],
+      "atlas": {
+        "x": 130,
+        "y": 0,
+        "w": 32,
+        "h": 14
+      }
+    },
+    {
+      "id": "market_blue",
+      "name": "Puesto de toldo azul",
+      "replaces": [
+        "jc_market_blue"
+      ],
+      "sourceRects": [
+        [
+          672,
+          352,
+          64,
+          48
+        ],
+        [
+          512,
+          144,
+          32,
+          16
+        ]
+      ],
+      "trim": [
+        0,
+        0,
+        64,
+        48
+      ],
+      "atlas": {
+        "x": 164,
+        "y": 0,
+        "w": 64,
+        "h": 48
+      }
+    },
+    {
+      "id": "market_red",
+      "name": "Puesto de toldo rojo",
+      "replaces": [
+        "jc_market_red"
+      ],
+      "sourceRects": [
+        [
+          736,
+          352,
+          64,
+          48
+        ],
+        [
+          512,
+          144,
+          32,
+          16
+        ]
+      ],
+      "trim": [
+        0,
+        0,
+        64,
+        48
+      ],
+      "atlas": {
+        "x": 0,
+        "y": 79,
+        "w": 64,
+        "h": 48
+      }
+    }
+  ]
+}

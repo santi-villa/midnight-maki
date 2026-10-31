@@ -4,6 +4,8 @@ import { drawBridgeTile } from './bridges';
 import { bank, bridgeTile, brightGrass, darkGrassBright, flowerBedBright, fringe, GREY_STONE, pathTile, paverTile, sandTile, shoreTile, shoreTileFrame, soilTile, waterTile } from './nature';
 import { barFloor, plankFloor, izakayaFloor, izakayaTop, izakayaUpper, izakayaWall, izakayaWindow, tatamiMat } from './izakaya';
 import { ctx2d, makeCanvas, px, rng, shade, type Ctx } from './pixel';
+import { drawExteriorTile, SEA_FRAMES } from './exteriors';
+import { drawVillageCliff } from './serene';
 
 export const TS = 16;
 
@@ -134,6 +136,7 @@ function voidTile(): TileDraw {
 /** Rock face of a hillside: 0 = the rim with grass hanging over it, 1 = the face, 2 = the foot with its shadow. */
 function cliffTile(part: 0 | 1 | 2): TileDraw {
   return (c, x, y, r) => {
+    if (drawVillageCliff(c, x, y, part)) return;
     const base = '#8d7a64', dark = '#5b4b3d', light = '#b9a38a', mid = '#7a6753';
     px(c, x, y, base, 16, 16);
     for (let j = 0; j < 16; j += 5) {
@@ -204,9 +207,14 @@ add('dirt', false, pathTile(0));
 add('dirt1', false, pathTile(1));
 add('dirt2', false, pathTile(2));
 for (let i = 0; i < 3; i++) add('cobble' + (i || ''), false, paverTile(i));
-add('sand', false, sandTile(0));
-add('sand1', false, sandTile(1));
-add('sand2', false, sandTile(2));
+for (let i = 0; i < 3; i++) add('civic' + (i || ''), false, paverTile(i, GREY_STONE));
+// sand: the Modern Exteriors pattern when its atlas is installed, the drawn one otherwise
+const sand = (i: number): TileDraw => (c, x, y, r) => { if (!drawExteriorTile(c, x, y, 'sand')) sandTile(i)(c, x, y, r); };
+add('sand', false, sand(0));
+add('sand1', false, sand(1));
+add('sand2', false, sand(2));
+// packed sand: the beach's walks (the darker pattern of the same pack, wet and trodden)
+add('sandpath', false, (c, x, y, r) => { if (!drawExteriorTile(c, x, y, 'sandpath')) pathTile(0)(c, x, y, r); });
 add('shore', true, shoreTile);
 for (let f = 1; f < 4; f++) add('shore' + f, true, shoreTileFrame(f));
 // water: wt<calm|rain><shallow|deep><variant>_<frame>; water0 / deep0 stay as aliases of the first calm frame
@@ -216,6 +224,19 @@ add('deep0', true, waterTile(0, 0, 'deep', false));
 for (const rain of [false, true])
   for (const depth of ['shallow', 'mid', 'deep'] as const)
     for (let v = 0; v < 3; v++) for (let f = 0; f < 4; f++) add(`wt${rain ? 'r' : 'c'}${depth[0]}${v}_${f}`, true, waterTile(v, f, depth, rain));
+// the open sea (beach): sea<calm|rain><s|m|d><parity>_<frame>, the pack's 2x2 water pattern with its 8 frames;
+// deeper water and rain are a tint over the same pixels. Without the atlas it falls back to the drawn water.
+const SEA_TINT = { s: '', m: 'rgba(18,58,112,0.16)', d: 'rgba(14,40,92,0.32)' } as const;
+for (const rain of [false, true])
+  for (const depth of ['s', 'm', 'd'] as const)
+    for (let p = 0; p < 4; p++) for (let f = 0; f < SEA_FRAMES; f++) add(`sea${rain ? 'r' : 'c'}${depth}${p}_${f}`, true, (c, x, y, r) => {
+      if (!drawExteriorTile(c, x, y, `sea${p}_${f}`)) return waterTile(p % 3, f % 4, depth === 's' ? 'shallow' : depth === 'm' ? 'mid' : 'deep', rain)(c, x, y, r);
+      for (const tint of [SEA_TINT[depth], rain ? 'rgba(96,104,120,0.28)' : '']) if (tint) { c.fillStyle = tint; c.fillRect(x, y, 16, 16); }
+    });
+// the sea's waterline under dry sand (a two-tile pattern)
+for (let p = 0; p < 2; p++) for (let f = 0; f < SEA_FRAMES; f++) add(`seashore${p}_${f}`, true, (c, x, y, r) => {
+  if (!drawExteriorTile(c, x, y, `seashore${p}_${f}`)) shoreTileFrame(f % 4)(c, x, y, r);
+});
 add('bridge', false, bridgeTile);
 for (let mask = 0; mask < 256; mask++) add('bridge_' + mask, false, (c, x, y) => drawBridgeTile(c, x, y, mask));
 add('mat', false, doorMat());
@@ -272,6 +293,13 @@ export function waterFrames(depth: 's' | 'm' | 'd', variant: number, rain: boole
 }
 /** Beach waterline frames (frame 0 is the plain 'shore' tile). */
 export const SHORE_FRAMES = [TILE_INDEX.shore, TILE_INDEX.shore1, TILE_INDEX.shore2, TILE_INDEX.shore3];
+/** The animation frames of a sea tile (parity = x % 2 + 2 * (y % 2)) and of the sea's waterline (parity = x % 2). */
+export function seaFrames(depth: 's' | 'm' | 'd', parity: number, rain: boolean): number[] {
+  return Array.from({ length: SEA_FRAMES }, (_, f) => TILE_INDEX[`sea${rain ? 'r' : 'c'}${depth}${parity}_${f}`]);
+}
+export function seaShoreFrames(parity: number): number[] {
+  return Array.from({ length: SEA_FRAMES }, (_, f) => TILE_INDEX[`seashore${parity}_${f}`]);
+}
 
 export const TILESET_COLS = 16;
 

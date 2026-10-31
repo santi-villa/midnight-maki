@@ -6,8 +6,9 @@ import type { Dir } from '../core/types';
 import { Builder, RESTAURANT_ENTRY, treeBorder, zone } from './zoneKit';
 import { plaza } from './plazaMap';
 import { houseDoorDef, houseEntrancePaths, housePropId, housesIn, houseZones } from './houses';
-import { arrangeOutdoors } from './outdoorLayout';
+import { installVillageWorld } from './villageWorld';
 import { KITCHEN, STATIONS } from '../galley/layout';
+import { exteriorsWanted } from '../art/exteriors';
 export { Builder, treeBorder, zone, RESTAURANT_ENTRY };
 
 export interface PropPlace { id: string; x: number; y: number; cond?: string; }
@@ -24,6 +25,8 @@ export interface ZoneDef {
   name: string;
   music: string;
   outdoor: boolean;
+  /** Authored position on the continuous village map, in tiles. */
+  world?: { x: number; y: number };
   w: number;
   h: number;
   ground: string[];
@@ -41,7 +44,7 @@ export interface ZoneDef {
 }
 
 // The restaurant's street entrance is also the arrival point after the opening pictures.
-export const GARDEN_PLOT_POSITIONS = [[3, 4], [4, 4], [5, 4], [6, 4], [7, 4], [8, 4], [4, 5], [7, 5]] as const;
+export const GARDEN_PLOT_POSITIONS = [[7, 10], [8, 10], [9, 10], [10, 10], [7, 11], [8, 11], [9, 11], [10, 11]] as const;
 
 // ================================================================== RESTAURANT
 function restaurant(): ZoneDef {
@@ -222,7 +225,7 @@ function beach(): ZoneDef {
   treeBorder(b, [[14, 0], [15, 0]], ['tree', 'pine']);
   b.prop('stall_sage', 5, 7).prop('stall_rose', 9, 7).prop('boat', 23, 14)
     .prop('crate', 21, 11).prop('barrel', 18, 11).prop('lantern_cream', 18, 12).prop('lantern_cream', 21, 12)
-    .prop('rock', 2, 12).prop('bigrock', 27, 13).prop('reeds', 1, 14).prop('reeds', 12, 14)
+    .prop('rock', 2, 12).prop('reeds', 1, 14).prop('reeds', 12, 14)
     .prop('bld_house', 24, 3).prop('lamppost', 13, 4).prop('lamppost', 17, 4)
     .prop('lighthouse', 2, 2, 'unlock_lighthouse_view')
     .prop('vending_red', 23, 5)
@@ -233,7 +236,14 @@ function beach(): ZoneDef {
   // east cove: shacks with their door on the side, boats pulled up on the sand, nets and rocks
   for (const h of housesIn('beach')) b.prop(housePropId(h), h.x, h.y);
   houseEntrancePaths(b, 'beach');
-  b.prop('boat', 31, 14).prop('boat', 44, 13).prop('bigrock', 36, 14).prop('bigrock', 42, 15).prop('rock', 46, 14).prop('rock', 33, 13).prop('stump', 30, 13)
+  if (exteriorsWanted()) {
+    // One quiet sunbathing corner; leave the central shoreline open for walking and shells.
+    // Sea landmarks sit at the edges instead of scattering across the swimming/fishing view.
+    b.prop('beach_umbrella_blue', 27, 12).prop('beach_towel_sky', 28, 13)
+      .prop('seagull', 17, 14).prop('beach_grass', 11, 5)
+      .prop('sea_rock_big', 2, 20).prop('buoy_red', 40, 20);
+  }
+  b.prop('boat', 31, 14).prop('boat', 44, 13).prop('bigrock', 42, 15).prop('rock', 46, 14)
     .prop('crate', 37, 13).prop('barrel', 38, 13).prop('sack', 39, 11).prop('lanternstring', 34, 12).prop('lanternstring', 41, 12)
     .prop('lamppost', 31, 8).prop('lamppost', 44, 8).prop('lamppost', 37, 8).prop('lantern_cream', 37, 12).prop('lantern_cream', 40, 12)
     .prop('bench', 33, 7).prop('bench', 44, 7).prop('reeds', 30, 14).prop('reeds', 47, 14).prop('flowers', 36, 6).prop('pot_rose', 39, 7)
@@ -453,7 +463,7 @@ function market(): ZoneDef {
     .prop('pot_rose', 8, 9).prop('pot_cream', 17, 9).prop('lanternstring', 3, 9).prop('lanternstring', 19, 9)
     .prop('crate', 7, 12).prop('barrel', 22, 12).prop('vending_red', 14, 12);
   // the market runs on to the east: more stalls, a second row of lanterns and a small tea corner
-  b.prop('stall_rose', 27, 4).prop('stall_sage', 32, 4).prop('stall_gold', 37, 4).prop('stall_night', 28, 11).prop('stall_rose', 34, 11)
+  b.prop('jc_market_blue', 27, 4).prop('jc_market_red', 32, 4).prop('stall_gold', 37, 4).prop('stall_night', 28, 11).prop('stall_rose', 34, 11)
     .prop('lantern_red', 26, 7).prop('lantern_cream', 31, 7).prop('lantern_red', 36, 7).prop('lantern_cream', 27, 13).prop('lantern_red', 33, 13).prop('lantern_cream', 38, 13)
     .prop('lamppost', 26, 5).prop('lamppost', 38, 7).prop('lamppost', 26, 12).prop('lamppost', 38, 12)
     .prop('bench', 31, 10).prop('pot_rose', 30, 9).prop('pot_cream', 36, 9).prop('crate', 29, 15).prop('barrel', 36, 15).prop('bamboo', 38, 15).prop('bamboo', 25, 15)
@@ -518,6 +528,6 @@ const SIGNPOSTS: Record<string, [string, number, number][]> = {
   market: [['sign_plaza_down', 14, 15]],
 };
 for (const [zid, list] of Object.entries(SIGNPOSTS)) for (const [id, x, y] of list) ZONES[zid]?.props.push({ id, x, y });
-arrangeOutdoors(ZONES);
+installVillageWorld(ZONES, GARDEN_PLOT_POSITIONS);
 
 export const ZONE_LIST = Object.keys(ZONES);

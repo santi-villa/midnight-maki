@@ -44,5 +44,6 @@ it('starts the bedroom with a painting and a potted plant, and points the caramb
   game.setFlag('placed_bamboo_pot');
   expect(decor.done()).toBe(true);
   const fruit = questDef('ch4')!.steps.find((s) => s.text.includes('carambola'))!;
-  expect(fruit.target).toMatchObject({ zone: 'market', x: 4, y: 5, interactId: 'mk_food', label: 'Dulces de luna' });
+  const sweets = ZONES.market.interact.find(i => i.id === 'mk_food')!;
+  expect(fruit.target).toMatchObject({ zone: 'market', x: sweets.x, y: sweets.y, interactId: 'mk_food', label: 'Dulces de luna' });
 });

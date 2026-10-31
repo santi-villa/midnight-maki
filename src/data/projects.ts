@@ -91,34 +91,34 @@ export const PROJECTS_BY_ID: Record<string, ProjectDef> = Object.fromEntries(PRO
 /** Props each finished phase adds to its zone: [propId, x, y]. */
 export const PROJECT_PROPS: Record<string, [string, number, number, number?][][]> = {
   plaza_garden: [
-    [['flowers', 4, 9], ['flowers', 6, 9], ['flowers', 28, 9], ['flowers', 33, 8]],
-    [['bench', 6, 10], ['bench', 32, 17]],
-    [['project_teatable', 27, 9, 4]],
-    [['project_teagames', 27, 9]],
+    [['flowers', 9, 22], ['flowers', 10, 22], ['flowers', 31, 22], ['flowers', 32, 22]],
+    [['bench', 9, 24], ['bench', 31, 21]],
+    [['project_teatable', 28, 29, 4]],
+    [['project_teagames', 28, 29]],
   ],
   plaza_lights: [
-    [['street_lamp_l', 8, 14], ['street_lamp_r', 23, 14]],
-    [['stonelantern', 6, 19], ['stonelantern', 24, 19]],
-    [['crate', 24, 10, 4]],
-    [['project_workbox', 24, 10]],
+    [['street_lamp_l', 10, 26], ['street_lamp_r', 37, 27]],
+    [['stonelantern', 15, 32], ['stonelantern', 32, 31]],
+    [['crate', 39, 27, 4]],
+    [['project_workbox', 39, 27]],
   ],
   beach_corner: [
-    [['boat', 10, 14]],
-    [['lantern_red', 17, 13], ['lantern_red', 22, 13]],
-    [['sack', 17, 9]],
-    [['bench', 12, 13], ['flowers', 12, 8]],
+    [['boat', 12, 14]],
+    [['lantern_red', 5, 10], ['lantern_red', 25, 10]],
+    [['sack', 13, 5]],
+    [['bench', 20, 6], ['flowers', 20, 4]],
   ],
   forest_clearing: [
-    [['bench', 10, 10], ['lantern_cream', 8, 10]],
-    [['flowers_lav', 12, 11], ['stonelantern', 14, 10], ['stonelantern', 16, 10]],
-    [['project_gametable', 11, 9]],
-    [['flowers_lav', 11, 7], ['flowers', 15, 8]],
+    [['bench', 23, 12], ['lantern_cream', 27, 12]],
+    [['flowers_lav', 24, 14], ['stonelantern', 26, 14], ['stonelantern', 28, 14]],
+    [['project_gametable', 24, 16]],
+    [['flowers_lav', 23, 15], ['flowers', 28, 16]],
   ],
   garden_lanterns: [
-    [['lantern_cream', 4, 12], ['lantern_cream', 8, 12]],
-    [['sakura', 3, 9], ['sakura', 18, 9]],
-    [['crate', 7, 8]],
-    [['flowers', 2, 7], ['flowers_lav', 5, 8]],
+    [['lantern_cream', 4, 10], ['lantern_cream', 16, 10]],
+    [['sakura', 3, 16], ['sakura', 27, 19]],
+    [['crate', 15, 9]],
+    [['flowers', 17, 8], ['flowers_lav', 18, 9]],
   ],
   library_corner: [[['project_bookcart', 2, 5]], [['pot_rose', 4, 7]]],
 };
@@ -128,15 +128,15 @@ export interface ProjectAmenity {
   items?: Record<string, number>; game?: 'memory' | 'sort'; gamePhase?: number; opponent?: string;
 }
 export const PROJECT_AMENITIES: ProjectAmenity[] = [
-  { id: 'tea_table', project: 'plaza_garden', phase: 3, zone: 'plaza', x: 28, y: 10, title: 'Mesa compartida', items: { ginger: 2, g_candy: 1 }, game: 'memory', gamePhase: 4, opponent: 'pip' },
-  { id: 'workshop', project: 'plaza_lights', phase: 3, zone: 'plaza', x: 24, y: 11, title: 'Puesto de mantenimiento', items: { wood: 1, stone: 1 }, game: 'sort', gamePhase: 4 },
-  { id: 'fisher_box', project: 'beach_corner', phase: 3, zone: 'beach', x: 17, y: 10, title: 'Cajón de los pescadores', items: { nori: 2, ginger: 1 } },
-  { id: 'forest_games', project: 'forest_clearing', phase: 3, zone: 'forest', x: 12, y: 10, title: 'Mesa del claro', game: 'memory', opponent: 'rigg' },
-  { id: 'seed_bank', project: 'garden_lanterns', phase: 3, zone: 'garden', x: 7, y: 9, title: 'Banco de semillas', items: { sd_flower: 1, sd_cucumber: 1 } },
+  { id: 'tea_table', project: 'plaza_garden', phase: 3, zone: 'plaza', x: 28, y: 30, title: 'Mesa compartida', items: { ginger: 2, g_candy: 1 }, game: 'memory', gamePhase: 4, opponent: 'pip' },
+  { id: 'workshop', project: 'plaza_lights', phase: 3, zone: 'plaza', x: 39, y: 28, title: 'Puesto de mantenimiento', items: { wood: 1, stone: 1 }, game: 'sort', gamePhase: 4 },
+  { id: 'fisher_box', project: 'beach_corner', phase: 3, zone: 'beach', x: 13, y: 6, title: 'Cajón de los pescadores', items: { nori: 2, ginger: 1 } },
+  { id: 'forest_games', project: 'forest_clearing', phase: 3, zone: 'forest', x: 25, y: 17, title: 'Mesa del claro', game: 'memory', opponent: 'rigg' },
+  { id: 'seed_bank', project: 'garden_lanterns', phase: 3, zone: 'garden', x: 15, y: 10, title: 'Banco de semillas', items: { sd_flower: 1, sd_cucumber: 1 } },
 ];
 export const PROJECT_GATHER = [
-  { project: 'beach_corner', phase: 4, zone: 'beach', x: 12, y: 8, pool: ['sh_scallop', 'sh_spiral'] },
-  { project: 'beach_corner', phase: 4, zone: 'beach', x: 18, y: 9, pool: ['sh_scallop', 'sh_blue'] },
-  { project: 'forest_clearing', phase: 4, zone: 'forest', x: 11, y: 7, pool: ['wood', 'berry'] },
-  { project: 'forest_clearing', phase: 4, zone: 'forest', x: 15, y: 8, pool: ['fl_bell', 'berry'] },
+  { project: 'beach_corner', phase: 4, zone: 'beach', x: 12, y: 9, pool: ['sh_scallop', 'sh_spiral'] },
+  { project: 'beach_corner', phase: 4, zone: 'beach', x: 18, y: 10, pool: ['sh_scallop', 'sh_blue'] },
+  { project: 'forest_clearing', phase: 4, zone: 'forest', x: 24, y: 18, pool: ['wood', 'berry'] },
+  { project: 'forest_clearing', phase: 4, zone: 'forest', x: 28, y: 17, pool: ['fl_bell', 'berry'] },
 ];

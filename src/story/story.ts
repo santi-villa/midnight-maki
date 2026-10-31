@@ -136,7 +136,7 @@ defineQuests([
     auto: () => chapterDone(3),
     steps: [
       { text: 'Spicy encontró algo en el depósito. Hablá con él.', done: () => game.has('notebook_found'), target: { kind: 'npc', npc: 'spicy', label: 'Spicy Bacon' } },
-      { text: 'Visitá el Mercado Nocturno (de noche, por el torii del noreste de la plaza).', done: () => game.has('market_visited'), target: { kind: 'location', zone: 'market', label: 'Mercado Nocturno' } },
+      { text: 'Visitá el Mercado Nocturno (de noche, en el paseo del puerto, al sur de la plaza).', done: () => game.has('market_visited'), target: { kind: 'location', zone: 'market', label: 'Mercado Nocturno' } },
       { text: 'Conseguí una carambola en el mercado.', done: () => game.countUsable('starfruit') >= 1 || (game.save.recipesCooked.three_stars ?? 0) > 0, target: { kind: 'object', zone: 'market', x: 4, y: 5, label: 'Dulces de luna', interactId: 'mk_food' } },
       { text: 'Cociná las Tres Estrellas (Cocina → Cocina libre).', done: () => (game.save.recipesCooked.three_stars ?? 0) > 0, target: { kind: 'object', zone: 'restaurant', x: 5, y: 3, label: 'Cocinar', interactId: 'cook' } },
       { text: 'Hablá con la Abuela Ume sobre lo que viste.', done: () => game.has('club_known'), target: { kind: 'npc', npc: 'ume', label: 'Abuela Ume' } },
@@ -162,7 +162,7 @@ defineQuests([
     auto: () => chapterDone(5),
     steps: [
       { text: 'Rigg quiere hablar con vos a solas.', done: () => game.has('rigg_secret'), target: { kind: 'npc', npc: 'rigg', label: 'Rigg' } },
-      { text: 'Abrí el camino a la Estación Abandonada (oeste de la plaza) con la llave oxidada.', done: () => game.has('unlock_station'), target: { kind: 'object', zone: 'plaza', x: 0, y: 12, label: 'Camino a la estación' } },
+      { text: 'Abrí el camino a la Estación Abandonada (noreste del pueblo) con la llave oxidada.', done: () => game.has('unlock_station'), target: { kind: 'object', zone: 'plaza', x: 0, y: 12, label: 'Camino a la estación' } },
       { text: 'Resolvé el reloj detenido de la estación.', done: () => game.has('clock_solved'), target: { kind: 'object', zone: 'station', x: 11, y: 7, label: 'Reloj detenido', interactId: 'st_clock' } },
     ],
     reward: { coins: 450, flags: ['ch6_done'] },
@@ -186,7 +186,7 @@ defineQuests([
     desc: 'El faro espera.',
     auto: () => chapterDone(7),
     steps: [
-      { text: 'Entrá al Faro de las Tres Estrellas (playa, lado oeste).', done: () => game.has('lh_entered'), target: { kind: 'interior', fromZone: 'beach', door: { x: 3, y: 4 }, targetZone: 'lighthouse', label: 'Faro de las Tres Estrellas' } },
+      { text: 'Entrá al Faro de las Tres Estrellas (extremo este del puerto).', done: () => game.has('lh_entered'), target: { kind: 'interior', fromZone: 'beach', door: { x: 3, y: 4 }, targetZone: 'lighthouse', label: 'Faro de las Tres Estrellas' } },
       { text: 'Colocá las tres estrellas en el mecanismo.', done: () => game.has('story_done'), target: { kind: 'object', zone: 'lighthouse', x: 6, y: 3, label: 'Mecanismo', interactId: 'mechanism' } },
     ],
     reward: { coins: 1000, flags: ['ch8_done', 'star_butterfly'], recipes: ['secret_maki'] },
@@ -204,6 +204,7 @@ defineQuests([
 // ------------------------------------------------------------------ zone triggers
 // the night without constellations also starts if night falls while you're outside
 bus.on('time:changed', ({ period }) => {
+  if (period === 3 && world?.zoneId === 'market' && !game.has('market_visited')) void runTask('story:market-open', () => onEnterZone('market'));
   if (period === 3 && game.has('ch6_done') && !game.has('dark_night_seen') && world?.zone?.def.outdoor) setTimeout(() => void runTask('story:dark-night', darkNight), 800);
 });
 export async function onEnterZone(zone: string) {
@@ -214,7 +215,7 @@ export async function onEnterZone(zone: string) {
   const moon = game.flag('festival_today') === 'moon';
   game.setFlag('market_open', clock.period === 3 && (((!!game.flag('market_night') || game.has('market_force')) && game.has('market_known')) || moon));
   if (zone === 'garden' && clock.isNight()) game.setFlag('garden_night');
-  if (zone === 'market' && !game.has('market_visited')) {
+  if (zone === 'market' && game.has('market_open') && !game.has('market_visited')) {
     game.setFlag('market_visited');
     game.setFlag('market_force', false);
     await runScene('market_first', async () => {

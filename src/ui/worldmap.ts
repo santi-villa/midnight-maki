@@ -12,6 +12,7 @@ import { world } from '../scenes/WorldScene';
 import { currentQuestTarget } from '../quests/quests';
 import { portraitURL } from '../systems/appearance';
 import { h, panel } from './dom';
+import { VILLAGE_LOCKS } from '../data/villageWorld';
 
 const COLOR: Record<string, string> = {
   g: '#78b255', G: '#5f9c45', p: '#d8b985', c: '#c8b8a2', s: '#ecd8a3', h: '#cdbb92', w: '#62aedb', d: '#3f86c4',
@@ -19,18 +20,19 @@ const COLOR: Record<string, string> = {
 };
 const FALLBACK = '#9aab6c';
 const DESC: Record<string, string> = {
-  plaza: 'El corazón de Villa Nori: la fuente, la cartelera, las tiendas, el restaurante y las casas del barrio.',
-  forest: 'Hongos, flores, insectos, un arroyo y un santuario escondido.',
-  market: 'Abre viernes y sábados de noche, detrás del torii.',
+  plaza: 'El corazón de Villa Nori: la fuente, la cartelera, las tiendas y el jardín del restaurante.',
+  forest: 'Hongos, flores, insectos, una cabaña y senderos alrededor del estanque.',
+  market: 'Paseo del puerto. Los puestos del mercado abren viernes y sábados de noche.',
+  residential: 'Casas con jardines propios y calles que llevan a la ribera.',
+  harbor: 'Muelles de pesca y una pasarela al Faro de las Tres Estrellas.',
+  shrine: 'Una colina con cerezos, escalinata y santuario.',
   station: 'Una estación abandonada llena de recuerdos.',
   garden: 'Canteros, estanque de carpas, casa de té y un huerto de cerezos.',
   beach: 'Pesca, conchas, cabañas de pescadores y botellas con mensajes.',
 };
 /** the flag that opens a zone, read from the door that leads in from the plaza */
 function lockOf(id: string): string | null {
-  if (id === 'market') return 'market_known';
-  const d = ZONES.plaza.doors.find((x) => x.to === id && x.lock);
-  return d?.lock?.flag ?? null;
+  return VILLAGE_LOCKS[id as keyof typeof VILLAGE_LOCKS]?.flag ?? null;
 }
 const isOpen = (id: string) => { const f = lockOf(id); return !f || game.has(f) || (id === 'market' && game.has('market_open')); };
 
@@ -52,7 +54,7 @@ function drawZone(g: CanvasRenderingContext2D, z: ZoneDef, ox: number, oy: numbe
   // buildings and stalls from the real props
   for (const p of z.props) {
     const d = PROPS[p.id];
-    if (!d || (d.kind !== 'building' && d.kind !== 'stall')) continue;
+    if (!d || !['building', 'stall', 'townhouse', 'sidehouse', 'lighthouse'].includes(d.kind)) continue;
     g.fillStyle = '#2b1d17';
     g.fillRect((ox + p.x) * S - 1, (oy + p.y) * S - 1, d.w * S + 2, d.h * S + 2);
     g.fillStyle = d.kind === 'stall' ? '#e2a96b' : d.c1 || '#b9764b';

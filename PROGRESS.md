@@ -13,6 +13,9 @@ Registro de avances **verificados** (✅ probado en navegador o por tests) y pen
 4. Ver "Pendiente" y `ROADMAP.md`.
 
 ## Verificado ✅
+- **Serene Village (LimeZu), 30/10/2026:** dos bases de terreno y nueve sprites para diez IDs naturales existentes, con verdes suaves y sin añadir obstáculos ni decoración. Bosque, jardín y zonas verdes usan árboles frondosos, flores, arbustos, rocas y cercas del pack. Pinos y cerezos conservados. 44 pruebas de mapas/fachadas y tres de navegador pasan; capturas y procedencia en `docs/serene-village.md`.
+- **Playa más despejada, 30/10/2026:** arena beige clara y ondas de menor contraste, incluida la orilla animada. Decoración del pack reducida de 17 a seis piezas, con un solo rincón de sombrilla y el centro libre de objetos sueltos. 39 pruebas de atlas, navegación y distribución pasan; comparación en `docs/playa-antes.png` / `docs/playa-ajustada.png`.
+- **Japanese City FREE (GuttyKreum), 30/10/2026:** nueve piezas para expendedoras, letreros, postes y puestos del mercado. Atlas de 3,6 KB, extracción reproducible y crédito dentro del juego. Distribución compatible con calles, puertas y mejoras futuras (37 pruebas); carga y dibujos de respaldo verificados en navegador. Organización de los packs y recomendación de seguir con la versión gratis en `docs/japanese-city.md`. Modern Exteriors queda a cargo del usuario.
 - **E2E Playwright** (Chromium, celular Pixel 7, gestos reales): nueva partida → carta → entrar al restaurante →
   tutorial de Spicy → cocinar el primer maki arrastrando/frotando/deslizando → servir → guardar → recargar → Continuar.
 - Build de producción, typecheck y 21 pruebas (lógica de estado, guardado/migración, A*, integridad de
@@ -68,7 +71,18 @@ Registro de avances **verificados** (✅ probado en navegador o por tests) y pen
 - Puestos del mercado rehechos (toldo con volumen, interior iluminado, mercadería colgando) y mercado decorado.
 - Diálogo con borde doble y estrellitas.
 
+## Exteriores con Modern Exteriors (LimeZu)
+- Playa hecha: arena, paseo de arena compacta, mar animado y orilla del pack; sombrillas, toallones, castillos, gaviota, boyas y rocas en el mar. `?exteriors=classic` compara. Ver docs/asset-credits.md.
+- Plaza hecha: fuente con agua, bancos, faroles (su luz nocturna sale de la linterna), buzón, macetas, canteros sobre el empedrado y dos palomas. Bancos, faroles, buzón y macetas cambian en todas las zonas porque son los mismos objetos.
+- Siguen: faro, plaza, mercado, calles, alrededores del restaurante, estación.
+
 ## Pendiente / próximos pasos
 - Jugar varias horas reales para afinar balance (precios de pescados ya reducidos).
 - Más líneas de diálogo por vecino y escenas de amistad niveles 4–5.
 - Animaciones específicas (sentarse en sillas, comer) y más variedad de clientes.
+
+## Mapa jugable aprobado — 30/10/2026
+- Integrado el boceto 02: plaza despejada, parcelas privadas, barrio al este, bosque y jardín al oeste, santuario/estación al norte, costa y puerto al sur.
+- Nueve distritos en coordenadas compartidas; dieciséis casas conservan sus IDs e interiores. Caminos, puertas, NPCs, misiones, comercios, cultivos y proyectos reubicados.
+- Migración única de posiciones exteriores antiguas sin borrar progreso. El paseo del mercado se recorre de día y sus actividades respetan el horario nocturno.
+- Validación: 643 pruebas, compilación y recorrido real automatizado con partida antigua, cruces, restaurante, noche y celular. Documentación: docs/villa-nori-mapa.md.

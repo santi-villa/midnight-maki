@@ -4,6 +4,9 @@ import Phaser from 'phaser';
 import { cozyObject } from '../art/cozyAssets';
 import { furnitureCanvas } from '../art/furniture';
 import { interiorObject } from '../art/interiors';
+import { exteriorObject } from '../art/exteriors';
+import { japaneseCityObject } from '../art/japaneseCity';
+import { sereneObject } from '../art/serene';
 import { farmObject, farmPiece } from '../art/farm';
 import { hasVillageAtlas, villageObject } from '../art/villageAssets';
 import { game } from '../core/state';
@@ -11,7 +14,7 @@ import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { drawPlaque, pixTextWidth } from '../art/pixfont';
 import type { ShopPhase } from '../systems/schedule';
 import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
-import { buildFolkSheet, FOLK_PAD } from '../art/folk';
+import { buildFolkSheet } from '../art/folk';
 import { heroSheet, isHeroLook } from '../art/heroRender';
 import { buildingLayout } from '../art/nature';
 import { villageShopLayout } from '../art/village';
@@ -46,10 +49,10 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
     const build = RACCOON_BUILD[id];
     const folk = FOLK_SPECS[id];
     if (folk || (id === 'player' && isHeroLook(appearanceOf(id)))) {
-      const { canvas, fw, fh } = folk ? buildFolkSheet(folk, folkCustom(id)) : heroSheet(appearanceOf(id));
+      const { canvas, fw, fh, pad } = folk ? buildFolkSheet(folk, folkCustom(id)) : heroSheet(appearanceOf(id));
       const tex = scene.textures.addCanvas(key, canvas)!;
       for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
-      tex.customData = { pad: FOLK_PAD };
+      tex.customData = { pad };
     } else if (build) {
       const { canvas, fw, fh } = buildRaccoonSheet(appearanceOf(id), build);
       const tex = scene.textures.addCanvas(key, canvas)!;
@@ -89,10 +92,10 @@ export function appearanceTexture(scene: Phaser.Scene, a: import('../core/types'
   if (!isHeroLook(a)) return lookTexture(scene, a);
   const key = 'rm_' + hashStr(JSON.stringify(a));
   if (!scene.textures.exists(key)) {
-    const { canvas, fw, fh } = heroSheet(a);
+    const { canvas, fw, fh, pad } = heroSheet(a);
     const tex = scene.textures.addCanvas(key, canvas)!;
     for (let i = 0; i < FRAME_COUNT; i++) tex.add(i, 0, i * fw, 0, fw, fh);
-    tex.customData = { pad: FOLK_PAD };
+    tex.customData = { pad };
   }
   return key;
 }
@@ -138,7 +141,7 @@ export function customerTexture(scene: Phaser.Scene, id: CustomerId, seed = '', 
 /** The drawing of a map prop as a plain canvas (the same art propTexture hands to Phaser), for menus. */
 export function propCanvas(key: string, closed = false, sign = game.save.player.restaurantName || 'Midnight Maki'): HTMLCanvasElement {
   const d = PROPS[key];
-  return farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed, sign) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed);
+  return sereneObject(key, d.sw, d.sh) ?? japaneseCityObject(key, d.sw, d.sh) ?? farmObject(key, d.sw, d.sh) ?? villageObject(key, d.sw, d.sh, d.stage, closed, sign) ?? exteriorObject(key, d.sw, d.sh) ?? interiorObject(key, d.sw, d.sh, d.variant ?? 0) ?? cozyObject(key, d.sw, d.sh, d.variant ?? 0) ?? drawObject(d.kind, d.sw, d.sh, d.c1, d.c2, d.variant ?? 0, hashStr(key), d.label, d.stage, closed);
 }
 
 export function propTexture(scene: Phaser.Scene, key: string, closed = false): string {

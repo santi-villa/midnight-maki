@@ -16,6 +16,7 @@ import { hudHandlers } from '../ui/menus';
 import { ensureDefaultDecor } from '../world/zoneRuntime';
 import { bus } from './events';
 import { runTask } from './errors';
+import { migrateVillagePosition } from '../world/villageMigration';
 
 let phaser: Phaser.Game;
 let autosaveTimer = 0;
@@ -42,6 +43,7 @@ export async function startNewGame(a: Appearance, name: string, restaurant: stri
 
 export async function continueGame(s: SaveData) {
   game.load(s);
+  if (migrateVillagePosition(s)) game.touch('village-layout');
   const mode = s.flags?.play_difficulty;
   if (mode === 'relaxed' || mode === 'normal' || mode === 'challenge') updateSettings({ cookMode: mode });
   await startWorld(false);

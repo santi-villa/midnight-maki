@@ -1,6 +1,44 @@
 # Recursos seleccionados para Villa Nori
 
-Se integran recortes pequeños a un atlas de 256×256, cargado antes de generar las texturas del juego. No se carga la carpeta completa de descargas ni las variantes ampliadas 32/48 px.
+Se integran recortes pequeños en atlas cargados antes de generar las texturas del juego.
+No se carga la carpeta completa de descargas ni las variantes ampliadas 32/48 px.
+
+## Serene Village revamped v1.9 (LimeZu)
+
+[Fuente oficial](https://limezu.itch.io/serenevillagerevamped), con licencia
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) indicada en esa página
+(revisada el 30/10/2026). Dos bases de terreno y nueve sprites naturales sustituyen
+los dibujos de diez IDs existentes: árboles frondosos, arbustos, flores, piedras
+y cercas. Se recorta la lámina nativa de 16 px y se adapta la paleta de verdes y
+tierra, sin escalar los objetos. Se mantienen pinos, cerezos y árbol otoñal propios.
+
+El atlas seleccionado, catálogo de procedencia y atribución están en
+`src/assets/serene/`. Extracción reproducible: `scripts/build-serene-assets.py`.
+Los créditos del juego enlazan autor, fuente y licencia y describen las modificaciones.
+Véase [integración de Serene Village](serene-village.md) para zonas, alcance,
+capturas y validación.
+
+El nuevo mapa utiliza también un recorte de relieve de 16×16 px, coordenadas
+`[16, 160, 16, 16]` de la misma lámina. Conserva el tamaño nativo, adapta los verdes
+y ofrece una variante de pared de piedra. Atlas y atribución verificable:
+`src/assets/map-study/cliffs.png` y `credits.json`. Se reproduce mediante
+`scripts/build-map-study-assets.py` y se carga con los recursos del juego.
+
+## Japanese City FREE (GuttyKreum)
+
+Detalles comerciales de [The Japan Collection: Japanese City (Free Version)](https://guttykreum.itch.io/free-japanese-city-game-assets):
+expendedoras roja/blanca, dos postes eléctricos, dos letreros, un expositor y dos
+puestos compuestos con toldos de la descarga gratuita. Atlas de 256×128 en
+`src/assets/japanese-city/atlas.png`; procedencia y hash en `catalog.json`.
+`scripts/build-japanese-city-assets.py` reproduce la selección a partir de
+`Free_Version/Tilemap/Tilemap.png`, sin usar previsualizaciones del pack pago.
+
+Licencia de la página oficial revisada el 30/10/2026: permite modificar y utilizar
+el arte dentro de juegos gratuitos/comerciales; restringe la redistribución de los
+recursos sueltos y su uso en logos o marcas. La fuente completa permanece fuera
+del repositorio. GuttyKreum figura en los créditos del juego.
+Véase [distribución de packs e integración](japanese-city.md) para ubicaciones,
+escala, comparación y recomendación de compra.
 
 ## VectoRaith
 
@@ -58,3 +96,33 @@ LIMEZU_SRC=/ruta/a/las/hojas/por/tema python3 scripts/build-limezu-assets.py
 Cada pieza declara qué muebles o props del juego viste (`replaces`): los IDs guardados, las huellas en la grilla y el comportamiento no cambian, solo el dibujo. Las piezas se dibujan a tamaño nativo, nunca escaladas. Una pieza con una sola vista no se usa girada de costado (ahí queda el dibujo anterior). Con `?interiors=classic` en la URL el juego carga sin el pack, para comparar.
 
 Primera prueba (32 piezas): sillas de izakaya en cuatro direcciones, mesas, chabudai, zabutones, banquito, bandeja de té, roperos, aparador, escritorio, mesita de luz, lámparas, plantas, pecera, cuadros, kakejiku y bibliotecas.
+
+## Modern Exteriors (LimeZu)
+
+Pack comprado de LimeZu: <https://limezu.itch.io/modernexteriors>. Mismas condiciones que Modern Interiors: se puede usar y editar, **no se puede redistribuir** y pide crédito (figura en los créditos del juego). El pack vive fuera del repo, en `ASSETS DESCARGADOS/NUEVO/` (ignorado por git).
+
+En el repo solo queda el atlas chico de recortes (`src/assets/limezu/exteriors.png`) y su catálogo (`exteriors.json`, con hoja y rectángulo de origen). Lo arma `scripts/build-limezu-exteriors.py` a partir de la carpeta `Modern_Exteriors_16x16` del pack:
+
+```
+LIMEZU_EXT_SRC=/ruta/a/Modern_Exteriors_16x16 python3 scripts/build-limezu-exteriors.py
+```
+
+El catálogo tiene dos partes:
+
+- **Baldosas** que se dibujan dentro del tileset del juego: la arena seca, la arena compacta de los paseos, el mar animado (8 cuadros del pack, en un patrón de 2×2) y la línea de la orilla. El agua más profunda y la lluvia son un velo de color sobre los mismos píxeles. El mar del pack solo se usa en las zonas de mar (`fishing: 'sea'`); los estanques del bosque y del jardín siguen con su agua dibujada.
+- **Piezas** a tamaño nativo para props nuevos de la playa: sombrillas, toallones, castillos de arena, una gaviota, boyas, rocas en el mar y matas de playa.
+
+Con `?exteriors=classic` en la URL el juego carga sin el pack (arena, agua y orilla anteriores, y sin los props nuevos), para comparar.
+
+Primera zona: Playa de las Conchas (`docs/limezu-playa-antes-despues.png`). El faro del pack no se usó todavía: mide 7×16 baldosas y no entra donde está el faro actual sin rehacer esa esquina del mapa.
+
+Segunda zona: la plaza (`docs/limezu-plaza-antes-despues.png`). Fuente redonda con agua (`Garden Fountain_3_4`), bancos (`Bench_7`), faroles (`Street_Lamp_5`, también en las demás zonas), buzón, dos macetas del pack de jardín, cuatro canteros en lugar de los canteros planos del piso, y dos palomas. Las piezas salen de las carpetas *Singles* del pack, recortadas a sus píxeles visibles. El cartel de anuncios y el empedrado siguen siendo los del juego.
+
+Ajuste visual del 30/10/2026: arena y franja arenosa de los ocho cuadros de la
+orilla adaptadas a una paleta beige clara, con menos saturación y contraste en
+las ondas. El script conserva el mapeo de colores en `sandPalette` del catálogo;
+los píxeles del mar y los objetos mantienen sus colores originales. La decoración
+nueva de la playa se reduce de 17 a seis piezas: una sombrilla con toallón, una
+gaviota, una mata, un peñasco en el borde oeste y una boya junto al muelle este.
+También se despeja la franja central de cajas, barriles, faroles, botes y piedras
+sueltas. Comparación actual: `docs/playa-antes.png` y `docs/playa-ajustada.png`.

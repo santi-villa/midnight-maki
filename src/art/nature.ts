@@ -5,6 +5,7 @@
  */
 import { drawStorefront, type StoreKind } from './storefronts';
 import { cozyFrame } from './cozyAssets';
+import { drawSereneTile } from './serene';
 import { ctx2d, ellipse, makeCanvas, mix, px, rng, shade, type Ctx } from './pixel';
 
 export const NAT = {
@@ -51,7 +52,7 @@ function tuft(c: Ctx, x: number, y: number, light: string, dark: string) {
 
 export function brightGrass(variant: number): TileDraw {
   return (c, x, y, r) => {
-    const imported = cozyFrame(c, 'grass', x, y);
+    const imported = drawSereneTile(c, x, y, 'grass') || cozyFrame(c, 'grass', x, y);
     if (!imported) px(c, x, y, NAT.grass, 16, 16);
     // soft light patches
     if (!imported) {
@@ -80,7 +81,10 @@ export function brightGrass(variant: number): TileDraw {
 }
 
 export const darkGrassBright: TileDraw = (c, x, y, r) => {
-  px(c, x, y, NAT.grassD, 16, 16);
+  if (drawSereneTile(c, x, y, 'grass')) {
+    c.fillStyle = 'rgba(65,83,41,0.12)';
+    c.fillRect(x, y, 16, 16);
+  } else px(c, x, y, NAT.grassD, 16, 16);
   for (let i = 0; i < 5; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.grassDD : NAT.grass);
   for (let i = 0; i < 2; i++) tuft(c, x + 1 + Math.floor(r() * 12), y + 2 + Math.floor(r() * 12), NAT.grassL, NAT.grassD);
 };
@@ -89,7 +93,7 @@ export const darkGrassBright: TileDraw = (c, x, y, r) => {
 export function pathTile(variant = 0): TileDraw {
   const base = variant === 2 ? shade(NAT.path, -0.05) : variant === 1 ? shade(NAT.path, 0.03) : NAT.path;
   return (c, x, y, r) => {
-    px(c, x, y, base, 16, 16);
+    if (!drawSereneTile(c, x, y, 'dirt')) px(c, x, y, base, 16, 16);
     for (let i = 0; i < 4 + variant; i++) px(c, x + Math.floor(r() * 16), y + Math.floor(r() * 16), r() < 0.5 ? NAT.pathD : NAT.pathL);
     for (let i = 0; i < 1 + (variant % 2); i++) {
       const sx = x + 2 + Math.floor(r() * 11);

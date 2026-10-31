@@ -1,0 +1,405 @@
+{
+  "author": "LimeZu",
+  "pack": "Serene Village revamped v1.9",
+  "url": "https://limezu.itch.io/serenevillagerevamped",
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "source": "Serene_Village_16x16.png",
+  "sourceSha256": "9ce9572960f061299dbde449d20cb8e88bcda777c00dc3f150eac414cf7fe1f7",
+  "sourceTileSize": 16,
+  "scale": 1,
+  "width": 256,
+  "height": 128,
+  "palette": [
+    {
+      "original": [
+        118,
+        197,
+        100
+      ],
+      "adapted": [
+        175,
+        193,
+        131
+      ]
+    },
+    {
+      "original": [
+        123,
+        203,
+        105
+      ],
+      "adapted": [
+        177,
+        195,
+        133
+      ]
+    },
+    {
+      "original": [
+        105,
+        173,
+        89
+      ],
+      "adapted": [
+        162,
+        180,
+        119
+      ]
+    },
+    {
+      "original": [
+        203,
+        154,
+        78
+      ],
+      "adapted": [
+        232,
+        210,
+        171
+      ]
+    },
+    {
+      "original": [
+        210,
+        159,
+        81
+      ],
+      "adapted": [
+        236,
+        215,
+        174
+      ]
+    },
+    {
+      "original": [
+        155,
+        194,
+        70
+      ],
+      "adapted": [
+        146,
+        171,
+        103
+      ]
+    },
+    {
+      "original": [
+        184,
+        208,
+        64
+      ],
+      "adapted": [
+        177,
+        194,
+        132
+      ]
+    },
+    {
+      "original": [
+        86,
+        141,
+        97
+      ],
+      "adapted": [
+        104,
+        136,
+        92
+      ]
+    },
+    {
+      "original": [
+        93,
+        194,
+        70
+      ],
+      "adapted": [
+        127,
+        161,
+        99
+      ]
+    },
+    {
+      "original": [
+        112,
+        208,
+        64
+      ],
+      "adapted": [
+        160,
+        184,
+        114
+      ]
+    },
+    {
+      "original": [
+        86,
+        141,
+        125
+      ],
+      "adapted": [
+        94,
+        128,
+        108
+      ]
+    }
+  ],
+  "tiles": {
+    "grass": {
+      "rect": [
+        64,
+        16,
+        16,
+        16
+      ],
+      "atlas": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      }
+    },
+    "dirt": {
+      "rect": [
+        160,
+        32,
+        16,
+        16
+      ],
+      "atlas": {
+        "x": 16,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      }
+    }
+  },
+  "pieces": [
+    {
+      "id": "oak_sage",
+      "name": "Árbol frondoso salvia",
+      "replaces": [
+        "tree"
+      ],
+      "rect": [
+        144,
+        192,
+        32,
+        48
+      ],
+      "trim": [
+        0,
+        10,
+        32,
+        48
+      ],
+      "atlas": {
+        "x": 0,
+        "y": 18,
+        "w": 32,
+        "h": 38
+      }
+    },
+    {
+      "id": "oak_forest",
+      "name": "Árbol frondoso de bosque",
+      "replaces": [
+        "tree_dark"
+      ],
+      "rect": [
+        176,
+        192,
+        32,
+        48
+      ],
+      "trim": [
+        0,
+        10,
+        32,
+        48
+      ],
+      "atlas": {
+        "x": 34,
+        "y": 18,
+        "w": 32,
+        "h": 38
+      }
+    },
+    {
+      "id": "bush",
+      "name": "Arbusto bajo",
+      "replaces": [
+        "bush"
+      ],
+      "rect": [
+        112,
+        192,
+        16,
+        16
+      ],
+      "trim": [
+        1,
+        2,
+        15,
+        16
+      ],
+      "atlas": {
+        "x": 68,
+        "y": 18,
+        "w": 14,
+        "h": 14
+      }
+    },
+    {
+      "id": "bush_rose",
+      "name": "Arbusto rosado",
+      "replaces": [
+        "bush_flower",
+        "bush_berry"
+      ],
+      "rect": [
+        32,
+        192,
+        16,
+        16
+      ],
+      "trim": [
+        1,
+        2,
+        15,
+        15
+      ],
+      "atlas": {
+        "x": 84,
+        "y": 18,
+        "w": 14,
+        "h": 13
+      }
+    },
+    {
+      "id": "daisies",
+      "name": "Margaritas",
+      "replaces": [
+        "flowers"
+      ],
+      "rect": [
+        32,
+        224,
+        16,
+        16
+      ],
+      "trim": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "atlas": {
+        "x": 100,
+        "y": 18,
+        "w": 16,
+        "h": 16
+      }
+    },
+    {
+      "id": "flowers_blue",
+      "name": "Flores azules",
+      "replaces": [
+        "flowers_lav"
+      ],
+      "rect": [
+        48,
+        192,
+        16,
+        16
+      ],
+      "trim": [
+        1,
+        2,
+        15,
+        15
+      ],
+      "atlas": {
+        "x": 118,
+        "y": 18,
+        "w": 14,
+        "h": 13
+      }
+    },
+    {
+      "id": "rock",
+      "name": "Piedra",
+      "replaces": [
+        "rock"
+      ],
+      "rect": [
+        16,
+        240,
+        16,
+        16
+      ],
+      "trim": [
+        2,
+        2,
+        15,
+        14
+      ],
+      "atlas": {
+        "x": 134,
+        "y": 18,
+        "w": 13,
+        "h": 12
+      }
+    },
+    {
+      "id": "rocks",
+      "name": "Grupo de piedras",
+      "replaces": [
+        "bigrock"
+      ],
+      "rect": [
+        0,
+        272,
+        32,
+        16
+      ],
+      "trim": [
+        6,
+        0,
+        27,
+        16
+      ],
+      "atlas": {
+        "x": 149,
+        "y": 18,
+        "w": 21,
+        "h": 16
+      }
+    },
+    {
+      "id": "fence",
+      "name": "Tramo de cerca rural",
+      "replaces": [
+        "fence"
+      ],
+      "rect": [
+        80,
+        240,
+        16,
+        16
+      ],
+      "trim": [
+        0,
+        4,
+        16,
+        15
+      ],
+      "atlas": {
+        "x": 172,
+        "y": 18,
+        "w": 16,
+        "h": 11
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 import { game } from '../core/state';
 import type { PlacedFurniture } from '../core/types';
 import { TILE_INDEX, TILE_SOLID } from '../art/tiles';
+import { hasExteriors } from '../art/exteriors';
 import { FURN_BY_ID, furnSize, type FurnitureDef } from '../data/furniture';
 import { PROPS, type PropDef } from '../data/props';
 import { PROJECTS, PROJECT_PROPS } from '../data/projects';
@@ -85,7 +86,16 @@ export function waterDepthAt(ground: string[], x: number, y: number): 's' | 'm' 
   return 's';
 }
 
+/** The open sea is drawn with the Modern Exteriors water (8 frames, a 2x2 pattern) when its atlas is installed. */
+export const usesSea = (def: ZoneDef) => def.fishing === 'sea' && hasExteriors();
+export const seaParity = (x: number, y: number) => (x % 2) + 2 * (y % 2);
+
 export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = false): number {
+  if (usesSea(def)) {
+    if (ch === 'h') return TILE_INDEX[`seashore${x % 2}_0`];
+    if (ch === 'p') return TILE_INDEX.sandpath;
+    if (ch === 'w' || ch === 'd') return TILE_INDEX[`seac${ch === 'd' ? 'd' : waterDepthAt(def.ground, x, y)}${seaParity(x, y)}_0`];
+  }
   const st = roomStyle(roomAt(def, x, y), def);
   switch (ch) {
     case '#': return TILE_INDEX['walltop_' + st.wall] ?? TILE_INDEX.walltop_cream;
@@ -99,7 +109,7 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
     case 'g': return grassAt(x, y);
     case 'G': return varied('dgrass', x, y, 2);
     case 'p': return varied('dirt', x, y, 3);
-    case 'c': return TILE_INDEX['cobble' + (['', '1', '2'][hash(x, y) % 3])];
+    case 'c': return varied(def.id === 'plaza' && x >= 15 && x < 33 && y >= 8 && y < 21 ? 'civic' : 'cobble', x, y, 3);
     case 's': return varied('sand', x, y, 3);
     case 'h': return TILE_INDEX.shore;
     case 'w': return TILE_INDEX[`wtc${waterDepthAt(def.ground, x, y)}${waterVariant(x, y)}_0`];
@@ -291,7 +301,7 @@ export function buildZone(id: string, night = false): BuiltZone {
   }
   // only walk-through doors are cleared; interactable/wall doors remain solid
   for (const d of def.doors) {
-    if (d.walk) grid.setSolid(d.x, d.y, false);
+    if (d.walk) grid.setSolid(d.x, d.y, !!d.lock && !game.has(d.lock.flag));
     else grid.setSolid(d.x, d.y, true);
   }
   return { def, tiles, overlay: buildOverlay(def), grid, props, furniture };
@@ -392,40 +402,13 @@ export function doorLeadingTo(fromZone: string, toZone: string): { x: number; y:
   const def = ZONES[fromZone];
   if (!def || !def.doors.length) return null;
 
-  // Direct door
-  const direct = def.doors.find((d) => d.to === toZone);
-  if (direct) return { x: direct.x, y: direct.y, to: direct.to };
-
-  // Interiors routing
-  if (fromZone === 'home' || fromZone === 'storage') {
-    const d = def.doors.find((dd) => dd.to === 'restaurant');
-    if (d) return { x: d.x, y: d.y, to: d.to };
+  const queue = [{ zone: fromZone, first: null as null | { x: number; y: number; to: string } }];
+  const seen = new Set([fromZone]);
+  for (let n = 0; n < queue.length; n++) for (const d of ZONES[queue[n].zone]?.doors ?? []) {
+    if (seen.has(d.to)) continue;
+    const first = queue[n].first ?? { x: d.x, y: d.y, to: d.to };
+    if (d.to === toZone) return first;
+    seen.add(d.to); queue.push({ zone: d.to, first });
   }
-  if (fromZone === 'restaurant') {
-    if (toZone === 'home' || toZone === 'storage') {
-      const d = def.doors.find((dd) => dd.to === toZone);
-      if (d) return { x: d.x, y: d.y, to: d.to };
-    }
-    const d = def.doors.find((dd) => dd.to === 'plaza');
-    if (d) return { x: d.x, y: d.y, to: d.to };
-  }
-  if (fromZone === 'lighthouse') {
-    const d = def.doors.find((dd) => dd.to === 'beach');
-    if (d) return { x: d.x, y: d.y, to: d.to };
-  }
-  if (toZone === 'restaurant' || toZone === 'home' || toZone === 'storage') {
-    if (fromZone === 'plaza') {
-      const d = def.doors.find((dd) => dd.to === 'restaurant');
-      if (d) return { x: d.x, y: d.y, to: d.to };
-    }
-  }
-  if (toZone === 'lighthouse' && fromZone === 'plaza') {
-    const d = def.doors.find((dd) => dd.to === 'beach');
-    if (d) return { x: d.x, y: d.y, to: d.to };
-  }
-  // From any outdoor zone to another outdoor zone: head to plaza
-  const toPlaza = def.doors.find((dd) => dd.to === 'plaza');
-  if (toPlaza) return { x: toPlaza.x, y: toPlaza.y, to: toPlaza.to };
-
-  return { x: def.doors[0].x, y: def.doors[0].y, to: def.doors[0].to };
+  return null;
 }

@@ -104,15 +104,15 @@ describe('continuous town journeys', () => {
 
   it('takes the actual station, plaza and restaurant doors in both directions', () => {
     const town = new TownLife();
-    const trip = new Journey({ zone: 'station', x: 17, y: 10 }, town.grid);
+    const trip = new Journey({ zone: 'station', x: 18, y: 14 }, town.grid);
     trip.go({ zone: 'restaurant', x: 8, y: 10 });
     const seen = new Set([trip.position.zone]);
     for (let i = 0; i < 1200 && !trip.settled; i++) { trip.tick(0.05); seen.add(trip.position.zone); }
-    expect([...seen]).toEqual(['station', 'plaza', 'restaurant']);
+    expect([...seen]).toEqual(['station', 'residential', 'plaza', 'restaurant']);
     expect(trip.settled).toBe(true);
-    trip.go({ zone: 'station', x: 17, y: 10 });
+    trip.go({ zone: 'station', x: 18, y: 14 });
     for (let i = 0; i < 1200 && !trip.settled; i++) trip.tick(0.05);
-    expect(trip.position).toEqual({ zone: 'station', x: 17, y: 10 });
+    expect(trip.position).toEqual({ zone: 'station', x: 18, y: 14 });
   });
 
   it('respects story placements and resets positions when loading a different save', () => {

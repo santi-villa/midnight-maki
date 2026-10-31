@@ -192,7 +192,7 @@ function phoneApps(): PhoneApp[] {
     { id: 'investigation', name: 'Pistas', icon: 'inspect', hint: 'El cuaderno de investigación', run: () => openJournal(1) },
     { id: 'bag', name: 'Mochila', icon: 'bag', hint: 'Ingredientes y objetos', run: () => openBag() },
     { id: 'settings', name: 'Ajustes', icon: 'wood_gear', hint: 'Sonido, texto y controles', run: () => openSettings(true) },
-    { id: 'more', name: 'Más', icon: 'menu', hint: 'Guardar, cargar, ajustes y salida', run: () => openMenu(true) },
+    { id: 'more', name: 'Más', icon: 'menu', hint: 'Jugar, gente y sistema', run: () => openMenu(false) },
   ];
 }
 registerPhoneApps(phoneApps);
@@ -225,34 +225,38 @@ function calendarView() {
 /** Esc: the wooden pause board (two columns, section titles, key badges). */
 export function openPauseMenu() { if (!modalOpen()) openPauseBoard(); }
 
-/** Phone "Más" list. Escape uses openPauseBoard instead. */
+/** Phone "Más". Escape uses openPauseBoard instead. */
 export function openMenu(pause = false) {
   if (pause) { openPauseBoard(); return; }
-  const ICON: Record<string, string> = { Mochila: 'bag', Personaje: 'shirt', Mapa: 'map', Misiones: 'clipboard', Investigación: 'inspect', Amigos: 'heart', Colecciones: 'gift', Recetario: 'maki', Cámara: 'camera', NoriPhone: 'phone', 'Descansar un rato': 'bed', Ajustes: 'gear', Guardar: 'disk', Cuenta: 'cloud', 'Amigos online': 'heart', 'Jugar juntos': 'maki', Cargar: 'door', 'Guardar y salir': 'door' };
-  const b = (label: string, hint: string, fn: () => void, cls = '') =>
-    h('button', { type: 'button', class: 'tile ' + cls, onclick: () => { p.close(); void runTask('ui:menu', fn); } }, skinIconEl(ICON[label] ?? 'menu'), h('span', null, label, h('small', null, hint)));
-  const tiles = ([
-    b('Mochila', 'Tus objetos', () => openBag()),
-    b('Personaje', 'Cambiar ropa y apariencia', () => import('./wardrobe').then((m) => m.openWardrobe())),
-    b('Mapa', 'Villa Nori', () => openMap()),
-    b('Misiones', 'Historia y encargos', () => openJournal(0)),
-    b('Investigación', 'Pistas y cuaderno', () => openJournal(1)),
-    b('Amigos', 'Relaciones', () => openJournal(2)),
-    b('Colecciones', 'Álbum y logros', () => openJournal(3)),
-    b('Recetario', 'Recetas, variantes y dominio', () => openJournal(4)),
-    b('Cámara', 'Sacar una foto', () => import('./camera').then((m) => m.takePhoto())),
-    b('NoriPhone', 'Tus aplicaciones de Villa Nori', () => openNoriPhone()),
-    b('Descansar un rato', clock.period < 3 ? 'Pasar al siguiente momento del día' : 'Es de noche: andá a dormir a tu cama', () => restPeriod()),
-    b('Ajustes', 'Sonido, texto y controles', () => openSettings(true)),
-    b('Cuenta', 'Guardado en la nube', () => import('./account').then((m) => m.openAccount())),
-    b('Amigos online', 'Código, amigos y tarjetas', () => import('./friends').then((m) => m.openFriends())),
-    b('Jugar juntos', 'Cociná y serví con un amigo', () => import('./coop').then((m) => m.openCoop())),
-    b('Guardar', 'Deja un punto fijo de esta partida', saveManualSlot),
-    b('Cargar', 'Elegí un automático o un manual', loadSlot),
-    b('Guardar y salir', 'Guarda el automático y vuelve al título', saveAndExit),
-  ]) as HTMLElement[];
-  const grid = h('div', { class: 'tiles' }, ...tiles);
-  const p = panel({ title: 'Menú', body: grid });
+  let close = () => {};
+  const go = (fn: () => void) => () => { close(); void runTask('ui:menu', fn); };
+  const item = (label: string, icon: string, fn: () => void, wide = false) =>
+    h('button', { type: 'button', class: 'pause-item' + (wide ? ' wide' : ''), onclick: go(fn) }, skinIconEl(icon), h('span', null, label));
+  const block = (title: string, ...kids: HTMLElement[]) => h('div', { class: 'pause-page' }, h('h3', null, title), h('div', { class: 'pause-grid' }, ...kids));
+  const page = h('div', { class: 'pause-page' },
+    block('Jugar',
+      item('Mochila', 'bag', () => openBag()),
+      item('Mapa', 'map', () => openMap()),
+      item('Descansar un rato', 'bed', () => restPeriod(), true),
+    ),
+    block('Gente',
+      item('Amigos', 'heart', () => openJournal(2)),
+      item('Personaje', 'shirt', () => import('./wardrobe').then((m) => m.openWardrobe())),
+      item('Amigos online', 'heart', () => import('./friends').then((m) => m.openFriends())),
+      item('Jugar juntos', 'maki', () => import('./coop').then((m) => m.openCoop())),
+    ),
+    block('Sistema',
+      item('Ajustes', 'gear', () => openSettings(true)),
+      item('Cuenta', 'cloud', () => import('./account').then((m) => m.openAccount())),
+      item('Guardar', 'disk', saveManualSlot),
+      item('Cargar', 'door', loadSlot),
+      item('Modo prueba', 'inspect', () => import('./devMode').then((m) => m.openDevMode()), true),
+    ),
+    h('button', { type: 'button', class: 'pause-exit', onclick: go(saveAndExit) }, 'Guardar y salir'),
+  );
+  const p = panel({ title: 'Más', body: page });
+  close = p.close;
+  p.root.classList.add('pause-sheet');
 }
 
 /** Pause board: resume, save, load, settings and exit. Everything else lives in the NoriPhone. */
@@ -272,6 +276,7 @@ function openPauseBoard() {
       item('Amigos online', 'heart', () => import('./friends').then((m) => m.openFriends())),
       item('Cuenta', 'cloud', () => import('./account').then((m) => m.openAccount())),
       item('Descansar un rato', 'bed', () => restPeriod(), true),
+      item('Modo prueba', 'inspect', () => import('./devMode').then((m) => m.openDevMode()), true),
     ),
     h('button', { type: 'button', class: 'pause-exit', onclick: go(saveAndExit) }, 'Guardar y salir'),
   );

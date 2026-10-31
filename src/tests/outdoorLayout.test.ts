@@ -1,130 +1,113 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { game, newSave } from '../core/state';
 import { HOUSES, houseDoorTile } from '../data/houses';
-import { STREET_PLANS, isStreetFixture } from '../data/outdoorLayout';
 import { PROJECTS } from '../data/projects';
-import { PROPS } from '../data/props';
 import { ZONES } from '../data/zones';
+import { VILLAGE_HOME_SITES } from '../data/villageGeography';
+import { VILLAGE_SQUARE } from '../data/villageWorld';
 import { buildZone } from '../world/zoneRuntime';
+import { migrateVillagePosition } from '../world/villageMigration';
 import { safeArrival } from '../world/zoneTransition';
-import { gatherSpots } from '../systems/gather';
+import { routeDoor } from '../systems/journeys';
 
-const FLAGS = ['unlock_forest', 'unlock_beach', 'unlock_garden', 'unlock_station', 'market_open', 'unlock_lighthouse_view'];
-const LEGACY_HOUSES = ['house_plaza_1_27', 'house_plaza_18_27', 'house_plaza_24_27', 'house_plaza_30_27',
-  'house_plaza_1_36', 'house_plaza_8_36', 'house_plaza_18_36', 'house_plaza_24_36', 'house_plaza_46_15', 'house_plaza_50_20',
-  'house_beach_32_3', 'house_beach_40_3', 'house_beach_33_9', 'house_beach_40_9', 'house_garden_25_4', 'house_garden_31_4'];
-
+const FLAGS = ['unlock_forest', 'unlock_beach', 'unlock_garden', 'unlock_station', 'market_open', 'unlock_lighthouse_view', 'lighthouse_open'];
+const outdoors = Object.values(ZONES).filter(z => z.outdoor);
+const LEGACY = ['house_plaza_1_27', 'house_plaza_18_27', 'house_plaza_24_27', 'house_plaza_30_27', 'house_plaza_1_36', 'house_plaza_8_36', 'house_plaza_18_36', 'house_plaza_24_36', 'house_plaza_46_15', 'house_plaza_50_20', 'house_beach_32_3', 'house_beach_40_3', 'house_beach_33_9', 'house_beach_40_9', 'house_garden_25_4', 'house_garden_31_4'];
 beforeEach(() => { game.load(newSave()); });
+const openAll = () => FLAGS.forEach(f => game.setFlag(f));
 
-describe('complete outdoor layout', () => {
-  it('preserves all saved home identities, their regions, and return doors after relocation', () => {
-    expect(HOUSES.map(h => h.id)).toEqual(LEGACY_HOUSES);
-    for (const h of HOUSES) {
+describe('approved village geography', () => {
+  it('preserves every home identity, interior and return doorstep after moving neighbourhoods', () => {
+    expect(HOUSES.map(h => h.id)).toEqual(LEGACY);
+    HOUSES.forEach((h, i) => {
       const [x, y] = houseDoorTile(h);
-      expect(h.id.startsWith('house_' + h.zone + '_')).toBe(true);
+      expect([h.zone, h.x, h.y]).toEqual(VILLAGE_HOME_SITES[i]);
       expect(ZONES[h.zone].doors.find(d => d.to === h.id)).toMatchObject({ x, y });
       expect(ZONES[h.id].doors[0]).toMatchObject({ to: h.zone, tx: x, ty: y + 1 });
+      expect(buildZone(h.zone).grid.isSolid(x, y + 1), h.id).toBe(false);
+    });
+  });
+  it('keeps complete building silhouettes outside the civic square', () => {
+    const s = VILLAGE_SQUARE;
+    for (const z of outdoors) for (const p of buildZone(z.id).props.filter(p => ['building', 'townhouse', 'sidehouse'].includes(p.def.kind))) {
+      const b = { x: z.world!.x + p.x, y: z.world!.y + p.y + p.def.h - p.def.sh / 16, w: p.def.sw / 16, h: p.def.sh / 16 };
+      expect(b.x < s.x + s.w && b.x + b.w > s.x && b.y < s.y + s.h && b.y + b.h > s.y, `${z.id} ${p.key}`).toBe(false);
+      expect(b.x).toBeGreaterThanOrEqual(z.world!.x);
+      expect(b.y).toBeGreaterThanOrEqual(z.world!.y);
+      expect(b.x + b.w).toBeLessThanOrEqual(z.world!.x + z.w);
+      expect(b.y + b.h).toBeLessThanOrEqual(z.world!.y + z.h);
     }
   });
-
-  it('keeps lamps and signposts beside walking lanes and away from entrances', () => {
-    for (const id of Object.keys(STREET_PLANS)) for (const p of ZONES[id].props.filter(isStreetFixture)) {
-      const def = PROPS[p.id], z = ZONES[id];
-      for (let y = p.y; y < p.y + def.h; y++) for (let x = p.x; x < p.x + def.w; x++) {
-        const label = `${id} ${p.id} ${x},${y}`;
-        if (id !== 'market') expect('pcbh'.includes(z.ground[y][x]), label).toBe(false);
-        else expect(x < 2 || x >= 39 || y < 6 || y >= 15, label).toBe(true);
-        expect(z.doors.some(d => d.walk && d.x === x && (d.y === y || d.y + 1 === y)), label).toBe(false);
-      }
+  it('joins districts on the same world street and arrives inside without a return-door loop', () => {
+    openAll();
+    for (const z of outdoors) for (const d of z.doors.filter(d => ZONES[d.to].outdoor)) {
+      const q = ZONES[d.to];
+      const distance = Math.abs(q.world!.x + d.tx - z.world!.x - d.x) + Math.abs(q.world!.y + d.ty - z.world!.y - d.y);
+      expect(distance, `${z.id}/${q.id}`).toBe(2);
+      expect(buildZone(q.id).grid.isSolid(d.tx, d.ty), `${z.id}/${q.id} landing`).toBe(false);
+      expect(q.doors.some(back => back.walk && back.x === d.tx && back.y === d.ty), `${z.id}/${q.id} bounce`).toBe(false);
     }
+    for (const z of outdoors) if (z.id !== 'plaza') expect(routeDoor('plaza', z.id), z.id).not.toBeNull();
   });
-
-  it('gives every shop and house a clear street return tile', () => {
-    for (const id of ['plaza', 'beach', 'garden']) {
-      const b = buildZone(id);
-      for (const d of b.def.doors.filter(d => d.to.startsWith('house_') || d.to.startsWith('shop_') || d.to === 'restaurant' || d.to === 'library')) {
-        expect(b.grid.isSolid(d.x, d.y + 1), `${id} ${d.to} threshold`).toBe(false);
-      }
-    }
+  it('opens the waterfront for daytime walks while market services stay on their night schedule', () => {
+    game.setFlag('unlock_beach');
+    expect(routeDoor('plaza', 'market')).not.toBeNull();
+    expect(routeDoor('plaza', 'harbor')).not.toBeNull();
+    expect(game.has('market_open')).toBe(false);
+    expect(routeDoor('plaza', 'station')).toBeNull();
   });
-
-  it('connects every doorway by streets without requiring a detour across lawns', () => {
-    for (const flag of FLAGS) game.save.flags[flag] = true;
-    for (const id of Object.keys(STREET_PLANS)) {
-      const b = buildZone(id), streets = b.grid.clone();
-      for (let y = 0; y < b.def.h; y++) for (let x = 0; x < b.def.w; x++) {
-        if (!'pcb'.includes(b.def.ground[y][x])) streets.setSolid(x, y, true);
-      }
-      const doors = b.def.doors.filter(d => d.walk), start = doors[0];
+  it('connects all building thresholds and crossings by streets without lawn shortcuts', () => {
+    openAll();
+    for (const z of outdoors) {
+      const b = buildZone(z.id), streets = b.grid.clone();
+      for (let y = 0; y < z.h; y++) for (let x = 0; x < z.w; x++) if (!'pcb'.includes(z.ground[y][x])) streets.setSolid(x, y, true);
+      const doors = z.doors.filter(d => d.walk), start = doors[0];
       for (const d of doors) {
-        expect(streets.isSolid(d.x, d.y), `${id} ${d.to} threshold`).toBe(false);
-        expect(streets.path(start.x, start.y, d.x, d.y, 20000), `${id} ${d.to} street access`).not.toBeNull();
+        expect(streets.isSolid(d.x, d.y), `${z.id}/${d.to} doorstep`).toBe(false);
+        expect(streets.path(start.x, start.y, d.x, d.y, 20000), `${z.id}/${d.to} street`).not.toBeNull();
       }
     }
   });
-
-  it('keeps scenery and gathering off every street, before and after restoration', () => {
-    const structural = new Set(['building', 'townhouse', 'sidehouse', 'fountain', 'shrine', 'stall', 'mill',
-      'torii', 'stonestairs', 'waterfall', 'pier', 'village_bank', 'lighthouse']);
-    for (const restored of [false, true]) {
-      for (const flag of FLAGS) game.save.flags[flag] = true;
-      game.save.flags.weather = 'rain';
-      if (restored) for (const p of PROJECTS) for (let i = 1; i <= p.phases.length; i++) game.save.flags[`proj_${p.id}_${i}`] = true;
-      for (const id of Object.keys(STREET_PLANS)) {
-        const b = buildZone(id);
-        for (const p of b.props.filter(p => !structural.has(p.def.kind) && !p.key.startsWith('block_'))) {
-          for (let y = p.y; y < p.y + p.def.h; y++) for (let x = p.x; x < p.x + p.def.w; x++) {
-            expect('pcb'.includes(b.def.ground[y]?.[x] ?? '?'), `${id} ${p.key} ${x},${y}`).toBe(false);
-          }
-        }
-        for (const g of [...b.def.gather, ...gatherSpots(id)]) expect('pcb'.includes(b.def.ground[g.y][g.x]), `${id} gather ${g.x},${g.y}`).toBe(false);
-      }
+  it('keeps main streets and bridge approaches open across their full width', () => {
+    openAll();
+    const lanes = [[44, 31, 2, 27], [66, 41, 2, 17], [72, 37, 7, 3], [79, 37, 41, 3], [84, 47, 36, 3], [99, 37, 2, 21], [21, 26, 2, 19], [18, 3, 2, 18]];
+    const built = Object.fromEntries(outdoors.map(z => [z.id, buildZone(z.id)]));
+    for (const [x, y, w, h] of lanes) for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+      const z = outdoors.find(z => xx >= z.world!.x && xx < z.world!.x + z.w && yy >= z.world!.y && yy < z.world!.y + z.h)!;
+      expect(built[z.id].grid.isSolid(xx - z.world!.x, yy - z.world!.y), `${z.id} public lane ${xx},${yy}`).toBe(false);
     }
   });
-
-  it('keeps public lanes clear across their full width, and every timber deck on bridge terrain', () => {
-    for (const f of FLAGS) game.save.flags[f] = true;
-    for (const project of PROJECTS) for (let p = 1; p <= project.phases.length; p++) game.save.flags[`proj_${project.id}_${p}`] = true;
-    for (const [id, plan] of Object.entries(STREET_PLANS)) {
-      const b = buildZone(id);
-      for (const [x, y, w, h, tile] of plan.paths.filter(p => 'pcb'.includes(p[4]))) {
-        for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) expect.soft(b.grid.isSolid(i, j), `${id} lane ${i},${j} (${tile})`).toBe(false);
-      }
-      for (const p of b.props.filter(p => p.def.kind === 'village_deck')) for (let j = p.y; j < p.y + p.def.h; j++) for (let i = p.x; i < p.x + p.def.w; i++) {
-        expect(b.def.ground[j][i], `${id} ${p.key} ${i},${j}`).toBe('b');
-      }
-    }
+  it('migrates old positions once while preserving all progress and decoration', () => {
+    const save = newSave(); delete save.flags.village_layout;
+    Object.assign(save.player, { zone: 'garden', x: 35, y: 24 });
+    save.coins = 721; save.inventory.wood = 9; save.quests.done = ['prologue']; save.flags.sign_restored = true;
+    const before = JSON.stringify({ inventory: save.inventory, quests: save.quests, garden: save.garden, decor: save.decor });
+    expect(migrateVillagePosition(save)).toBe(true);
+    game.load(save); openAll(); const b = buildZone(save.player.zone);
+    expect(b.grid.isSolid(save.player.x, save.player.y)).toBe(false);
+    expect(JSON.stringify({ inventory: save.inventory, quests: save.quests, garden: save.garden, decor: save.decor })).toBe(before);
+    expect(save.coins).toBe(721); expect(save.flags.sign_restored).toBe(true);
+    save.player.x++; expect(migrateVillagePosition(save)).toBe(false); expect(save.player.x).toBe(22);
+    b.grid.setSolid(save.player.x, save.player.y, true);
+    const recovered = safeArrival(b, save.player.x, save.player.y);
+    expect(b.grid.isSolid(recovered.x, recovered.y)).toBe(false);
   });
-
-  it('recovers outdoor positions occupied by a relocated building without dropping saved progress', () => {
-    const s = newSave();s.coins = 721;s.inventory.wood = 9;s.quests.done = ['prologue'];s.flags.sign_restored = true;
-    s.player = { ...s.player, zone: 'plaza', x: 12, y: 28 };
-    game.load(s);
-    const b = buildZone('plaza');expect(b.grid.isSolid(12, 28)).toBe(true);
-    const p = safeArrival(b, s.player.x, s.player.y);
-    expect(b.grid.isSolid(p.x, p.y)).toBe(false);
-    expect(b.grid.path(p.x, p.y, 15, 22, 20000)).not.toBeNull();
-    expect(game.save).toMatchObject({ coins: 721, inventory: { wood: 9 }, flags: { sign_restored: true }, quests: { done: ['prologue'] } });
-  });
-
   for (const [name, level, phases] of [['initial', 1, 0], ['first renovations', 3, 1], ['second renovations', 7, 2], ['completed projects', 20, 4]] as const) {
-    it(`${name}: buildings and paid scenery do not overlap, with all destinations reachable`, () => {
-      game.save.restaurant.level = level;
-      for (const flag of FLAGS) game.save.flags[flag] = true;
-      for (const project of PROJECTS) for (let p = 1; p <= Math.min(phases, project.phases.length); p++) game.save.flags[`proj_${project.id}_${p}`] = true;
-      for (const id of Object.keys(STREET_PLANS)) {
-        const b = buildZone(id), occupied = new Map<string, string>();
-        for (const p of b.props.filter(p => p.def.solid && p.def.kind !== 'boat')) for (let dy = 0; dy < p.def.h; dy++) for (let dx = 0; dx < p.def.w; dx++) {
-          const x = p.x + dx, y = p.y + dy, key = `${x},${y}`;
-          expect.soft(occupied.get(key), `${id} ${p.key} ${key}`).toBeUndefined();
-          expect.soft('wd'.includes(b.def.ground[y]?.[x] ?? 'w'), `${id} ${p.key} on water`).toBe(false);
-          occupied.set(key, p.key);
+    it(`${name}: every district stays reachable and paid scenery never overlaps or sits on water`, () => {
+      openAll(); game.save.restaurant.level = level;
+      for (const p of PROJECTS) for (let phase = 1; phase <= Math.min(phases, p.phases.length); phase++) game.setFlag(`proj_${p.id}_${phase}`);
+      for (const z of outdoors) {
+        const b = buildZone(z.id), occupied = new Map<string, string>();
+        for (const p of b.props.filter(p => p.def.solid && p.def.kind !== 'boat')) for (let y = p.y; y < p.y + p.def.h; y++) for (let x = p.x; x < p.x + p.def.w; x++) {
+          expect(occupied.get(`${x},${y}`), `${z.id} ${p.key}/${occupied.get(`${x},${y}`)}`).toBeUndefined();
+          expect('wd'.includes(z.ground[y]?.[x] ?? 'w'), `${z.id} ${p.key} on water`).toBe(false);
+          occupied.set(`${x},${y}`, p.key);
         }
-        const start = b.def.doors.find(d => d.walk)!;
-        for (const d of b.def.doors.filter(d => d.walk)) expect(b.grid.path(start.x, start.y, d.x, d.y, 20000), `${id} ${d.to}`).not.toBeNull();
-        for (const i of b.def.interact.filter(i => !i.cond?.startsWith('!'))) {
-          const reachable = [[0,0],[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => !b.grid.isSolid(i.x+dx,i.y+dy) && !!b.grid.path(start.x,start.y,i.x+dx,i.y+dy,20000));
-          expect(reachable, `${id} ${i.id}`).toBe(true);
+        const start = z.doors.find(d => d.walk)!;
+        for (const d of z.doors.filter(d => d.walk)) expect(b.grid.path(start.x, start.y, d.x, d.y, 20000), `${z.id}/${d.to}`).not.toBeNull();
+        for (const i of [...z.interact.filter(i => !i.cond?.startsWith('!')), ...z.gather]) {
+          const accessible = [[0, 0], [0, 1], [0, -1], [1, 0], [-1, 0]].some(([dx, dy]) => !b.grid.isSolid(i.x + dx, i.y + dy) && b.grid.path(start.x, start.y, i.x + dx, i.y + dy, 20000));
+          expect(accessible, `${z.id} activity ${i.x},${i.y}`).toBe(true);
         }
       }
     });

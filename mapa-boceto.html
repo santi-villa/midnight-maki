@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Villa Nori · Boceto del mapa</title>
+  <style>
+    :root{font-family:'Pixelify Sans',sans-serif;color:#473b35;background:#eee5d5;font-synthesis:none}
+    *{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer;color:inherit}button:focus-visible{outline:3px solid #7d493f;outline-offset:3px}
+    header{padding:25px 32px 21px;display:flex;justify-content:space-between;align-items:end;border-bottom:1px solid #ccbaa1;gap:20px}
+    .eyebrow{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#8c6656}h1{font-size:37px;font-weight:600;line-height:1;margin:6px 0 8px}header p{font-size:15px;margin:0;color:#7d6d60}
+    .toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.toolbar button{background:#f8f1e4;border:1px solid #bca58a;padding:9px 13px;border-radius:4px;font-size:14px}.toolbar button[aria-pressed=true]{background:#715347;color:#fff5df;border-color:#715347}.toolbar .export{background:#416a5a;color:#fff8e8;border-color:#416a5a}
+    main{display:grid;grid-template-columns:240px minmax(0,1fr);padding:22px 24px;gap:24px;max-width:2200px;margin:auto}
+    aside{padding:9px 5px}aside h2{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:#96765f;font-weight:500;margin:0 0 16px}.zones{display:grid;gap:4px}.zone{background:none;border:0;text-align:left;display:flex;gap:10px;align-items:center;padding:9px 7px;border-radius:4px;font-size:16px}.zone:hover,.zone:focus-visible{background:#e1d4be}.number{width:26px;height:26px;background:#8c4d46;color:#fff5df;display:grid;place-items:center;border-radius:50%;font-size:15px;flex-shrink:0}
+    .note{border-top:1px solid #ccbaa1;margin-top:21px;padding-top:17px;font-size:15px;line-height:1.5;color:#7d6d60}.note strong{display:block;color:#665044;font-weight:500;margin-bottom:7px}
+    .map-panel{min-width:0}.map-status{display:flex;justify-content:space-between;gap:15px;font-size:12px;text-transform:uppercase;letter-spacing:1.3px;color:#8d725b;margin:0 0 10px}
+    .viewport{height:calc(100vh - 194px);min-height:470px;max-height:1500px;overflow:auto;background:#648c91;border:5px solid #715347;outline:1px solid #b69e82;box-shadow:0 10px 30px #513d2312;scroll-behavior:smooth;position:relative}.surface{margin:auto;line-height:0}canvas{width:100%;height:auto;image-rendering:pixelated;display:block}footer{margin-top:11px;font-size:13px;color:#8d7764;display:flex;justify-content:space-between;gap:15px}
+    @media(max-width:950px){header{padding:20px;align-items:start;flex-direction:column}main{display:flex;flex-direction:column;padding:18px;gap:12px}aside{order:2}.zones{grid-template-columns:repeat(2,1fr)}.viewport{height:auto;aspect-ratio:13/10;min-height:0;max-height:65vh}.note{max-width:700px}h1{font-size:32px}.map-status{font-size:10px}footer{font-size:12px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div><div class="eyebrow">Midnight Maki · Estudio del mapa</div><h1>Una nueva Villa Nori</h1><p>El centro reúne al pueblo. Los senderos llevan al bosque y al mar.</p></div>
+    <div class="toolbar" aria-label="Opciones de la vista">
+      <button id="day" aria-pressed="true">Día</button><button id="night" aria-pressed="false">Noche</button>
+      <button id="labels" aria-pressed="true">Nombres</button><button id="fit">Ver completo</button><button id="zoom">Acercar +</button><button class="export" id="export">Guardar imagen ↓</button>
+    </div>
+  </header>
+  <main>
+    <aside><h2>Diez rincones de un pueblo</h2><nav class="zones" id="zones" aria-label="Acercarse a una zona"></nav><div class="note"><strong>Una plaza que reúne al pueblo.</strong>Fuente, flores y bancos en el espacio público. Cada edificio tiene su parcela, su entrada y su acceso a la calle.<br><br>El restaurante suma un jardín y un patio propios, entre la plaza y el paseo del puerto.</div></aside>
+    <section class="map-panel" aria-label="Boceto del nuevo mapa"><div class="map-status"><span>Boceto de distribución · 02</span><span id="status">Preparando Villa Nori…</span></div><div class="viewport" id="viewport"><div class="surface" id="surface"><canvas id="map" aria-label="Mapa propuesto de Villa Nori"></canvas></div></div><footer><span>Elegí una zona para verla de cerca.</span><span>Vista de prueba · Distancias aproximadas</span></footer><div class="note">Naturaleza y relieves: <a href="https://limezu.itch.io/serenevillagerevamped">LimeZu</a> · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Recortes y paleta adaptada.</div></section>
+  </main>
+  <script type="module" src="/src/previews/mapSketch.ts"></script>
+</body>
+</html>

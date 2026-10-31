@@ -1482,6 +1482,10 @@ b, strong, h1, h2, h3, .panel-title, .card > b:first-child, .hud-quest b, .tab.a
 .pause-page h3 { margin: 4px 0 0; color: #3a2418; font-size: 1.05em; letter-spacing: .2px; }
 .pause-page h3::after { content: none; }
 .pause-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.dev-mode { gap: 8px; }
+.dev-mode h3 { margin: 6px 0 0; }
+.dev-places { display: flex; flex-wrap: wrap; gap: 6px; }
+.dev-places .btn { flex: 1 1 132px; }
 .pause-item {
   display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 6px 8px;
   border: 3px solid #8d6b45; border-radius: 10px; background: #fffaf0; color: #3a2418;

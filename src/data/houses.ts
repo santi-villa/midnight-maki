@@ -5,10 +5,11 @@
 import { houseDoorPlan, houseInteracts } from './houseInterior';
 import { Builder, zone } from './zoneKit';
 import type { DoorDef, InteractDef, ZoneDef } from './zones';
+import { VILLAGE_HOME_SITES, type VillageZone } from './villageGeography';
 
 export type Trade = 'home' | 'tea' | 'fish' | 'flower';
 /** `front`: seen from the front with a porch at one side. `side`: the whole house seen from the side, entrance on its gable end. */
-export interface HouseDef { id: string; zone: 'plaza' | 'beach' | 'garden'; trade: Trade; side: 'l' | 'r'; view: 'front' | 'side'; x: number; y: number; name: string }
+export interface HouseDef { id: string; zone: VillageZone; trade: Trade; side: 'l' | 'r'; view: 'front' | 'side'; x: number; y: number; name: string }
 
 const NAMES: Record<Trade, string[]> = {
   home: ['Casa de los Sato', 'Casa Hayashi', 'Casa de la abuela Fuyu', 'Casa Kimura', 'Casa de los Mori', 'Casa Tanabe'],
@@ -28,26 +29,30 @@ const RAW: [HouseDef['zone'], Trade, 'l' | 'r', number, number, ('front' | 'side
   ['garden', 'tea', 'l', 25, 4, 'side'], ['garden', 'flower', 'r', 31, 4, 'side'],
 ];
 const used: Record<Trade, number> = { home: 0, tea: 0, fish: 0, flower: 0 };
+/** Sign text. IDs stay historical (saves and visits). A shared house names everyone who sleeps there. */
+const WHO: Record<string, string> = {
+  house_plaza_1_27: 'Casa de Ren y Taro',
+  house_plaza_18_27: 'Casa de Mika y Sumi',
+  house_plaza_24_27: 'Casa de Haru y Kumo',
+  house_plaza_30_27: 'Pescadería de Tomo y Kiki',
+  house_plaza_1_36: 'Casa de Nene',
+  house_plaza_8_36: 'Casa de Goro y Bento',
+  house_plaza_18_36: 'Casa de Fuyu y Hoshi',
+  house_plaza_24_36: 'Casa de Sato y Sora',
+  house_plaza_46_15: 'Casa de Mame',
+  house_plaza_50_20: 'Casa de Kai y Akio',
+  house_beach_32_3: 'Cabaña de Rin',
+  house_beach_40_3: 'Casa de Oto',
+  house_garden_31_4: 'Florería del Jardín',
+};
 // These IDs are addresses used by saved visits and neighbours. Keep the original ID even
 // when its building moves: the coordinates in the ID are historical, not a location parser.
-const PLACES: Partial<Record<string, Partial<Pick<HouseDef, 'zone' | 'x' | 'y'>>>> = {
-  house_plaza_1_27: { x: 2, y: 28 },
-  house_plaza_46_15: { x: 40, y: 21 },
-  house_plaza_24_27: { x: 9, y: 28 },
-  house_plaza_8_36: { x: 18, y: 28 },
-  house_plaza_18_27: { x: 25, y: 26 },
-  house_plaza_30_27: { x: 40, y: 26 },
-  house_plaza_18_36: { x: 22, y: 36 },
-  house_plaza_1_36: { x: 2, y: 36 },
-  house_plaza_24_36: { x: 31, y: 5 },
-  house_plaza_50_20: { x: 48, y: 21 },
-  house_garden_31_4: { x: 14, y: 17 },
-  house_beach_40_9: { x: 39, y: 9 },
-};
-export const HOUSES: HouseDef[] = RAW.map(([zone, trade, side, x, y, view]) => {
+export const HOUSES: HouseDef[] = RAW.map(([zone, trade, side, x, y, view], index) => {
   const id = `house_${zone}_${x}_${y}`;
-  return { id, zone, trade, side, view: view ?? 'front', x, y,
-    name: NAMES[trade][used[trade]++ % NAMES[trade].length], ...PLACES[id] };
+  const generated = NAMES[trade][used[trade]++ % NAMES[trade].length];
+  const [newZone, nx, ny] = VILLAGE_HOME_SITES[index];
+  return { id, zone: newZone, trade, side, view: view ?? 'front', x: nx, y: ny,
+    name: WHO[id] ?? generated };
 });
 
 export const housesIn = (zone: HouseDef['zone']) => HOUSES.filter((h) => h.zone === zone);

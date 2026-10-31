@@ -33,7 +33,7 @@ const ground = (zone: string, x: number, y: number) => ZONES[zone]?.ground[y]?.[
 
 function propCovers(zone: string, x: number, y: number): boolean {
   for (const p of ZONES[zone]?.props ?? []) {
-    if (p.cond) continue;
+    if (p.cond && !p.cond.startsWith('stage=')) continue;
     const d = PROPS[p.id];
     if (!d?.solid) continue;
     if (x >= p.x && x < p.x + d.w && y >= p.y && y < p.y + d.h) return true;
@@ -69,7 +69,7 @@ function thin<T>(spots: T[], cap: number): T[] {
   return out;
 }
 
-const BENCH_ZONES = ['plaza', 'beach', 'garden', 'library'];
+const BENCH_ZONES = ['plaza', 'beach', 'garden', 'library', 'residential', 'shrine', 'harbor', 'market'];
 
 /** Seat just south of a bench prop. The sprite is lifted onto the bench. */
 export const benchSpots = (zone: string): Place[] =>
@@ -157,11 +157,11 @@ export function clearings(zone: string, kind: string, cap: number): Place[] {
 }
 
 export const FOUNTAIN = fountainSpots('plaza');
-export const SHORE = shoreSpots('beach');
+export const SHORE = [...shoreSpots('beach'), ...shoreSpots('harbor')];
 export const GARDEN = clearings('garden', 'garden', 6);
 export const FOREST = clearings('forest', 'forest', 6);
 export const MARKET = clearings('market', 'market', 6);
-export const STROLL = [...clearings('plaza', 'stroll', 12), ...clearings('beach', 'stroll', 4)];
+export const STROLL = [...clearings('plaza', 'stroll', 12), ...clearings('beach', 'stroll', 4), ...clearings('residential', 'stroll', 8), ...clearings('shrine', 'stroll', 4), ...clearings('harbor', 'stroll', 4)];
 
 /** One walkable look-around tile in a zone. Skips the tile they are already on. */
 export function lookAround(zone: string, salt: number, avoid?: { x: number; y: number }): { x: number; y: number } | null {
