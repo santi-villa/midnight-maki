@@ -17,6 +17,9 @@ type Facade = (typeof catalog.facades)[number];
 type Rect = { x: number; y: number; w: number; h: number };
 const facadeFor = new Map<string, Facade>();
 for (const f of catalog.facades) for (const id of f.replaces) facadeFor.set(id, f);
+type Piece = { rect: number[]; atlas: { x: number; y: number; w: number; h: number }; replaces: string[]; tiles?: number[] };
+const pieceFor = new Map<string, Piece>();
+for (const p of (catalog as { pieces?: Piece[] }).pieces ?? []) for (const id of p.replaces) pieceFor.set(id, p);
 
 let atlas: CanvasImageSource | null = null;
 export function installJpBuildingsAtlas(source: CanvasImageSource) { atlas = source; }
@@ -30,7 +33,9 @@ function facadeX(f: Facade, W: number): number {
 }
 
 /** The footprint a facade needs: whole tiles wide enough for the nudged facade, and its own height. */
-export function jpFootprint(id: string): { w: number; sw: number; sh: number } | null {
+export function jpFootprint(id: string): { w: number; h?: number; sw: number; sh: number } | null {
+  const p = jpBuildingsWanted() ? pieceFor.get(id) : undefined;
+  if (p?.tiles) return { w: p.tiles[0], h: p.tiles[1], sw: p.tiles[0] * 16, sh: p.rect[3] };
   const f = jpBuildingsWanted() ? facadeFor.get(id) : undefined;
   if (!f) return null;
   let w = Math.ceil(f.rect[2] / 16);
@@ -58,6 +63,14 @@ export function drawJpFacade(c: Ctx, id: string, W: number, H: number): boolean 
 
 /** A shop or the library: the facade with its name plaque. The restaurant is drawn by villageAssets (sign, lanterns). */
 export function jpBuildingObject(id: string, W: number, H: number, label?: string): HTMLCanvasElement | null {
+  const piece = jpBuildingsWanted() ? pieceFor.get(id) : undefined;
+  if (piece && atlas) {
+    // scenery (shrine, torii, lanterns, trees): native pixels, bottom-centred; a bigger piece grows the canvas around it
+    const f = piece.atlas, w = Math.max(W, f.w), h = Math.max(H, f.h);
+    const canvas = makeCanvas(w, h);
+    ctx2d(canvas).drawImage(atlas, f.x, f.y, f.w, f.h, Math.floor((w - f.w) / 2), h - f.h, f.w, f.h);
+    return canvas;
+  }
   if (id.startsWith('bld_restaurant')) return null;
   const canvas = makeCanvas(W, H), c = ctx2d(canvas);
   if (!drawJpFacade(c, id, W, H)) return null;

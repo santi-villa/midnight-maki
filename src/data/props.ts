@@ -265,6 +265,9 @@ export const PROPS: Record<string, PropDef> = {
   block_gate_wood: P('gatepanel', 1, 1, 16, 22, '', '', { variant: 1 }),
   sawhorse: P('sawhorse', 1, 1, 16, 16),
   shrine: P('shrine', 2, 1, 40, 40),
+  // guardian lion-dogs flanking the shrine's approach (VectoRaith, art/japaneseBuildings.ts)
+  komainu_l: P('stonelantern', 1, 1, 16, 34, '#c9c2b4', '', { sombra: 'contacto' }),
+  komainu_r: P('stonelantern', 1, 1, 16, 34, '#c9c2b4', '', { sombra: 'contacto' }),
   sign_shrine: P('signpost', 2, 1, 48, 30, '', '', { solid: false, label: 'SANTUARIO ↑' }),
   sign_harbor: P('signpost', 2, 1, 48, 30, '', '', { solid: false, label: 'PUERTO ↓' }),
   sign_riverside: P('signpost', 2, 1, 52, 30, '', '', { solid: false, label: 'RIBERA →' }),
