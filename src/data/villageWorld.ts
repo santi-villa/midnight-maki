@@ -200,7 +200,7 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
     zones[at.zone].doors.push({ x: at.x, y: at.y, to, tx, ty, label, walk, dir: 'up', lock });
     for (const back of zones[to].doors.filter(d => old[d.to]?.outdoor || d.to === 'plaza' || d.to === 'beach')) Object.assign(back, { to: at.zone, tx: at.x, ty: at.y + 1 });
   }
-  for (const [id, to, tx, ty, name] of [['bld_bakery', 'shop_bento', 5, 6, 'Panadería'], ['bld_clothes', 'shop_yuki', 5, 6, 'Ropa de Yuki'], ['bld_library', 'library', 6, 7, 'Biblioteca'], ['bld_store', 'shop_taro', 5, 6, 'Almacén de Taro'], ['bld_restaurant_s2', 'restaurant', RESTAURANT_ENTRY.x, RESTAURANT_ENTRY.y, 'Midnight Maki']] as const) {
+  for (const [id, to, tx, ty, name] of [['bld_bakery', 'shop_bento', 9, 6, 'Panadería'], ['bld_clothes', 'shop_yuki', 9, 6, 'Ropa de Yuki'], ['bld_library', 'library', 6, 7, 'Biblioteca'], ['bld_store', 'shop_taro', 9, 6, 'Almacén de Taro'], ['bld_restaurant_s2', 'restaurant', RESTAURANT_ENTRY.x, RESTAURANT_ENTRY.y, 'Midnight Maki']] as const) {
     const p = study.plots.find(p => p.id === id)!; entrance(to, ...p.door, tx, ty, name);
   }
   for (const h of HOUSES) zones[h.zone].doors.push(houseDoorDef(h));

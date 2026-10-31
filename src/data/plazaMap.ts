@@ -143,9 +143,9 @@ export function plaza(): ZoneDef {
   for (const y of [34, 38]) b.prop('puddle', 20 + y / 2, y, 'rain');
 
   const doors: DoorDef[] = [
-    { x: 26, y: 6, to: 'shop_yuki', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Ropa de Yuki' },
-    { x: 27, y: 18, to: 'shop_taro', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Almacén de Taro' },
-    { x: 5, y: 18, to: 'shop_bento', tx: 5, ty: 6, dir: 'up', walk: true, label: 'Panadería' },
+    { x: 26, y: 6, to: 'shop_yuki', tx: 9, ty: 6, dir: 'up', walk: true, label: 'Ropa de Yuki' },
+    { x: 27, y: 18, to: 'shop_taro', tx: 9, ty: 6, dir: 'up', walk: true, label: 'Almacén de Taro' },
+    { x: 5, y: 18, to: 'shop_bento', tx: 9, ty: 6, dir: 'up', walk: true, label: 'Panadería' },
     { x: 11, y: 24, to: 'library', tx: 6, ty: 7, dir: 'up', walk: true, label: 'Biblioteca' },
     { x: 5, y: 6, to: RESTAURANT_ENTRY.zone, tx: RESTAURANT_ENTRY.x, ty: RESTAURANT_ENTRY.y, dir: RESTAURANT_ENTRY.dir, walk: true, label: 'Midnight Maki' },
     { x: 15, y: 0, to: 'forest', tx: 14, ty: 22, dir: 'up', walk: true, lock: { flag: 'unlock_forest', msg: 'Un montón de troncos caídos tapa el sendero. Kiki dice que todavía hay que despejarlo.' } },

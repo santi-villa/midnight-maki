@@ -114,8 +114,8 @@ export const CHARACTERS: CharacterDef[] = [
     appearance: A({ species: 'fox', skin: '#d8874f', eyes: 0, eyeColor: '#2a2230', top: 'top_kimono_indigo', bottom: 'bot_hakama', shoes: 'sh_geta' }),
     loves: ['sh_pearl', 'st_amethyst', 'f_koi'], likes: ['st_quartz', 'sh_pink', 'g_candy', 'eel'], dislikes: ['stone', 'wood'],
     routine: [
-      { zone: 'shop_taro', x: 5, y: 3, wander: 0 },
-      { zone: 'shop_taro', x: 5, y: 3, wander: 0 },
+      { zone: 'shop_taro', x: 9, y: 3, wander: 0 },
+      { zone: 'shop_taro', x: 9, y: 3, wander: 0 },
       { zone: 'plaza', x: 16, y: 15, wander: 3 },
       { zone: 'market', x: 10, y: 6, wander: 1, act: 'work' },
     ],
@@ -126,8 +126,8 @@ export const CHARACTERS: CharacterDef[] = [
     appearance: A({ species: 'bunny', skin: '#fbf6ea', eyes: 4, eyeColor: '#c27f86', top: 'top_blouse_elegant', bottom: 'bot_skirt_plaid', shoes: 'sh_mary', head: 'hd_bow', hairStyle: 6 }),
     loves: ['sh_pink', 'b_sakura', 'fl_tulip'], likes: ['g_candy', 'sh_cowrie', 'st_quartz'], dislikes: ['shiitake', 'f_mackerel'],
     routine: [
-      { zone: 'shop_yuki', x: 5, y: 3, wander: 0 },
-      { zone: 'shop_yuki', x: 5, y: 3, wander: 0 },
+      { zone: 'shop_yuki', x: 9, y: 3, wander: 0 },
+      { zone: 'shop_yuki', x: 9, y: 3, wander: 0 },
       { zone: 'plaza', x: 13, y: 15, wander: 0, act: 'sit' },
       { zone: 'house_beach_33_9', x: 7, y: 4, wander: 0, act: 'sleep', dir: 'up', bed: { x: 7, y: 2, w: 1, h: 2 } },
     ],
@@ -174,8 +174,8 @@ export const CHARACTERS: CharacterDef[] = [
     appearance: A({ species: 'bear', skin: '#8a5a3c', eyes: 1, eyeColor: '#2a2230', top: 'top_chef', bottom: 'bot_pants_brown', shoes: 'sh_boots', extra: 'ex_apron' }),
     loves: ['berry', 'mango', 'g_candy'], likes: ['egg', 'fl_sun', 'g_tea'], dislikes: ['f_puffer', 'wasabi'],
     routine: [
-      { zone: 'shop_bento', x: 5, y: 3, wander: 0 },
-      { zone: 'shop_bento', x: 5, y: 3, wander: 0 },
+      { zone: 'shop_bento', x: 9, y: 3, wander: 0 },
+      { zone: 'shop_bento', x: 9, y: 3, wander: 0 },
       { zone: 'restaurant', x: 9, y: 10, wander: 0, act: 'sit' },
       { zone: 'plaza', x: 5, y: 19, wander: 0, act: 'sit' },
     ],
