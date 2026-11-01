@@ -105,10 +105,10 @@ Se añaden 178 muebles y adornos de los paquetes Bitglow Bedroom (20), Bathroom 
 
 - **Interiores y muebles:** se priorizó Bitglow por coherencia y permiso comercial adjunto. Cosy Cabin, Cozy Interior, Pixel Lands y Super Retro World quedan como alternativas de estilo, no se mezclan todos en el mismo salón.
 - **Exterior:** se conservaron bancos, carteles, macetas, flores, casas comerciales y objetos de cada zona; se armonizan sus materiales y se añaden tejas de la demo sin cambiar la navegación.
-- **Sprout Lands, Cozy Lands, Farming Pack Free Tier y otros recursos no comerciales:** no se incorporan a esta publicación.
+- **Cozy Lands, Farming Pack Free Tier y otros recursos no comerciales:** no se incorporan a esta publicación. Excepción: el UI Pack básico de Sprout Lands sí se usa en la interfaz (ver «Interfaz: emotes de Modern Interiors y Sprout Lands UI»); es de uso no comercial y su licencia está pendiente de resolver.
 - Las piezas grandes que solo aparecen en la imagen del pack completo no se extraen de la previsualización para fingir que están disponibles en la demo.
 
-Los créditos del menú del juego mencionan a VectoRaith y Bitglow. El resto de la construcción del mundo, arte de personajes, lógica, animaciones y composición sigue siendo el trabajo propio del proyecto.
+Los créditos del menú del juego mencionan a VectoRaith, Bitglow, LimeZu (Modern Interiors y Modern Exteriors), Cup Nooble (Sprout Lands UI) y los demás packs usados. El resto de la construcción del mundo, arte de personajes, lógica, animaciones y composición sigue siendo el trabajo propio del proyecto.
 
 ## Modern Interiors (LimeZu)
 

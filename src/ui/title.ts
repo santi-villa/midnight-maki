@@ -316,7 +316,7 @@ function credits() {
       h('p', null, h('b', null, 'Maki & Mapaches: Los secretos de Villa Nori')),
       h('p', null, 'Un regalo para Sofi, de Santi.'),
       h('p', null, 'Ilustraciones pixel art, música y sonidos para Villa Nori.'),
-      h('p', null, 'Terreno y tejas: VectoRaith (demo Traditional Japanese, con adaptación de color). Muebles y decoración: Bitglow y Modern Interiors, de LimeZu. Playa: Modern Exteriors, de LimeZu. Huerta: Cozy Farm Lite, de Bramble & Byte.'),
+      h('p', null, 'Terreno y tejas: VectoRaith (demo Traditional Japanese, con adaptación de color). Muebles, decoración, pisos, paredes y burbujas de emoción: Bitglow y Modern Interiors, de LimeZu. Playa, puerto, faro, plaza, estación, jardín y fogata: Modern Exteriors, de LimeZu. Interfaz y cursor: Sprout Lands UI, de Cup Nooble. Huerta: Cozy Farm Lite, de Bramble & Byte.'),
       h('p', null, 'Expendedoras, letreros, postes y puestos comerciales: The Japan Collection: Japanese City (Free Version), de GuttyKreum.'),
       h('p', null, 'Naturaleza: ', h('a', { href: 'https://limezu.itch.io/serenevillagerevamped', target: '_blank', rel: 'noopener noreferrer' }, 'Serene Village revamped, de LimeZu'), '. ', h('a', { href: 'https://creativecommons.org/licenses/by/4.0/', target: '_blank', rel: 'noopener noreferrer' }, 'CC BY 4.0'), '. Recortes y paleta adaptada para Villa Nori.'),
       h('p', null, 'Hecho con Phaser, TypeScript y Vite. Tipografía: Pixelify Sans (OFL).'),
