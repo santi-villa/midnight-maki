@@ -41,10 +41,11 @@ export function castKey(scene: Phaser.Scene, texKey: string, frameName: string |
   g.globalCompositeOperation = 'source-in';
   g.fillStyle = '#140c24';
   g.fillRect(0, 0, cw, ch);
-  // fade: dark at the feet, lighter towards the tip
+  // fade: dark at the feet, lighter towards the tip; a wide silhouette (a building) fades out completely, or its far edge
+  // would show as a hard-edged dark box on the ground
   g.globalCompositeOperation = 'destination-in';
   const grad = g.createLinearGradient(0, 0, 0, ch);
-  grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0.35)');
+  grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, `rgba(0,0,0,${w >= 48 ? 0 : 0.35})`);
   g.fillStyle = grad;
   g.fillRect(0, 0, cw, ch);
   scene.textures.addCanvas(key, c);

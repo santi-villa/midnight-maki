@@ -3,7 +3,7 @@ import catalog from '../assets/limezu/exteriors.json';
 import { PROPS } from '../data/props';
 import { SEA_EDGES, TILE_INDEX } from '../art/tiles';
 import { seaDepthAt, seaEdge } from '../world/zoneRuntime';
-import { SEA_FRAMES } from '../art/exteriors';
+import { SEA_FRAMES, warmSandPieces } from '../art/exteriors';
 import { ZONES } from '../data/zones';
 
 describe('LimeZu exterior pieces', () => {
@@ -57,5 +57,17 @@ describe('LimeZu exterior pieces', () => {
     const ids = new Set(plaza.props.map((p) => p.id));
     for (const id of ['planter_pink', 'planter_white', 'planter_red']) expect(ids.has(id), id).toBe(true);
     for (const row of plaza.ground) expect(row).not.toMatch(/[ryl]{2}/);
+  });
+
+  it('give the sand castles a shadow that stands out from the beach sand and leave transparency alone', () => {
+    const ground = 0.3 * 231 + 0.59 * 217 + 0.11 * 181;
+    // the pack's own castle tones: outline grey, shaded sand, lit sand, and a clear pixel
+    const px = new Uint8ClampedArray([109, 105, 98, 255, 174, 157, 124, 255, 235, 213, 172, 255, 9, 9, 9, 0]);
+    warmSandPieces(px);
+    const lum = (i: number) => 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
+    expect(ground - lum(0)).toBeGreaterThan(80);
+    expect(ground - lum(4)).toBeGreaterThan(45);
+    expect(lum(8)).toBeGreaterThan(lum(4));
+    expect(Array.from(px.slice(12))).toEqual([9, 9, 9, 0]);
   });
 });

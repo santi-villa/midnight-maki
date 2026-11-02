@@ -3964,7 +3964,8 @@ export class WorldScene extends Phaser.Scene {
     this.castList = this.castList.filter((c) => c.s.active && c.src.active);
     trimCasts(this);
     for (const c of this.castList) {
-      const squash = c.sy * (st.sy / 0.3);
+      // a house is wide and flat: stretched as long as a tree's, its shadow would be a big dark box on the ground
+      const squash = Math.min(c.sy * (st.sy / 0.3), c.src.width >= 48 && !c.tall ? 0.3 : Infinity);
       const k = castKey(this, c.src.texture.key, c.s.getData('frame') ?? c.src.frame.name, st.dx * (c.tall ? 2.2 : 1.4), squash, c.src.flipX);
       if (!k) { c.s.setVisible(false); continue; }
       c.s.setTexture(k).setOrigin(0.5, 0).setPosition(c.src.x, c.src.y).setVisible(c.src.visible).setAlpha(c.a * st.alpha);
