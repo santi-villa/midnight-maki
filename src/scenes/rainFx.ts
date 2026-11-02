@@ -3,7 +3,9 @@ import { dotTexture, glowTexture } from './textures';
 import type { RainCell } from './rainmath';
 
 interface Impact { img: Phaser.GameObjects.Image; age: number; cell: RainCell }
-interface Puddle { img: Phaser.GameObjects.Image; seed: number }
+interface Puddle { img: Phaser.GameObjects.Image; seed: number; glint: Phaser.GameObjects.Image; lampAt?: { color: number; strength: number } }
+/** A lamp as the lighting pass knows it. */
+export interface PuddleLamp { x: number; y: number; color?: number; glow?: number; kind?: string; facade?: boolean }
 
 /** Camera-local particles and small reusable pools. Never touches the cached darkness layer. */
 export class RainFx {
@@ -26,7 +28,12 @@ export class RainFx {
       scene.textures.addCanvas('rain_puddle', cv);
     }
     const candidates = cells.filter((c) => c.puddle).sort((a, b) => (a.seed % 997) - (b.seed % 997)).slice(0, low ? 32 : 80);
-    for (const c of candidates) this.puddles.push({ img: scene.add.image(c.x * 16 + 8, c.y * 16 + 10, 'rain_puddle').setDepth(-6).setVisible(false), seed: c.seed });
+    for (const c of candidates) {
+      const img = scene.add.image(c.x * 16 + 8, c.y * 16 + 10, 'rain_puddle').setDepth(-6).setVisible(false);
+      // what the water shows: the sky in glints by day, the nearest lamp at night
+      const glint = scene.add.image(img.x, img.y, glowTexture(scene)).setBlendMode(Phaser.BlendModes.ADD).setDepth(-5.9).setVisible(false);
+      this.puddles.push({ img, seed: c.seed, glint });
+    }
     if (low) return;
     const cv = document.createElement('canvas'); cv.width = 13; cv.height = 7;
     const g = cv.getContext('2d')!; g.strokeStyle = '#c4e0e9'; g.lineWidth = 1;
@@ -45,11 +52,31 @@ export class RainFx {
     }
   }
 
-  update(dt: number, raining: boolean, wet: number, view: Phaser.Geom.Rectangle) {
+  /** The puddles that lie in the light of a street lamp (or a lit stall): at night they show its colour. */
+  setLamps(lamps: readonly PuddleLamp[]) {
+    for (const p of this.puddles) {
+      let best: { color: number; d: number } | null = null;
+      for (const l of lamps) {
+        if (l.kind || l.facade || (l.glow ?? 0) < 0.5) continue;
+        const d = Math.hypot(l.x - p.img.x, l.y - p.img.y);
+        if (d < 90 && (!best || d < best.d)) best = { color: l.color ?? 0xffd27a, d };
+      }
+      p.lampAt = best ? { color: best.color, strength: 1 - best.d / 90 } : undefined;
+    }
+  }
+
+  update(dt: number, raining: boolean, wet: number, view: Phaser.Geom.Rectangle, light = { lamp: 0 }) {
     this.elapsed += dt;
     for (const p of this.puddles) {
       const k = Math.max(0, Math.min(1, (wet - 0.06 - (p.seed % 17) / 100) / 0.65));
-      p.img.setVisible(k > 0 && view.contains(p.img.x, p.img.y)).setScale(0.25 + k * 0.85).setAlpha(0.18 + k * 0.25);
+      const shown = k > 0 && view.contains(p.img.x, p.img.y);
+      p.img.setVisible(shown).setScale(0.25 + k * 0.85).setAlpha(0.18 + k * 0.25);
+      // the reflection: a lamp's colour once the lamps are on, glints of sky while the sun is out
+      const twinkle = 0.7 + 0.3 * Math.sin(this.elapsed * 2.1 + p.seed);
+      let a = 0, tint = 0xdff1ff;
+      if (p.lampAt && light.lamp > 0.05) { a = k * light.lamp * (0.22 + 0.4 * p.lampAt.strength); tint = p.lampAt.color; }
+      else if (!raining) a = k * (1 - light.lamp) * 0.2 * twinkle;
+      p.glint.setVisible(shown && a > 0.01).setPosition(p.img.x, p.img.y).setTint(tint).setAlpha(Math.min(0.65, a)).setScale(0.32 + k * 0.5, 0.15 + k * 0.2);
     }
     if (this.low) return;
     const key = `${Math.ceil(view.width)},${Math.ceil(view.height)}`;
@@ -92,7 +119,7 @@ export class RainFx {
   destroy() {
     for (const e of this.drops) e.destroy();
     for (const m of this.mist) m.destroy();
-    for (const p of this.puddles) p.img.destroy();
+    for (const p of this.puddles) { p.img.destroy(); p.glint.destroy(); }
     for (const r of this.rings) r.img.destroy();
   }
 }

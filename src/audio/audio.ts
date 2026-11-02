@@ -846,6 +846,8 @@ export class AudioEngine {
       case 'burnt': noiseHit(0, 0.4, 600, 0.3); tone(110, 0, 0.35, 'sawtooth', 0.08, 0.6); break;
       case 'assemble': noiseHit(0, 0.12, 1500, 0.12); tone(520, 0.02, 0.06, 'sine', 0.06); noiseHit(0.5, 0.15, 800, 0.18); tone(392, 0.9, 0.08, 'triangle', 0.1); break;
       case 'bell': tone(1568, 0, 0.5, 'sine', 0.14); tone(2349, 0, 0.35, 'sine', 0.06); break;
+      // the station clock striking: a low bell with a long ring and two overtones
+      case 'clock_bell': tone(262, 0, 1.9, 'sine', 0.2); tone(524, 0, 1.4, 'sine', 0.1); tone(786, 0.01, 0.9, 'sine', 0.05); tone(1048, 0.01, 0.5, 'sine', 0.025); break;
       case 'plate_slide': noiseHit(0, 0.22, 1700, 0.14); tone(880, 0.16, 0.14, 'triangle', 0.07); break;
       case 'trash': noiseHit(0, 0.12, 500, 0.22); tone(180, 0, 0.12, 'triangle', 0.1, 0.5); break;
       case 'place': tone(330, 0, 0.09, 'sine', 0.25, 0.7); noiseHit(0, 0.05, 900, 0.2); break;

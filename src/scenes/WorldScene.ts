@@ -6,6 +6,8 @@ import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
 import { FishLife, openWater, waterBeside } from './fishLife';
+import { SkyLife } from './skyLife';
+import { bellStrokes, bellVolume, hourOfDay, rainbowAfter } from './skyMath';
 import { RainFx } from './rainFx';
 import { rainCells, WetGround } from './rainmath';
 import { residentHome, restPhase } from '../systems/residentSleep';
@@ -197,6 +199,8 @@ export class WorldScene extends Phaser.Scene {
   galleyBusy = false;
   private animsFrozen = false;
   private propImgs = new Map<string, Phaser.GameObjects.Image>();
+  /** Flowers, bushes and reeds: they bend when Sofi brushes past. */
+  private swayProps = new Map<string, { img: Phaser.GameObjects.Image; amp: number; at: number }>();
   galleyView = new GalleyView({
     scene: this,
     get player() { return world.player; },
@@ -902,6 +906,7 @@ export class WorldScene extends Phaser.Scene {
     this.objs = [];
     this.dropNeighborDecor();
     this.fish?.reset([], [], true);
+    this.sky?.clearBirds();
     this.windowGlows = [];
     this.shopFacades = [];
     this.castList = [];
@@ -972,6 +977,7 @@ export class WorldScene extends Phaser.Scene {
     this.occluders = [];
     // props
     this.propImgs.clear();
+    this.swayProps.clear();
     for (const p of this.zone.props) {
       // Outdoor puddles now grow and dry with the rain instead of being permanent prop stamps.
       if (def.outdoor && p.def.kind === 'puddle') continue;
@@ -1009,6 +1015,7 @@ export class WorldScene extends Phaser.Scene {
       }
       this.objs.push(img);
       this.propImgs.set(`${p.x},${p.y}`, img);
+      if (['flowers', 'bush', 'reeds'].includes(p.def.kind) && p.def.anim !== 'sway') this.swayProps.set(`${p.x},${p.y}`, { img, amp: p.def.kind === 'bush' ? 2.5 : 8, at: 0 });
       if (!onWall && !p.def.ground && p.def.sombra !== 'ninguna') {
         const contact = p.def.sombra === 'contacto';
         this.addShadow(p.def.kind, px, py, contact ? 8 : p.def.sw, p.def.w, contact);
@@ -2525,6 +2532,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.zone?.def.outdoor) {
       this.wetGround.visit(this.zoneId);
       this.rainFx = new RainFx(this, rainCells(this.zone.def.ground, (x, y) => this.zone.grid.isSolid(x, y)), lowFx());
+      this.rainFx.setLamps(this.lamps);
     }
     this.moths?.destroy();
     this.moths = null;
@@ -3134,8 +3142,42 @@ export class WorldScene extends Phaser.Scene {
     this.remote = null; this.remoteTag = null; this.remoteKey = '';
   }
 
+  private sky: SkyLife | null = null;
+  private lastHour = -1;
   private fish: FishLife | null = null;
   private fishCovered = new Set<string>();
+  /** Flowers and bushes next to Sofi bend away and spring back as she walks past (once in a while each, so they never buzz). */
+  private updateSway() {
+    const p = this.player;
+    if (!p?.moving || !this.swayProps.size || lowFx() || settings.reduceMotion) return;
+    const now = this.time.now;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const s = this.swayProps.get(`${p.tx + dx},${p.ty + dy}`);
+      if (!s || !s.img.active || now - s.at < 700) continue;
+      if (Math.abs(s.img.x - p.x) > 13 || Math.abs(s.img.y - 6 - p.y) > 11) continue;
+      s.at = now;
+      const dir = Math.sign(s.img.x - p.x) || 1;
+      this.tweens.add({ targets: s.img, angle: [dir * s.amp, -dir * s.amp * 0.55, dir * s.amp * 0.25, 0], duration: 560, ease: 'Sine.inOut' });
+    }
+  }
+
+  /** The sky (birds crossing, shooting stars, the rainbow) and the station clock's hour bell. */
+  private updateSky(dt: number) {
+    this.sky ??= new SkyLife(this);
+    const cam = this.cameras.main, vw = cam.width / cam.zoom, vh = cam.height / cam.zoom, vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
+    const def = this.zone.def;
+    this.sky.update(dt, { x: vx, y: vy, right: vx + vw, bottom: vy + vh, width: vw, height: vh }, {
+      outdoor: !!def.outdoor && !this.transitioning, day: clock.period <= 1, night: clock.period === 3, raining: game.flag('weather') === 'rain', still: lowFx() || settings.reduceMotion,
+    });
+    // the station clock strikes each hour as the day goes by (not when time jumps, as on waking up)
+    const t = game.save.time, hour = hourOfDay(dayMinutes(t.period, t.minutes));
+    if (this.lastHour >= 0 && hour !== this.lastHour && hour === (this.lastHour + 1) % 24 && !clock.paused && !this.transitioning) {
+      const vol = bellVolume(this.zoneId);
+      if (vol > 0) for (let i = 0; i < bellStrokes(hour); i++) this.time.delayedCall(i * 900, () => audio.sfxPlay('clock_bell', vol));
+    }
+    this.lastHour = hour;
+  }
+
   /** The fish of this district: a shadow swimming at each fishing spot, and the water where the odd one jumps (also the districts around). */
   private setupFish() {
     this.fish ??= new FishLife(this);
@@ -3230,11 +3272,13 @@ export class WorldScene extends Phaser.Scene {
     if (!this.player || !this.zone) return;
     const raining = game.flag('weather') === 'rain';
     if (this.weatherKey !== String(raining)) {
+      this.sky ??= new SkyLife(this);
+      if (rainbowAfter(this.weatherKey === 'true', raining, clock.period)) this.sky.showRainbow();
       this.weatherKey = String(raining);
       this.playZoneAudio(); this.setupAmbient(); this.spawnCritters();
     }
     this.wetGround.advance(dt, raining);
-    this.rainFx?.update(dt, raining, this.wetGround.visit(this.zoneId), this.cameras.main.worldView);
+    this.rainFx?.update(dt, raining, this.wetGround.visit(this.zoneId), this.cameras.main.worldView, { lamp: this.ls?.lamp ?? 0 });
     if (!this.transitioning) { if (mirror.on) this.followHostClock(); else clock.tick(dt); }
     if (!mirror.on) this.watchBedtime();
     this.syncCoop(dt);
@@ -3257,6 +3301,8 @@ export class WorldScene extends Phaser.Scene {
     this.updateFootsteps(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
+    this.updateSky(dt);
+    this.updateSway();
     if (this.fish) {
       const cam = this.cameras.main, vw = cam.width / cam.zoom, vh = cam.height / cam.zoom, vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
       this.fish.update(dt, { x: vx, y: vy, right: vx + vw, bottom: vy + vh }, this.ls?.lamp ?? 0);
