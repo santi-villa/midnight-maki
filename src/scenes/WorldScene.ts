@@ -7,6 +7,7 @@ import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, wate
 import { WaterFx } from './waterFx';
 import { FishLife, deepWater, waterBeside, type FishSource } from './fishLife';
 import { SkyLife } from './skyLife';
+import { Wildlife, type Tree } from './wildlife';
 import { bellStrokes, bellVolume, hourOfDay, rainbowAfter } from './skyMath';
 import { RainFx } from './rainFx';
 import { rainCells, WetGround } from './rainmath';
@@ -1221,6 +1222,7 @@ export class WorldScene extends Phaser.Scene {
   /** birds hop around by day and fly off when you get close; a cat strolls through the plaza */
   private pets: Pets | null = null;
   spawnCritters() {
+    this.spawnWild();
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
     this.flockTimers.clear();
@@ -1256,7 +1258,35 @@ export class WorldScene extends Phaser.Scene {
     if (!night && seasonOf(game.save.time.day) < 2 && ['plaza', 'garden', 'forest'].includes(this.zoneId)) for (let i = 0; i < (this.zoneId === 'garden' ? 5 : 3); i++) add('butterfly');
   }
 
+  /** Frogs, ducks, crabs, squirrels, dragonflies, bees and the falling petals and leaves of this district (scenes/wildlife.ts). */
+  private spawnWild() {
+    this.wild ??= new Wildlife(this);
+    const def = this.zone?.def;
+    if (!def?.outdoor) { this.wild.destroy(); return; }
+    const trees: Tree[] = [];
+    const flowers: { x: number; y: number }[] = [];
+    for (const p of this.zone.props) {
+      const x = p.x * TILE + (p.def.w * TILE) / 2, y = (p.y + p.def.h) * TILE;
+      if (p.def.kind === 'tree' || p.def.kind === 'sakura' || p.def.kind === 'pine') {
+        const img = this.propImgs.get(`${p.x},${p.y}`);
+        trees.push({ x, y, top: y - Math.max(p.def.sh, img?.height ?? 0), kind: p.def.kind });
+      } else if (p.def.kind === 'flowers') flowers.push({ x, y });
+    }
+    this.wild.spawn({
+      zone: this.zoneId, ground: def.ground, walkable: (tx, ty) => this.zone.grid.inside(tx, ty) && !this.zone.grid.isSolid(tx, ty),
+      // the coast is salt water; ponds and rivers are fresh (usesSea only says how the water is drawn)
+      sea: ['beach', 'harbor', 'market'].includes(this.zoneId), season: seasonOf(game.save.time.day), period: clock.period, rain: game.flag('weather') === 'rain', trees, flowers,
+    }, lowFx() || settings.reduceMotion);
+  }
+
   private updateCritters(dt: number) {
+    if (this.wild) {
+      const cam = this.cameras.main, vw = cam.width / cam.zoom, vh = cam.height / cam.zoom, vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
+      this.wild.update(dt, {
+        threat: (x, y, extra) => this.birdThreat(x, y, extra),
+        sound: (name, x, y) => { const d = Math.hypot(x - this.player.x, y - this.player.y); if (d < 150) audio.sfxPlay(name, 0.6 * (1 - d / 150)); },
+      }, { x: vx, y: vy, right: vx + vw, bottom: vy + vh });
+    }
     this.updateFlockTakeoffs(dt);
     for (const c of this.critters) {
       const s = c.s;
@@ -2675,18 +2705,7 @@ export class WorldScene extends Phaser.Scene {
         this.ambient.push(em);
       });
     }
-    if (!rain && season < 2 && ['plaza', 'garden'].includes(this.zoneId) && !night) {
-      const pet = dotTexture(this, 'petal', '#f4c6cf', 2, 1);
-      const em = this.add.particles(0, -4, pet, { x: { min: 0, max: W }, speedY: { min: 8, max: 16 }, speedX: { min: 4, max: 12 }, lifespan: 14000, frequency: 1300, rotate: { min: 0, max: 360 } });
-      em.setDepth(150000);
-      this.ambient.push(em);
-    }
-    if (!rain && season < 2 && this.zoneId === 'forest' && !night) {
-      const leaf = dotTexture(this, 'leaf', '#a8bf7c', 2, 2);
-      const em = this.add.particles(0, -4, leaf, { x: { min: 0, max: W }, speedY: { min: 6, max: 12 }, speedX: { min: -6, max: 6 }, lifespan: 16000, frequency: 1600 });
-      em.setDepth(150000);
-      this.ambient.push(em);
-    }
+    // petals and leaves fall from the trees themselves (scenes/wildlife.ts)
   }
 
   // ------------------------------------------------------------------ input & interaction
@@ -3207,6 +3226,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private sky: SkyLife | null = null;
+  private wild: Wildlife | null = null;
   private lastHour = -1;
   private fish: FishLife | null = null;
   private fishCovered = new Set<string>();

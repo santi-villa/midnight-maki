@@ -23,7 +23,7 @@ export const PET_SPOTS: PetSpot[] = [
   // (the two dogs were removed: their art did not match the pixel style of the game)
   { zone: 'garden', kind: 'cat_siamese', tx: 13, ty: 8, dx: 8, dy: 5, route: [[13, 9], [12, 11], [15, 9]] },
   { zone: 'restaurant', kind: 'cat_siamese', name: 'Miso', tx: 17, ty: 12, route: [[17, 12], [16, 8], [6, 10]] },
-  { zone: 'garden', kind: 'frog', tx: 26, ty: 20, dx: 8, dy: 14, day: true },
+  // (the frog moved to scenes/wildlife.ts: drawn in code, it croaks, hops along the bank and dives in)
 ];
 
 const SCALE: Record<PetSpot['kind'], number> = { cat_brown: 0.8, cat_white: 0.8, cat_siamese: 0.8, dog_sleep: 0.6, dog_golden: 0.55, frog: 0.45 };
