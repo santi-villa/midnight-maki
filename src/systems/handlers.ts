@@ -1,3 +1,4 @@
+import { DISTRICTS } from '../world/village';
 /** Registers every world interaction handler. Imported once when the world starts. */
 import { iconElement } from '../art/icons';
 import { audio } from '../audio/audio';
@@ -76,7 +77,8 @@ registerAction('door', async (to) => {
 
 /** A visible obstacle (logs, vines, barricade...) that closes a path until its flag is set. */
 registerAction('blocked', async (to) => {
-  const d = world.zone.def.doors.find((dd) => dd.to === to && dd.lock);
+  // outdoors the way between two districts is no door of the drawn map any more: it is still the district's own
+  const d = world.zone.def.doors.find((dd) => dd.to === to && dd.lock) ?? DISTRICTS.flatMap((z) => ZONES[z].doors).find((dd) => dd.to === to && dd.lock);
   if (!d?.lock) return;
   if (game.has(d.lock.flag)) { world.refreshZone(); return; }
   toast(d.lock.msg);
@@ -146,7 +148,7 @@ registerAction('board', () => {
   }
   const projects = projectsSection(async () => {
     const p = world.player;
-    return p ? await world.enterZone(world.zoneId, p.tx, p.ty, p.dir, false) : false;
+    return p ? await world.reload() : false;
   });
   const errands = errandsSection(projects.refresh);
   const pages = [errands, projects, orders];

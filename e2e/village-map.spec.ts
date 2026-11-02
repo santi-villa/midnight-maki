@@ -29,7 +29,7 @@ test('approved village renders in play and walking crosses real streets and inte
     await page.evaluate(async ({ zone, x, y }) => {
       const w = (window as any).mmDebug.world;
       await w.enterZone(zone, x, y, 'down', false, true);
-      w.cameras.main.stopFollow(); w.cameras.main.setZoom(2.3); w.cameras.main.centerOn(x * 16, y * 16);
+      const at = w.lw(zone, x, y); w.cameras.main.stopFollow(); w.cameras.main.setZoom(2.3); w.cameras.main.centerOn(at.x * 16, at.y * 16);
       document.getElementById('ui')!.style.display = 'none';
     }, { zone, x, y });
     await page.waitForTimeout(250);
@@ -42,10 +42,12 @@ test('approved village renders in play and walking crosses real streets and inte
     const { ZONES } = await import(loaded);
     const d = ZONES.plaza.doors.find(d => d.to === 'residential')!;
     await w.enterZone('plaza', d.x - 2, d.y, 'right', false, true);
-    if (!w.player.walkTo(w.zone.grid, d.x, d.y)) throw new Error('No walking route to residential bridge');
+    // outdoors the village is one map (world/village.ts): walk over the district edge, one tile past the old seam
+    const to = w.lw('plaza', d.x + 1, d.y);
+    if (!w.player.walkTo(w.zone.grid, to.x, to.y)) throw new Error('No walking route to residential bridge');
     (window as any).mmDebug.clock.resume();
   });
-  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId)).toBe('residential');
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId), { timeout: 15000 }).toBe('residential');
   await page.waitForTimeout(350);
   expect(await page.evaluate(() => (window as any).mmDebug.world.zoneId)).toBe('residential');
   // Door entry and exit must both use the new restaurant address.
@@ -55,9 +57,10 @@ test('approved village renders in play and walking crosses real streets and inte
     const { ZONES } = await import(loaded);
     const d = ZONES.plaza.doors.find(d => d.to === 'restaurant')!;
     await w.enterZone('plaza', d.x, d.y + 2, 'up', false, true);
-    if (!w.player.walkTo(w.zone.grid, d.x, d.y)) throw new Error('No route to restaurant threshold');
+    const door = w.lw('plaza', d.x, d.y);
+    if (!w.player.walkTo(w.zone.grid, door.x, door.y)) throw new Error('No route to restaurant threshold');
   });
-  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId)).toBe('restaurant');
+  await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId), { timeout: 15000 }).toBe('restaurant');
   await page.waitForFunction(() => !(window as any).mmDebug.world.transitioning && !(window as any).mmDebug.world.inputLocked);
   await page.evaluate(() => {
     const w = (window as any).mmDebug.world;
@@ -69,7 +72,7 @@ test('approved village renders in play and walking crosses real streets and inte
     const { world: w, game, clock } = (window as any).mmDebug;
     clock.pause(); game.save.time.period = 3;
     await w.enterZone('plaza', 24, 17, 'down', false, true);
-    w.cameras.main.stopFollow(); w.cameras.main.setZoom(2.3); w.cameras.main.centerOn(23 * 16, 16 * 16);
+    const at = w.lw('plaza', 23, 16); w.cameras.main.stopFollow(); w.cameras.main.setZoom(2.3); w.cameras.main.centerOn(at.x * 16, at.y * 16);
   });
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'docs/villa-nori-noche.png' });

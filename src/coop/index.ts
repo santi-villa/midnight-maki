@@ -62,7 +62,7 @@ async function enterGuestWorld(w: WorldPack) {
     decor: s.decor, roomStyle: s.roomStyle,
     restaurant: { level: s.restaurant.level, upgrades: s.restaurant.upgrades, reputation: s.restaurant.reputation },
     time: { ...s.time }, weather: s.flags.weather,
-    at: { zone: world.zoneId, x: world.player.tx, y: world.player.ty, dir: world.player.dir },
+    at: world.here(),
   };
   setSaveBlocked(true);
   if (w.weather) s.flags.weather = w.weather;

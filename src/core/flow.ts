@@ -176,8 +176,10 @@ export function saveSoon() {
 export function syncPlayerPos() {
   if (!world?.player || !world.zoneId) return;
   const p = game.save.player;
-  p.zone = world.zoneId;
-  p.x = world.player.tx;
-  p.y = world.player.ty;
-  p.dir = world.player.dir;
+  // outdoors the map is the whole village: the save keeps the district and the tile in its own coordinates
+  const h = world.here();
+  p.zone = h.zone;
+  p.x = h.x;
+  p.y = h.y;
+  p.dir = h.dir;
 }

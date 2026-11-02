@@ -86,7 +86,7 @@ export function openWorldMap() {
     if (qTarget.kind === 'interior') return outdoorSpot(qTarget.fromZone, qTarget.door.x, qTarget.door.y);
     return outdoorSpot(qTarget.zone, qTarget.x ?? 0, qTarget.y ?? 0);
   })();
-  const here = world?.player ? outdoorSpot(world.zoneId, world.player.tx, world.player.ty) : null;
+  const here = world?.player ? (() => { const h = world.here(); return outdoorSpot(h.zone, h.x, h.y); })() : null;
 
   const show = (id: string | null) => { zoomed = id; render(); };
 

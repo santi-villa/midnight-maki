@@ -17,9 +17,12 @@ import { dotTexture } from './textures';
 export interface Tree { x: number; y: number; top: number; kind: string }
 export interface WildPlace {
   zone: string;
+  /** The district of a tile, when the place is the whole village (otherwise every tile is in `zone`). */
+  districtAt?: (tx: number, ty: number) => string;
   ground: readonly string[];
   walkable: (tx: number, ty: number) => boolean;
-  sea: boolean;
+  /** Salt water (the coast) everywhere, or tile by tile when the place spans the village. */
+  sea: boolean | ((tx: number, ty: number) => boolean);
   season: number;
   period: number;
   rain: boolean;
@@ -559,7 +562,12 @@ export class Wildlife {
     const sand = (x: number, y: number) => g[Math.floor(y / TILE)]?.[Math.floor(x / TILE)] === 's' && place.walkable(Math.floor(x / TILE), Math.floor(y / TILE));
     const walk = (x: number, y: number) => place.walkable(Math.floor(x / TILE), Math.floor(y / TILE)) && !isWater(g, Math.floor(x / TILE), Math.floor(y / TILE));
     const wet = (x: number, y: number) => isWater(g, Math.floor(x / TILE), Math.floor(y / TILE));
-    if (!place.sea) for (const body of ponds(g)) {
+    const salt = (tx: number, ty: number) => typeof place.sea === 'function' ? place.sea(tx, ty) : place.sea;
+    const where = (tx: number, ty: number) => place.districtAt?.(tx, ty) ?? place.zone;
+    // how many districts this place holds: the counts below are per district
+    const many = place.districtAt ? new Set(g.flatMap((row, y) => [...row].map((_, x) => where(x, y)))).size : 1;
+    for (const body of ponds(g)) {
+      if (salt(body[0].x, body[0].y)) continue;
       // each pond its own: some with frogs, some with a duck family, some with neither
       const set = new Set(body.map((t) => `${t.x},${t.y}`));
       const room = body.filter((t) => solidWater(g, t.x, t.y));
@@ -580,14 +588,16 @@ export class Wildlife {
         this.creatures.push(new DuckFamily(scene, room, wet, center(start), 2 + (hash(body[0].x, body[0].y) % 3), banks.map(center), walk));
       }
     }
-    if (place.zone === 'beach') for (const h of crabHomes(g, place.walkable, 4)) this.creatures.push(new Crab(scene, center(h), sand));
-    if (!winter && day && ['forest', 'deepforest', 'garden', 'shrine'].includes(place.zone)) {
-      const trees = spread(place.trees.filter((t) => t.kind === 'tree' || t.kind === 'pine').map((t) => ({ ...t, x: t.x, y: t.y })), 2, 80);
-      for (const t of trees) this.creatures.push(new Squirrel(scene, t, walk));
+    const beach = (x: number, y: number) => where(x, y) === 'beach' && place.walkable(x, y);
+    for (const h of crabHomes(g, beach, 4)) this.creatures.push(new Crab(scene, center(h), sand));
+    if (!winter && day) for (const d of ['forest', 'deepforest', 'garden', 'shrine']) {
+      // a couple of squirrels in each wooded district
+      const mine = place.trees.filter((t) => (t.kind === 'tree' || t.kind === 'pine') && where(Math.floor(t.x / TILE), Math.floor((t.y - 1) / TILE)) === d);
+      for (const t of spread(mine, 2, 80)) this.creatures.push(new Squirrel(scene, t, walk));
     }
     if (warm && day && !place.rain) {
-      if (!place.sea) for (const b of bankWater(g, 3)) this.creatures.push(new Flier(scene, 'dragonfly', { x: center(b).x, y: center(b).y - 6 }));
-      for (const f of spread(place.flowers, 4, 40)) this.creatures.push(new Flier(scene, 'bee', { x: f.x, y: f.y - 10 }));
+      for (const b of bankWater(g, 3 * many).filter((b) => !salt(b.x, b.y))) this.creatures.push(new Flier(scene, 'dragonfly', { x: center(b).x, y: center(b).y - 6 }));
+      for (const f of spread(place.flowers, 4 * many, 40)) this.creatures.push(new Flier(scene, 'bee', { x: f.x, y: f.y - 10 }));
     }
   }
 

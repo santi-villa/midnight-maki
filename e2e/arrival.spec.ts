@@ -59,7 +59,7 @@ test('a previous plaza save keeps its location and unfinished prologue when cont
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.zoneId)).toBe('plaza');
   await expect.poll(() => page.evaluate(() => (window as any).mmDebug.world.canAct())).toBe(true);
-  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Beacon');
+  await expect(page.locator('.hud-quest')).toContainText('Hablá con Spicy Bacon');
   expect(await page.evaluate(() => (window as any).mmDebug.game.save.quests.done.includes('prologue'))).toBe(false);
   await page.evaluate(async () => (window as any).mmDebug.world.enterZone('restaurant', 8, 12, 'up', false));
   await finishArrival(page);

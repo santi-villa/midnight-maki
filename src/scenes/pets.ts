@@ -7,6 +7,7 @@ import catalog from '../assets/pets/pets.json';
 import atlasURL from '../assets/pets/pets.png';
 import type { Grid } from '../world/grid';
 import { Footsteps } from '../audio/footsteps';
+import { liveZoneOf, toLive } from '../world/village';
 import { breathAt, sleepCatTexture, sleepFrame, zzzAt, type CatColor, type SleepPose } from './petArt';
 
 export const PETS_ATLAS_KEY = 'pets-source';
@@ -60,7 +61,10 @@ export class Pets {
   constructor(private scene: Phaser.Scene, readonly zone: string, private night: boolean, private onStep?: (x: number, y: number) => void, private grid?: Grid) {
     if (!scene.textures.exists(PETS_ATLAS_KEY)) return;
     ensureAnims(scene);
-    for (const spot of PET_SPOTS.filter((p) => p.zone === zone)) {
+    // `zone` is the drawn map: the village holds the pets of every district, placed at their district's spot
+    for (const authored of PET_SPOTS.filter((p) => liveZoneOf(p.zone) === zone)) {
+      const at = toLive(authored.zone, authored.tx, authored.ty);
+      const spot: PetSpot = { ...authored, tx: at.x, ty: at.y, route: authored.route?.map(([x, y]) => { const r = toLive(authored.zone, x, y); return [r.x, r.y] as [number, number]; }) };
       const x = spot.tx * 16 + (spot.dx ?? 8), y = spot.ty * 16 + (spot.dy ?? 14);
       const s = scene.add.sprite(x, y, PETS_ATLAS_KEY, `${SHEETS[spot.kind].idle}_0`).setOrigin(0.5, 1).setScale(SCALE[spot.kind]).setDepth(y + 1);
       s.play(`pet_${spot.kind}_idle`);

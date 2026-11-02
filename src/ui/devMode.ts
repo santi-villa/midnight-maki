@@ -15,7 +15,7 @@ function roadsOpen() {
 async function refreshHere() {
   const player = world.player;
   if (!player || !world.zoneId) return;
-  await world.enterZone(world.zoneId, player.tx, player.ty, player.dir, false, true);
+  await world.reload();
 }
 
 async function goZone(id: string) {

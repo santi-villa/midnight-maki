@@ -14,6 +14,7 @@ import { EXTRA_HOMES } from '../data/residentHomes';
 import { housePieces } from '../data/houseInterior';
 import { ZONES, type RoomDef, type ZoneDef } from '../data/zones';
 import { Grid } from './grid';
+import { buildVillage, VILLAGE } from './village';
 import { bridgeMask } from './bridge';
 import { settleStoredGifts } from './furnGift';
 import { hasLimezuFloor } from '../art/interiors';
@@ -363,7 +364,12 @@ export function furnitureSolidTiles(f: PlacedFurniture, def: FurnitureDef): [num
   return out;
 }
 
+/** Builds a zone; the village (every outdoor district at once) is put together from its districts (world/village.ts). */
 export function buildZone(id: string, night = false): BuiltZone {
+  return id === VILLAGE ? buildVillage(night) : buildZoneSingle(id, night);
+}
+
+export function buildZoneSingle(id: string, night = false): BuiltZone {
   applyProjectBenefits();
   const def = ZONES[id];
   if (!def) throw new Error('Unknown zone ' + id);

@@ -1,5 +1,8 @@
 # Las zonas de alrededor: qué tienen y por qué
 
+> **Reemplazado (02/11/2026):** el exterior ahora es un solo mapa vivo (ver [mapa-unico.md](mapa-unico.md)). Este sistema de
+> imágenes de fondo solo sigue usándose desde el Bosque profundo, que es una zona aparte.
+
 El pueblo exterior es un solo lugar continuo, pero el juego solo mantiene **una zona viva** a la vez. Las demás se
 dibujan como dos imágenes (el suelo y la escenografía) para que, al caminar hasta un borde, la zona siguiente ya esté
 ahí y cruzar no necesite pantalla de carga (`updateBackdrop` en `src/scenes/WorldScene.ts`).

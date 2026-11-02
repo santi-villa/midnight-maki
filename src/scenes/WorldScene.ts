@@ -94,6 +94,7 @@ import { SEED_INFO } from '../systems/garden';
 import { companyScene, openCompany } from '../story/companions';
 import type { CompanyActivity } from '../systems/companionship';
 import { FLOCKS, type BirdSpecies } from '../data/flocks';
+import { districtAt, DISTRICTS, isDistrict, liveZoneOf, originOf, toLive, VILLAGE } from '../world/village';
 const BIRD_VARIANT: Record<BirdSpecies, number> = { sparrow: 0, pigeon: 1, gull: 2 };
 
 export type { Target };
@@ -113,11 +114,48 @@ interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { 
 export let world: WorldScene;
 
 /** guests in these phases are sitting at their table */
+/** The districts on the sea: their water is salt (no frogs or ducks). */
+const COAST = ['beach', 'harbor', 'market'];
 const SEATED_PHASES: PartyPhase[] = ['seated', 'waiting_order', 'waiting_food', 'eating', 'paying'];
 
 export class WorldScene extends Phaser.Scene {
   zone!: BuiltZone;
+  /**
+   * Where the player is, as the data and the save speak about it: a district of the village (plaza, beach...) or an
+   * interior. Outdoors it follows the player as they walk; the map itself is the whole village (`liveId`).
+   */
   zoneId = '';
+  /** The zone that is built and drawn: 'village' for every outdoor district (world/village.ts), or the interior. */
+  liveId = '';
+  /** A tile of a district (or any zone) in the tiles of the map that is drawn. */
+  lw(zone: string, x: number, y: number) { return this.liveId === VILLAGE ? toLive(zone, x, y) : { zone, x, y }; }
+  /** The player's spot as the save keeps it: district (or interior) and the tile in its own coordinates. */
+  here(): { zone: string; x: number; y: number; dir: Dir } {
+    const p = this.player;
+    if (this.liveId === VILLAGE) { const d = districtAt(p.tx, p.ty); return { zone: d.zone, x: d.x, y: d.y, dir: p.dir }; }
+    return { zone: this.zoneId, x: p.tx, y: p.ty, dir: p.dir };
+  }
+  /** The district last announced (zone:enter), so walking over a street into the next one says it once. */
+  private districtSeen = '';
+  /** Outdoors: walking into another district changes where you are (music, quests, the save) and nothing is rebuilt. */
+  private trackDistrict() {
+    if (this.liveId !== VILLAGE || this.transitioning || !this.player) return;
+    const d = districtAt(this.player.tx, this.player.ty).zone;
+    if (d === this.zoneId) return;
+    this.zoneId = d;
+    game.save.player.zone = d;
+    this.playZoneAudio();
+    if (this.districtSeen === d) return;
+    this.districtSeen = d;
+    bus.emit('zone:enter', { zone: d });
+    void runTask('world:zone-story', () => this.onEnterZone(d));
+  }
+  /** Rebuilds what is drawn where the player stands (doors opened, furniture moved). */
+  reload(withFade = false) {
+    if (!this.player) return Promise.resolve(false);
+    const h = this.here();
+    return this.enterZone(h.zone, h.x, h.y, h.dir, withFade, true);
+  }
   private map: Phaser.Tilemaps.Tilemap | null = null;
   private layer: Phaser.Tilemaps.TilemapLayer | null = null;
   private overMap: Phaser.Tilemaps.Tilemap | null = null;
@@ -172,7 +210,8 @@ export class WorldScene extends Phaser.Scene {
   private weatherKey = '';
   private footsteps = new Footsteps();
   private ambient: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
-  private gatherSprites: { spot: GatherSpot; img: Phaser.GameObjects.Image }[] = [];
+  /** x, y: the spot's tile on the drawn map (the spot itself keeps its district's own tile) */
+  private gatherSprites: { spot: GatherSpot; img: Phaser.GameObjects.Image; x: number; y: number }[] = [];
   private bugs: Bug[] = [];
   target: Target | null = null;
   contextOffer: ContextOffer = idleOffer(null);
@@ -806,19 +845,26 @@ export class WorldScene extends Phaser.Scene {
     if (id !== this.zoneId && this.approaching) this.cancelApproach(this.approaching);
     this.transitioning = true;
     const previous = this.zone;
+    const previousIds = { zone: this.zoneId, live: this.liveId };
     const position = this.player ? { zone: this.zoneId, x: this.player.tx, y: this.player.ty, dir: this.player.dir } : null;
+    // a district is a part of the village: the village is what gets built, with the tile in its own coordinates
+    const live = liveZoneOf(id), o = originOf(id);
+    tx += o.x; ty += o.y;
+    if (at && live === VILLAGE) at = { x: at.x + o.x * TILE, y: at.y + o.y * TILE, sx: at.sx + o.x * TILE, sy: at.sy + o.y * TILE };
     try {
       if (!ZONES[id] || !['up', 'down', 'left', 'right'].includes(dir)) throw new Error('Invalid zone destination');
-      const prepared = buildZone(id, clock.isNight() || clock.period === 2);
+      const prepared = buildZone(live, clock.isNight() || clock.period === 2);
       const arrival = safeArrival(prepared, tx, ty);
       const load = async () => {
         try {
+          this.zoneId = id;
           this.mountZone(prepared, arrival.x, arrival.y, dir, at);
           // walking over a district edge shows nothing new to wait for: the next district was already on screen
           if (!at) await this.waitForRender();
         } catch (err) {
           if (previous && position) {
             try {
+              this.zoneId = previousIds.zone;
               this.mountZone(previous, position.x, position.y, position.dir);
               await this.waitForRender();
             } catch (recovery) { reportError('world:zone-recovery', recovery); }
@@ -826,17 +872,19 @@ export class WorldScene extends Phaser.Scene {
           throw err;
         }
       };
-      if (withFade && this.zoneId && this.zoneId !== id) {
+      // within the village nothing is left: no fade from one street to the next
+      if (withFade && previousIds.live && previousIds.live !== live) {
         const { screenTransition } = await import('../ui/dom');
-        await screenTransition(zoneTransitionKind(this.zoneId, id), load);
+        await screenTransition(zoneTransitionKind(previousIds.zone, id), load);
       } else await load();
       this.transitioning = false;
       if (id.startsWith('shop_') || id === 'library') {
         const status = shopGate(id === 'library' ? id : id.slice(5));
         if (status.tracked && status.open) bus.emit('toast', { text: shopInteractionText(status) });
       }
-      bus.emit('zone:enter', { zone: id });
-      void runTask('world:zone-story', () => this.onEnterZone(id));
+      this.districtSeen = this.zoneId;
+      bus.emit('zone:enter', { zone: this.zoneId });
+      void runTask('world:zone-story', () => this.onEnterZone(this.zoneId));
       return true;
     } finally { this.transitioning = false; }
   }
@@ -844,7 +892,7 @@ export class WorldScene extends Phaser.Scene {
   /** Rebuilds the current zone in place (an obstacle was cleared, a gate opened). */
   refreshZone() {
     if (!this.player || this.transitioning) return;
-    void runTask('world:refresh-zone', () => this.enterZone(this.zoneId, this.player.tx, this.player.ty, this.player.dir, false, true));
+    void runTask('world:refresh-zone', () => this.reload());
   }
 
   /** Opens or closes the obstacles whose flag changed (the market rope at nightfall, a cleared gate). Retried every half second until it can run. */
@@ -876,7 +924,11 @@ export class WorldScene extends Phaser.Scene {
       this.player.x = at.x; this.player.y = at.y; this.player.sync();
       this.cameras.main.setScroll(at.sx, at.sy);
     }
-    Object.assign(game.save.player, { zone: built.def.id, x: tx, y: ty, dir });
+    if (built.def.id === VILLAGE) {
+      const d = districtAt(tx, ty);
+      this.zoneId = d.zone;
+      Object.assign(game.save.player, { zone: d.zone, x: d.x, y: d.y, dir });
+    } else Object.assign(game.save.player, { zone: built.def.id, x: tx, y: ty, dir });
     this.spawnNpcs(false);
     this.blockKey = this.blockStamp();
     this.npcKey = this.npcStamp();
@@ -952,7 +1004,9 @@ export class WorldScene extends Phaser.Scene {
   buildZoneObjects(id: string, prepared?: BuiltZone) {
     const built = prepared ?? buildZone(id, clock.isNight() || clock.period === 2);
     this.clearZone();
-    this.zoneId = id;
+    this.liveId = built.def.id;
+    // outdoors the district is the one the player is entering (set by enterZone); anything else is its own place
+    if (built.def.id !== VILLAGE || !isDistrict(this.zoneId)) this.zoneId = built.def.id === VILLAGE ? districtAt(0, 0).zone : id;
     this.zone = built;
     this.guideT = 0; // the objective is worked out in this zone's coordinates: never keep the last zone's for a moment
     const def = this.zone.def;
@@ -1072,7 +1126,7 @@ export class WorldScene extends Phaser.Scene {
         const hl = homeLayout(p.def.sw, p.def.sh, p.def.variant ?? 0, side);
         const left = px - p.def.sw / 2, top = py - p.def.sh;
         const seed = lightSeed(px, py);
-        const homeId = HOUSES.find(h => h.zone === this.zoneId && h.x === p.x && h.y === p.y)?.id;
+        const homeId = HOUSES.find(h => { const w = this.lw(h.zone, h.x, h.y); return w.zone === this.liveId && w.x === p.x && w.y === p.y; })?.id;
         for (const w of hl.windows) this.lamps.push({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, gy: py + 5, r: 30, flicker: false, color: 0xffd27a, glow: 0.4, kind: 'spill', home: true, homeId, seed });
         this.lamps.push({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 34, flicker: true, color: 0xffd56a, glow: 0.62, kind: 'spill', home: true, homeId, seed });
         this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front', undefined, homeId);
@@ -1152,7 +1206,7 @@ export class WorldScene extends Phaser.Scene {
   refreshFurniture() {
     if (!this.zoneId) return;
     const night = clock.isNight() || clock.period === 2;
-    const fresh = buildZone(this.zoneId, night);
+    const fresh = buildZone(this.liveId, night);
     this.zone.grid = fresh.grid;
     this.zone.furniture = fresh.furniture;
     this.zone.tiles = fresh.tiles;
@@ -1191,13 +1245,16 @@ export class WorldScene extends Phaser.Scene {
   placeGather() {
     for (const g of this.gatherSprites) g.img.destroy();
     this.gatherSprites = [];
-    for (const spot of gatherSpots(this.zoneId)) {
+    // outdoors every district's spots are on the one map
+    const spots = this.liveId === VILLAGE ? DISTRICTS.flatMap((d) => gatherSpots(d)) : gatherSpots(this.zoneId);
+    for (const spot of spots) {
       const item = ITEMS_BY_ID[spot.item];
       if (!item) continue;
-      const img = this.add.image(spot.x * TILE + 8, spot.y * TILE + 12, iconTexture(this, item.icon)).setOrigin(0.5, 1).setScale(0.75);
-      img.setDepth(spot.y * TILE + 4);
+      const at = this.lw(spot.zone, spot.x, spot.y);
+      const img = this.add.image(at.x * TILE + 8, at.y * TILE + 12, iconTexture(this, item.icon)).setOrigin(0.5, 1).setScale(0.75);
+      img.setDepth(at.y * TILE + 4);
       if (!lowFx()) this.tweens.add({ targets: img, y: img.y - 2, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.gatherSprites.push({ spot, img });
+      this.gatherSprites.push({ spot, img, x: at.x, y: at.y });
     }
   }
 
@@ -1206,11 +1263,11 @@ export class WorldScene extends Phaser.Scene {
   placeCrops() {
     for (const s of this.cropSprites) s.destroy();
     this.cropSprites = [];
-    if (this.zoneId !== 'garden' || !this.layer) return;
+    if (this.liveId !== VILLAGE && this.zoneId !== 'garden' || !this.layer) return;
     game.save.garden.forEach((p, i) => {
       const position = GARDEN_PLOT_POSITIONS[i];
       if (!position) return;
-      const [x, y] = position;
+      const { x, y } = this.lw('garden', position[0], position[1]);
       this.layer!.putTileAt(p.seed && p.watered ? TILE_INDEX.soilwet : TILE_INDEX.soil, x, y);
       if (i >= 6) this.cropSprites.push(this.add.image(x * TILE + 8, y * TILE + 16, propTexture(this, 'project_plot')).setOrigin(0.5, 1).setDepth(y * TILE + 1));
       if (!p.seed) return;
@@ -1241,24 +1298,26 @@ export class WorldScene extends Phaser.Scene {
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
     this.flockTimers.clear();
-    if (this.pets?.zone === this.zoneId) this.pets.setNight(clock.isNight(), this.zone.grid);
+    if (this.pets?.zone === this.liveId) this.pets.setNight(clock.isNight(), this.zone.grid);
     else {
       this.pets?.destroy();
-      this.pets = this.zone?.def.outdoor || this.zoneId === 'restaurant' ? new Pets(this, this.zoneId, clock.isNight(), (x, y) => this.petFootstep(x, y), this.zone.grid) : null;
+      this.pets = this.zone?.def.outdoor || this.zoneId === 'restaurant' ? new Pets(this, this.liveId, clock.isNight(), (x, y) => this.petFootstep(x, y), this.zone.grid) : null;
     }
-    if (this.dogs?.zone === this.zoneId) this.dogs.setNight(clock.isNight(), this.zone.grid);
+    if (this.dogs?.zone === this.liveId) this.dogs.setNight(clock.isNight(), this.zone.grid);
     else {
       this.dogs?.destroy();
-      this.dogs = this.zone?.def.outdoor ? new Dogs(this, this.zoneId, clock.isNight(), this.zone.grid, (n, x, y) => this.nearSound(n, x, y)) : null;
+      this.dogs = this.zone?.def.outdoor ? new Dogs(this, this.liveId, clock.isNight(), this.zone.grid, (n, x, y) => this.nearSound(n, x, y)) : null;
       if (!this.dogs?.count) { this.dogs?.destroy(); this.dogs = null; }
     }
     const def = this.zone.def;
-    if (!def.outdoor || game.flag('weather') === 'rain' || this.zoneId === 'station') return;
+    if (!def.outdoor || game.flag('weather') === 'rain' || (this.liveId !== VILLAGE && this.zoneId === 'station')) return;
     const night = clock.isNight();
-    const add = (kind: 'bird' | 'cat' | 'butterfly') => {
+    // somewhere in a district (the drawn map may hold the whole village)
+    const add = (kind: 'bird' | 'cat' | 'butterfly', district = this.zoneId) => {
+      const o = this.lw(district, 0, 0), dz = ZONES[district] ?? def;
       for (let k = 0; k < 20; k++) {
-        const x = 2 + Math.floor(Math.random() * (def.w - 4));
-        const y = 2 + Math.floor(Math.random() * (def.h - 4));
+        const x = o.x + 2 + Math.floor(Math.random() * (dz.w - 4));
+        const y = o.y + 2 + Math.floor(Math.random() * (dz.h - 4));
         if (this.zone.grid.isSolid(x, y)) continue;
         const s = this.add.sprite(x * TILE + 8, y * TILE + 12, critterTexture(this, kind, Math.floor(Math.random() * 4)), 0).setOrigin(0.5, 1);
         this.critters.push({ s, kind, vx: 0, vy: 0, t: Math.random() * 2, flying: false, ox: s.x, oy: s.y });
@@ -1267,16 +1326,20 @@ export class WorldScene extends Phaser.Scene {
     };
     // flocks gather where they make sense (data/flocks.ts) and leave together
     if (!night) FLOCKS.forEach((f, n) => {
-      if (f.zone !== this.zoneId) return;
+      const home = this.lw(f.zone, f.x, f.y);
+      if (home.zone !== this.liveId) return;
       for (let i = 0, tries = 0; i < f.n && tries < f.n * 6; tries++) {
-        const x = f.x + Math.floor(Math.random() * 4) - 2, y = f.y + Math.floor(Math.random() * 3) - 1;
+        const x = home.x + Math.floor(Math.random() * 4) - 2, y = home.y + Math.floor(Math.random() * 3) - 1;
         if (x < 0 || y < 0 || x >= def.w || y >= def.h || this.zone.grid.isSolid(x, y)) continue;
         const s = this.add.sprite(x * TILE + 4 + Math.random() * 8, y * TILE + 10 + Math.random() * 4, critterTexture(this, 'bird', BIRD_VARIANT[f.species]), 0).setOrigin(0.5, 1).setFlipX(Math.random() < 0.5);
         this.critters.push({ s, kind: 'bird', vx: 0, vy: 0, t: Math.random() * 2, flying: false, ox: s.x, oy: s.y, flock: n });
         i++;
       }
     });
-    if (!night && seasonOf(game.save.time.day) < 2 && ['plaza', 'garden', 'forest'].includes(this.zoneId)) for (let i = 0; i < (this.zoneId === 'garden' ? 5 : 3); i++) add('butterfly');
+    if (!night && seasonOf(game.save.time.day) < 2) for (const d of ['plaza', 'garden', 'forest']) {
+      if (this.lw(d, 0, 0).zone !== this.liveId && d !== this.zoneId) continue;
+      for (let i = 0; i < (d === 'garden' ? 5 : 3); i++) add('butterfly', d);
+    }
   }
 
   /** Frogs, ducks, crabs, squirrels, dragonflies, bees and the falling petals and leaves of this district (scenes/wildlife.ts). */
@@ -1295,8 +1358,9 @@ export class WorldScene extends Phaser.Scene {
     }
     this.wild.spawn({
       zone: this.zoneId, ground: def.ground, walkable: (tx, ty) => this.zone.grid.inside(tx, ty) && !this.zone.grid.isSolid(tx, ty),
+      ...(this.liveId === VILLAGE ? { districtAt: (tx: number, ty: number) => districtAt(tx, ty).zone } : {}),
       // the coast is salt water; ponds and rivers are fresh (usesSea only says how the water is drawn)
-      sea: ['beach', 'harbor', 'market'].includes(this.zoneId), season: seasonOf(game.save.time.day), period: clock.period, rain: game.flag('weather') === 'rain', trees, flowers,
+      sea: this.liveId === VILLAGE ? (tx: number, ty: number) => COAST.includes(districtAt(tx, ty).zone) : COAST.includes(this.zoneId), season: seasonOf(game.save.time.day), period: clock.period, rain: game.flag('weather') === 'rain', trees, flowers,
     }, lowFx() || settings.reduceMotion);
   }
 
@@ -1468,8 +1532,18 @@ export class WorldScene extends Phaser.Scene {
     const here = new Set<string>();
     const now = performance.now();
     let minted = false;
-    for (const st of this.neighborLife.inZone(this.zoneId)) {
+    const village = this.liveId === VILLAGE;
+    const cam = this.cameras.main, vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
+    const vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
+    // outdoors: everyone in the village who is near the view (the others go on in the simulation without a body)
+    const people = village ? DISTRICTS.flatMap((d) => this.neighborLife.inZone(d)) : this.neighborLife.inZone(this.zoneId);
+    for (const st of people) {
       const n = st.n, trip = st.trip;
+      const w = this.lw(trip.position.zone, trip.position.x, trip.position.y);
+      if (village) {
+        const m = (this.neighborBodies.has(n.id) ? 10 : 4) * TILE, px = w.x * TILE, py = w.y * TILE;
+        if (px < vx - m || px > vx + vw + m || py < vy - m || py > vy + vh + m) continue;
+      }
       let body = this.neighborBodies.get(n.id);
       if (!body) {
         // One new sheet per frame. Cached looks are free, so a warmed plaza still fills in immediately.
@@ -1477,7 +1551,7 @@ export class WorldScene extends Phaser.Scene {
           if (minted) continue;
           minted = true;
         }
-        const actor = new Actor(this, 'nb_' + n.id, lookTexture(this, n.look), trip.position.x, trip.position.y);
+        const actor = new Actor(this, 'nb_' + n.id, lookTexture(this, n.look), w.x, w.y);
         actor.manual = true;
         body = { actor, bike: null, barkAt: now + 8000 + (n.id.length * 1700) % 6000, pose: null, poseUntil: 0, nextPose: now + 2500 + (n.id.length * 400) % 3000 };
         this.neighborBodies.set(n.id, body);
@@ -1485,8 +1559,9 @@ export class WorldScene extends Phaser.Scene {
       here.add(n.id);
       const a = body.actor;
       const riding = st.ride && trip.moving;
-      a.x = trip.position.x * TILE + TILE / 2;
-      a.y = trip.position.y * TILE + TILE - 2;
+      const x = w.x * TILE + TILE / 2, y = w.y * TILE + TILE - 2, jump = Math.hypot(x - a.x, y - a.y);
+      // two tiles over a district border in one step of the simulation: walk it instead of popping
+      if (jump > 12 && jump < 48) { const k = Math.min(1, 140 * dt / jump); a.x += (x - a.x) * k; a.y += (y - a.y) * k; } else { a.x = x; a.y = y; }
       a.dir = !trip.moving && st.place.dir ? st.place.dir : trip.dir;
       a.moving = trip.moving && !riding;
       a.seatLift = trip.settled ? st.place.seatLift ?? 0 : 0;
@@ -2352,8 +2427,8 @@ export class WorldScene extends Phaser.Scene {
       const g = views.find((g) => g.id === v.id);
       const phase = g?.phase ?? 'outside';
       v.trips.forEach((trip, i) => {
-        const p = trip.position;
-        if (p.zone !== this.zoneId) return;
+        const p = this.lw(trip.position.zone, trip.position.x, trip.position.y);
+        if (p.zone !== this.liveId) return;
         const key = `${v.id}:${i}`;
         live.add(key);
         let body = this.guests.get(key);
@@ -2413,13 +2488,16 @@ export class WorldScene extends Phaser.Scene {
     const zone = this.zone;
     void runTask('world:bugs', () => import('../systems/collect').then(({ bugsFor }) => {
       if (!this.sys.isActive() || this.zone !== zone) return;
-      for (const id of bugsFor(this.zoneId)) {
+      // outdoors each district keeps its own bugs, in its own part of the map
+      const lots = this.liveId === VILLAGE ? DISTRICTS.filter((d) => ZONES[d].bugs).flatMap((d) => bugsFor(d).map((id) => ({ id, d }))) : bugsFor(this.zoneId).map((id) => ({ id, d: this.zoneId }));
+      for (const { id, d } of lots) {
         const it = ITEMS_BY_ID[id];
+        const o = this.lw(d, 0, 0), area = this.liveId === VILLAGE ? ZONES[d] : this.zone.def;
         let x = 0;
         let y = 0;
         for (let k = 0; k < 30; k++) {
-          x = 2 + Math.floor(Math.random() * (this.zone.def.w - 4));
-          y = 2 + Math.floor(Math.random() * (this.zone.def.h - 4));
+          x = o.x + 2 + Math.floor(Math.random() * (area.w - 4));
+          y = o.y + 2 + Math.floor(Math.random() * (area.h - 4));
           if (!this.zone.grid.isSolid(x, y)) break;
         }
         const s = this.add.image(x * TILE + 8, y * TILE + 4, iconTexture(this, it.icon)).setScale(0.6).setDepth(y * TILE + 40);
@@ -2442,8 +2520,31 @@ export class WorldScene extends Phaser.Scene {
   private rememberResidents() {
     for (const [id, n] of this.npcs) {
       if (n.traveling) continue;
-      this.town.residents.get(id)?.trip.remember((n.actor.x - TILE / 2) / TILE, (n.actor.y - TILE + 2) / TILE);
+      const trip = this.town.residents.get(id)?.trip;
+      if (!trip) continue;
+      const x = (n.actor.x - TILE / 2) / TILE, y = (n.actor.y - TILE + 2) / TILE;
+      if (this.liveId !== VILLAGE) { trip.remember(x, y); continue; }
+      // the simulation keeps district tiles: only while they are still in the district it thinks they are in
+      const d = districtAt(x, y);
+      if (d.zone === trip.position.zone) trip.remember(d.x, d.y);
     }
+  }
+
+  /**
+   * The villagers that get a body: everyone in this place; outdoors, everyone in the district the player is in plus whoever
+   * is near the view in the others (the rest of the village goes on in the simulation, TownLife).
+   */
+  private residentsHere(): TownResident[] {
+    if (this.liveId !== VILLAGE) return this.town.inZone(this.zoneId);
+    const cam = this.cameras.main, vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
+    const vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
+    return DISTRICTS.flatMap((d) => this.town.inZone(d)).filter((r) => {
+      if (r.trip.position.zone === this.zoneId) return true;
+      const w = this.lw(r.trip.position.zone, r.trip.position.x, r.trip.position.y);
+      // a wider margin to keep a body than to make one, so nobody flickers at the edge
+      const m = (this.npcs.has(r.id) ? 12 : 5) * TILE, x = w.x * TILE, y = w.y * TILE;
+      return x > vx - m && x < vx + vw + m && y > vy - m && y < vy + vh + m;
+    });
   }
 
   private tickTown(dt: number) {
@@ -2459,12 +2560,13 @@ export class WorldScene extends Phaser.Scene {
     }
     this.rememberResidents();
     this.town.setHeld([...this.npcs.entries()].filter(([, n]) => n.social || n.t >= 80).map(([id]) => id));
+    const at = this.here();
     this.town.setOccupied([
-      { zone: this.zoneId, x: this.player.tx, y: this.player.ty },
+      { zone: at.zone, x: at.x, y: at.y },
       ...[...this.visitors.values()].flatMap(v => v.trips.map(t => ({ zone: t.position.zone, x: Math.round(t.position.x), y: Math.round(t.position.y) }))),
     ]);
     this.town.tick(dt);
-    const members = this.town.inZone(this.zoneId).map((r) => r.id + ':' + r.trip.settled).join('|');
+    const members = this.residentsHere().map((r) => r.id + ':' + r.trip.settled).join('|');
     if (members !== this.townMembers) {
       this.townMembers = members;
       this.spawnNpcs(false);
@@ -2474,7 +2576,7 @@ export class WorldScene extends Phaser.Scene {
   spawnNpcs(_animate: boolean) {
     this.rememberResidents();
     this.town.sync();
-    const present = this.town.inZone(this.zoneId);
+    const present = this.residentsHere();
     const keep = new Set(present.map((p) => p.id));
     for (const [id, n] of this.npcs) {
       if (keep.has(id)) continue;
@@ -2487,21 +2589,22 @@ export class WorldScene extends Phaser.Scene {
   /** Creates a villager when their sheet is ready. A cold sheet waits for the next frame so the door does not paint everyone at once. */
   private attachNpc(resident: TownResident) {
     const { id, stop, trip } = resident;
-    const p = trip.position;
+    const p = this.lw(trip.position.zone, trip.position.x, trip.position.y);
+    const home = this.lw(stop.zone, stop.x, stop.y);
     let n = this.npcs.get(id);
     if (!n) {
       if (!hasCharTexture(this, id)) { this.npcWait.add(id); return; }
       this.npcWait.delete(id);
       const actor = new Actor(this, id, charTexture(this, id), p.x, p.y);
       actor.speed = (CHAR_BY_ID[id]?.raccoon ? 46 : 40) * pace(id);
-      n = { actor, anchor: [stop.x, stop.y], wander: stop.wander ?? 0, act: stop.act, t: 2 + Math.random() * 4 };
+      n = { actor, anchor: [home.x, home.y], wander: stop.wander ?? 0, act: stop.act, t: 2 + Math.random() * 4 };
       this.npcs.set(id, n);
       if (stop.act) actor.setAct(stop.act);
     }
     const wasTraveling = n.traveling;
     n.traveling = !trip.settled;
-    if (n.out && (n.anchor[0] !== stop.x || n.anchor[1] !== stop.y || n.traveling)) n.out = false; // a new part of the day ends the outing
-    n.anchor = [stop.x, stop.y]; n.wander = stop.wander ?? 0; n.act = stop.act;
+    if (n.out && (n.anchor[0] !== home.x || n.anchor[1] !== home.y || n.traveling)) n.out = false; // a new part of the day ends the outing
+    n.anchor = [home.x, home.y]; n.wander = stop.wander ?? 0; n.act = stop.act;
     if (!n.out) n.actor.seatLift = n.traveling ? 0 : stop.seatLift ?? 0;
     n.actor.bed = !n.traveling && stop.act === 'sleep' ? stop.bed ?? null : null;
     if (!n.traveling && stop.dir && !n.social && !n.out) n.actor.face(stop.dir);
@@ -2519,7 +2622,7 @@ export class WorldScene extends Phaser.Scene {
     const id = this.npcWait.values().next().value;
     if (!id) return;
     charTexture(this, id);
-    const resident = this.town.inZone(this.zoneId).find((r) => r.id === id);
+    const resident = this.residentsHere().find((r) => r.id === id);
     if (!resident) { this.npcWait.delete(id); return; }
     this.attachNpc(resident);
   }
@@ -2558,7 +2661,8 @@ export class WorldScene extends Phaser.Scene {
     if (st) {
       st.t = 9999; // pause wandering and journeys while scripted
       st.traveling = false;
-      this.town.residents.get(id)?.trip.place({ zone: this.zoneId, x: (a.x - 8) / TILE, y: (a.y - 14) / TILE });
+      const x = (a.x - 8) / TILE, y = (a.y - 14) / TILE;
+      this.town.residents.get(id)?.trip.place(this.liveId === VILLAGE ? districtAt(x, y) : { zone: this.zoneId, x, y });
     }
     return a;
   }
@@ -2609,7 +2713,7 @@ export class WorldScene extends Phaser.Scene {
     if (!this.zoneId) return;
     // window tiles & light change with period
     const night = clock.isNight() || clock.period === 2;
-    const fresh = buildZone(this.zoneId, night);
+    const fresh = buildZone(this.liveId, night);
     for (let y = 0; y < fresh.def.h; y++) for (let x = 0; x < fresh.def.w; x++) if (fresh.def.ground[y][x] === 'V') this.layer?.putTileAt(fresh.tiles[y][x], x, y);
     this.spawnNpcs(true);
     this.npcKey = this.npcStamp();
@@ -2679,12 +2783,12 @@ export class WorldScene extends Phaser.Scene {
       this.ambient.push(em);
     }
     // big soft cloud shadows drifting by on sunny days
-    if (!rain && !night && clock.period < 2 && ['plaza', 'garden', 'forest', 'beach', 'station'].includes(this.zoneId)) {
+    if (!rain && !night && clock.period < 2 && (this.liveId === VILLAGE || ['plaza', 'garden', 'forest', 'beach', 'station'].includes(this.zoneId))) {
       const cs = this.add.particles(-120, 0, cloudShadowTexture(this), { y: { min: 0, max: H }, speedX: { min: 7, max: 11 }, lifespan: ((W + 260) / 8) * 1000, frequency: 9000, scale: { min: 2, max: 3.2 }, advance: ((W + 260) / 8) * 1000 } as any);
       cs.setDepth(149000);
       this.ambient.push(cs);
     }
-    if (night && !rain && ['forest', 'garden', 'plaza', 'market', 'beach'].includes(this.zoneId)) {
+    if (night && !rain && (this.liveId === VILLAGE || ['forest', 'garden', 'plaza', 'market', 'beach'].includes(this.zoneId))) {
       const ff = dotTexture(this, 'firefly', '#ffe9a0', 1, 1);
       const em = this.add.particles(0, 0, ff, {
         x: { min: 0, max: W },
@@ -2770,7 +2874,7 @@ export class WorldScene extends Phaser.Scene {
       this.approach(tx, ty, () => this.doInteract({ kind: 'door', def: door, label: door.label ?? '' }));
       return;
     }
-    const g = this.gatherSprites.find((s) => s.spot.x === tx && s.spot.y === ty);
+    const g = this.gatherSprites.find((s) => s.x === tx && s.y === ty);
     if (g) {
       this.approach(tx, ty, () => this.doInteract({ kind: 'gather', spot: g.spot, label: '' }));
       return;
@@ -2931,9 +3035,9 @@ export class WorldScene extends Phaser.Scene {
   talkSituation(id: string): { act?: import('../data/characters').NpcAct | 'ride' | 'walk'; place?: string; zone: string; others: { name: string; what: string }[] } {
     const n = this.npcs.get(id), a = n?.actor.act;
     const act = a && a !== 'idle' ? (a as import('../data/characters').NpcAct) : n?.actor.moving ? 'walk' : undefined;
-    const zone = this.zoneId;
+    const spot = n ? this.spotOf(n.actor) : { zone: this.zoneId, x: 0, y: 0 }, zone = spot.zone;
     const place = zone === 'library' ? 'read' : zone === 'beach' ? 'sea' : ['garden', 'forest', 'market'].includes(zone) ? zone
-      : zone === 'plaza' && n && Math.hypot(n.actor.tx - 15, n.actor.ty - 12) < 8 ? 'fountain' : zone === 'plaza' ? 'stroll' : undefined;
+      : zone === 'plaza' && n && Math.hypot(spot.x - 15, spot.y - 12) < 8 ? 'fountain' : zone === 'plaza' ? 'stroll' : undefined;
     const others = [...this.neighborLife.state.values()].filter((s) => s.place.kind !== 'home' && s.trip.settled).slice(0, 4)
       .map((s) => ({ name: s.n.name, what: whatPlace(s.ride ? 'ride' : s.place.kind) }));
     return { act, place, zone, others };
@@ -3047,8 +3151,8 @@ export class WorldScene extends Phaser.Scene {
       }),
       doors: this.galleyView.holdingPlate() ? [] : this.zone.def.doors,
       gathers: this.gatherSprites.map((g) => ({
-        x: g.spot.x * TILE + 8,
-        y: g.spot.y * TILE + 10,
+        x: g.x * TILE + 8,
+        y: g.y * TILE + 10,
         label: 'Recoger ' + (ITEMS_BY_ID[g.spot.item]?.name ?? ''),
         spot: g.spot,
       })),
@@ -3224,10 +3328,11 @@ export class WorldScene extends Phaser.Scene {
     this.coopSendT += dt;
     if (this.coopSendT >= 0.15) {
       this.coopSendT = 0;
-      link.send({ x: Math.round(this.player.x * 10) / 10, y: Math.round(this.player.y * 10) / 10, dir: this.player.dir, moving: this.player.moving, zone: this.zoneId });
+      link.send({ x: Math.round(this.player.x * 10) / 10, y: Math.round(this.player.y * 10) / 10, dir: this.player.dir, moving: this.player.moving, zone: this.liveId === VILLAGE ? VILLAGE : this.zoneId });
     }
     const peer = link.peer();
-    if (!peer || peer.pos.zone !== this.zoneId) return this.dropRemote();
+    // outdoors both players are on the one village map, whatever district each is in
+    if (!peer || peer.pos.zone !== (this.liveId === VILLAGE ? VILLAGE : this.zoneId)) return this.dropRemote();
     const key = JSON.stringify(peer.info.appearance);
     if (!this.remote || this.remoteKey !== key) {
       this.dropRemote();
@@ -3302,7 +3407,9 @@ export class WorldScene extends Phaser.Scene {
       const w = waterBeside(def.ground, i.x, i.y);
       if (w) spots.push(w);
     }
-    return { id: def.id, ox, oy, spots, deep: def.id === 'beach' ? deepWater(def.ground) : [] };
+    // the deep sea off the beach (the whole village: only the part of it in the beach district)
+    const deep = def.id === 'beach' ? deepWater(def.ground) : def.id === VILLAGE ? deepWater(def.ground, 4, 7, 60).filter((t) => districtAt(t.x, t.y).zone === 'beach').slice(0, 4) : [];
+    return { id: def.id, ox, oy, spots, deep };
   }
   private setupFish() {
     this.fish ??= new FishLife(this);
@@ -3326,8 +3433,8 @@ export class WorldScene extends Phaser.Scene {
 
   /** Fishing spots show pulsing rings on the water, so it is clear where a line can be cast. */
   private drawFishSpots() {
-    if (this.fishZone !== this.zoneId || !this.fishGfx?.active) {
-      this.fishZone = this.zoneId;
+    if (this.fishZone !== this.liveId || !this.fishGfx?.active) {
+      this.fishZone = this.liveId;
       this.fishSpots = this.zone.def.interact.filter((i) => i.action.startsWith('fish:') && condOk(i.cond)).map((i) => ({ x: i.x, y: i.y }));
       this.fishGfx?.destroy();
       this.fishGfx = this.fishSpots.length ? this.add.graphics().setDepth(-2) : null;
@@ -3368,7 +3475,7 @@ export class WorldScene extends Phaser.Scene {
       else if (t.kind === 'neighbor') { const b = this.neighborBodies.get(t.id); if (b?.actor.sprite.visible) at = top(b.actor.sprite); }
       else if (t.kind === 'interact') at = { x: t.def.x * TILE + TILE / 2, y: t.def.y * TILE };
       else if (t.kind === 'door') at = { x: t.def.x * TILE + TILE / 2, y: t.def.y * TILE };
-      else if (t.kind === 'gather') at = { x: t.spot.x * TILE + TILE / 2, y: t.spot.y * TILE };
+      else if (t.kind === 'gather') { const w = this.lw(t.spot.zone, t.spot.x, t.spot.y); at = { x: w.x * TILE + TILE / 2, y: w.y * TILE }; }
     } else if (i.type === 'galley') {
       at = this.galleyView.promptAt(i.station) ?? at;
     } else if (i.type === 'takeOrder' || i.type === 'deliver' || i.type === 'tip') {
@@ -3408,6 +3515,7 @@ export class WorldScene extends Phaser.Scene {
     if (!mirror.on) this.pollHours(dt);
     this.drawFishSpots();
     this.updatePlayer(dt);
+    this.trackDistrict();
     this.syncKitchenCamera();
     this.tickTown(dt);
     this.updateConversation(dt);
@@ -3591,11 +3699,12 @@ export class WorldScene extends Phaser.Scene {
     let ty: number | null = null;
 
     if (target.kind === 'object') {
-      if (target.zone === this.zoneId) {
-        tx = target.x * TILE + 8;
-        ty = target.y * TILE + 4;
+      if (this.sameMap(target.zone)) {
+        const w = this.lw(target.zone, target.x, target.y);
+        tx = w.x * TILE + 8;
+        ty = w.y * TILE + 4;
       } else {
-        const d = routeGoal(this.zoneId, target.zone, target);
+        const d = this.routeLive(target.zone, target);
         if (d) {
           tx = d.x * TILE + 8;
           ty = d.y * TILE + 4;
@@ -3605,46 +3714,49 @@ export class WorldScene extends Phaser.Scene {
       const resident = this.town.residents.get(target.npc);
       const zone = this.characterZone(target.npc);
       const stop = zone ? resident?.trip.position ?? stopFor(target.npc, clock.period) : null;
-      if (stop && stop.zone === this.zoneId) {
+      if (stop && this.sameMap(stop.zone)) {
         const actor = this.npcs.get(target.npc)?.actor;
         if (actor && actor.sprite.visible) {
           tx = actor.x;
           ty = actor.y - 24;
         } else {
-          tx = stop.x * TILE + 8;
-          ty = stop.y * TILE + 4;
+          const w = this.lw(stop.zone, stop.x, stop.y);
+          tx = w.x * TILE + 8;
+          ty = w.y * TILE + 4;
         }
       } else if (stop) {
-        const d = routeGoal(this.zoneId, stop.zone, stop);
+        const d = this.routeLive(stop.zone, stop);
         if (d) {
           tx = d.x * TILE + 8;
           ty = d.y * TILE + 4;
         }
       }
     } else if (target.kind === 'interior') {
-      if (this.zoneId === target.fromZone) {
-        tx = target.door.x * TILE + 8;
-        ty = target.door.y * TILE + 4;
+      if (this.zoneId === target.fromZone || this.sameMap(target.fromZone)) {
+        const w = this.lw(target.fromZone, target.door.x, target.door.y);
+        tx = w.x * TILE + 8;
+        ty = w.y * TILE + 4;
       } else if (this.zoneId === target.targetZone) {
         if (target.interiorTarget) {
           tx = target.interiorTarget.x * TILE + 8;
           ty = target.interiorTarget.y * TILE + 4;
         }
       } else {
-        const d = routeGoal(this.zoneId, target.fromZone, target.door);
+        const d = this.routeLive(target.fromZone, target.door);
         if (d) {
           tx = d.x * TILE + 8;
           ty = d.y * TILE + 4;
         }
       }
     } else if (target.kind === 'location') {
-      if (target.zone === this.zoneId) {
+      if (this.sameMap(target.zone)) {
         if (target.x != null && target.y != null) {
-          tx = target.x * TILE + 8;
-          ty = target.y * TILE + 4;
+          const w = this.lw(target.zone, target.x, target.y);
+          tx = w.x * TILE + 8;
+          ty = w.y * TILE + 4;
         }
       } else {
-        const d = routeGoal(this.zoneId, target.zone, target);
+        const d = this.routeLive(target.zone, target);
         if (d) {
           tx = d.x * TILE + 8;
           ty = d.y * TILE + 4;
@@ -3675,10 +3787,20 @@ export class WorldScene extends Phaser.Scene {
     p.teleport(p.tx + bx, p.ty + by);
   }
 
-  /** Until this time the border doors stay quiet: the player is still finishing the step that crossed one. */
+  /**
+   * The tile the player landed on by walking over a border (the Bosque profundo's edge): its own door stays quiet until
+   * they step off it, so arriving on the way back is never taken for leaving again.
+   */
+  private doorQuiet = '';
   private checkWalkDoor() {
     if (this.transitioning || this.inputLocked) return;
     const p = this.player;
+    if (this.doorQuiet) {
+      // still on it: quiet, unless they turn and walk the door's own way (back where they came from)
+      const back = this.zone.def.doors.find((dd) => dd.walk && dd.x === p.tx && dd.y === p.ty);
+      if (this.doorQuiet === `${p.tx},${p.ty}` && !(back && p.manual && p.dir === back.dir)) return;
+      this.doorQuiet = '';
+    }
     const d = this.zone.def.doors.find((dd) => dd.walk && dd.x === p.tx && dd.y === p.ty);
     if (!d) return;
     if (d.lock && !game.has(d.lock.flag) && !this.lockHook(d.to)) {
@@ -3735,6 +3857,7 @@ export class WorldScene extends Phaser.Scene {
     const manual = p.manual, moving = p.moving;
     void runTask('world:seam', async () => {
       if (!(await this.enterZone(n.def.id, n.x, n.y, p.dir, false, false, at))) return;
+      this.doorQuiet = `${this.player.tx},${this.player.ty}`;
       this.player.manual = manual; this.player.moving = moving;
     });
   }
@@ -3745,9 +3868,12 @@ export class WorldScene extends Phaser.Scene {
     const trip = this.town.residents.get(a.id)?.trip;
     n.traveling = !!trip && !trip.settled;
     if (trip && !trip.settled && n.t < 80 && !this.inputLocked) {
-      const p = trip.position;
+      const p = this.lw(trip.position.zone, trip.position.x, trip.position.y);
       a.stop(); a.manual = true; a.moving = trip.moving; a.dir = trip.dir;
-      a.x = p.x * TILE + TILE / 2; a.y = p.y * TILE + TILE - 2;
+      const x = p.x * TILE + TILE / 2, y = p.y * TILE + TILE - 2, jump = Math.hypot(x - a.x, y - a.y);
+      // the simulation steps two tiles over a district border: walk it instead of popping
+      if (jump > 12 && jump < 48) { const k = Math.min(1, 140 * dt / jump); a.x += (x - a.x) * k; a.y += (y - a.y) * k; }
+      else { a.x = x; a.y = y; }
       a.update(clock.paused ? 0 : dt);
       return;
     }
@@ -3884,10 +4010,12 @@ export class WorldScene extends Phaser.Scene {
   private outingPools = new Map<string, Place[]>();
   /** A place worth walking to in this map, far enough from where they usually stand. */
   private outingSpot(n: NpcState): Place | null {
-    const zone = this.zoneId;
+    const zone = this.liveId;
     let pool = this.outingPools.get(zone);
     if (!pool) {
-      pool = [...fountainSpots(zone), ...benchSpots(zone), ...shoreSpots(zone), ...clearings(zone, 'stroll', 10)];
+      // outdoors: the places of every district, on the one map
+      const places = this.liveId === VILLAGE ? DISTRICTS : [this.zoneId];
+      pool = places.flatMap((d) => [...fountainSpots(d), ...benchSpots(d), ...shoreSpots(d), ...clearings(d, 'stroll', 10)].map((p) => { const w = this.lw(d, p.x, p.y); return { ...p, x: w.x, y: w.y }; }));
       // shop windows: stand beside the street door and look in, not on the mat
       const street: Record<Dir, [number, number]> = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] };
       const onMat = (x: number, y: number) => this.zone.def.doors.some((d) => Math.abs(d.x - x) + Math.abs(d.y - y) <= 1);
@@ -3915,11 +4043,24 @@ export class WorldScene extends Phaser.Scene {
     return far.length ? far[Math.floor(Math.random() * far.length)] : null;
   }
 
+  /** A place that is on the map drawn now: this zone, or (outdoors) any district of the village. */
+  private sameMap(zone: string) { return zone === this.zoneId || (this.liveId === VILLAGE && isDistrict(zone)); }
+  /** routeGoal (world/guide.ts) from where the player is, in the tiles of the map drawn now. */
+  private routeLive(to: string, at?: { x?: number; y?: number }) {
+    const d = routeGoal(this.zoneId, to, at);
+    return d ? this.lw(this.zoneId, d.x, d.y) : null;
+  }
+
+  /** Where someone stands, as the data speaks about it: the district (or this place) and the tile in its own coordinates. */
+  private spotOf(a: Actor): { zone: string; x: number; y: number } {
+    return this.liveId === VILLAGE ? districtAt(a.tx, a.ty) : { zone: this.zoneId, x: a.tx, y: a.ty };
+  }
+
   /** Surroundings of a story character for the lines they say to whoever passes by. */
   private npcTalkCtx(n: NpcState): TalkCtx {
-    const t = game.save.time, zone = this.zoneId;
+    const t = game.save.time, spot = this.spotOf(n.actor), zone = spot.zone;
     const place = zone === 'library' ? 'read' : zone === 'beach' ? 'sea' : ['garden', 'forest', 'market'].includes(zone) ? zone
-      : zone === 'plaza' && Math.hypot(n.actor.tx - 15, n.actor.ty - 12) < 8 ? 'fountain' : zone === 'plaza' ? 'stroll' : undefined;
+      : zone === 'plaza' && Math.hypot(spot.x - 15, spot.y - 12) < 8 ? 'fountain' : zone === 'plaza' ? 'stroll' : undefined;
     return {
       id: n.actor.id, act: n.act && n.act !== 'idle' && !['happy', 'surprised', 'wave'].includes(n.act) ? (n.act as never) : n.actor.moving ? 'walk' : undefined, place, zone,
       period: t.period, rain: game.flag('weather') === 'rain', festival: !!game.flag('festival_today'),
@@ -4100,13 +4241,15 @@ export class WorldScene extends Phaser.Scene {
     for (const s of this.shopSigns) s.destroy();
     this.shopSigns = [];
     if (!this.zone) return;
-    for (const spot of signSpots(this.zoneId)) {
+    const spots = this.liveId === VILLAGE ? DISTRICTS.flatMap((d) => signSpots(d).map((sp) => ({ ...sp, zone: d as string }))) : signSpots(this.zoneId).map((sp) => ({ ...sp, zone: this.zoneId }));
+    for (const spot of spots) {
       if (this.shopFacades.some(f => f.shop === spot.shopId)) continue;
       const status = shopGate(spot.shopId);
       const text = shopSignText(status);
       if (!text || text === 'CERRADO') continue; // a closed shop already shows its shutter; no loose plaques
-      const x = spot.x * TILE;
-      const y = spot.y * TILE + TILE - 2;
+      const at = this.lw(spot.zone, spot.x, spot.y);
+      const x = at.x * TILE;
+      const y = at.y * TILE + TILE - 2;
       // Service plaques, like the quest arrow, stay readable above the night multiply layer.
       const depth = 200002;
       const sign = this.add.image(x, y, shopSignTexture(this, text, status.phase))
@@ -4667,14 +4810,14 @@ export class WorldScene extends Phaser.Scene {
       const t = settings.guide !== false && !this.inputLocked && !this.deliveryGoals.length && !lesson ? questTarget((id) => this.characterZone(id)) : null;
       if (lesson) this.guideGoal = lesson;
       if (t) {
-        if (t.zone === this.zoneId || (t.zone === 'home' && this.zoneId === 'home')) {
+        if (this.sameMap(t.zone) || (t.zone === 'home' && this.zoneId === 'home')) {
           if (t.npc) this.guideGoal = { x: 0, y: 0, npc: t.npc };
           else if (t.tableId) {
             const f = this.zone.furniture.find((fi) => String(fi.f.uid) === t.tableId);
             if (f) { const size = furnSize(f.def, f.f.rot); this.guideGoal = { x: f.f.x * TILE + (size.w * TILE) / 2, y: f.f.y * TILE + (size.h * TILE) / 2 }; }
-          } else if (t.x != null && t.y != null) this.guideGoal = { x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 };
+          } else if (t.x != null && t.y != null) { const w = this.lw(t.zone, t.x, t.y); this.guideGoal = { x: w.x * TILE + TILE / 2, y: w.y * TILE + TILE / 2 }; }
         } else {
-          const d = routeGoal(this.zoneId, t.zone, t);
+          const d = this.routeLive(t.zone, t);
           if (d) this.guideGoal = { x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2 };
         }
       }
@@ -4729,7 +4872,7 @@ export class WorldScene extends Phaser.Scene {
     const carrying = carriedOrders();
     if (!carrying.length) return [];
     if (this.zoneId !== 'restaurant') {
-      const d = routeGoal(this.zoneId, 'restaurant');
+      const d = this.routeLive('restaurant');
       return d ? [{ x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2, label: 'Al restaurante' }] : [];
     }
     const dishes: DeliveryDish[] = [];

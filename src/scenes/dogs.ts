@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import type { Dir } from '../core/types';
 import type { Grid } from '../world/grid';
+import { liveZoneOf, toLive } from '../world/village';
 import { ballTexture, breathAt, DOG_FRAME, dogTexture, zzzAt, type DogCoat } from './petArt';
 
 export interface DogSpot { zone: string; coat: DogCoat; name: string; tx: number; ty: number; roam: number }
@@ -63,7 +64,9 @@ export class Dogs {
   private ball: Ball | null = null;
   private flight: Phaser.Tweens.Tween | null = null;
   constructor(private scene: Phaser.Scene, readonly zone: string, private night: boolean, private grid: Grid, private sound?: (name: string, x: number, y: number) => void) {
-    for (const spot of DOG_SPOTS.filter((d) => d.zone === zone)) {
+    for (const authored of DOG_SPOTS.filter((d) => liveZoneOf(d.zone) === zone)) {
+      const at = toLive(authored.zone, authored.tx, authored.ty);
+      const spot: DogSpot = { ...authored, tx: at.x, ty: at.y };
       const home = grid.isSolid(spot.tx, spot.ty) ? grid.nearestWalkable(spot.tx, spot.ty) ?? [spot.tx, spot.ty] : [spot.tx, spot.ty] as [number, number];
       const x = home[0] * TILE + 8, y = home[1] * TILE + 14;
       const s = scene.add.sprite(x, y, dogTexture(scene, spot.coat), DOG_FRAME.sit).setOrigin(0.5, 1).setDepth(y + 1);
