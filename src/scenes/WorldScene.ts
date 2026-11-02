@@ -98,9 +98,10 @@ interface NpcState { out?: boolean; actor: Actor; anchor: [number, number]; wand
 /** gy: where the light falls on the ground (a post's foot), when it differs from where the source glows (its lantern) */
 interface Light { ghost?: boolean; x: number; y: number; gy?: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window'; facade?: boolean; home?: boolean; homeId?: string; seed?: number; shop?: string }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
-interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
+interface WindowGlow { ghost?: boolean; img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
 interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean; shutter: Phaser.GameObjects.Image; level: number; target: number; tween?: Phaser.Tweens.Tween }
+interface WaterSet { ox: number; oy: number; layer: Phaser.Tilemaps.TilemapLayer; over: Phaser.Tilemaps.TilemapLayer | null; sea: boolean; water: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
@@ -630,7 +631,19 @@ export class WorldScene extends Phaser.Scene {
   /** The built districts the backdrop was drawn from, kept to give the ones around this one their shadows and lights. */
   private zoneProps = new Map<string, BuiltZone>();
   private neighborDecor: Phaser.GameObjects.GameObject[] = [];
+  private neighborWater: WaterSet[] = [];
+  private neighborMaps: Phaser.Tilemaps.Tilemap[] = [];
+  private neighborFx: WaterFx[] = [];
   private decorTimer: Phaser.Time.TimerEvent | null = null;
+  private dropNeighborDecor() {
+    for (const o of this.neighborDecor) o.destroy();
+    this.neighborDecor = [];
+    for (const m of this.neighborMaps) m.destroy();
+    this.neighborMaps = [];
+    this.neighborWater = [];
+    for (const f of this.neighborFx) f.destroy();
+    this.neighborFx = [];
+  }
   /** Several districts finish drawing in a row: the decor is redone once, after the last. */
   private scheduleNeighborDecor() {
     this.decorTimer?.remove();
@@ -643,8 +656,7 @@ export class WorldScene extends Phaser.Scene {
    * sun like the live ones, and the lamps and windows go through the same lighting pass.
    */
   private refreshNeighborDecor() {
-    for (const o of this.neighborDecor) o.destroy();
-    this.neighborDecor = [];
+    this.dropNeighborDecor();
     this.lamps = this.lamps.filter((l) => !l.ghost);
     this.windowGlows = this.windowGlows.filter((w) => w.img.active);
     const cur = this.zone?.def;
@@ -661,7 +673,10 @@ export class WorldScene extends Phaser.Scene {
       if (zx > cur.w + REACH || zx + z.w < -REACH || zy > cur.h + REACH || zy + z.h < -REACH) continue;
       const ox = zx * TILE, oy = zy * TILE;
       // a lamp keeps the seed it has in its own district, so it comes on at the same moment before and after the border
-      const lamp = (l: Light) => this.lamps.push({ ...l, ghost: true, seed: l.seed ?? lightSeed(l.x - ox, l.y - oy) });
+      const local: Light[] = []; // this district's own lamps, in its own coordinates, for the reflections on its water
+      const lamp = (l: Light) => { local.push({ ...l, x: l.x - ox, y: l.y - oy }); this.lamps.push({ ...l, ghost: true, seed: l.seed ?? lightSeed(l.x - ox, l.y - oy) }); };
+      const own = (make: () => void) => { const before = this.objs.length; make(); for (const o of this.objs.splice(before)) keep(o); };
+      const hasWater = this.addNeighborWater(built, ox, oy);
       for (const p of built.props) {
         const tx = zx + p.x, ty = zy + p.y + p.def.h;
         if (tx < -REACH || tx > cur.w + REACH || ty < -REACH - 8 || ty > cur.h + REACH) continue;
@@ -673,6 +688,13 @@ export class WorldScene extends Phaser.Scene {
         const px = p.x * TILE + (p.def.w * TILE) / 2 + ox, py = (p.y + p.def.h) * TILE + oy;
         // the prop itself is in the picture: this stand-in is invisible and only gives the shadow and the glow a place and a shape
         const img = keep(this.add.image(px, py, propTexture(this, p.key)).setOrigin(0.5, 1).setAlpha(0));
+        // what moves: a visible copy over the picture's still one, drawn like the live prop (it also sorts with people)
+        if ((p.def.anim === 'sway' || p.key === 'fountain' || p.key === 'campfire') && !lowFx() && !settings.reduceMotion) {
+          const live = keep(this.add.image(px, py, propTexture(this, p.key)).setOrigin(0.5, 1).setDepth(py));
+          if (p.key === 'fountain' || p.key === 'campfire') own(() => this.animateProp(p.key, live, p.def.sw, p.def.sh));
+          else this.tweens.add({ targets: live, angle: { from: -0.8, to: 0.8 }, duration: 2200 + Math.random() * 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        }
+        if (p.def.anim === 'water' && !lowFx()) own(() => this.addFountainSpray(px, py - Math.max(p.def.sh, img.height) + 6));
         const tall = img.height > p.def.sh;
         if (p.def.light) {
           const kind = p.def.kind, beacon = kind === 'lighthouse';
@@ -709,8 +731,50 @@ export class WorldScene extends Phaser.Scene {
           for (const o of this.objs.splice(before)) keep(o);
         }
       }
+      // moon and lantern light on its water, and the odd splash
+      if (hasWater) this.neighborFx.push(new WaterFx(this, built.def.ground, local, lowFx(), { x: ox, y: oy }));
     }
     this.shadowKey = ''; // the new shadows are baked and placed on the next pass
+  }
+
+  /**
+   * The moving water of a district that is drawn as a picture: tile layers that hold only its water, shore and bank tiles, on
+   * top of the picture, painted by the same clock as the live water (so the sea has no seam at a border). The picture's own
+   * bridge rails are drawn again above them, since they reach up over the water tile beside the deck.
+   */
+  private addNeighborWater(built: BuiltZone, ox: number, oy: number): boolean {
+    const def = built.def;
+    const sea = usesSea(def);
+    const water: WaterSet['water'] = [], shore: WaterSet['shore'] = [], banks: WaterSet['banks'] = [];
+    const bankIdx = new Map<number, number>();
+    for (let m = 1; m < 16; m++) bankIdx.set(TILE_INDEX['bk' + m], m);
+    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) {
+      const ch = def.ground[y][x];
+      const edge = sea && 'wdh'.includes(ch) ? seaEdge(def.ground, x, y) : null;
+      if (edge) shore.push({ x, y, edge });
+      else if (ch === 'w' || ch === 'd') water.push({ x, y, depth: sea ? seaDepthAt(def.ground, x, y) : waterDepthAt(def.ground, x, y), v: waterVariant(x, y) });
+      else if (ch === 'h') shore.push({ x, y });
+      const m = bankIdx.get(built.overlay[y][x]);
+      if (m) banks.push({ x, y, mask: m });
+    }
+    if (!water.length && !shore.length) return false;
+    const blank = (depth: number) => {
+      const map = this.make.tilemap({ tileWidth: TILE, tileHeight: TILE, width: def.w, height: def.h });
+      const layer = map.createBlankLayer('water', map.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0)!, ox, oy, def.w, def.h)!;
+      layer.setDepth(depth);
+      this.neighborMaps.push(map); // destroying the map takes its layer with it
+      return layer;
+    };
+    // above the district's picture of the ground (-12) and below everything live
+    const set: WaterSet = { ox, oy, layer: blank(-11.5), over: banks.length ? blank(-11.3) : null, sea, water, shore, banks };
+    for (const r of bridgeRails(def.ground)) {
+      const key = `bridge_rail_${r.axis}_${r.length}`;
+      if (!this.textures.exists(key)) this.textures.addCanvas(key, bridgeRailCanvas(r.axis, r.length));
+      this.neighborDecor.push(this.add.image(r.x * TILE - 2 + ox, r.y * TILE - 7 + oy, key).setOrigin(0, 0).setDepth(-11.4));
+    }
+    this.neighborWater.push(set);
+    this.paintWater(set, this.waterFrame, this.zone.def.outdoor && game.flag('weather') === 'rain');
+    return true;
   }
 
   // ------------------------------------------------------------------ zones
@@ -834,8 +898,7 @@ export class WorldScene extends Phaser.Scene {
     this.shopSigns = [];
     for (const o of this.objs) o.destroy();
     this.objs = [];
-    for (const o of this.neighborDecor) o.destroy();
-    this.neighborDecor = [];
+    this.dropNeighborDecor();
     this.windowGlows = [];
     this.shopFacades = [];
     this.castList = [];
@@ -1340,6 +1403,94 @@ export class WorldScene extends Phaser.Scene {
       this.speech.dropSpeaker('nb:' + id);
       if (this.speechActor === body.actor) this.speechActor = null;
       body.actor.destroy(); body.bike?.destroy(); this.neighborBodies.delete(id);
+    }
+  }
+
+  // ------------------------------------------------------------------ people in the districts around
+  private echoes = new Map<string, { actor: Actor; bike: Phaser.GameObjects.Image | null }>();
+
+  /**
+   * Villagers and neighbours are simulated everywhere, whatever district is live (TownLife and NeighborLife keep walking them
+   * between places), so someone in the district next door needs no extra simulation: only a body, put where they are in the
+   * world. It walks and poses from the simulation (no wandering of its own) and gives way to the real one when the player
+   * crosses over, which the live district creates in the same frame.
+   */
+  private updateEchoes(dt: number) {
+    const cur = this.zone?.def;
+    const live = !!cur?.outdoor && !!cur.world && !this.transitioning && !this.decorMode && game.has('intro_done');
+    const wanted = new Set<string>();
+    if (live) {
+      const cam = this.cameras.main;
+      const REACH = Math.ceil(Math.max(cam.width, cam.height) / cam.zoom / TILE / 2) + 3;
+      // the view straight from the camera (worldView is stale right after a jump, as in updateLighting)
+      const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
+      const vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
+      let minted = false;
+      for (const z of Object.values(ZONES)) {
+        if (z.id === cur!.id || !z.outdoor || !z.world) continue;
+        const zx = z.world.x - cur!.world!.x, zy = z.world.y - cur!.world!.y;
+        if (zx > cur!.w + REACH || zx + z.w < -REACH || zy > cur!.h + REACH || zy + z.h < -REACH) continue;
+        const place = (e: { actor: Actor }, pos: { x: number; y: number }) => {
+          e.actor.x = (pos.x + zx) * TILE + TILE / 2;
+          e.actor.y = (pos.y + zy) * TILE + TILE - 2;
+        };
+        // only whoever is (nearly) in view gets a body
+        const seen = (pos: { x: number; y: number }) => {
+          const x = (pos.x + zx) * TILE, y = (pos.y + zy) * TILE;
+          return x > vx - 48 && x < vx + vw + 48 && y > vy - 64 && y < vy + vh + 48;
+        };
+        for (const r of this.town.inZone(z.id)) {
+          if (!seen(r.trip.position)) continue;
+          const key = 't:' + r.id;
+          let e = this.echoes.get(key);
+          if (!e) {
+            if (!hasCharTexture(this, r.id)) { if (minted) continue; minted = true; }
+            const actor = new Actor(this, 'echo_' + r.id, charTexture(this, r.id), r.trip.position.x, r.trip.position.y);
+            actor.manual = true;
+            this.echoes.set(key, e = { actor, bike: null });
+          }
+          wanted.add(key);
+          const a = e.actor, trip = r.trip;
+          place(e, trip.position);
+          a.dir = !trip.moving && r.stop.dir ? r.stop.dir : trip.dir;
+          a.moving = trip.moving;
+          a.seatLift = trip.settled ? r.stop.seatLift ?? 0 : 0;
+          a.bed = trip.settled && r.stop.act === 'sleep' ? r.stop.bed ?? null : null;
+          const act: Act = trip.moving || !trip.settled ? 'idle' : r.stop.act ?? 'idle';
+          if (a.act !== act) a.setAct(act);
+          a.update(clock.paused ? 0 : dt);
+        }
+        for (const st of this.neighborLife.inZone(z.id)) {
+          if (!seen(st.trip.position)) continue;
+          const n = st.n, trip = st.trip, key = 'n:' + n.id;
+          let e = this.echoes.get(key);
+          if (!e) {
+            if (!hasLookTexture(this, n.look)) { if (minted) continue; minted = true; }
+            const actor = new Actor(this, 'nb_' + n.id, lookTexture(this, n.look), trip.position.x, trip.position.y);
+            actor.manual = true;
+            this.echoes.set(key, e = { actor, bike: null });
+          }
+          wanted.add(key);
+          const a = e.actor, riding = st.ride && trip.moving;
+          place(e, trip.position);
+          a.dir = !trip.moving && st.place.dir ? st.place.dir : trip.dir;
+          a.moving = trip.moving && !riding;
+          a.seatLift = riding ? 6 : trip.settled ? st.place.seatLift ?? 0 : 0;
+          a.bed = trip.settled && st.place.act === 'sleep' ? st.place.bed ?? null : null;
+          const act: Act = riding ? 'sit' : trip.moving ? 'idle' : trip.settled ? st.place.act ?? 'idle' : 'idle';
+          if (a.act !== act) a.setAct(act);
+          const parked = st.ride && trip.settled && st.place.kind !== 'home';
+          if (riding || parked) {
+            if (!e.bike?.active) e.bike = this.add.image(0, 0, propTexture(this, 'bicycle')).setOrigin(0.5, 1);
+            e.bike.setVisible(true).setPosition(a.x + (riding ? 0 : 14), a.y + 1).setDepth(a.y - 0.5).setFlipX(riding && a.dir === 'left').setScale(riding && (a.dir === 'up' || a.dir === 'down') ? 0.6 : 1, 1);
+          } else e.bike?.setVisible(false);
+          a.update(clock.paused ? 0 : dt);
+        }
+      }
+    }
+    for (const [key, e] of this.echoes) {
+      if (wanted.has(key)) continue;
+      e.actor.destroy(); e.bike?.destroy(); this.echoes.delete(key);
     }
   }
 
@@ -3071,6 +3222,7 @@ export class WorldScene extends Phaser.Scene {
     for (const e of this.extras.values()) e.update(dt);
     if (mirror.on) this.pumpMirror(dt); else { this.leaveMirror(); this.pumpFloor(dt); this.updateStaff(dt); }
     this.updateNeighbors(dt);
+    this.updateEchoes(dt);
     for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);
     this.moths?.update(dt, this.cameras.main.worldView);
@@ -3079,6 +3231,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateBugs(dt);
     this.updateWater(dt);
     this.waterFx?.update(dt, this.waterEnv());
+    if (this.neighborFx.length) { const env = this.waterEnv(); for (const f of this.neighborFx) f.update(dt, env); }
     this.updateLighting();
     this.updateAtmosphere(dt);
     this.updateOccluders(dt);
@@ -3766,30 +3919,45 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** Writes the current animation frame into every water, shoreline and bank tile (only a few hundred putTileAt calls). */
-  private applyWater(frame: number, rain: boolean) {
-    const L = this.layer;
-    if (!L) return;
-    if (this.sea) {
+  private applyWater(frame: number, rain: boolean, all = true) {
+    if (this.layer) this.paintWater({ ox: 0, oy: 0, layer: this.layer, over: this.overLayer, sea: this.sea, water: this.waterTiles, shore: this.shoreTiles, banks: this.bankTiles }, frame, rain, all);
+    for (const w of this.neighborWater) this.paintWater(w, frame, rain, all);
+  }
+
+  /** One district's moving water: every district around shares the frame, so the sea never shows a seam at a border. */
+  private paintWater(w: WaterSet, frame: number, rain: boolean, all = true) {
+    const L = w.layer;
+    // between two weather changes only the tiles in (or about to enter) the view move: the rest are caught up by the next
+    // change, and a margin keeps the view's edge from ever showing a stale frame
+    const cam = this.cameras.main;
+    const vw = cam.width / cam.zoom, vh = cam.height / cam.zoom;
+    const vx = cam.scrollX + (cam.width - vw) / 2 - 48, vy = cam.scrollY + (cam.height - vh) / 2 - 48;
+    const inView = (t: { x: number; y: number }) => {
+      if (all) return true;
+      const x = w.ox + t.x * TILE, y = w.oy + t.y * TILE;
+      return x >= vx && x <= vx + vw + 96 && y >= vy && y <= vy + vh + 96;
+    };
+    if (w.sea) {
       // one shared frame for the whole sea: the pack's pattern only lines up when every tile moves together
-      for (const w of this.waterTiles) L.putTileAt(seaFrames(w.depth, seaParity(w.x, w.y), rain)[frame], w.x, w.y);
-      for (const t of this.shoreTiles) L.putTileAt(seaShoreFrames(t.edge ?? `seashore${t.x % 2}`)[frame], t.x, t.y);
+      for (const t of w.water) if (inView(t)) L.putTileAt(seaFrames(t.depth, seaParity(t.x, t.y), rain)[frame], t.x, t.y);
+      for (const t of w.shore) if (inView(t)) L.putTileAt(seaShoreFrames(t.edge ?? `seashore${t.x % 2}`)[frame], t.x, t.y);
     } else {
       const f = frame >> 1;
-      for (const w of this.waterTiles) L.putTileAt(waterFrames(w.depth, w.v, rain)[(f + w.v) % 4], w.x, w.y);
-      for (const t of this.shoreTiles) L.putTileAt(SHORE_FRAMES[(f + t.x) % 4], t.x, t.y);
+      for (const t of w.water) if (inView(t)) L.putTileAt(waterFrames(t.depth, t.v, rain)[(f + t.v) % 4], t.x, t.y);
+      for (const t of w.shore) if (inView(t)) L.putTileAt(SHORE_FRAMES[(f + t.x) % 4], t.x, t.y);
     }
-    const O = this.overLayer;
-    if (O) for (const b of this.bankTiles) O.putTileAt(TILE_INDEX[((frame >> 2) + b.x + b.y) % 2 ? 'bkb' + b.mask : 'bk' + b.mask], b.x, b.y);
+    if (w.over) for (const b of w.banks) if (inView(b)) w.over.putTileAt(TILE_INDEX[((frame >> 2) + b.x + b.y) % 2 ? 'bkb' + b.mask : 'bk' + b.mask], b.x, b.y);
   }
 
   /** Water animation: 4 frames at ~2 fps. Battery / reduced-motion mode keeps one still frame (but still follows the rain). */
   private updateWater(dt: number) {
-    if (!this.layer || !(this.waterTiles.length || this.shoreTiles.length)) return;
+    const live = !!this.layer && (this.waterTiles.length > 0 || this.shoreTiles.length > 0);
+    if (!live && !this.neighborWater.length) return;
     const rain = this.zone.def.outdoor && game.flag('weather') === 'rain';
     if (lowFx()) {
       if (this.waterRain !== rain) {
         this.waterRain = rain;
-        this.applyWater(0, rain);
+        this.applyWater(0, rain, true);
       }
       return;
     }
@@ -3797,9 +3965,10 @@ export class WorldScene extends Phaser.Scene {
     // 8 steps per cycle: the sea shows each one, the drawn ponds every other one (still 0.45 s per frame)
     if (this.waterT < 0.225 && this.waterRain === rain) return;
     this.waterT = 0;
+    const changed = this.waterRain !== rain;
     this.waterRain = rain;
     this.waterFrame = (this.waterFrame + 1) % 8;
-    this.applyWater(this.waterFrame, rain);
+    this.applyWater(this.waterFrame, rain, changed);
   }
 
   /** How strongly the moon / lanterns should show on the water right now (0 by day, rising at dusk). */
@@ -3971,14 +4140,16 @@ export class WorldScene extends Phaser.Scene {
     this.homeLevels.set(home, level); return level;
   }
 
-  private updateWindowGlow(time: number, actors: Actor[]) {
+  private updateWindowGlow(time: number, actors: Actor[], view?: { x: number; right: number; y: number; bottom: number }) {
     const lo = lowFx();
     for (const w of this.windowGlows) {
       if (!w.img.active) continue;
+      // a facade is at most ~100px tall and ~120px wide: whatever is clear of the view costs nothing this frame
+      if (view && (w.src.x < view.x - 130 || w.src.x > view.right + 130 || w.src.y < view.y - 24 || w.src.y - 110 > view.bottom)) { w.img.setVisible(false); continue; }
       const lvl = this.facadeLevel(w.facade, w.door, w);
       // very slow breathing so lit windows feel alive (none in battery / reduced-motion mode)
       const breath = lo ? 1 : 1 + 0.04 * Math.sin(time * 0.9 + w.phase);
-      const a = Math.min(0.85, lvl * 0.7 * breath) * w.src.alpha;
+      const a = Math.min(0.85, lvl * 0.7 * breath) * (w.ghost ? 1 : w.src.alpha); // a stand-in prop is invisible by design
       w.img.setVisible(a > 0.02).setAlpha(a).setPosition(w.src.x, w.src.y);
       // Above the night tint the pane stays warm. Drop only a covered pane onto the facade so the person draws over it.
       const covered = this.coverDepth(actors, this.paneBox(w.img, w.rect), w.src.y);
@@ -4099,7 +4270,7 @@ export class WorldScene extends Phaser.Scene {
     const lo = lowFx();
     const time = performance.now() / 1000;
     const actors = this.glowActors();
-    this.updateWindowGlow(time, actors);
+    this.updateWindowGlow(time, actors, view);
     const margin = 110;
     const visible = this.lamps.filter((l) => l.x > view.x - margin && l.x < view.right + margin && l.y > view.y - margin && l.y < view.bottom + margin);
     const lit = visible.map((l) => ({ l, k: Math.round(this.lampLevel(l, ls) * 100) / 100 })).filter((e) => e.k > 0.02);

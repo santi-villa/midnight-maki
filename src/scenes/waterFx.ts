@@ -89,7 +89,8 @@ export class WaterFx {
   private splashT = 3 + Math.random() * 3;
   private rainT = 0;
 
-  constructor(private scene: Phaser.Scene, ground: string[], lamps: LampLike[], private calm: boolean) {
+  /** `origin` places a district that is not the live one: its tiles and lamps stay in its own coordinates, the images shift. */
+  constructor(private scene: Phaser.Scene, ground: string[], lamps: LampLike[], private calm: boolean, private origin = { x: 0, y: 0 }) {
     const H = ground.length;
     const W = ground[0]?.length ?? 0;
     const isWater = (x: number, y: number) => ground[y]?.[x] === 'w' || ground[y]?.[x] === 'd';
@@ -161,7 +162,7 @@ export class WaterFx {
   }
 
   private reflection(tex: string, x: number, y: number, h: number, w: number, tint: number, base: number): Reflection {
-    const img = this.scene.add.image(x, y, tex, 0).setOrigin(0.5, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false);
+    const img = this.scene.add.image(x + this.origin.x, y + this.origin.y, tex, 0).setOrigin(0.5, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false);
     img.setTint(tint);
     img.setCrop(0, 0, w, h);
     return { img, base, frameKey: tex };
@@ -217,8 +218,8 @@ export class WaterFx {
   private spawnRing(view: Phaser.Geom.Rectangle, splash: boolean) {
     for (let tries = 0; tries < 8; tries++) {
       const [tx, ty] = this.cells[Math.floor(Math.random() * this.cells.length)];
-      const x = tx * TILE + 2 + Math.random() * 12;
-      const y = ty * TILE + 3 + Math.random() * 10;
+      const x = this.origin.x + tx * TILE + 2 + Math.random() * 12;
+      const y = this.origin.y + ty * TILE + 3 + Math.random() * 10;
       if (x < view.x - 8 || x > view.right + 8 || y < view.y - 8 || y > view.bottom + 8) continue;
       const r = this.rings.find((q) => !q.on);
       if (!r) return;
