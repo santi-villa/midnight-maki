@@ -31,7 +31,7 @@ import { KITCHEN } from '../galley/layout';
 import { GalleyView, type GalleyVerb } from './galleyView';
 import { bedtimeReason, settleBedtime } from '../systems/bedtime';
 import { closedLocalNotice, shopGate, stopFor } from '../systems/npcs';
-import { businessPhase, pace, phaseOf, restaurantPhase, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
+import { businessPhase, pace, phaseOf, placePhase, restaurantPhase, shopPlace, shopButtonLabel, shopSignText, shopInteractionText, signSpots } from '../systems/schedule';
 import { seasonOf } from '../core/balance';
 import { clock } from '../systems/time';
 import { dayMinutes } from '../systems/daytime';
@@ -39,6 +39,7 @@ import { lowFx, sampleFrame } from '../core/perf';
 import { FURN_BY_ID } from '../data/furniture';
 import { LampMoths } from './lampMoths';
 import { Pets } from './pets';
+import { Dogs } from './dogs';
 import { CROP_ART, cropStage } from '../art/farm';
 import { questTarget, routeGoal } from '../world/guide';
 import { crew, crewUnlocked, employees, handMove, handWhere, hiredCooks, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type CrewId, type StaffEnv } from '../restaurant/staff';
@@ -749,21 +750,28 @@ export class WorldScene extends Phaser.Scene {
    * top of the picture, painted by the same clock as the live water (so the sea has no seam at a border). The picture's own
    * bridge rails are drawn again above them, since they reach up over the water tile beside the deck.
    */
+  /** Each district's water tiles never change: worked out once, not at every border crossing. */
+  private waterTilesOf = new WeakMap<BuiltZone['overlay'], Pick<WaterSet, 'water' | 'shore' | 'banks'>>();
   private addNeighborWater(built: BuiltZone, ox: number, oy: number): boolean {
     const def = built.def;
     const sea = usesSea(def);
-    const water: WaterSet['water'] = [], shore: WaterSet['shore'] = [], banks: WaterSet['banks'] = [];
-    const bankIdx = new Map<number, number>();
-    for (let m = 1; m < 16; m++) bankIdx.set(TILE_INDEX['bk' + m], m);
-    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) {
-      const ch = def.ground[y][x];
-      const edge = sea && 'wdh'.includes(ch) ? seaEdge(def.ground, x, y) : null;
-      if (edge) shore.push({ x, y, edge });
-      else if (ch === 'w' || ch === 'd') water.push({ x, y, depth: sea ? seaDepthAt(def.ground, x, y) : waterDepthAt(def.ground, x, y), v: waterVariant(x, y) });
-      else if (ch === 'h') shore.push({ x, y });
-      const m = bankIdx.get(built.overlay[y][x]);
-      if (m) banks.push({ x, y, mask: m });
+    let tiles = this.waterTilesOf.get(built.overlay);
+    if (!tiles) {
+      const water: WaterSet['water'] = [], shore: WaterSet['shore'] = [], banks: WaterSet['banks'] = [];
+      const bankIdx = new Map<number, number>();
+      for (let m = 1; m < 16; m++) bankIdx.set(TILE_INDEX['bk' + m], m);
+      for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) {
+        const ch = def.ground[y][x];
+        const edge = sea && 'wdh'.includes(ch) ? seaEdge(def.ground, x, y) : null;
+        if (edge) shore.push({ x, y, edge });
+        else if (ch === 'w' || ch === 'd') water.push({ x, y, depth: sea ? seaDepthAt(def.ground, x, y) : waterDepthAt(def.ground, x, y), v: waterVariant(x, y) });
+        else if (ch === 'h') shore.push({ x, y });
+        const m = bankIdx.get(built.overlay[y][x]);
+        if (m) banks.push({ x, y, mask: m });
+      }
+      this.waterTilesOf.set(built.overlay, tiles = { water, shore, banks });
     }
+    const { water, shore, banks } = tiles;
     if (!water.length && !shore.length) return false;
     const blank = (depth: number) => {
       const map = this.make.tilemap({ tileWidth: TILE, tileHeight: TILE, width: def.w, height: def.h });
@@ -780,7 +788,8 @@ export class WorldScene extends Phaser.Scene {
       this.neighborDecor.push(this.add.image(r.x * TILE - 2 + ox, r.y * TILE - 7 + oy, key).setOrigin(0, 0).setDepth(-11.4));
     }
     this.neighborWater.push(set);
-    this.paintWater(set, this.waterFrame, this.zone.def.outdoor && game.flag('weather') === 'rain');
+    // only what the camera can reach now: the rest still shows the picture's water below and moves once it comes into view
+    this.paintWater(set, this.waterFrame, this.zone.def.outdoor && game.flag('weather') === 'rain', false);
     return true;
   }
 
@@ -1221,6 +1230,12 @@ export class WorldScene extends Phaser.Scene {
   private flockTimers = new Map<number, number>();
   /** birds hop around by day and fly off when you get close; a cat strolls through the plaza */
   private pets: Pets | null = null;
+  /** the village dogs and their ball (scenes/dogs.ts) */
+  private dogs: Dogs | null = null;
+  private nearSound(name: string, x: number, y: number) {
+    const d = Math.hypot(x - this.player.x, y - this.player.y);
+    if (d < 150) audio.sfxPlay(name, 0.6 * (1 - d / 150));
+  }
   spawnCritters() {
     this.spawnWild();
     for (const c of this.critters) c.s.destroy();
@@ -1230,6 +1245,12 @@ export class WorldScene extends Phaser.Scene {
     else {
       this.pets?.destroy();
       this.pets = this.zone?.def.outdoor || this.zoneId === 'restaurant' ? new Pets(this, this.zoneId, clock.isNight(), (x, y) => this.petFootstep(x, y), this.zone.grid) : null;
+    }
+    if (this.dogs?.zone === this.zoneId) this.dogs.setNight(clock.isNight(), this.zone.grid);
+    else {
+      this.dogs?.destroy();
+      this.dogs = this.zone?.def.outdoor ? new Dogs(this, this.zoneId, clock.isNight(), this.zone.grid, (n, x, y) => this.nearSound(n, x, y)) : null;
+      if (!this.dogs?.count) { this.dogs?.destroy(); this.dogs = null; }
     }
     const def = this.zone.def;
     if (!def.outdoor || game.flag('weather') === 'rain' || this.zoneId === 'station') return;
@@ -2821,6 +2842,13 @@ export class WorldScene extends Phaser.Scene {
     if (!this.canAct()) return;
     this.player.stop();
     const intent = action.intent;
+    if (intent.type === 'ball') {
+      if (intent.act === 'take') { if (this.dogs?.take(this.player)) audio.sfxPlay('tap'); return; }
+      const dog = this.dogs?.throw(this.player);
+      if (dog === '') bus.emit('toast', { text: 'Está durmiendo. Mañana juega.' });
+      else if (dog === null) bus.emit('toast', { text: 'No hay lugar para tirarla para ese lado.' });
+      return;
+    }
     if (intent.type === 'pet') {
       if (this.pets?.pet(intent.id, this.player)) bus.emit('toast', { text: `${intent.id} ronronea y se acomoda a tu lado.` });
       return;
@@ -3010,6 +3038,7 @@ export class WorldScene extends Phaser.Scene {
         company: this.canKeepCompany(id),
       })),
       pets: this.pets?.interactions,
+      ball: this.dogs?.ballSense(),
       neighbors: [...this.neighborBodies.entries()].filter(([, b]) => b.actor.sprite.visible).map(([id, b]) => ({ id, name: NEIGHBOR_BY_ID[id]?.name ?? id, x: b.actor.x, y: b.actor.y - 4 })),
       interacts: this.galleyView.holdingPlate() ? [] : this.zone.def.interact.filter((i) => condOk(i.cond) && !this.galleyOwns(i)).map((i) => {
         if (!i.action.startsWith('shop:')) return i;
@@ -3391,6 +3420,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateCritters(dt);
     this.moths?.update(dt, this.cameras.main.worldView);
     if (this.pets && this.player) this.pets.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt, this.player, [...this.guests.values()].map(g => g.actor), this.glowActors().filter(a => a !== this.player));
+    if (this.dogs && this.player) this.dogs.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt, this.player);
     this.updateFootsteps(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
@@ -4017,6 +4047,30 @@ export class WorldScene extends Phaser.Scene {
       this.shopKey = shops;
       this.refreshShopSigns();
     }
+    this.closeShopAround();
+  }
+
+  /** Last closing phase the player was told about inside a shop, so each notice shows once. */
+  private closingNotice = '';
+  /** Inside a shop at closing time: a word first, then the keeper sees the player out (nobody stays locked in). */
+  private closeShopAround() {
+    const id = this.zoneId;
+    if (!id.startsWith('shop_') && id !== 'library') { this.closingNotice = ''; return; }
+    const shop = id === 'library' ? id : id.slice(5), status = shopGate(shop), place = shopPlace(shop);
+    // only the clock (or a day off) sends you out: a keeper stepping away for a moment does not
+    const hours = place ? placePhase(place, game.save.time.period, game.save.time.minutes) : status.phase;
+    const shut = game.has('shop_shut_' + shop);
+    if (!status.tracked || status.open || (!shut && (hours === 'open' || hours === 'setup'))) { this.closingNotice = ''; return; }
+    const key = id + ':' + status.phase;
+    if (this.closingNotice === key) return;
+    this.closingNotice = key;
+    if (status.phase === 'closing' && !shut) { bus.emit('toast', { text: `${status.title} está cerrando. Terminá tus compras.` }); return; }
+    const door = this.zone.def.doors.find((d) => ZONES[d.to]?.outdoor) ?? this.zone.def.doors[0];
+    if (!door) return;
+    bus.emit('toast', { text: `${status.title} cerró por hoy. Te acompañan a la puerta.` });
+    this.player?.stop();
+    audio.sfxPlay('door');
+    void runTask('world:shop-closed', () => this.enterZone(door.to, door.tx, door.ty, door.dir, true, true));
   }
 
   /** Shutters share the service state; they only draw over the existing entry. */

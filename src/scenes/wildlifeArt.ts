@@ -32,16 +32,24 @@ const FRAMES: Record<WildKind, string[][]> = {
     ['..ww.ww..', '..wk.wk..', '.ggggggg.', 'gGgppppGg', 'gyypppyyg', 'GG.....GG'],
   ],
   duck: [
-    // swimming
-    ['.......hh..', '......hkhy.', '......hhyy.', '.bb...bH...', 'bbbbbbbbb..', 'dbwwwwbbd..', '.ddddddd...'],
+    // swimming (the bottom row stays empty: the water hides the feet)
+    ['.......hh..', '......hkhy.', '......hhyy.', '.bb...bH...', 'bbbbbbbbb..', 'dbwwwwbbd..', '.ddddddd...', '...........'],
     // swimming, the head bobs
-    ['...........', '.......hh..', '......hkhy.', '.bb...hhyy.', 'bbbbbbbH...', 'dbwwwwbbd..', '.ddddddd...'],
+    ['...........', '.......hh..', '......hkhy.', '.bb...hhyy.', 'bbbbbbbH...', 'dbwwwwbbd..', '.ddddddd...', '...........'],
     // dabbling: head under, tail up
-    ['..b........', '.bbb.......', '.bbbbb.....', '..bbbbbb...', '...dddddd..', '.....dd....', '...........'],
+    ['..b........', '.bbb.......', '.bbbbb.....', '..bbbbbb...', '...dddddd..', '.....dd....', '...........', '...........'],
+    // walking on the bank: the feet show, one step and the other
+    ['.......hh..', '......hkhy.', '......hhyy.', '.bb...bH...', 'bbbbbbbbb..', 'dbwwwwbbd..', '.ddddddd...', '...y..y....'],
+    ['.......hh..', '......hkhy.', '......hhyy.', '.bb...bH...', 'bbbbbbbbb..', 'dbwwwwbbd..', '.ddddddd...', '..y....y...'],
+    // pecking at the ground
+    ['...........', '...........', '.bb........', 'bbbbbbbbb..', 'dbwwwwbbbh.', '.dddddddhkh', '.........yy', '...y..y....'],
   ],
   duckling: [
-    ['...YY.', '...Yko', 'YY.YY.', 'YYYYY.', '.DDD..'],
-    ['......', '...YY.', 'YY.Yko', 'YYYYY.', '.DDD..'],
+    ['...YY.', '...Yko', 'YY.YY.', 'YYYYY.', '.DDD..', '......'],
+    ['......', '...YY.', 'YY.Yko', 'YYYYY.', '.DDD..', '......'],
+    // waddling on the bank
+    ['...YY.', '...Yko', 'YY.YY.', 'YYYYY.', '.DDD..', '.o..o.'],
+    ['...YY.', '...Yko', 'YY.YY.', 'YYYYY.', '.DDD..', '..o.o.'],
   ],
   crab: [
     ['.k.....k.', '.w.....w.', 'r.rrrrr.r', 'rrrrrrrrr', '.RRRRRRR.', 'R.R...R.R'],
@@ -69,8 +77,8 @@ const FRAMES: Record<WildKind, string[][]> = {
 /** Which frame does what, per animal. */
 export const FRAME = {
   frog: { sit: 0, crouch: 1, air: 2, croak: 3 },
-  duck: { swim: 0, bob: 1, dabble: 2 },
-  duckling: { swim: 0, bob: 1 },
+  duck: { swim: 0, bob: 1, dabble: 2, walkA: 3, walkB: 4, peck: 5 },
+  duckling: { swim: 0, bob: 1, walkA: 2, walkB: 3 },
   crab: { a: 0, b: 1, hidden: 2 },
   squirrel: { runA: 0, runB: 1, sit: 2 },
   dragonfly: { up: 0, down: 1 },

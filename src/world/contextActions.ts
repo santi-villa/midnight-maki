@@ -31,6 +31,7 @@ export type Target =
 
 export type ContextIntent =
   | { type: 'pet'; id: string }
+  | { type: 'ball'; act: 'take' | 'throw' }
   | { type: 'target'; target: Target }
   | { type: 'gift'; npcId: string }
   | { type: 'company'; npcId: string }
@@ -108,6 +109,8 @@ export interface SenseFurniture {
 
 export interface ContextSense {
   pets?: { id: string; name: string; x: number; y: number }[];
+  /** A dog's ball: on the ground nearby, or already in the player's hand. */
+  ball?: { x: number; y: number; held: boolean; dog: string } | null;
   zoneId: string;
   px: number;
   py: number;
@@ -284,6 +287,13 @@ export function resolveContext(sense: ContextSense): ContextOffer {
   for (const p of sense.pets ?? []) consider(bag, {
     id: `pet:${p.id}`, label: `Acariciar a ${p.name}`, detail: `${p.name}, el gato de Midnight Maki`, icon: 'heart', intent: { type: 'pet', id: p.id },
   }, p.x, p.y, 24, sense, 2);
+  const ball = sense.ball;
+  if (ball?.held) consider(bag, {
+    id: 'ball:throw', label: 'Tirar pelota', detail: `Tirarle la pelota a ${ball.dog} hacia donde mirás`, icon: 'act', intent: { type: 'ball', act: 'throw' },
+  }, sense.px, sense.py, 1, sense, 3);
+  else if (ball) consider(bag, {
+    id: 'ball:take', label: 'Agarrar pelota', detail: `La pelota de ${ball.dog}`, icon: 'act', intent: { type: 'ball', act: 'take' },
+  }, ball.x, ball.y, 22, sense, 3);
   for (const n of sense.npcs) {
     consider(bag, {
       id: `npc:${n.id}`,

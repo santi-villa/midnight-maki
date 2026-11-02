@@ -850,6 +850,9 @@ export class AudioEngine {
       // a frog's two-note croak, and the small plop of something diving in
       case 'croak': tone(150, 0, 0.07, 'square', 0.05, 0.8); tone(118, 0.09, 0.09, 'square', 0.05, 0.8); break;
       case 'splash_small': noiseHit(0, 0.12, 1600, 0.12); tone(420, 0, 0.06, 'sine', 0.05, 0.6); break;
+      // a small dog's "wuf" (two quick notes falling) and the soft bounce of a rubber ball
+      case 'woof': tone(420, 0, 0.07, 'sawtooth', 0.05, 0.55); noiseHit(0, 0.06, 900, 0.05); tone(380, 0.11, 0.08, 'sawtooth', 0.045, 0.5); break;
+      case 'ball_bounce': tone(240, 0, 0.05, 'sine', 0.12, 1.6); noiseHit(0, 0.03, 700, 0.04); break;
       case 'clock_bell': tone(262, 0, 1.9, 'sine', 0.2); tone(524, 0, 1.4, 'sine', 0.1); tone(786, 0.01, 0.9, 'sine', 0.05); tone(1048, 0.01, 0.5, 'sine', 0.025); break;
       case 'plate_slide': noiseHit(0, 0.22, 1700, 0.14); tone(880, 0.16, 0.14, 'triangle', 0.07); break;
       case 'trash': noiseHit(0, 0.12, 500, 0.22); tone(180, 0, 0.12, 'triangle', 0.1, 0.5); break;

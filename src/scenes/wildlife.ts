@@ -50,15 +50,46 @@ export function spread<T extends { x: number; y: number }>(cands: T[], most: num
   return out;
 }
 /** Frogs: walkable ground right next to fresh water. */
-export function frogHomes(g: readonly string[], walkable: (x: number, y: number) => boolean, most = 3): { x: number; y: number }[] {
+export function frogHomes(g: readonly string[], walkable: (x: number, y: number) => boolean, most = 3, pond?: Set<string>): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];
+  const mine = (x: number, y: number) => isWater(g, x, y) && (!pond || pond.has(`${x},${y}`));
   for (let y = 0; y < g.length; y++) for (let x = 0; x < g[y].length; x++) {
     // natural ground only: not water, not a bridge deck
     if (isWater(g, x, y) || g[y][x] === 'b' || !walkable(x, y)) continue;
-    if (isWater(g, x + 1, y) || isWater(g, x - 1, y) || isWater(g, x, y + 1) || isWater(g, x, y - 1)) out.push({ x, y });
+    if (mine(x + 1, y) || mine(x - 1, y) || mine(x, y + 1) || mine(x, y - 1)) out.push({ x, y });
   }
   return spread(out, most, 6);
 }
+/** Each body of fresh water on its own (tiles joined side to side). */
+export function ponds(g: readonly string[]): { x: number; y: number }[][] {
+  const seen = new Set<string>(), out: { x: number; y: number }[][] = [];
+  for (let y = 0; y < g.length; y++) for (let x = 0; x < g[y].length; x++) {
+    if (!isWater(g, x, y) || seen.has(`${x},${y}`)) continue;
+    const body: { x: number; y: number }[] = [], stack = [{ x, y }];
+    seen.add(`${x},${y}`);
+    while (stack.length) {
+      const t = stack.pop()!;
+      body.push(t);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = { x: t.x + dx, y: t.y + dy }, k = `${n.x},${n.y}`;
+        if (isWater(g, n.x, n.y) && !seen.has(k)) { seen.add(k); stack.push(n); }
+      }
+    }
+    out.push(body);
+  }
+  return out;
+}
+
+/**
+ * What lives in a pond: not every pond has frogs, and only some have a duck family, so each one feels like its own place.
+ * Decided by the pond itself (where it starts), so the same pond always has the same animals. `room` is how much of it has water
+ * all round (where ducks can paddle).
+ */
+export function pondLife(first: { x: number; y: number }, room: number): { frogs: number; ducks: boolean } {
+  const h = hash(first.x, first.y), r = h % 10;
+  return { frogs: r < 3 ? 0 : r < 7 ? 1 : 2, ducks: room >= 10 && ((h >>> 5) % 2 === 0) };
+}
+
 /** Crabs: sand within two tiles of the sea. */
 export function crabHomes(g: readonly string[], walkable: (x: number, y: number) => boolean, most = 4): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];
@@ -183,16 +214,28 @@ class DuckFamily extends Creature {
   private speed = 9;
   private wait = rnd(1, 3);
   private dabble = 0;
+  private peck = 0;
   private rippleT = 0;
   private bobT = 0;
-  constructor(private scene: Phaser.Scene, private tiles: { x: number; y: number }[], private wet: (x: number, y: number) => boolean, start: { x: number; y: number }, kids: number) {
+  /** water: paddling about; out: heading for the bank and climbing out; land: a walk on the bank; in: back into the water */
+  private mode: 'water' | 'out' | 'land' | 'in' = 'water';
+  private landIn = rnd(15, 35);
+  private landT = 0;
+  private exit: { bank: { x: number; y: number }; water: { x: number; y: number } } | null = null;
+  constructor(private scene: Phaser.Scene, private tiles: { x: number; y: number }[], private wet: (x: number, y: number) => boolean, start: { x: number; y: number }, kids: number,
+    private banks: { x: number; y: number }[] = [], private ground: (x: number, y: number) => boolean = () => false) {
     super();
     this.pos = { ...start }; this.target = { ...start };
-    this.mom = scene.add.sprite(start.x, start.y, wildTexture(scene, 'duck'), FRAME.duck.swim).setOrigin(0.5, 0.8);
-    for (let i = 0; i < kids; i++) this.kids.push(scene.add.sprite(start.x - 8 * (i + 1), start.y, wildTexture(scene, 'duckling'), FRAME.duckling.swim).setOrigin(0.5, 0.8));
+    this.mom = scene.add.sprite(start.x, start.y, wildTexture(scene, 'duck'), FRAME.duck.swim).setOrigin(0.5, 0.85);
+    for (let i = 0; i < kids; i++) this.kids.push(scene.add.sprite(start.x - 8 * (i + 1), start.y, wildTexture(scene, 'duckling'), FRAME.duckling.swim).setOrigin(0.5, 0.85));
     // the ducklings start strung out behind her (on the water side), not on top of her
     const back = [[-1, 0], [1, 0], [0, -1], [0, 1]].find(([dx, dy]) => wet(start.x + dx * 30, start.y + dy * 30)) ?? [0, 0];
     for (let i = 0; i < 60; i++) this.trail.push({ x: start.x + back[0] * (59 - i) * 0.6, y: start.y + back[1] * (59 - i) * 0.6 });
+  }
+  /** A straight way from here to there that stays on water (or, on the bank, on walkable ground). */
+  private clear(to: { x: number; y: number }, ok: (x: number, y: number) => boolean) {
+    for (let k = 1; k <= 6; k++) if (!ok(this.pos.x + (to.x - this.pos.x) * k / 6, this.pos.y + (to.y - this.pos.y) * k / 6)) return false;
+    return true;
   }
   /** A spot of water a few tiles away that she can swim to in a straight line. */
   private pick(away?: { x: number; y: number }) {
@@ -201,20 +244,33 @@ class DuckFamily extends Creature {
       const t = this.tiles[Math.floor(Math.random() * this.tiles.length)];
       const p = { x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 };
       const d = Math.hypot(p.x - this.pos.x, p.y - this.pos.y);
-      if (d > 72 || d < 10) continue;
-      let clear = true;
-      for (let k = 1; k <= 6 && clear; k++) clear = this.wet(this.pos.x + (p.x - this.pos.x) * k / 6, this.pos.y + (p.y - this.pos.y) * k / 6);
-      if (!clear) continue;
+      if (d > 72 || d < 10 || !this.clear(p, this.wet)) continue;
       const s = away ? Math.hypot(p.x - away.x, p.y - away.y) : Math.random();
       if (s > score) { score = s; best = p; }
     }
     return best;
   }
+  /** A place on the bank to climb out at, with the water right beside it, that she can swim to. */
+  private pickExit() {
+    for (let i = 0; i < 16 && this.banks.length; i++) {
+      const bank = this.banks[Math.floor(Math.random() * this.banks.length)];
+      const water = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: bank.x + dx * TILE, y: bank.y + dy * TILE })).find((w) => this.wet(w.x, w.y));
+      if (!water || Math.hypot(water.x - this.pos.x, water.y - this.pos.y) > 110 || !this.clear(water, this.wet)) continue;
+      return { bank, water };
+    }
+    return null;
+  }
+  private onLand() { return !this.wet(this.pos.x, this.pos.y); }
   update(dt: number, hooks: WildHooks) {
     const threat = hooks.threat(this.pos.x, this.pos.y, 24);
-    if (threat && this.speed < 20) {
-      const p = this.pick(threat);
-      if (p) { this.target = p; this.speed = 24; this.dabble = 0; }
+    if (threat && this.speed < 18) {
+      if (this.mode === 'land' || this.mode === 'out') {
+        // back to the water in a hurry
+        if (this.exit) { this.mode = 'in'; this.target = { ...this.exit.water }; this.speed = 20; this.peck = 0; }
+      } else {
+        const p = this.pick(threat);
+        if (p) { this.target = p; this.speed = 24; this.dabble = 0; this.mode = 'water'; }
+      }
     }
     const dx = this.target.x - this.pos.x, dy = this.target.y - this.pos.y, d = Math.hypot(dx, dy);
     if (d > 1) {
@@ -222,27 +278,61 @@ class DuckFamily extends Creature {
       this.pos.x += (dx / d) * step; this.pos.y += (dy / d) * step;
       this.mom.setFlipX(dx < 0);
       this.rippleT -= dt;
-      if (this.rippleT <= 0) { this.rippleT = 0.9; ring(this.scene, this.pos.x - Math.sign(dx) * 5, this.pos.y + 1); }
+      if (this.rippleT <= 0 && !this.onLand()) { this.rippleT = 0.9; ring(this.scene, this.pos.x - Math.sign(dx) * 5, this.pos.y + 1); }
+    } else if (this.mode === 'out' && this.exit) {
+      // at the water's edge: up onto the bank
+      if (Math.hypot(this.pos.x - this.exit.water.x, this.pos.y - this.exit.water.y) < 2) { this.target = { ...this.exit.bank }; this.speed = 7; }
+      else { this.mode = 'land'; this.landT = rnd(10, 20); this.wait = rnd(0.5, 1.5); }
+    } else if (this.mode === 'in') {
+      this.mode = 'water'; this.speed = 9; this.landIn = rnd(25, 50);
+    } else if (this.mode === 'land') {
+      this.speed = 7;
+      this.landT -= dt; this.wait -= dt;
+      if (this.peck > 0) this.peck -= dt;
+      if (this.landT <= 0 && this.exit) { this.mode = 'in'; this.target = { ...this.exit.water }; this.peck = 0; }
+      else if (this.wait <= 0) {
+        this.wait = rnd(1.5, 4);
+        if (Math.random() < 0.45) this.peck = rnd(0.6, 1.3);
+        else if (this.exit) {
+          // a few steps along the bank, never far from where she came out
+          const home = this.exit.bank;
+          const near = [...this.banks.filter((b) => Math.hypot(b.x - home.x, b.y - home.y) < 40),
+            ...Array.from({ length: 8 }, () => ({ x: home.x + rnd(-36, 36), y: home.y + rnd(-28, 28) }))]
+            .filter((b) => !this.wet(b.x, b.y) && this.ground(b.x, b.y) && this.clear(b, (x, y) => this.ground(x, y) || this.wet(x, y)));
+          if (near.length) this.target = { ...near[Math.floor(Math.random() * near.length)] };
+        }
+      }
     } else {
       this.speed = 9;
-      this.wait -= dt;
+      this.wait -= dt; this.landIn -= dt;
       if (this.dabble > 0) { this.dabble -= dt; if (this.dabble <= 0) this.mom.setFrame(FRAME.duck.swim); }
-      else if (this.wait <= 0) {
+      else if (this.landIn <= 0) {
+        this.exit = this.pickExit();
+        if (this.exit && !hooks.threat(this.exit.bank.x, this.exit.bank.y, 30)) { this.mode = 'out'; this.target = { ...this.exit.water }; }
+        else this.landIn = 10;
+      } else if (this.wait <= 0) {
         this.wait = rnd(2, 6);
         if (Math.random() < 0.35) { this.dabble = rnd(1, 2); this.mom.setFrame(FRAME.duck.dabble); }
         else { const p = this.pick(); if (p) this.target = p; }
       }
     }
-    // the ducklings follow in her wake
+    // the ducklings follow in her wake (on the water and on the bank alike)
     const last = this.trail[this.trail.length - 1];
     if (Math.hypot(last.x - this.pos.x, last.y - this.pos.y) >= 1) { this.trail.push({ ...this.pos }); if (this.trail.length > 60) this.trail.shift(); }
     this.bobT += dt;
-    const bob = Math.floor(this.bobT * 2.2) % 2;
-    if (this.dabble <= 0) this.mom.setFrame(bob ? FRAME.duck.bob : FRAME.duck.swim);
+    const moving = d > 1;
+    if (this.onLand()) {
+      this.mom.setOrigin(0.5, 1).setFrame(this.peck > 0 ? FRAME.duck.peck : moving && Math.floor(this.bobT * 6) % 2 ? FRAME.duck.walkB : FRAME.duck.walkA);
+    } else {
+      this.mom.setOrigin(0.5, 0.85);
+      if (this.dabble <= 0) this.mom.setFrame(Math.floor(this.bobT * 2.2) % 2 ? FRAME.duck.bob : FRAME.duck.swim);
+    }
     this.mom.setPosition(this.pos.x, this.pos.y).setDepth(this.pos.y);
     this.kids.forEach((k, i) => {
       const p = this.trail[Math.max(0, this.trail.length - 1 - 9 * (i + 1))];
-      k.setFlipX(p.x < k.x - 0.2 ? true : p.x > k.x + 0.2 ? false : k.flipX).setPosition(p.x, p.y).setDepth(p.y).setFrame((Math.floor(this.bobT * 3 + i) % 2) ? FRAME.duckling.bob : FRAME.duckling.swim);
+      const step = Math.floor(this.bobT * (this.wet(p.x, p.y) ? 3 : 7) + i) % 2;
+      const frame = this.wet(p.x, p.y) ? (step ? FRAME.duckling.bob : FRAME.duckling.swim) : (step && moving ? FRAME.duckling.walkB : FRAME.duckling.walkA);
+      k.setFlipX(p.x < k.x - 0.2 ? true : p.x > k.x + 0.2 ? false : k.flipX).setOrigin(0.5, this.wet(p.x, p.y) ? 0.85 : 1).setPosition(p.x, p.y).setDepth(p.y).setFrame(frame);
     });
   }
   destroy() { this.mom.destroy(); for (const k of this.kids) k.destroy(); }
@@ -250,28 +340,53 @@ class DuckFamily extends Creature {
 
 class Crab extends Creature {
   private s: Phaser.GameObjects.Sprite;
-  private state: 'idle' | 'walk' | 'hidden' = 'idle';
+  private mound: Phaser.GameObjects.Ellipse;
+  private state: 'idle' | 'walk' | 'hidden' | 'busy' = 'idle';
   private t = rnd(0.5, 3);
   private vx = 0;
   private stepT = 0;
   constructor(private scene: Phaser.Scene, private home: { x: number; y: number }, private sand: (x: number, y: number) => boolean) {
     super();
     this.s = scene.add.sprite(home.x, home.y + 4, wildTexture(scene, 'crab'), FRAME.crab.a).setOrigin(0.5, 1).setDepth(home.y + 4);
+    // the little heap of sand it leaves while dug in
+    this.mound = scene.add.ellipse(0, 0, 10, 3, 0xd6bd86).setVisible(false);
+  }
+  /**
+   * Digging in (or out): it wriggles side to side and sinks below the line of the sand (the part under it is cut away), throwing
+   * up sand as it goes; dug in, only its eyes and a small heap are left. Coming out is the same, backwards.
+   */
+  private dig(down: boolean) {
+    const s = this.s, x0 = s.x, y0 = s.y, st = { k: 0 };
+    this.state = 'busy'; this.vx = 0;
+    s.setFrame(FRAME.crab.a);
+    const h = s.frame.height, w = s.frame.width;
+    let puffs = 0;
+    this.mound.setPosition(x0, y0 - 1).setDepth(y0 - 0.5).setVisible(true).setScale(down ? 0.3 : 1);
+    this.scene.tweens.add({
+      targets: st, k: 1, duration: down ? 560 : 480, ease: down ? 'Sine.in' : 'Sine.out',
+      onUpdate: () => {
+        const sink = Math.round((down ? st.k : 1 - st.k) * (h - 3));
+        const wiggle = Math.round(Math.sin(st.k * 38) * (down ? 1 : 0.6));
+        s.setFrame(Math.floor(st.k * 12) % 2 ? FRAME.crab.b : FRAME.crab.a).setCrop(0, 0, w, h - sink).setPosition(x0 + wiggle, y0 + sink);
+        this.mound.setScale(down ? 0.3 + st.k * 0.7 : 1 - st.k * 0.7);
+        if (st.k * 4 > puffs) { puffs++; puff(this.scene, x0 + (Math.random() - 0.5) * 6, y0 - 1, '#e6cf9c'); }
+      },
+      onComplete: () => {
+        s.setCrop().setPosition(x0, y0);
+        if (down) { s.setFrame(FRAME.crab.hidden); this.state = 'hidden'; this.t = rnd(6, 11); }
+        else { this.mound.setVisible(false); s.setFrame(FRAME.crab.a); this.state = 'idle'; this.t = rnd(1, 3); }
+      },
+    });
   }
   update(dt: number, hooks: WildHooks) {
     const s = this.s;
+    if (this.state === 'busy') return;
     if (this.state === 'hidden') {
       this.t -= dt;
-      if (this.t <= 0 && !hooks.threat(s.x, s.y, 16)) { this.state = 'idle'; this.t = rnd(1, 3); s.setFrame(FRAME.crab.a); puff(this.scene, s.x, s.y - 1, '#e6cf9c'); }
+      if (this.t <= 0 && !hooks.threat(s.x, s.y, 16)) this.dig(false);
       return;
     }
-    if (hooks.threat(s.x, s.y, 6)) {
-      // digs in: only the eyes stay out
-      this.state = 'hidden'; this.t = rnd(6, 11); this.vx = 0;
-      s.setFrame(FRAME.crab.hidden);
-      puff(this.scene, s.x, s.y - 1, '#e6cf9c');
-      return;
-    }
+    if (hooks.threat(s.x, s.y, 6)) { this.dig(true); return; }
     if (this.state === 'walk') {
       const nx = s.x + this.vx * dt;
       if (!this.sand(nx, s.y - 2) || Math.abs(nx - this.home.x) > 30) { this.state = 'idle'; this.t = rnd(1, 4); s.setFrame(FRAME.crab.a); return; }
@@ -285,7 +400,7 @@ class Crab extends Creature {
     this.t -= dt;
     if (this.t <= 0) { this.state = 'walk'; this.vx = (Math.random() < 0.5 ? -1 : 1) * rnd(12, 20); this.t = rnd(0.4, 1.1); }
   }
-  destroy() { this.s.destroy(); }
+  destroy() { this.s.destroy(); this.mound.destroy(); }
 }
 
 class Squirrel extends Creature {
@@ -444,22 +559,25 @@ export class Wildlife {
     const sand = (x: number, y: number) => g[Math.floor(y / TILE)]?.[Math.floor(x / TILE)] === 's' && place.walkable(Math.floor(x / TILE), Math.floor(y / TILE));
     const walk = (x: number, y: number) => place.walkable(Math.floor(x / TILE), Math.floor(y / TILE)) && !isWater(g, Math.floor(x / TILE), Math.floor(y / TILE));
     const wet = (x: number, y: number) => isWater(g, Math.floor(x / TILE), Math.floor(y / TILE));
-    if (!place.sea && !winter) {
-      // frogs on the banks (they sing more in the rain and at dusk)
-      const homes = frogHomes(g, place.walkable, 3);
-      const banks = frogHomes(g, place.walkable, 40).map(center);
-      for (const h of homes) {
-        const w = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: h.x + dx, y: h.y + dy })).find((t) => isWater(g, t.x, t.y))!;
-        const mine = banks.filter((b) => Math.hypot(b.x - center(h).x, b.y - center(h).y) < 40);
-        this.creatures.push(new Frog(scene, center(h), center(w), mine.length ? mine : [center(h)], place.rain || place.period >= 2));
+    if (!place.sea) for (const body of ponds(g)) {
+      // each pond its own: some with frogs, some with a duck family, some with neither
+      const set = new Set(body.map((t) => `${t.x},${t.y}`));
+      const room = body.filter((t) => solidWater(g, t.x, t.y));
+      const life = pondLife(body[0], room.length);
+      if (!winter && life.frogs) {
+        // frogs on the banks (they sing more in the rain and at dusk)
+        const banks = frogHomes(g, place.walkable, 40, set).map(center);
+        for (const h of frogHomes(g, place.walkable, life.frogs, set)) {
+          const w = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: h.x + dx, y: h.y + dy })).find((t) => set.has(`${t.x},${t.y}`))!;
+          const mine = banks.filter((b) => Math.hypot(b.x - center(h).x, b.y - center(h).y) < 40);
+          this.creatures.push(new Frog(scene, center(h), center(w), mine.length ? mine : [center(h)], place.rain || place.period >= 2));
+        }
       }
-    }
-    if (!place.sea && place.period <= 2) {
-      // a duck and her ducklings on the pond
-      const tiles = duckWater(g);
-      if (tiles.length >= 6) {
-        const start = spread(tiles, 1, 1)[0];
-        this.creatures.push(new DuckFamily(scene, tiles, wet, center(start), 2 + (hashOf(place.zone) % 3)));
+      if (life.ducks && place.period <= 2) {
+        // a duck and her ducklings: they paddle about, and now and then climb out onto the bank for a walk
+        const start = spread(room, 1, 1)[0];
+        const banks = frogHomes(g, place.walkable, 60, set);
+        this.creatures.push(new DuckFamily(scene, room, wet, center(start), 2 + (hash(body[0].x, body[0].y) % 3), banks.map(center), walk));
       }
     }
     if (place.zone === 'beach') for (const h of crabHomes(g, place.walkable, 4)) this.creatures.push(new Crab(scene, center(h), sand));
@@ -486,4 +604,3 @@ export class Wildlife {
   }
 }
 
-const hashOf = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);

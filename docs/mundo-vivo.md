@@ -37,14 +37,40 @@ movimiento reducido no aparecen.
 
 | Animal | Dónde | Qué hace | Cuando alguien se acerca (Sofi, o alguien que pasa caminando) |
 |---|---|---|---|
-| **Ranas** (hasta 3) | En la orilla de estanques y ríos (agua dulce), nunca sobre un puente; no en invierno | Croan inflando la garganta (con sonido, más seguido con lluvia y al atardecer) y saltan por la orilla | Saltan al agua con un anillo y un *plop*; a los 8-15 s vuelven a la orilla |
-| **Pata con 2 a 4 patitos** | En agua dulce con lugar para nadar (agua alrededor), de día y al atardecer | Nadan en fila con la cabeza que sube y baja, dejan estela, ella mete la cabeza en el agua | Nadan hacia el lado contrario, más rápido |
-| **Cangrejos** (hasta 4) | En la arena de la playa, cerca del agua | Caminan de costado y se paran | Se entierran (quedan los ojos) con un poco de arena; salen después |
+| **Ranas** (0 a 2 por laguna) | En la orilla de estanques y ríos (agua dulce), nunca sobre un puente; no en invierno | Croan inflando la garganta (con sonido, más seguido con lluvia y al atardecer) y saltan por la orilla | Saltan al agua con un anillo y un *plop*; a los 8-15 s vuelven a la orilla |
+| **Pata con 2 a 4 patitos** | Solo en algunas lagunas de agua dulce con lugar para nadar, de día y al atardecer | Nadan en fila con la cabeza que sube y baja, dejan estela, ella mete la cabeza en el agua. Cada tanto salen a la orilla: caminan cerca de la laguna (los patitos detrás, caminando) y picotean el pasto, y después vuelven al agua | Nadan hacia el lado contrario, más rápido; si estaban afuera, vuelven corriendo al agua |
+| **Cangrejos** (hasta 4) | En la arena de la playa, cerca del agua | Caminan de costado y se paran | Se entierran con una animación: se menean, se hunden de a poco tirando arena y quedan los ojos y un montoncito; salen igual, al revés |
 | **Ardillas** (hasta 2) | Junto a los árboles del bosque, el bosque profundo, el jardín y el santuario; de día, no en invierno | Corren a buscar comida cerca de su árbol y se sientan a mordisquear | Corren al árbol y trepan hasta desaparecer; bajan a los 10-18 s |
 | **Libélulas** (hasta 3) | Sobre el borde del agua dulce; primavera y verano, de día, sin lluvia | Flotan y salen disparadas a otro punto cercano | Se alejan |
 | **Abejas** (hasta 4) | Alrededor de las flores; primavera y verano, de día, sin lluvia | Revolotean de flor en flor | Se alejan un poco |
 
 La rana de imagen fija que había en el jardín (de un pack) se sacó: ahora es esta, animada.
+
+**No todas las lagunas son iguales.** Cada laguna (agua conectada) decide su vida por su posición (`pondLife`), siempre la
+misma: unas no tienen ranas, otras una o dos, y solo algunas de las grandes tienen patos. Hoy: plaza con ranas y patos, jardín
+con ranas y sin patos, bosque con patos y sin ranas.
+
+## Gatos que duermen y perros que juegan (`pets.ts`, `dogs.ts`, arte en `petArt.ts`)
+- **Gatos de noche:** vuelven a su lugar y duermen en una de dos posturas, **acurrucado** o **panza arriba**, y cada tanto
+  se dan vuelta a la otra. Respiran (dos cuadros: el lomo o la panza sube y baja) y salen las **z**: una, dos, tres, y se van
+  al revés (tres, dos, una), con un descanso. Los colores son los de cada gato despierto (marrón, blanco, siamés).
+- **Perros:** Kuri (shiba, en la plaza) y Goma (blanco y negro, en la playa). Se sientan y jadean, pasean por su esquina, a
+  veces les agarra la loca y corren en vueltas con reverencias de juego. De noche duermen acostados con las z.
+- **La pelota:** al lado del perro hay una pelota roja. Acercate: **Agarrar pelota** (E). El perro se pone en reverencia y
+  ladra. **Tirar pelota** la lanza hasta 6 casillas hacia donde mirás (se frena antes de una pared o del agua), rebota, el
+  perro corre a buscarla y te la deja a los pies. Si el perro duerme, avisa. Al salir de la zona la pelota vuelve a su lugar.
+  Nada de esto se guarda.
+
+## Locales que cierran
+Las persianas ya se bajaban a la hora. Lo que faltaba: si estabas **adentro** a la hora del cierre, el dueño se iba y quedabas
+encerrado. Ahora a los 10 minutos de cierre ("cerrando") avisa *"X está cerrando. Terminá tus compras."* y al cerrar del todo
+*"X cerró por hoy. Te acompañan a la puerta."* y salís a la calle. Solo pasa por horario (o día cerrado), no cuando el dueño
+sale un rato.
+
+## Cruce entre distritos
+Se midió qué cuesta cruzar el borde: lo más caro era rehacer el agua de los distritos vecinos. Ahora la lista de casillas de agua
+de cada distrito se calcula una vez y se reutiliza, y al cruzar solo se pinta el agua que se ve (el resto ya se ve quieta en la
+imagen y se mueve al entrar en vista). En el navegador de pruebas (sin GPU) el cruce más caro bajó de ~48 a ~33 ms.
 
 ## Pétalos y hojas que caen de los árboles
 Antes salían del borde superior del mapa y no llegaban a verse. Ahora caen **de cada árbol que está a la vista**: se mecen, dan
