@@ -88,10 +88,12 @@ export function questTarget(locate: (id: string) => string | null = whereIs): Gu
   return null;
 }
 
-/** Shortest chain of zones (via doors) from `from` to `to`; returns the first door to take, if any. */
-export function nextDoor(from: string, to: string): { x: number; y: number } | null {
+interface Hop { zone: string; x: number; y: number; to: string }
+
+/** Shortest chain of doors from `from` to `to` (locked ways stay out of it); null when there is none. */
+function route(from: string, to: string): Hop[] | null {
   if (from === to) return null;
-  const prev = new Map<string, { zone: string; x: number; y: number }>();
+  const prev = new Map<string, Hop>();
   const queue = [from];
   const seen = new Set([from]);
   while (queue.length) {
@@ -100,19 +102,41 @@ export function nextDoor(from: string, to: string): { x: number; y: number } | n
       if (seen.has(d.to)) continue;
       if (d.lock && !game.has(d.lock.flag)) continue;
       seen.add(d.to);
-      prev.set(d.to, { zone: z, x: d.x, y: d.y });
+      prev.set(d.to, { zone: z, x: d.x, y: d.y, to: d.to });
       if (d.to === to) {
-        // walk back to the first hop
-        let cur = to;
-        let hop = prev.get(cur)!;
-        while (hop.zone !== from) {
-          cur = hop.zone;
-          hop = prev.get(cur)!;
-        }
-        return { x: hop.x, y: hop.y };
+        const hops: Hop[] = [];
+        for (let cur = to; cur !== from; cur = prev.get(cur)!.zone) hops.unshift(prev.get(cur)!);
+        return hops;
       }
       queue.push(d.to);
     }
   }
   return null;
+}
+
+/** Shortest chain of zones (via doors) from `from` to `to`; returns the first door to take, if any. */
+export function nextDoor(from: string, to: string): { x: number; y: number } | null {
+  const hops = route(from, to);
+  return hops ? { x: hops[0].x, y: hops[0].y } : null;
+}
+
+const inWorld = (id: string) => !!ZONES[id]?.outdoor && !!ZONES[id]?.world;
+
+/**
+ * Where to point the player from `from` to reach `to`, as a tile in `from`'s own coordinates (it may lie outside that zone).
+ * Outdoors the village is one continuous place, so the guide aims at the real destination: the door where the route leaves
+ * the village for an interior, or the spot itself (`at`) when it is outdoors, not at the border door of the zone being crossed.
+ * From an interior it is the door out, as before.
+ */
+export function routeGoal(from: string, to: string, at?: { x?: number; y?: number }): { x: number; y: number } | null {
+  const hops = route(from, to);
+  if (!hops) return null;
+  if (!inWorld(from)) return { x: hops[0].x, y: hops[0].y };
+  const here = ZONES[from].world!;
+  const local = (zone: string, x: number, y: number) => ({ x: ZONES[zone].world!.x - here.x + x, y: ZONES[zone].world!.y - here.y + y });
+  const out = hops.find((h) => !inWorld(h.to));
+  if (out) return local(out.zone, out.x, out.y);
+  if (at?.x != null && at.y != null) return local(to, at.x, at.y);
+  const last = hops[hops.length - 1];
+  return local(last.zone, last.x, last.y);
 }

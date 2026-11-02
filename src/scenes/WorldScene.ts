@@ -36,7 +36,7 @@ import { FURN_BY_ID } from '../data/furniture';
 import { LampMoths } from './lampMoths';
 import { Pets } from './pets';
 import { CROP_ART, cropStage } from '../art/farm';
-import { nextDoor, questTarget } from '../world/guide';
+import { questTarget, routeGoal } from '../world/guide';
 import { crew, crewUnlocked, employees, handMove, handWhere, hiredCooks, hostSlowdown, practicePip, runtime as staffRuntime, setTableNamer, tickStaff, type CrewId, type StaffEnv } from '../restaurant/staff';
 import { NeighborLife } from '../systems/neighbors';
 import { facingTable, seatDrawOffset, standApart } from '../restaurant/seating';
@@ -53,7 +53,7 @@ import { isTypingTarget, normalizeStick } from '../input/bindings';
 import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { arrange, idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
-import { buildZone, condOk, doorLeadingTo, roomAt, seaDepthAt, seaEdge, seaParity, usesSea, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
+import { buildZone, condOk, roomAt, seaDepthAt, seaEdge, seaParity, usesSea, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
 import { propCanvas, cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
@@ -96,7 +96,7 @@ export type { Target };
 interface NpcState { out?: boolean; actor: Actor; anchor: [number, number]; wander: number; act?: Act; t: number; leaving?: boolean; wavedAt?: number; last?: [number, number]; traveling?: boolean; social?: boolean; micro?: boolean; barkAt?: number; }
 /** kind: lamp (default), spill = light from a facade, window = interior window light. */
 /** gy: where the light falls on the ground (a post's foot), when it differs from where the source glows (its lantern) */
-interface Light { x: number; y: number; gy?: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window'; facade?: boolean; home?: boolean; homeId?: string; seed?: number; shop?: string }
+interface Light { ghost?: boolean; x: number; y: number; gy?: number; r: number; flicker: boolean; color?: number; glow?: number; kind?: 'spill' | 'window'; facade?: boolean; home?: boolean; homeId?: string; seed?: number; shop?: string }
 interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; tall: boolean; sy: number; a: number; x: number }
 interface WindowGlow { img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
@@ -588,6 +588,7 @@ export class WorldScene extends Phaser.Scene {
         if (!this.zone.def.world) return;
         const built = buildZone(z.id, night);
         this.seamGrids.set(z.id, { stamp, grid: built.grid });
+        this.zoneProps.set(z.id, built);
         const c = makeCanvas(z.w * TILE, z.h * TILE), g = ctx2d(c);
         for (let y = 0; y < z.h; y++) for (let x = 0; x < z.w; x++) for (const t of [built.tiles[y][x], built.overlay[y][x]]) {
           if (t >= 0) g.drawImage(sheet, (t % TILESET_COLS) * TILE, Math.floor(t / TILESET_COLS) * TILE, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
@@ -614,14 +615,103 @@ export class WorldScene extends Phaser.Scene {
         };
         this.backdrops.set(z.id, b);
         place(z, b);
+        this.scheduleNeighborDecor();
       };
       if (n === 0 && z.id === this.lastOutdoor) draw(); else this.time.delayedCall(n * 16, draw);
       n++;
     }
     this.lastOutdoor = here.id;
+    this.scheduleNeighborDecor();
   }
   /** The outdoor district the player stood in last, drawn first so leaving it never leaves a hole. */
   private lastOutdoor = '';
+
+  // ------------------------------------------------------------------ shadows and lights of the districts around
+  /** The built districts the backdrop was drawn from, kept to give the ones around this one their shadows and lights. */
+  private zoneProps = new Map<string, BuiltZone>();
+  private neighborDecor: Phaser.GameObjects.GameObject[] = [];
+  private decorTimer: Phaser.Time.TimerEvent | null = null;
+  /** Several districts finish drawing in a row: the decor is redone once, after the last. */
+  private scheduleNeighborDecor() {
+    this.decorTimer?.remove();
+    this.decorTimer = this.time.delayedCall(60, () => { this.decorTimer = null; this.refreshNeighborDecor(); });
+  }
+  /**
+   * A drawn district is a flat picture: it carries no cast shadows, no lamplight and no lit windows. Those belong to the live
+   * district, so crossing a border used to switch them off in the one just left while it was still on screen. Whatever stands
+   * near this district's edges in the others gets them here too, placed by where it is in the world: the shadows follow the
+   * sun like the live ones, and the lamps and windows go through the same lighting pass.
+   */
+  private refreshNeighborDecor() {
+    for (const o of this.neighborDecor) o.destroy();
+    this.neighborDecor = [];
+    this.lamps = this.lamps.filter((l) => !l.ghost);
+    this.windowGlows = this.windowGlows.filter((w) => w.img.active);
+    const cur = this.zone?.def;
+    if (!cur?.outdoor || !cur.world) return;
+    // tiles past this district's edge that the camera can show: half the view, plus a margin for what rises or falls into it
+    const cam = this.cameras.main;
+    const REACH = Math.ceil(Math.max(cam.width, cam.height) / cam.zoom / TILE / 2) + 3;
+    this.beams = this.beams.filter((b) => b.active);
+    const keep = <T extends Phaser.GameObjects.GameObject>(o: T) => { this.neighborDecor.push(o); return o; };
+    for (const [zid, built] of this.zoneProps) {
+      const z = built.def;
+      if (zid === cur.id || !z.outdoor || !z.world) continue;
+      const zx = z.world.x - cur.world.x, zy = z.world.y - cur.world.y;
+      if (zx > cur.w + REACH || zx + z.w < -REACH || zy > cur.h + REACH || zy + z.h < -REACH) continue;
+      const ox = zx * TILE, oy = zy * TILE;
+      // a lamp keeps the seed it has in its own district, so it comes on at the same moment before and after the border
+      const lamp = (l: Light) => this.lamps.push({ ...l, ghost: true, seed: l.seed ?? lightSeed(l.x - ox, l.y - oy) });
+      for (const p of built.props) {
+        const tx = zx + p.x, ty = zy + p.y + p.def.h;
+        if (tx < -REACH || tx > cur.w + REACH || ty < -REACH - 8 || ty > cur.h + REACH) continue;
+        if (p.def.kind === 'puddle' || p.def.ground) continue;
+        const lit = !!p.def.light || p.def.kind === 'building' || ((p.def.kind === 'townhouse' || p.def.kind === 'sidehouse') && (p.def.variant ?? 0) < 8);
+        if (!lit && p.def.sombra === 'ninguna') continue;
+        const ch = z.ground[p.y]?.[p.x];
+        if (ch === 'W' || ch === 'V') continue;
+        const px = p.x * TILE + (p.def.w * TILE) / 2 + ox, py = (p.y + p.def.h) * TILE + oy;
+        // the prop itself is in the picture: this stand-in is invisible and only gives the shadow and the glow a place and a shape
+        const img = keep(this.add.image(px, py, propTexture(this, p.key)).setOrigin(0.5, 1).setAlpha(0));
+        const tall = img.height > p.def.sh;
+        if (p.def.light) {
+          const kind = p.def.kind, beacon = kind === 'lighthouse';
+          const r = beacon ? 170 : kind === 'lamppost' ? 104 : kind === 'stall' || kind === 'carpstall' ? 84 : kind === 'vending' ? 48 : 74;
+          lamp({ x: px, y: beacon ? py - img.height + 34 : tall ? py - img.height + 8 : py - p.def.sh * 0.7, gy: py - 4, r, flicker: kind !== 'lamppost' && kind !== 'vending' && !beacon, color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: kind === 'lamppost' || beacon ? 1.4 : 0.7 });
+          if (beacon) { const before = this.objs.length; this.addBeacon(px, py - img.height + 34); for (const o of this.objs.splice(before)) keep(o); }
+        }
+        if (p.def.sombra !== 'ninguna') {
+          const before = this.objs.length;
+          const contact = p.def.sombra === 'contacto';
+          this.addShadow(p.def.kind, px, py, contact ? 8 : p.def.sw, p.def.w, contact);
+          if (!contact) this.castShadow(img, p.def.kind);
+          for (const o of this.objs.splice(before)) keep(o); // owned by the decor, not by the live district
+        }
+        if (p.def.kind === 'building') {
+          const fac = p.def.variant === 0;
+          const shop = fac ? 'restaurant' : SHOP_OF_VARIANT[p.def.variant ?? -1];
+          for (let wx = p.x * TILE + 14; wx < (p.x + p.def.w) * TILE - 10; wx += 20) lamp({ x: wx + ox, y: py + 6, r: 28, flicker: false, color: 0xffd27a, glow: 0.42, kind: 'spill', facade: fac, shop });
+          lamp({ x: px, y: py - 10, r: 40, flicker: false, color: 0xffc14a, glow: 0.58, kind: 'spill', facade: fac, shop });
+          const before = this.objs.length;
+          this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, fac, shop, undefined, fac && hasVillageAtlas() ? p.def.stage ?? 0 : undefined, undefined, { x: px - ox, y: py - oy });
+          for (const o of this.objs.splice(before)) keep(o);
+        }
+        if ((p.def.kind === 'townhouse' || p.def.kind === 'sidehouse') && (p.def.variant ?? 0) < 8) {
+          const side = p.def.kind === 'sidehouse';
+          const hl = homeLayout(p.def.sw, p.def.sh, p.def.variant ?? 0, side);
+          const left = px - p.def.sw / 2, top = py - p.def.sh;
+          const seed = lightSeed(px - ox, py - oy);
+          const homeId = HOUSES.find((h) => h.zone === zid && h.x === p.x && h.y === p.y)?.id;
+          for (const w of hl.windows) lamp({ x: left + w.x + w.w / 2, y: top + w.y + w.h + 8, gy: py + 5, r: 30, flicker: false, color: 0xffd27a, glow: 0.4, kind: 'spill', home: true, homeId, seed });
+          lamp({ x: left + hl.door.x + hl.door.w / 2 + (hl.right ? -9 : 9), y: top + hl.door.y + 4, r: 34, flicker: true, color: 0xffd56a, glow: 0.62, kind: 'spill', home: true, homeId, seed });
+          const before = this.objs.length;
+          this.addWindowGlow(img, p.def.sw, p.def.sh, p.def.variant ?? 0, false, false, undefined, side ? 'side' : 'front', undefined, homeId, { x: px - ox, y: py - oy });
+          for (const o of this.objs.splice(before)) keep(o);
+        }
+      }
+    }
+    this.shadowKey = ''; // the new shadows are baked and placed on the next pass
+  }
 
   // ------------------------------------------------------------------ zones
   async enterZone(id: string, tx: number, ty: number, dir: Dir = 'down', withFade = true, allowClosed = false, at?: { x: number; y: number; sx: number; sy: number }): Promise<boolean> {
@@ -744,6 +834,8 @@ export class WorldScene extends Phaser.Scene {
     this.shopSigns = [];
     for (const o of this.objs) o.destroy();
     this.objs = [];
+    for (const o of this.neighborDecor) o.destroy();
+    this.neighborDecor = [];
     this.windowGlows = [];
     this.shopFacades = [];
     this.castList = [];
@@ -782,6 +874,7 @@ export class WorldScene extends Phaser.Scene {
     this.clearZone();
     this.zoneId = id;
     this.zone = built;
+    this.guideT = 0; // the objective is worked out in this zone's coordinates: never keep the last zone's for a moment
     const def = this.zone.def;
     this.map = this.make.tilemap({ data: this.zone.tiles, tileWidth: TILE, tileHeight: TILE });
     const ts = this.map.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0)!;
@@ -3149,7 +3242,7 @@ export class WorldScene extends Phaser.Scene {
         tx = target.x * TILE + 8;
         ty = target.y * TILE + 4;
       } else {
-        const d = doorLeadingTo(this.zoneId, target.zone);
+        const d = routeGoal(this.zoneId, target.zone, target);
         if (d) {
           tx = d.x * TILE + 8;
           ty = d.y * TILE + 4;
@@ -3169,7 +3262,7 @@ export class WorldScene extends Phaser.Scene {
           ty = stop.y * TILE + 4;
         }
       } else if (stop) {
-        const d = doorLeadingTo(this.zoneId, stop.zone);
+        const d = routeGoal(this.zoneId, stop.zone, stop);
         if (d) {
           tx = d.x * TILE + 8;
           ty = d.y * TILE + 4;
@@ -3185,7 +3278,7 @@ export class WorldScene extends Phaser.Scene {
           ty = target.interiorTarget.y * TILE + 4;
         }
       } else {
-        const d = doorLeadingTo(this.zoneId, target.fromZone);
+        const d = routeGoal(this.zoneId, target.fromZone, target.door);
         if (d) {
           tx = d.x * TILE + 8;
           ty = d.y * TILE + 4;
@@ -3198,7 +3291,7 @@ export class WorldScene extends Phaser.Scene {
           ty = target.y * TILE + 4;
         }
       } else {
-        const d = doorLeadingTo(this.zoneId, target.zone);
+        const d = routeGoal(this.zoneId, target.zone, target);
         if (d) {
           tx = d.x * TILE + 8;
           ty = d.y * TILE + 4;
@@ -3822,7 +3915,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** A warm overlay of lit windows on top of a building sprite. One image per pane, so a passer-by covers only the glass they walk across. */
-  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean, shop?: string, home?: 'front' | 'side', facadeStage?: number, homeId?: string) {
+  private addWindowGlow(src: Phaser.GameObjects.Image, W: number, H: number, rot: number, door: boolean, facade: boolean, shop?: string, home?: 'front' | 'side', facadeStage?: number, homeId?: string, seedAt?: { x: number; y: number }) {
     const useFacade = facadeStage !== undefined && hasVillageAtlas();
     const rects = useFacade
       ? (door ? [] : restaurantFacadeLayout(W, H, facadeStage).windows.map((w) => ({ x: w.x + 1, y: w.y + 1, w: Math.max(1, w.w - 2), h: Math.max(1, w.h - 2) })))
@@ -3830,7 +3923,7 @@ export class WorldScene extends Phaser.Scene {
     if (!rects.length) return;
     const key = windowGlowTexture(this, W, H, rot, door, home, facadeStage);
     const phase = Math.random() * 6;
-    const seed = lightSeed(src.x, src.y);
+    const seed = lightSeed(seedAt?.x ?? src.x, seedAt?.y ?? src.y);
     for (const rect of rects) {
       const img = this.add.image(src.x, src.y, key).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(200001).setVisible(false).setAlpha(0);
       img.setCrop(rect.x, rect.y, rect.w, rect.h);
@@ -4186,7 +4279,7 @@ export class WorldScene extends Phaser.Scene {
             if (f) { const size = furnSize(f.def, f.f.rot); this.guideGoal = { x: f.f.x * TILE + (size.w * TILE) / 2, y: f.f.y * TILE + (size.h * TILE) / 2 }; }
           } else if (t.x != null && t.y != null) this.guideGoal = { x: t.x * TILE + TILE / 2, y: t.y * TILE + TILE / 2 };
         } else {
-          const d = nextDoor(this.zoneId, t.zone);
+          const d = routeGoal(this.zoneId, t.zone, t);
           if (d) this.guideGoal = { x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2 };
         }
       }
@@ -4241,7 +4334,7 @@ export class WorldScene extends Phaser.Scene {
     const carrying = carriedOrders();
     if (!carrying.length) return [];
     if (this.zoneId !== 'restaurant') {
-      const d = nextDoor(this.zoneId, 'restaurant');
+      const d = routeGoal(this.zoneId, 'restaurant');
       return d ? [{ x: d.x * TILE + TILE / 2, y: d.y * TILE + TILE / 2, label: 'Al restaurante' }] : [];
     }
     const dishes: DeliveryDish[] = [];
