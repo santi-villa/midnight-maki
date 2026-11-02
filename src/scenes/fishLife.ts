@@ -1,7 +1,8 @@
 /**
- * Fish in the water: they jump now and then, and at each fishing spot a fish's shadow swims in circles under the surface until
- * it jumps (so the spot reads as "there are fish here", and a splash tells you one just went by). Nothing here touches the
- * catch itself: it is only drawing. In battery / reduced-motion mode the shadows hold still and nothing jumps.
+ * Fish in the water, in schools: a few shadows swim in circles under the surface (at every fishing spot, and wherever there is open
+ * water in view) and now and then one, two or three of a school jump together. So a spot reads as "there are fish here" and a
+ * splash tells you some just went by. Nothing here touches the catch itself: it is only drawing. In battery / reduced-motion
+ * mode the shadows hold still and nothing jumps.
  */
 import Phaser from 'phaser';
 import { TILE } from '../entities/Actor';
@@ -10,8 +11,14 @@ import { dotTexture } from './textures';
 
 const isWater = (ground: readonly string[], x: number, y: number) => { const ch = ground[y]?.[x]; return ch === 'w' || ch === 'd'; };
 
+/** Water with water on all eight sides: a fish swimming round it (or jumping from it) never reaches the bank. */
+const solidWater = (ground: readonly string[], x: number, y: number) => {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!isWater(ground, x + dx, y + dy)) return false;
+  return true;
+};
+
 /**
- * The water tile a fishing spot fishes: close to it, but inside the water (water on its four sides, and two tiles of it above,
+ * The water tile a fishing spot fishes: close to it, but inside the water (water all around it, and two tiles of it above,
  * since a jump rises on screen), so the shadow never crosses the sand and the fish never seems to hang over the shore.
  */
 export function waterBeside(ground: readonly string[], x: number, y: number, reach = 3): { x: number; y: number } | null {
@@ -19,7 +26,7 @@ export function waterBeside(ground: readonly string[], x: number, y: number, rea
   for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) {
     const wx = x + dx, wy = y + dy;
     if (!isWater(ground, wx, wy)) continue;
-    const open = isWater(ground, wx - 1, wy) && isWater(ground, wx + 1, wy) && isWater(ground, wx, wy - 1) && isWater(ground, wx, wy + 1);
+    const open = solidWater(ground, wx, wy);
     const room = isWater(ground, wx, wy - 1) && isWater(ground, wx, wy - 2);
     const d = Math.abs(dx) + Math.abs(dy) + (open ? 0 : 2) + (room ? 0 : 1.5);
     if (!best || d < best.d) best = { x: wx, y: wy, d };
@@ -27,11 +34,11 @@ export function waterBeside(ground: readonly string[], x: number, y: number, rea
   return best && { x: best.x, y: best.y };
 }
 
-/** Water tiles with water on all four sides: where a fish can jump without leaving the water (never on the shore). */
+/** Water tiles with water all around: where a fish can swim and jump without leaving the water (never on the shore). */
 export function openWater(ground: readonly string[]): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];
   for (let y = 0; y < ground.length; y++) for (let x = 0; x < ground[y].length; x++) {
-    if (isWater(ground, x, y) && isWater(ground, x - 1, y) && isWater(ground, x + 1, y) && isWater(ground, x, y - 1) && isWater(ground, x, y + 1)) out.push({ x, y });
+    if (solidWater(ground, x, y)) out.push({ x, y });
   }
   return out;
 }
@@ -83,84 +90,134 @@ function shadowFish(scene: Phaser.Scene): string {
   return key;
 }
 
-interface Spot { cx: number; cy: number; shadow: Phaser.GameObjects.Image; t: number; speed: number; next: number; jumping: boolean }
+/** How many of a school jump together: mostly one, often two, now and then three. `r` is a random number in [0, 1). */
+export function jumpCount(r: number): 1 | 2 | 3 {
+  return r < 0.5 ? 1 : r < 0.8 ? 2 : 3;
+}
+
+/** A point on an oval swum around (cx, cy). */
+export function orbitPoint(cx: number, cy: number, rx: number, ry: number, t: number): { x: number; y: number; angle: number } {
+  return { x: cx + Math.cos(t) * rx, y: cy + Math.sin(t) * ry, angle: Math.atan2(Math.cos(t) * ry, -Math.sin(t) * rx) };
+}
+
+interface Fish { shadow: Phaser.GameObjects.Image; rx: number; ry: number; t: number; speed: number; jumping: boolean }
+interface School { cx: number; cy: number; fish: Fish[]; next: number; ambient: boolean }
 export interface WaterTiles { ox: number; oy: number; tiles: { x: number; y: number }[] }
 
+const MAX_JUMPS = 6;
+const AMBIENT_SCHOOLS = 3;
+
 export class FishLife {
-  private spots: Spot[] = [];
+  private schools: School[] = [];
   private water: WaterTiles[] = [];
-  private nextAmbient = 4 + Math.random() * 5;
   private jumping = 0;
   private still = false;
+  private spawnIn = 1;
+  private checkIn = 1;
 
   constructor(private scene: Phaser.Scene) {}
 
-  /** The fish of one district: a shadow per fishing spot (in pixels, the middle of its water tile) and where fish may jump. */
-  reset(spots: { x: number; y: number }[], water: WaterTiles[], still: boolean) {
-    for (const s of this.spots) s.shadow.destroy();
-    this.spots = spots.map((s, i) => ({
-      cx: s.x * TILE + TILE / 2, cy: s.y * TILE + TILE / 2,
+  private school(cx: number, cy: number, ambient: boolean): School {
+    const n = 2 + Math.floor(Math.random() * 3); // 2 to 4 fish
+    const fish: Fish[] = Array.from({ length: n }, (_, i) => ({
       shadow: this.scene.add.image(0, 0, shadowFish(this.scene)).setDepth(-2.5).setAlpha(0.42),
-      t: Math.random() * 6.28, speed: (0.75 + Math.random() * 0.4) * (i % 2 ? -1 : 1), next: 5 + Math.random() * 9, jumping: false,
+      rx: 3.5 + Math.random() * 5.5, ry: 2.2 + Math.random() * 3.2,
+      t: Math.random() * 6.28, speed: (0.55 + Math.random() * 0.7) * (i % 2 ? -1 : 1), jumping: false,
     }));
+    return { cx, cy, fish, next: 4 + Math.random() * 10, ambient };
+  }
+
+  /** The fish of one district: a school at each fishing spot (in tiles, the water tile it fishes) and where more may swim and jump. */
+  reset(spots: { x: number; y: number }[], water: WaterTiles[], still: boolean) {
+    this.dropAll();
+    this.schools = spots.map((s) => this.school(s.x * TILE + TILE / 2, s.y * TILE + TILE / 2, false));
     this.water = water;
     this.still = still;
-    this.nextAmbient = 3 + Math.random() * 5;
     this.jumping = 0;
+    this.spawnIn = 0.5;
     this.place();
   }
 
   /** Only the neighbouring districts' water changed. */
   setWater(water: WaterTiles[]) { this.water = water; }
 
+  private dropAll() {
+    for (const sc of this.schools) for (const f of sc.fish) f.shadow.destroy();
+    this.schools = [];
+  }
+
   private place() {
-    for (const s of this.spots) {
-      // an oval around the middle of the tile; the fish heads along it (seen from above)
-      const rx = 5.2, ry = 3.1;
-      s.shadow.setPosition(s.cx + Math.cos(s.t) * rx, s.cy + Math.sin(s.t) * ry);
-      s.shadow.setRotation(Math.atan2(Math.cos(s.t) * ry * Math.sign(s.speed), -Math.sin(s.t) * rx * Math.sign(s.speed)));
+    for (const sc of this.schools) for (const f of sc.fish) {
+      const o = orbitPoint(sc.cx, sc.cy, f.rx, f.ry, f.t);
+      f.shadow.setPosition(o.x, o.y).setRotation(f.speed < 0 ? o.angle + Math.PI : o.angle);
     }
   }
 
   update(dt: number, view: { x: number; y: number; right: number; bottom: number }, night: number) {
-    for (const s of this.spots) {
-      s.shadow.setAlpha(s.jumping ? 0 : 0.42 - night * 0.14);
-      if (this.still) continue;
-      if (!s.jumping) s.t += dt * s.speed;
-      s.next -= dt;
-      if (s.next <= 0 && !s.jumping) {
-        if (this.jumping < 3) this.jump(s.cx, s.cy, s);
-        s.next = 9 + Math.random() * 12;
+    const margin = 40;
+    const near = (x: number, y: number) => x > view.x - margin && x < view.right + margin && y > view.y - margin && y < view.bottom + margin;
+    for (const sc of this.schools) {
+      for (const f of sc.fish) {
+        f.shadow.setAlpha(f.jumping ? 0 : 0.42 - night * 0.14);
+        if (!this.still && !f.jumping) f.t += dt * f.speed;
       }
+      if (this.still || !near(sc.cx, sc.cy)) continue;
+      sc.next -= dt;
+      if (sc.next > 0) continue;
+      sc.next = 7 + Math.random() * 11;
+      this.splash(sc);
     }
+    if (this.still) { this.place(); return; }
     this.place();
-    if (this.still) return;
-    this.nextAmbient -= dt;
-    if (this.nextAmbient > 0) return;
-    this.nextAmbient = 4 + Math.random() * 7;
-    if (this.jumping >= 2) return;
-    // somewhere in (or near) the view, on open water
-    const margin = 24;
-    for (let tries = 0; tries < 10; tries++) {
-      const src = this.water[Math.floor(Math.random() * this.water.length)];
-      if (!src?.tiles.length) continue;
-      const t = src.tiles[Math.floor(Math.random() * src.tiles.length)];
+    // schools in open water, only where the player can see them: one that is left behind is dropped, a new one appears in view
+    this.checkIn -= dt;
+    if (this.checkIn <= 0) {
+      this.checkIn = 1;
+      this.schools = this.schools.filter((sc) => {
+        if (!sc.ambient || near(sc.cx, sc.cy) || sc.fish.some((f) => f.jumping)) return true;
+        for (const f of sc.fish) f.shadow.destroy();
+        return false;
+      });
+    }
+    this.spawnIn -= dt;
+    if (this.spawnIn > 0 || this.schools.filter((sc) => sc.ambient).length >= AMBIENT_SCHOOLS) return;
+    this.spawnIn = 1.5 + Math.random() * 2.5;
+    const spots: { x: number; y: number }[] = [];
+    for (const src of this.water) for (const t of src.tiles) {
       const x = src.ox + t.x * TILE + TILE / 2, y = src.oy + t.y * TILE + TILE / 2;
-      if (x < view.x - margin || x > view.right + margin || y < view.y - margin || y > view.bottom + margin) continue;
-      this.jump(x, y, null);
-      return;
+      if (x < view.x - 8 || x > view.right + 8 || y < view.y - 8 || y > view.bottom + 8) continue;
+      // not on top of another school
+      if (this.schools.some((sc) => Math.hypot(sc.cx - x, sc.cy - y) < 40)) continue;
+      spots.push({ x, y });
+    }
+    if (!spots.length) return;
+    const at = spots[Math.floor(Math.random() * spots.length)];
+    this.schools.push(this.school(at.x, at.y, true));
+  }
+
+  /** One, two or three fish of the school jump, a moment apart, from where their shadows are. */
+  private splash(sc: School) {
+    const ready = sc.fish.filter((f) => !f.jumping);
+    const n = Math.min(jumpCount(Math.random()), ready.length, MAX_JUMPS - this.jumping);
+    for (let i = 0; i < n; i++) {
+      const f = ready.splice(Math.floor(Math.random() * ready.length), 1)[0];
+      f.jumping = true;
+      this.jumping++;
+      this.scene.time.delayedCall(i * (140 + Math.random() * 200), () => {
+        if (!f.shadow.active) { this.jumping = Math.max(0, this.jumping - 1); return; }
+        this.jump(f.shadow.x, f.shadow.y, f);
+      });
     }
   }
 
-  private jump(x0: number, y0: number, spot: Spot | null) {
+  private jump(x0: number, y0: number, f: Fish) {
     const scene = this.scene;
     const dir = Math.random() < 0.5 ? -1 : 1;
     const dx = dir * (11 + Math.random() * 7), dy = (Math.random() - 0.5) * 5, lift = 10 + Math.random() * 6;
     const fish = scene.add.image(x0, y0, sideFish(scene, Math.floor(Math.random() * PALETTES.length))).setOrigin(0.5, 0.5).setDepth(y0 + 8).setVisible(false);
     const dur = 560 + Math.random() * 160;
-    if (spot) spot.jumping = true;
-    this.jumping++;
     this.ring(x0, y0);
+    for (let i = 0; i < 3; i++) this.drop(x0, y0);
     const state = { t: 0 };
     scene.tweens.add({
       targets: state, t: 1, duration: dur, ease: 'Linear',
@@ -175,10 +232,9 @@ export class FishLife {
         this.ring(x0 + dx, y0 + dy);
         for (let i = 0; i < 3; i++) this.drop(x0 + dx, y0 + dy);
         this.jumping = Math.max(0, this.jumping - 1);
-        if (spot) spot.jumping = false;
+        f.jumping = false;
       },
     });
-    for (let i = 0; i < 3; i++) this.drop(x0, y0);
   }
 
   private ring(x: number, y: number) {
@@ -193,9 +249,5 @@ export class FishLife {
     this.scene.tweens.add({ targets: d, x: x + vx, y: [y - up, y + 1], alpha: { from: 1, to: 0.2 }, duration: 380, ease: 'Sine.out', onComplete: () => d.destroy() });
   }
 
-  destroy() {
-    for (const s of this.spots) s.shadow.destroy();
-    this.spots = [];
-    this.water = [];
-  }
+  destroy() { this.dropAll(); this.water = []; }
 }

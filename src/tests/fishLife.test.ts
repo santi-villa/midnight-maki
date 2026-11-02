@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jumpAt, openWater, waterBeside } from '../scenes/fishLife';
+import { jumpAt, jumpCount, openWater, orbitPoint, waterBeside } from '../scenes/fishLife';
 
 const POND = ['ssssss', 'swwwws', 'swwwws', 'swwwws', 'swwwws', 'ssssss'];
 
@@ -31,5 +31,21 @@ describe('fish in the water', () => {
     expect(start.angle).toBeLessThan(0); // y grows downwards: rising
     expect(end.angle).toBeGreaterThan(0); // falling
     expect(Math.abs(top.angle)).toBeLessThan(0.3); // level at the top
+  });
+
+  it('has a school jump one fish most of the time, often two, and now and then three', () => {
+    const tally = { 1: 0, 2: 0, 3: 0 };
+    for (let i = 0; i < 1000; i++) tally[jumpCount(i / 1000)]++;
+    expect(tally).toEqual({ 1: 500, 2: 300, 3: 200 });
+    expect([jumpCount(0), jumpCount(0.4999), jumpCount(0.5), jumpCount(0.7999), jumpCount(0.8), jumpCount(0.9999)]).toEqual([1, 1, 2, 2, 3, 3]);
+  });
+
+  it('swims a shadow round an oval and points it along the way it goes', () => {
+    for (let t = 0; t < 6.3; t += 0.45) {
+      const o = orbitPoint(100, 50, 8, 4, t), q = orbitPoint(100, 50, 8, 4, t + 0.01);
+      expect(((o.x - 100) / 8) ** 2 + ((o.y - 50) / 4) ** 2).toBeCloseTo(1, 6);
+      // the next point lies where the angle points
+      expect(Math.atan2(q.y - o.y, q.x - o.x)).toBeCloseTo(o.angle, 1);
+    }
   });
 });
