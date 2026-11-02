@@ -5,6 +5,7 @@ import { audio } from '../audio/audio';
 import { getEnergy, TIRED_LIMIT, WARN_LIMIT } from '../systems/fatigue';
 import { bus } from '../core/events';
 import { settings } from '../core/settings';
+import { normalizeUiScale } from '../core/uiScale';
 import { game } from '../core/state';
 import { bindingMap, keyLabel, type GameAction } from '../input/bindings';
 import { inputMethod } from '../input/keys';
@@ -232,8 +233,11 @@ function promptLoop() {
   const text = `${key ? `[${key}] ` : ''}${a.label}`;
   if (text !== promptKey) { promptKey = text; promptEl.textContent = text; }
   promptEl.hidden = false;
-  promptEl.style.left = `${Math.round(pos.x)}px`;
-  promptEl.style.top = `${Math.round(pos.y)}px`;
+  // #ui is laid out with CSS `zoom` (the interface size setting): a fixed element's left/top are scaled by it too, so the
+  // screen position is divided by it (otherwise the label drifts towards the top-left corner the smaller the interface is)
+  const scale = normalizeUiScale(settings.uiScale);
+  promptEl.style.left = `${Math.round(pos.x / scale)}px`;
+  promptEl.style.top = `${Math.round(pos.y / scale)}px`;
 }
 promptLoop();
 
