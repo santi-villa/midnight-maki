@@ -906,7 +906,6 @@ export class WorldScene extends Phaser.Scene {
     this.objs = [];
     this.dropNeighborDecor();
     this.fish?.reset([], [], true);
-    this.sky?.clearBirds();
     this.windowGlows = [];
     this.shopFacades = [];
     this.castList = [];
@@ -3161,7 +3160,7 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** The sky (birds crossing, shooting stars, the rainbow) and the station clock's hour bell. */
+  /** The sky (shooting stars, the rainbow) and the station clock's hour bell. */
   private updateSky(dt: number) {
     this.sky ??= new SkyLife(this);
     const cam = this.cameras.main, vw = cam.width / cam.zoom, vh = cam.height / cam.zoom, vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;

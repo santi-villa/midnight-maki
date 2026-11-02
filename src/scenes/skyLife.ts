@@ -1,29 +1,13 @@
 /**
- * The sky over the village: now and then a few birds cross the view (their shadows slide over the ground), at night a shooting
- * star streaks by, and a rainbow comes out when rain clears by day. All of it is drawing: nothing here changes the game.
+ * The sky over the village: at night a shooting star streaks by now and then, and a rainbow comes out when rain clears by day. All of it is drawing: nothing here changes the game.
  * Nothing moves in battery / reduced-motion mode.
  */
 import Phaser from 'phaser';
-import { ctx2d, makeCanvas, px } from '../art/pixel';
-import { dotTexture } from './textures';
+import { ctx2d, makeCanvas } from '../art/pixel';
 import { rainbowEnvelope, RAINBOW_LENGTH, wait } from './skyMath';
 
 interface View { x: number; y: number; right: number; bottom: number; width: number; height: number }
 export interface SkyEnv { outdoor: boolean; day: boolean; night: boolean; raining: boolean; still: boolean }
-
-/** A small bird seen from the side, in two frames (wings up, wings down). */
-function birdFrames(scene: Phaser.Scene): string {
-  const key = 'sky_bird';
-  if (scene.textures.exists(key)) return key;
-  const W = 9, H = 6, c = makeCanvas(W * 2, H), g = ctx2d(c), ink = '#2a2433';
-  // wings up
-  for (const [x, y] of [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 3], [6, 2], [7, 1], [8, 0]]) px(g, x, y, ink);
-  // wings down
-  for (const [x, y] of [[0, 4], [1, 4], [2, 3], [3, 3], [4, 2], [5, 3], [6, 3], [7, 4], [8, 4]]) px(g, W + x, y + 1, ink);
-  const tex = scene.textures.addCanvas(key, c)!;
-  tex.add(0, 0, 0, 0, W, H); tex.add(1, 0, W, 0, W, H);
-  return key;
-}
 
 /** A bright streak with a glowing head (right end), fading away behind it. */
 function streakTexture(scene: Phaser.Scene): string {
@@ -58,11 +42,7 @@ function rainbowTexture(scene: Phaser.Scene): string {
   return key;
 }
 
-interface Bird { s: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; dx: number; dy: number; bob: number; flap: number }
-
 export class SkyLife {
-  private birds: Bird[] = [];
-  private birdIn = wait(Math.random(), 25, 60);
   private starIn = wait(Math.random(), 18, 50);
   private rainbow: Phaser.GameObjects.Image | null = null;
   private rainbowT = -1;
@@ -74,44 +54,9 @@ export class SkyLife {
 
   update(dt: number, view: View, env: SkyEnv) {
     this.updateRainbow(dt, view, env);
-    this.updateBirds(dt, view, env);
     if (env.still || !env.outdoor || !env.night || env.raining) return;
     this.starIn -= dt;
     if (this.starIn <= 0) { this.starIn = wait(Math.random(), 22, 70); this.shootingStar(view); }
-  }
-
-  private updateBirds(dt: number, view: View, env: SkyEnv) {
-    if (!env.still && env.outdoor && env.day && !env.raining && !this.birds.length) {
-      this.birdIn -= dt;
-      if (this.birdIn <= 0) { this.birdIn = wait(Math.random(), 40, 100); this.flyOver(view); }
-    }
-    for (const b of this.birds) {
-      b.s.x += b.dx * dt; b.s.y += b.dy * dt + Math.sin(performance.now() / 380 + b.bob) * 0.12;
-      b.flap -= dt;
-      if (b.flap <= 0) { b.flap = 0.13; b.s.setFrame(b.s.frame.name === '0' ? 1 : 0); }
-      // the shadow stays on the ground below, smaller and fainter than the bird itself
-      b.shadow.setPosition(b.s.x - 2, b.s.y + 26 + (b.s.y - view.y) * 0.1);
-      b.s.setDepth(150002);
-    }
-    this.birds = this.birds.filter((b) => {
-      const gone = b.dx > 0 ? b.s.x > view.right + 40 : b.s.x < view.x - 40;
-      if (gone) { b.s.destroy(); b.shadow.destroy(); }
-      return !gone;
-    });
-  }
-
-  /** Three to five birds enter on one side of the view and cross it in a loose V. */
-  private flyOver(view: View) {
-    const n = 3 + Math.floor(Math.random() * 3), dir = Math.random() < 0.5 ? 1 : -1;
-    const y0 = view.y + view.height * (0.12 + Math.random() * 0.35), speed = 34 + Math.random() * 16;
-    const key = birdFrames(this.scene), shadowKey = dotTexture(this.scene, 'sky_bird_shadow', '#1a1428', 5, 2);
-    for (let i = 0; i < n; i++) {
-      const lag = Math.ceil(i / 2) * 9, side = i % 2 ? 1 : -1;
-      const x = dir > 0 ? view.x - 24 - lag : view.right + 24 + lag;
-      const s = this.scene.add.image(x, y0 + side * Math.ceil(i / 2) * 5, key, 0).setDepth(150002).setFlipX(dir < 0);
-      const shadow = this.scene.add.image(x, y0 + 26, shadowKey).setDepth(-3).setAlpha(0.18);
-      this.birds.push({ s, shadow, dx: dir * speed, dy: (Math.random() - 0.5) * 2, bob: Math.random() * 6, flap: Math.random() * 0.13 });
-    }
   }
 
   private shootingStar(view: View) {
@@ -136,14 +81,7 @@ export class SkyLife {
     this.rainbow.setVisible(true).setPosition((view.x + view.right) / 2, view.y + view.height * 0.62).setDisplaySize(view.width * 0.98, view.width * 0.98 * 124 / 240).setAlpha(0.26 * rainbowEnvelope(this.rainbowT));
   }
 
-  /** A new district: the birds were placed in the last one's coordinates (the rainbow follows the screen, so it stays). */
-  clearBirds() {
-    for (const b of this.birds) { b.s.destroy(); b.shadow.destroy(); }
-    this.birds = [];
-  }
-
   destroy() {
-    this.clearBirds();
     this.rainbow?.destroy(); this.rainbow = null; this.rainbowT = -1;
   }
 }

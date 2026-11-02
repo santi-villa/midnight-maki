@@ -7,7 +7,6 @@ faroles que se encienden de a uno, charcos que crecen con la lluvia). Ver tambi�
 
 | Detalle | Cuándo | Dónde está |
 |---|---|---|
-| **Bandada que cruza** (3 a 5 pájaros en V suelta, con su sombra en el suelo) | De día, sin lluvia, al aire libre, cada 40 a 100 s | `src/scenes/skyLife.ts` |
 | **Estrella fugaz** | De noche, sin lluvia, cada 22 a 70 s | `skyLife.ts` |
 | **Arcoíris** (seis bandas, aparece 4 s, se queda ~66 s y se va en 8 s) | Cuando la lluvia termina de día (mañana o tarde) | `skyLife.ts`, disparado desde `WorldScene.update` |
 | **Flores, arbustos y juncos que se doblan al pasar** | Cuando Sofi camina a menos de ~13 px; cada planta una vez cada 0,7 s | `WorldScene.updateSway` |
@@ -19,6 +18,6 @@ en `src/tests/skyMath.test.ts`.
 
 ## Límites conocidos
 - La campana no se puede oír en una captura: la probé por lógica (tests), no con los oídos. Vale la pena escucharla en la estación.
-- Los pájaros que cruzan son una silueta simple de dos cuadros; se podría reemplazar por un sprite dibujado a mano.
+- Los pájaros que cruzaban volando se sacaron: eran una silueta en V poco convincente. Si vuelven, que sea con un sprite dibujado a mano.
 - El arcoíris está anclado a la pantalla, no al mapa: cuelga siempre del mismo sector del cielo aunque camines.
 - No hay "faroles que se prenden de a uno" nuevos: ya existía (cada farol tiene su propio momento de encendido).
