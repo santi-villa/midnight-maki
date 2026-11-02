@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
-import { FishLife, openWater, waterBeside } from './fishLife';
+import { FishLife, deepWater, waterBeside, type FishSource } from './fishLife';
 import { SkyLife } from './skyLife';
 import { bellStrokes, bellVolume, hourOfDay, rainbowAfter } from './skyMath';
 import { RainFx } from './rainFx';
@@ -104,7 +104,7 @@ interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Imag
 interface WindowGlow { ghost?: boolean; img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
 interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean; shutter: Phaser.GameObjects.Image; level: number; target: number; tween?: Phaser.Tweens.Tween }
-interface WaterSet { open: { x: number; y: number }[]; ox: number; oy: number; layer: Phaser.Tilemaps.TilemapLayer; over: Phaser.Tilemaps.TilemapLayer | null; sea: boolean; water: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
+interface WaterSet { fish: FishSource; ox: number; oy: number; layer: Phaser.Tilemaps.TilemapLayer; over: Phaser.Tilemaps.TilemapLayer | null; sea: boolean; water: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
@@ -740,7 +740,7 @@ export class WorldScene extends Phaser.Scene {
       if (hasWater) this.neighborFx.push(new WaterFx(this, built.def.ground, local, lowFx(), { x: ox, y: oy }));
     }
     this.shadowKey = ''; // the new shadows are baked and placed on the next pass
-    this.fish?.setWater(this.fishWater());
+    this.syncFish();
   }
 
   /**
@@ -772,7 +772,7 @@ export class WorldScene extends Phaser.Scene {
       return layer;
     };
     // above the district's picture of the ground (-12) and below everything live
-    const set: WaterSet = { open: openWater(def.ground), ox, oy, layer: blank(-11.5), over: banks.length ? blank(-11.3) : null, sea, water, shore, banks };
+    const set: WaterSet = { fish: this.fishSource(built, ox, oy), ox, oy, layer: blank(-11.5), over: banks.length ? blank(-11.3) : null, sea, water, shore, banks };
     for (const r of bridgeRails(def.ground)) {
       const key = `bridge_rail_${r.axis}_${r.length}`;
       if (!this.textures.exists(key)) this.textures.addCanvas(key, bridgeRailCanvas(r.axis, r.length));
@@ -905,7 +905,7 @@ export class WorldScene extends Phaser.Scene {
     for (const o of this.objs) o.destroy();
     this.objs = [];
     this.dropNeighborDecor();
-    this.fish?.reset([], [], true);
+    this.fish?.sync([], true);
     this.windowGlows = [];
     this.shopFacades = [];
     this.castList = [];
@@ -1215,12 +1215,15 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat' | 'butterfly'; vx: number; vy: number; t: number; flying: boolean; ox?: number; oy?: number; flock?: number }[] = [];
+  private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat' | 'butterfly'; vx: number; vy: number; t: number; flying: boolean; ox?: number; oy?: number; flock?: number; /** seconds until it comes back to land where it was */ back?: number; returning?: boolean }[] = [];
+  /** seconds until each flock takes off by itself */
+  private flockTimers = new Map<number, number>();
   /** birds hop around by day and fly off when you get close; a cat strolls through the plaza */
   private pets: Pets | null = null;
   spawnCritters() {
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
+    this.flockTimers.clear();
     if (this.pets?.zone === this.zoneId) this.pets.setNight(clock.isNight(), this.zone.grid);
     else {
       this.pets?.destroy();
@@ -1254,10 +1257,10 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private updateCritters(dt: number) {
+    this.updateFlockTakeoffs(dt);
     for (const c of this.critters) {
       const s = c.s;
       c.t -= dt;
-      const d = Math.hypot(s.x - this.player.x, s.y - this.player.y);
       if (c.kind === 'butterfly') {
         // lazy fluttering loops around a home spot, a little above the ground
         const tt = performance.now() / 1000 + (c.ox ?? 0);
@@ -1268,20 +1271,32 @@ export class WorldScene extends Phaser.Scene {
         continue;
       }
       if (c.kind === 'bird') {
-        if (!c.flying && d < 28) {
-          // the whole flock takes off, each bird away from you at its own angle
-          for (const o of this.critters) if (o === c || (c.flock !== undefined && o.flock === c.flock && !o.flying)) {
-            o.flying = true;
-            o.vx = (o.s.x > this.player.x ? 1 : -1) * (50 + Math.random() * 30);
-            o.vy = -40 - Math.random() * 25;
-            o.s.setFlipX(o.vx < 0).setFrame(1);
-          }
+        if (c.back !== undefined) {
+          // away and out of sight: it comes back once the spot is quiet
+          c.back -= dt;
+          if (c.back <= 0) { if (this.birdThreat(c.ox ?? s.x, c.oy ?? s.y, 60)) c.back = 6; else this.birdReturn(c); }
+          continue;
+        }
+        if (!c.flying) {
+          // Sofi coming close, or anyone walking past, sends the whole flock up
+          const threat = this.birdThreat(s.x, s.y);
+          if (threat) this.scareFlock(c, threat.x);
         }
         if (c.flying) {
           s.x += c.vx * dt;
           s.y += c.vy * dt;
           s.setFrame(Math.floor(performance.now() / 120) % 2);
-          if (s.y < -20) s.setVisible(false);
+          if (c.returning) {
+            // coming back down to the spot it left, where it lands
+            const hx = (c.ox ?? s.x) - s.x, hy = (c.oy ?? s.y) - s.y, dist = Math.hypot(hx, hy);
+            if (dist < 3) { c.flying = false; c.returning = false; c.vx = 0; c.vy = 0; s.setPosition(c.ox ?? s.x, c.oy ?? s.y).setFrame(0).setFlipX(Math.random() < 0.5); }
+            else { c.vx = (hx / dist) * 62; c.vy = (hy / dist) * 62; s.setFlipX(c.vx < 0); }
+          } else if (s.y < -20 || s.x < -40 || s.x > this.zone.def.w * TILE + 40) {
+            s.setVisible(false);
+            c.flying = false;
+            c.back = 40 + Math.random() * 50;
+          }
+          s.setDepth(s.y + 40);
           continue;
         }
         if (c.t <= 0) {
@@ -1309,6 +1324,56 @@ export class WorldScene extends Phaser.Scene {
         } else c.vx = 0;
       }
       s.setDepth(s.y);
+    }
+  }
+
+  /** Who frightens the birds at (x, y): Sofi coming within 28px, or anyone else who walks by within 24px. `extra` widens both. */
+  private birdThreat(x: number, y: number, extra = 0): { x: number; y: number } | null {
+    const p = this.player;
+    if (p && Math.hypot(x - p.x, y - p.y) < 28 + extra) return { x: p.x, y: p.y };
+    const walkers: Actor[] = [];
+    for (const n of this.npcs.values()) walkers.push(n.actor);
+    for (const b of this.neighborBodies.values()) walkers.push(b.actor);
+    for (const e of this.extras.values()) walkers.push(e);
+    for (const b of this.staffBodies.values()) walkers.push(b.actor);
+    for (const a of walkers) {
+      // someone standing still beside them (or asleep) does not bother them: it is the passing by
+      if (!a.sprite?.visible || !a.moving) continue;
+      if (Math.hypot(x - a.x, y - a.y) < 24 + extra) return { x: a.x, y: a.y };
+    }
+    return null;
+  }
+
+  /** The whole flock takes off, each bird away from the threat at its own angle. */
+  private scareFlock(c: (typeof this.critters)[number], fromX: number) {
+    for (const o of this.critters) if (o === c || (c.flock !== undefined && o.flock === c.flock && !o.flying && o.back === undefined)) {
+      o.flying = true; o.returning = false;
+      o.vx = (o.s.x > fromX ? 1 : -1) * (50 + Math.random() * 30);
+      o.vy = -40 - Math.random() * 25;
+      o.s.setFlipX(o.vx < 0).setFrame(1);
+    }
+  }
+
+  /** A bird that went away glides back in from above and lands on the spot it left. */
+  private birdReturn(c: (typeof this.critters)[number]) {
+    c.back = undefined; c.flying = true; c.returning = true;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    c.s.setPosition((c.ox ?? 0) + side * (90 + Math.random() * 50), (c.oy ?? 0) - (70 + Math.random() * 40)).setVisible(true).setFrame(0);
+  }
+
+  /** Now and then a flock on the ground takes off by itself, if someone is there to see it. */
+  private updateFlockTakeoffs(dt: number) {
+    const cam = this.cameras.main, vw = cam.width / cam.zoom, vh = cam.height / cam.zoom, vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
+    const seen = new Set<number>();
+    for (const c of this.critters) {
+      if (c.kind !== 'bird' || c.flock === undefined || seen.has(c.flock)) continue;
+      seen.add(c.flock);
+      if (c.flying || c.back !== undefined) continue;
+      const left = (this.flockTimers.get(c.flock) ?? 45 + Math.random() * 80) - dt;
+      if (left > 0) { this.flockTimers.set(c.flock, left); continue; }
+      const inView = c.s.x > vx - 24 && c.s.x < vx + vw + 24 && c.s.y > vy - 24 && c.s.y < vy + vh + 24;
+      this.flockTimers.set(c.flock, inView ? 70 + Math.random() * 90 : 8);
+      if (inView) this.scareFlock(c, c.s.x + (Math.random() - 0.5) * 30);
     }
   }
 
@@ -3177,24 +3242,33 @@ export class WorldScene extends Phaser.Scene {
     this.lastHour = hour;
   }
 
-  /** The fish of this district: a shadow swimming at each fishing spot, and the water where the odd one jumps (also the districts around). */
+  /**
+   * Fish are only where there is a reason: a school at each fishing spot (in the water nearest to it), and a few far out in the
+   * beach's sea. The districts around get theirs too, so nothing appears or goes as the player crosses a border.
+   */
+  private fishSource(built: BuiltZone, ox: number, oy: number): FishSource {
+    const def = built.def, spots: { x: number; y: number }[] = [];
+    for (const i of def.interact) {
+      if (!i.action.startsWith('fish:') || !condOk(i.cond)) continue;
+      const w = waterBeside(def.ground, i.x, i.y);
+      if (w) spots.push(w);
+    }
+    return { id: def.id, ox, oy, spots, deep: def.id === 'beach' ? deepWater(def.ground) : [] };
+  }
   private setupFish() {
     this.fish ??= new FishLife(this);
     this.fishCovered.clear();
     const def = this.zone?.def;
-    const spots: { x: number; y: number }[] = [];
     if (def) for (const i of def.interact) {
       if (!i.action.startsWith('fish:') || !condOk(i.cond)) continue;
-      const w = waterBeside(def.ground, i.x, i.y);
-      if (w) { spots.push(w); this.fishCovered.add(`${i.x},${i.y}`); }
+      if (waterBeside(def.ground, i.x, i.y)) this.fishCovered.add(`${i.x},${i.y}`);
     }
-    this.fish.reset(spots, this.fishWater(), lowFx() || settings.reduceMotion);
+    this.syncFish();
   }
-  private fishWater() {
-    const def = this.zone?.def;
-    const out = def?.ground ? [{ ox: 0, oy: 0, tiles: openWater(def.ground) }] : [];
-    for (const w of this.neighborWater) out.push({ ox: w.ox, oy: w.oy, tiles: w.open });
-    return out;
+  private syncFish() {
+    if (!this.fish) return;
+    const live = this.zone ? this.fishSource(this.zone, 0, 0) : null;
+    this.fish.sync([...(live ? [live] : []), ...this.neighborWater.map((w) => w.fish)], lowFx() || settings.reduceMotion);
   }
 
   private fishGfx: Phaser.GameObjects.Graphics | null = null;
@@ -3996,7 +4070,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Writes the current animation frame into every water, shoreline and bank tile (only a few hundred putTileAt calls). */
   private applyWater(frame: number, rain: boolean, all = true) {
-    if (this.layer) this.paintWater({ open: [], ox: 0, oy: 0, layer: this.layer, over: this.overLayer, sea: this.sea, water: this.waterTiles, shore: this.shoreTiles, banks: this.bankTiles }, frame, rain, all);
+    if (this.layer) this.paintWater({ fish: { id: '', ox: 0, oy: 0, spots: [], deep: [] }, ox: 0, oy: 0, layer: this.layer, over: this.overLayer, sea: this.sea, water: this.waterTiles, shore: this.shoreTiles, banks: this.bankTiles }, frame, rain, all);
     for (const w of this.neighborWater) this.paintWater(w, frame, rain, all);
   }
 

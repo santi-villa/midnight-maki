@@ -18,6 +18,12 @@ en `src/tests/skyMath.test.ts`.
 
 ## Límites conocidos
 - La campana no se puede oír en una captura: la probé por lógica (tests), no con los oídos. Vale la pena escucharla en la estación.
-- Los pájaros que cruzaban volando se sacaron: eran una silueta en V poco convincente. Si vuelven, que sea con un sprite dibujado a mano.
+- Los pájaros que cruzaban volando se sacaron (eran una V poco convincente). Los que vuelan son las bandadas posadas de siempre, ver más abajo.
 - El arcoíris está anclado a la pantalla, no al mapa: cuelga siempre del mismo sector del cielo aunque camines.
 - No hay "faroles que se prenden de a uno" nuevos: ya existía (cada farol tiene su propio momento de encendido).
+
+## Bandadas posadas (palomas, gaviotas, gorriones)
+Ya existían: saltan por el suelo y despegan juntas si Sofi se acerca a menos de 28 px. Ahora además:
+- **Se asustan también cuando pasa alguien caminando** (un vecino, un personaje, el personal) a menos de 24 px. Quien está quieto al lado, o dormido, no las molesta: es el pasar lo que las espanta.
+- **Vuelven:** a los 40 a 90 s bajan desde arriba y se posan donde estaban. Si hay alguien parado en ese lugar, esperan unos segundos más.
+- **De vez en cuando despegan solas** (cada 45 a 125 s la primera vez y cada 70 a 160 s después), pero solo si están a la vista.

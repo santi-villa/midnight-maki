@@ -44,8 +44,9 @@ siempre en coordenadas de la zona donde está el jugador. Se recalcula en cuanto
 
 ## Peces
 Módulo `src/scenes/fishLife.ts`. Es solo dibujo: no cambia qué se pesca ni las probabilidades.
-- **Cardúmenes:** varios peces (de 2 a 4) nadan en círculos bajo el agua como sombras. Hay uno en cada lugar de pesca (en lugar de los anillos de antes) y hasta tres más en agua abierta dentro de la pantalla, también en las zonas vecinas. Los de agua abierta se sueltan cuando los dejás atrás y aparecen otros en la vista.
-- **Saltos:** cada 7 a 18 s un cardumen salta: la mitad de las veces un pez, a menudo dos y a veces tres, con unos instantes de diferencia entre ellos. Cada uno sale de donde está su sombra, con anillo y gotas al salir y al caer, y su sombra vuelve al caer. Como mucho seis saltos a la vez.
-- **Dónde:** el agua de cada cardumen es la más cercana que tiene agua en las ocho direcciones (y dos tiles de agua hacia arriba, porque un salto sube en pantalla), así no cruzan la arena ni parecen colgados sobre la orilla. Si un lugar de pesca no tiene agua a menos de 3 tiles, conserva los anillos.
+- **Dónde hay peces (y solo ahí):** un cardumen (de 2 a 4 sombras que nadan en círculos) en cada lugar de pesca, y cuatro en el mar de la playa, bien adentro (a 4 o más tiles de la orilla o del borde del mapa, separados entre sí). En el resto del agua no hay: ni en estanques sin lugar de pesca, ni en el puerto, ni en los ríos.
+- **Siempre presentes:** están todos desde que entrás a la zona, y los de las zonas vecinas también, así no aparece ni desaparece nada mientras mirás ni al cruzar un borde. Los del mar son los mismos cada vez (se eligen por el mapa, no al azar).
+- **Saltos:** cada 7 a 18 s un cardumen cercano a la vista salta: la mitad de las veces un pez, a menudo dos y a veces tres, con unos instantes de diferencia. Cada uno sale de donde está su sombra, con anillo y gotas al salir y al caer, y su sombra vuelve al caer. Como mucho seis saltos a la vez.
+- **Agua elegida para cada lugar de pesca:** la más cercana que tiene agua en las ocho direcciones (y dos tiles de agua hacia arriba, porque un salto sube en pantalla), así no cruza la arena ni parece colgado sobre la orilla. Si un lugar no tiene agua a menos de 3 tiles, conserva los anillos de antes.
 - **De noche** las sombras se desvanecen un poco.
 - **Modo batería o movimiento reducido:** las sombras quedan quietas y no hay saltos.
