@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, waterFrames } from '../art/tiles';
 import { WaterFx } from './waterFx';
+import { FishLife, openWater, waterBeside } from './fishLife';
 import { RainFx } from './rainFx';
 import { rainCells, WetGround } from './rainmath';
 import { residentHome, restPhase } from '../systems/residentSleep';
@@ -101,7 +102,7 @@ interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Imag
 interface WindowGlow { ghost?: boolean; img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
 interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean; shutter: Phaser.GameObjects.Image; level: number; target: number; tween?: Phaser.Tweens.Tween }
-interface WaterSet { ox: number; oy: number; layer: Phaser.Tilemaps.TilemapLayer; over: Phaser.Tilemaps.TilemapLayer | null; sea: boolean; water: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
+interface WaterSet { open: { x: number; y: number }[]; ox: number; oy: number; layer: Phaser.Tilemaps.TilemapLayer; over: Phaser.Tilemaps.TilemapLayer | null; sea: boolean; water: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
@@ -735,6 +736,7 @@ export class WorldScene extends Phaser.Scene {
       if (hasWater) this.neighborFx.push(new WaterFx(this, built.def.ground, local, lowFx(), { x: ox, y: oy }));
     }
     this.shadowKey = ''; // the new shadows are baked and placed on the next pass
+    this.fish?.setWater(this.fishWater());
   }
 
   /**
@@ -766,7 +768,7 @@ export class WorldScene extends Phaser.Scene {
       return layer;
     };
     // above the district's picture of the ground (-12) and below everything live
-    const set: WaterSet = { ox, oy, layer: blank(-11.5), over: banks.length ? blank(-11.3) : null, sea, water, shore, banks };
+    const set: WaterSet = { open: openWater(def.ground), ox, oy, layer: blank(-11.5), over: banks.length ? blank(-11.3) : null, sea, water, shore, banks };
     for (const r of bridgeRails(def.ground)) {
       const key = `bridge_rail_${r.axis}_${r.length}`;
       if (!this.textures.exists(key)) this.textures.addCanvas(key, bridgeRailCanvas(r.axis, r.length));
@@ -899,6 +901,7 @@ export class WorldScene extends Phaser.Scene {
     for (const o of this.objs) o.destroy();
     this.objs = [];
     this.dropNeighborDecor();
+    this.fish?.reset([], [], true);
     this.windowGlows = [];
     this.shopFacades = [];
     this.castList = [];
@@ -1076,6 +1079,7 @@ export class WorldScene extends Phaser.Scene {
     this.placeCrops();
     this.applyBounds();
     this.updateBackdrop();
+    this.setupFish();
     this.setupAmbient();
     this.spawnBugs();
     this.syncGuests();
@@ -3130,6 +3134,28 @@ export class WorldScene extends Phaser.Scene {
     this.remote = null; this.remoteTag = null; this.remoteKey = '';
   }
 
+  private fish: FishLife | null = null;
+  private fishCovered = new Set<string>();
+  /** The fish of this district: a shadow swimming at each fishing spot, and the water where the odd one jumps (also the districts around). */
+  private setupFish() {
+    this.fish ??= new FishLife(this);
+    this.fishCovered.clear();
+    const def = this.zone?.def;
+    const spots: { x: number; y: number }[] = [];
+    if (def) for (const i of def.interact) {
+      if (!i.action.startsWith('fish:') || !condOk(i.cond)) continue;
+      const w = waterBeside(def.ground, i.x, i.y);
+      if (w) { spots.push(w); this.fishCovered.add(`${i.x},${i.y}`); }
+    }
+    this.fish.reset(spots, this.fishWater(), lowFx() || settings.reduceMotion);
+  }
+  private fishWater() {
+    const def = this.zone?.def;
+    const out = def?.ground ? [{ ox: 0, oy: 0, tiles: openWater(def.ground) }] : [];
+    for (const w of this.neighborWater) out.push({ ox: w.ox, oy: w.oy, tiles: w.open });
+    return out;
+  }
+
   private fishGfx: Phaser.GameObjects.Graphics | null = null;
   private fishSpots: { x: number; y: number }[] = [];
   private fishZone = '';
@@ -3147,6 +3173,7 @@ export class WorldScene extends Phaser.Scene {
     g.clear();
     const t = this.time.now / 1000;
     for (const [i, s] of this.fishSpots.entries()) {
+      if (this.fishCovered.has(`${s.x},${s.y}`)) continue; // a fish shadow marks this one
       const cx = s.x * TILE + TILE / 2, cy = s.y * TILE + TILE / 2;
       for (let k = 0; k < 2; k++) {
         const ph = ((t * 0.7 + k * 0.5 + i * 0.13) % 1);
@@ -3230,6 +3257,10 @@ export class WorldScene extends Phaser.Scene {
     this.updateFootsteps(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
+    if (this.fish) {
+      const cam = this.cameras.main, vw = cam.width / cam.zoom, vh = cam.height / cam.zoom, vx = cam.scrollX + (cam.width - vw) / 2, vy = cam.scrollY + (cam.height - vh) / 2;
+      this.fish.update(dt, { x: vx, y: vy, right: vx + vw, bottom: vy + vh }, this.ls?.lamp ?? 0);
+    }
     this.waterFx?.update(dt, this.waterEnv());
     if (this.neighborFx.length) { const env = this.waterEnv(); for (const f of this.neighborFx) f.update(dt, env); }
     this.updateLighting();
@@ -3920,7 +3951,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Writes the current animation frame into every water, shoreline and bank tile (only a few hundred putTileAt calls). */
   private applyWater(frame: number, rain: boolean, all = true) {
-    if (this.layer) this.paintWater({ ox: 0, oy: 0, layer: this.layer, over: this.overLayer, sea: this.sea, water: this.waterTiles, shore: this.shoreTiles, banks: this.bankTiles }, frame, rain, all);
+    if (this.layer) this.paintWater({ open: [], ox: 0, oy: 0, layer: this.layer, over: this.overLayer, sea: this.sea, water: this.waterTiles, shore: this.shoreTiles, banks: this.bankTiles }, frame, rain, all);
     for (const w of this.neighborWater) this.paintWater(w, frame, rain, all);
   }
 

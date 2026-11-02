@@ -41,3 +41,10 @@ siempre en coordenadas de la zona donde está el jugador. Se recalcula en cuanto
 ## Límites conocidos
 - Las vecinas no tienen: insectos, bichos, nubes, lluvia propia, cultivos ni los NPC en movimiento libre (solo su recorrido).
 - La imagen de fondo de cada zona se vuelve a dibujar cuando cambia de noche o de etapa del restaurante, como antes.
+
+## Peces
+Módulo `src/scenes/fishLife.ts`. Es solo dibujo: no cambia qué se pesca ni las probabilidades.
+- **Lugares de pesca:** en vez de los anillos sobre la orilla, una sombra de pez da vueltas bajo el agua cerca del lugar y, cada 9 a 21 s, ese pez salta (con anillo y gotas al salir y al caer). La sombra se desvanece un poco de noche.
+- **Dónde:** el agua elegida para cada lugar es la más cercana que está bien adentro (agua en sus cuatro lados y dos tiles de agua hacia arriba), así la sombra no cruza la arena ni el pez parece colgado sobre la orilla. Si un lugar no tiene agua a menos de 3 tiles, conserva los anillos de antes.
+- **Saltos sueltos:** cada 4 a 11 s, en agua abierta dentro (o casi dentro) de la pantalla, también en las zonas vecinas. Como mucho dos a la vez.
+- **Modo batería o movimiento reducido:** las sombras quedan quietas y no hay saltos.
