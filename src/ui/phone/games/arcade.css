@@ -1,0 +1,19 @@
+/* NoriPhone games (arcade.ts) */
+.arc { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.arc-score { font-size: 12px; color: #5c3b28; }
+.arc-canvas { width: min(100%, 280px); height: auto; image-rendering: pixelated; border: 2px solid #2b1d17; border-radius: 4px; touch-action: none; background: #e9dcbf; }
+.arc-msg { min-height: 2.4em; margin: 0; font-size: 11px; text-align: center; color: #5c3b28; }
+.arc-pad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(2, 36px); gap: 4px; }
+.arc-pad .up { grid-column: 2; grid-row: 1; }
+.arc-pad .left { grid-column: 1; grid-row: 2; }
+.arc-pad .down { grid-column: 2; grid-row: 2; }
+.arc-pad .right { grid-column: 3; grid-row: 2; }
+.arc-row { display: flex; gap: 16px; }
+.arc-key { min-width: 40px; min-height: 36px; border: 2px solid #2b1d17; border-radius: 6px; background: #f6ead2; color: #2b1d17; font-size: 14px; touch-action: none; user-select: none; }
+.arc-key.wide { min-width: 72px; }
+.arc-key:active { background: #e2b06a; }
+.arc-memo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; width: min(100%, 260px); }
+.arc-card { aspect-ratio: 1; border: 2px solid #2b1d17; border-radius: 6px; background: repeating-linear-gradient(45deg, #8e3a46 0 4px, #a8485a 4px 8px); font-size: 22px; line-height: 1; transition: transform .15s; }
+.arc-card.up { background: #fffdf8; }
+.arc-card.done { background: #dff0d0; opacity: .85; }
+body.reduce-motion .arc-card { transition: none; }

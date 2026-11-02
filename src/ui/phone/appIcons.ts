@@ -421,8 +421,39 @@ function signals(g: Grid) {
   dot(g, 35, 4, INK, 2, 4);
 }
 
+function snakeGame(g: Grid) {
+  // a little green snake curling towards a maki
+  const body: [number, number][] = [[5, 24], [8, 24], [11, 24], [14, 24], [17, 24], [17, 21], [17, 18], [14, 18], [11, 18], [11, 15], [11, 12], [14, 12], [17, 12]];
+  for (const [x, y] of body) dot(g, x, y, GREEN, 3, 3);
+  for (const [x, y] of body) dot(g, x + 1, y + 1, GREEN_LT, 1, 1);
+  dot(g, 18, 11, GREEN_LT, 4, 5);
+  dot(g, 20, 12, INK, 1, 1);
+  dot(g, 22, 13, RED, 2, 1);
+  oval(g, 25, 6, 4.4, 4.4, NORI);
+  oval(g, 25, 6, 3, 3, RICE);
+  dot(g, 24, 5, '#ef8a6a', 2, 2);
+}
+
+function catchGame(g: Grid) {
+  // nigiri falling onto a plate, a chili beside it
+  dot(g, 10, 3, RICE, 10, 4); dot(g, 10, 1, '#f08a5a', 10, 3); dot(g, 12, 1, '#ffd0b0', 3, 1);
+  dot(g, 22, 10, RED, 3, 6); dot(g, 22, 9, GREEN, 3, 1);
+  dot(g, 7, 13, RICE, 10, 4); dot(g, 7, 11, '#f08a5a', 10, 3);
+  oval(g, 15, 25, 12, 3.4, PAPER);
+  dot(g, 5, 26, BLUE, 21, 1);
+}
+
+function memoGame(g: Grid) {
+  // two cards: one face down, one showing a maki
+  dot(g, 3, 6, '#8e3a46', 12, 18); dot(g, 5, 8, '#a8485a', 8, 14);
+  dot(g, 16, 8, PAPER, 13, 18);
+  oval(g, 22, 17, 4.4, 4.4, NORI);
+  oval(g, 22, 17, 3, 3, RICE);
+  dot(g, 21, 16, '#ef8a6a', 2, 2);
+}
+
 const DRAW: Record<string, (g: Grid) => void> = {
-  camera, photos, map, quests, friends, collections, recipes, restaurant, supplies, staff, clients, calendar, memories, investigation, bag, customize, settings, more,
+  camera, snake: snakeGame, catch: catchGame, memo: memoGame, photos, map, quests, friends, collections, recipes, restaurant, supplies, staff, clients, calendar, memories, investigation, bag, customize, settings, more,
 };
 
 let cache: Record<string, Grid> | null = null;

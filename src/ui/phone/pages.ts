@@ -22,6 +22,9 @@ export const HOME_ORDER = [
   'calendar',
   'memories',
   'investigation',
+  'snake',
+  'catch',
+  'memo',
   'customize',
   'settings',
   'more',
@@ -56,6 +59,7 @@ export function phonePages<T>(apps: readonly T[], perPage = APPS_PER_PAGE): T[][
 export const PHONE_GROUPS: { title: string; ids: readonly string[] }[] = [
   { title: 'Jugar', ids: ['quests', 'map', 'bag', 'recipes', 'restaurant', 'supplies', 'staff', 'agenda', 'camera'] },
   { title: 'Gente', ids: ['friends', 'clients', 'photos', 'collections', 'calendar', 'memories', 'investigation'] },
+  { title: 'Juegos', ids: ['snake', 'catch', 'memo'] },
   { title: 'Sistema', ids: ['customize', 'settings', 'more'] },
 ];
 

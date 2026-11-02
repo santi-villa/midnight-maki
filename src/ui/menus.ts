@@ -191,6 +191,9 @@ function phoneApps(): PhoneApp[] {
     { id: 'memories', name: 'Recuerdos', icon: 'scroll', hint: 'Álbum del pueblo restaurado', run: openTownMemories },
     { id: 'investigation', name: 'Pistas', icon: 'inspect', hint: 'El cuaderno de investigación', run: () => openJournal(1) },
     { id: 'bag', name: 'Mochila', icon: 'bag', hint: 'Ingredientes y objetos', run: () => openBag() },
+    { id: 'snake', name: 'Víbora', icon: 'maki', hint: 'Comé maki sin chocarte', run: () => import('./phone/games/arcade').then(m => m.openSnake()) },
+    { id: 'catch', name: 'Lluvia', icon: 'maki', hint: 'Atajá el sushi que cae', run: () => import('./phone/games/arcade').then(m => m.openCatch()) },
+    { id: 'memo', name: 'Memoria', icon: 'gift', hint: 'Encontrá los pares', run: () => import('./phone/games/arcade').then(m => m.openMemory()) },
     { id: 'settings', name: 'Ajustes', icon: 'wood_gear', hint: 'Sonido, texto y controles', run: () => openSettings(true) },
     { id: 'more', name: 'Más', icon: 'menu', hint: 'Jugar, gente y sistema', run: () => openMenu(false) },
   ];
