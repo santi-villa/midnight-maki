@@ -17,8 +17,22 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # read access to the private repo with the licensed packs (docs/packs-privados.md); without it the game builds with its own art
+      PACKS_TOKEN: ${{ secrets.PACKS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      # the cuts of the licensed packs live in a private repo: they go into the built game, never into this public one
+      - name: Packs con licencia (repo privado)
+        if: ${{ env.PACKS_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.PACKS_REPO || 'santi-villa/midnight-maki-packs' }}
+          token: ${{ env.PACKS_TOKEN }}
+          path: src/assets/packs
+      - name: Aviso si no hay packs
+        if: ${{ env.PACKS_TOKEN == '' }}
+        run: echo "::warning::Sin PACKS_TOKEN: la web se publica con el arte propio del juego, sin los packs con licencia."
       - uses: actions/setup-node@v4
         with:
           node-version: 20
