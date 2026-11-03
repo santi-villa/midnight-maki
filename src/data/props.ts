@@ -75,6 +75,8 @@ export const PROPS: Record<string, PropDef> = {
   // frames of the fountain's running water (Modern Exteriors), cycled by the scene; never placed on their own
   ...Object.fromEntries([0, 1, 2, 3, 4, 5].map((f) => [`fountain_frame_${f}`, P('fountain', 3, 2, 48, 56)])),
   // a crackling campfire (Modern Exteriors), its warm flickering light and its six frames
+  chalk_menu: P('sign', 1, 1, 16, 24, '#3a3a40', '', { sombra: 'contacto' }),
+  signpost: P('sign', 1, 1, 16, 20, '#a8714a', '', { sombra: 'contacto' }),
   pier_lantern: P('stonelantern', 1, 1, 16, 16, '#c98a4a', '', { sombra: 'contacto', light: '#ffc070' }),
   campfire: P('stonelantern', 1, 1, 16, 32, '#f08a3c', '', { light: '#ffb050', sombra: 'contacto' }),
   ...Object.fromEntries([0, 1, 2, 3, 4, 5].map((f) => [`campfire_frame_${f}`, P('stonelantern', 1, 1, 16, 32)])),
@@ -287,6 +289,7 @@ export const PROPS: Record<string, PropDef> = {
   sign_riverside: P('signpost', 2, 1, 52, 30, '', '', { solid: false, label: 'RIBERA →' }),
   // walkable shop interiors
   shop_counter: P('shopcounter', 1, 1, 16, 24, '#a8714a', '#e2b585'),
+  shop_counter_wood: P('shopcounter', 2, 1, 32, 25, '#a8714a', '#e2b585'),
   shop_counter_reg: P('shopcounter', 1, 1, 16, 28, '#a8714a', '#e2b585', { variant: 1 }),
   shop_counter_rose: P('shopcounter', 1, 1, 16, 24, '#c27f86', '#f6e2d6'),
   clothes_rack: P('clothesrack', 2, 1, 32, 28, '#d9a3a6', '#3b4470'),

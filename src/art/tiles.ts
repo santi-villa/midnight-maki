@@ -210,8 +210,9 @@ add('dirt', false, pathTile(0));
 for (let m = 0; m < 16; m++) add('jpath' + m, false, (c, x, y, r) => { if (!drawJpPath(c, x, y, m)) pathTile(0)(c, x, y, r); });
 add('dirt1', false, pathTile(1));
 add('dirt2', false, pathTile(2));
-for (let i = 0; i < 3; i++) add('cobble' + (i || ''), false, paverTile(i));
-for (let i = 0; i < 3; i++) add('civic' + (i || ''), false, paverTile(i, GREY_STONE));
+// paving: one quarter of the Modern Exteriors 2x2 block per tile (chosen by position in zoneRuntime), the drawn pavers otherwise
+for (let i = 0; i < 4; i++) add('cobble' + (i || ''), false, (c, x, y, r) => { if (!drawExteriorTile(c, x, y, 'cobble_' + i)) paverTile(i % 3)(c, x, y, r); });
+for (let i = 0; i < 4; i++) add('civic' + (i || ''), false, (c, x, y, r) => { if (!drawExteriorTile(c, x, y, 'civic_' + i)) paverTile(i % 3, GREY_STONE)(c, x, y, r); });
 // sand: the Modern Exteriors pattern when its atlas is installed, the drawn one otherwise
 const sand = (i: number): TileDraw => (c, x, y, r) => { if (!drawExteriorTile(c, x, y, 'sand')) sandTile(i)(c, x, y, r); };
 add('sand', false, sand(0));

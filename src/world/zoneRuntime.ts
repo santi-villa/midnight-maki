@@ -142,7 +142,13 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
       const along = (i: number, j: number) => { const ch = def.ground[y + j]?.[x + i]; return ch === undefined || 'pcbshCS'.includes(ch); };
       return TILE_INDEX['jpath' + ((along(0, -1) ? 1 : 0) | (along(1, 0) ? 2 : 0) | (along(0, 1) ? 4 : 0) | (along(-1, 0) ? 8 : 0))];
     }
-    case 'c': return varied(def.id === 'plaza' && x >= 15 && x < 33 && y >= 8 && y < 21 ? 'civic' : 'cobble', x, y, 3);
+    case 'c': {
+      const kind = def.id === 'plaza' && x >= 15 && x < 33 && y >= 8 && y < 21 ? 'civic' : 'cobble';
+      // the pack's paving is a seamless 2x2 block: the quarter follows the world position, so neighbouring districts line up
+      const wx = x + (def.world?.x ?? 0), wy = y + (def.world?.y ?? 0);
+      const q = (wx & 1) + (wy & 1) * 2;
+      return TILE_INDEX[kind + (q || '')];
+    }
     case 's': return varied('sand', x, y, 3);
     case 'h': return TILE_INDEX.shore;
     case 'w': return TILE_INDEX[`wtc${waterDepthAt(def.ground, x, y)}${waterVariant(x, y)}_0`];

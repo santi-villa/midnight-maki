@@ -24,6 +24,7 @@ if not (SRC / 'ME_Theme_Sorter_16x16').is_dir():
     sys.exit('LIMEZU_EXT_SRC must point at the Modern_Exteriors_16x16 folder of the pack')
 
 SHEETS = {
+    'terrains': 'ME_Theme_Sorter_16x16/1_Terrains_and_Fences_16x16.png',
     'beach': 'ME_Theme_Sorter_16x16/21_Beach_16x16.png',
     'sea': 'Animated_16x16/Animated_Terrains_16x16/Sea_Water_Tileset_Basic_16x16.png',
     'seacorner': 'Animated_16x16/Animated_Terrains_16x16/Sea_Water_Tileset_Outer_Corners_16x16.png',
@@ -77,6 +78,13 @@ def sand_tone(image):
 
 def tile(name, sh, tx, ty):
     tiles.append((name, sh, (tx * 16, ty * 16, 16, 16)))
+
+
+# Village paving: the pack's round cobblestones for the streets, and the diagonal mossy flagstones for the plaza square.
+# Each is a seamless 2x2 block, so the game picks the quarter by the tile's position (odd/even column and row).
+for q, (dx, dy) in enumerate([(0, 0), (1, 0), (0, 1), (1, 1)]):
+    tile(f'cobble_{q}', 'terrains', 25 + dx, 9 + dy)
+    tile(f'civic_{q}', 'terrains', 27 + dx, 9 + dy)
 
 
 # Dry sand: the plain wave pattern, seamless with itself.
@@ -184,6 +192,9 @@ add_single('mushroom', 'Hongos rojos', ['mushroom'], '11_Camping', 'Camping_16x1
 add_single('stump', 'Tocón', ['stump'], '11_Camping', 'Camping_16x16_Stump_1')
 # a lit hand lantern on the piers instead of the drawn paper lanterns
 add_single('pier_lantern', 'Farol del muelle', ['pier_lantern'], '11_Camping', 'Camping_16x16_Lantern_4')
+# the restaurant's chalkboard menu by its gate, and wooden signposts where paths meet
+add_single('chalk_menu', 'Pizarra del menú', ['chalk_menu'], '10_Vehicles', 'Vehicles_16x16_Street_Food_Sign_2')
+add_single('signpost', 'Cartel de madera', ['signpost', 'sign'], '11_Camping', 'Camping_16x16_Sign_5')
 add_single('street_bin', 'Tacho de basura', ['street_bin'], '3_City_Props', 'City_Props_16x16_Small_Closed_Trash_Can')
 
 # Layout: tiles in a 16-wide grid at the top, pieces on shelves underneath.

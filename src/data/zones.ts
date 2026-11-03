@@ -136,7 +136,7 @@ const shopYuki = () => shopRoom('shop_yuki', 'Ropa de Yuki', 'rose', 'rose', [26
   b.prop('wallshelf', 2, 1).prop('wallshelf', 5, 1).prop('wallshelf', 11, 1).prop('wallshelf', 14, 1)
     .prop('clothes_rack', 1, 3).prop('clothes_rack_b', 1, 5).prop('clothes_rack_b', 15, 3).prop('clothes_rack', 15, 5)
     .prop('deco_mannequin', 4, 3).prop('deco_mannequin', 13, 3).prop('deco_clothesrack', 4, 5).prop('deco_clothesrack', 12, 5)
-    .prop('shop_counter_rose', 8, 4).prop('shop_counter_rose', 9, 4).prop('shop_counter_rose', 10, 4)
+    .prop('shop_counter_wood', 8, 4).prop('shop_counter_rose', 10, 4)
     .prop('pot_rose', 1, 2).prop('pot_cream', 16, 2).prop('shop_rug', 8, 6).prop('lantern_cream', 7, 2).prop('lantern_cream', 11, 2);
 }, 'shop:yuki', 'Ropa de Yuki');
 const shopTaro = () => shopRoom('shop_taro', 'Almacén de Taro', 'wood', 'wood', [27, 19], (b) => {
@@ -144,7 +144,7 @@ const shopTaro = () => shopRoom('shop_taro', 'Almacén de Taro', 'wood', 'wood',
   b.prop('wallshelf', 2, 1).prop('wallshelf', 5, 1).prop('wallshelf', 11, 1).prop('wallshelf', 14, 1)
     .prop('deco_vegcrates', 1, 3).prop('deco_sacks', 1, 5).prop('crate', 4, 3).prop('sack', 4, 5)
     .prop('barrel', 16, 3).prop('barrel', 16, 4).prop('jc_shop_display', 13, 3).prop('deco_vegcrates', 13, 5).prop('crate', 16, 6)
-    .prop('shop_counter', 8, 4).prop('shop_counter_reg', 9, 4).prop('shop_counter', 10, 4)
+    .prop('shop_counter_wood', 8, 4).prop('shop_counter_reg', 10, 4)
     .prop('shop_rug', 8, 6).prop('lantern_red', 7, 2).prop('lantern_red', 11, 2);
 }, 'shop:taro', 'Almacén de Taro');
 const shopBento = () => shopRoom('shop_bento', 'Panadería de Bento', 'cream', 'checker', [5, 19], (b) => {
@@ -152,7 +152,7 @@ const shopBento = () => shopRoom('shop_bento', 'Panadería de Bento', 'cream', '
   b.prop('wallshelf', 2, 1).prop('wallshelf', 5, 1).prop('wallshelf', 11, 1).prop('wallshelf', 14, 1)
     .prop('bread_case', 1, 3).prop('bread_case', 15, 3).prop('bread_case', 4, 3).prop('deco_breadcart', 13, 5)
     .prop('flour_sack', 1, 5).prop('flour_sack', 1, 6).prop('flour_sack', 2, 6).prop('bench', 4, 6)
-    .prop('shop_counter', 8, 4).prop('shop_counter_reg', 9, 4).prop('shop_counter', 10, 4)
+    .prop('shop_counter_wood', 8, 4).prop('shop_counter_reg', 10, 4)
     .prop('pot_cream', 16, 6).prop('shop_rug', 8, 6).prop('lantern_cream', 7, 2).prop('lantern_cream', 11, 2);
 }, 'shop:bento', 'Panadería de Bento');
 

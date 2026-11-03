@@ -155,6 +155,11 @@ export function createVillageTerrain() {
   // Restaurant terrace is an outdoor room attached to its frontage, inside its garden.
   rect(58, 51, 5, 4, 'b'); rails.push({ x: 58, y: 55, span: 5, axis: 'h' });
   prop('project_teatable', 59, 52); prop('project_teagames', 59, 54);
+  if (exteriorsWanted()) {
+    // the way in: lamps at the gate, a bench on each side of the walk facing it, planters and the chalkboard menu
+    prop('street_lamp_l', 51, 55); prop('street_lamp_r', 55, 55); prop('chalk_menu', 53, 55);
+    prop('bench_side_r', 50, 54); prop('bench_side_l', 54, 54); prop('planter_pink', 51, 53); prop('planter_red', 53, 53);
+  }
   prop('jc_shop_display', 69, 38); prop('vending_blue', 72, 40);
 
   // Four residential plots, arranged around streets and gates instead of directly on the civic paving.
@@ -193,6 +198,7 @@ export function createVillageTerrain() {
     // Modern Exteriors: the waiting bench where the 'sit' spot already was, luggage and a trolley on the back row of the
     // platform (the front row stays a clear walk), and two potted trees flanking the building.
     prop('station_bench', 90, 13); prop('station_suitcase', 78, 13); prop('station_baggage', 79, 13);
+    prop('signpost', 87, 16); // where the path from the cliff reaches the old platform
     prop('station_trolley', 100, 13); prop('station_plant', 81, 11); prop('station_plant', 90, 11);
   }
   house('bld_cabin', 7, 20, [5, 17, 10, 8], [13, 24], [18, 24], false);
@@ -254,6 +260,10 @@ export function createVillageTerrain() {
     prop('wharf_bench', 86, 68);
     // the fishermen's quay: fish drying in front of the fish houses, crates of the day's catch beside them
     prop('wharf_fish_rack', 80, 66); prop('wharf_fish_crate_b', 84, 66); prop('wharf_fish_crate_r', 45, 67);
+    // the coast is rocky here too: rocks round the lighthouse islet and out between the piers, clear of boats and fishing spots
+    prop('sea_rock_big', 98, 77); prop('sea_rock', 93, 72); prop('sea_rock_small', 103, 69); prop('sea_rock_small', 91, 74);
+    prop('sea_rock_arch', 63, 77); prop('sea_rock_small', 78, 76); prop('sea_rock_tall', 48, 75); prop('sea_rock_small', 45, 71);
+    prop('buoy_red', 91, 76); prop('buoy_orange', 66, 72);
   }
   // lanterns stand at the rail on both sides of each pier's mouth and by the lighthouse door, never mid-deck
   for (const [x, y] of [[54, 68], [58, 68], [68, 68], [72, 68], [82, 68], [97, 75]]) prop('pier_lantern', x, y);

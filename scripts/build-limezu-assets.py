@@ -65,6 +65,8 @@ add('zabuton_sky', 'Zabuton celeste', ['cushion_indigo'], [(JP1, (129, 154, 13, 
 add('zabuton_moss', 'Zabuton verde', ['bond_nap_cushion'], [(JP1, (161, 154, 13, 12))])
 add('bonsai', 'Bonsái en maceta', ['bonsai'], [(JP1, (112, 136, 16, 30))])
 # the paper globe of the Japanese theme replaces every drawn paper lantern (red or cream, on a wall or a stand)
+# the shops' sales counter: a low wooden cabinet (two tiles, 25 px tall) that leaves the keeper behind it in view
+add('shop_counter_wood', 'Mostrador de madera', ['shop_counter_wood'], [('Clothing_Store_02', (32, 221, 32, 25))])
 add('paper_lamp', 'Lámpara de papel', ['lantern_cream', 'lantern_red', 'wall_lantern_cream', 'wall_lantern_red'], [(JP1, (103, 71, 19, 21))])
 add('tea_tray', 'Bandeja de té', ['tea_set'], [(JP1, (57, 53, 13, 9))])
 
