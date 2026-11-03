@@ -7,7 +7,7 @@ import json
 import hashlib
 
 root = Path(__file__).resolve().parents[1]
-archive = root / 'ASSETS DESCARGADOS/vectoraith_tileset_buildings_japanese_traditional_DEMO.zip'
+archive = root / 'ASSETS DESCARGADOS/VIEJO/vectoraith_tileset_buildings_japanese_traditional_DEMO.zip'
 name = 'vectoraith_tileset_16x16_terrains_temperate_autotile_rpgmaker.png'
 with ZipFile(archive) as z:
     original = z.read(name)

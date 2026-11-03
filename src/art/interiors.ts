@@ -3,8 +3,10 @@ import catalog from '../assets/interiors/catalog.json';
 import atlasURL from '../assets/interiors/atlas.png';
 import { ctx2d, makeCanvas } from './pixel';
 import { INTERIOR_REPLACEMENTS } from './interiorReplacements';
-import limezu from '../assets/limezu/catalog.json';
-import limezuURL from '../assets/limezu/atlas.png';
+import { packJson, packUrl, type PackPiece } from './packs';
+
+const limezu = packJson('limezu/catalog.json', { pieces: [] as PackPiece[] });
+const limezuURL = packUrl('limezu/atlas.png');
 
 export const INTERIOR_ATLAS_KEY = 'interior-source';
 export const INTERIOR_ATLAS_URL = atlasURL;
@@ -18,20 +20,21 @@ export function installInteriorAtlas(source: CanvasImageSource) { atlas = source
  * behaviour stay the same; only the drawing changes. `?interiors=classic` keeps the previous art for comparison.
  */
 export const LIMEZU_ATLAS_KEY = 'limezu-source';
-export const LIMEZU_ATLAS_URL = limezuURL;
+export const LIMEZU_ATLAS_URL = limezuURL ?? '';
 let lzAtlas: CanvasImageSource | null = null;
-const lzFor = new Map<string, (typeof limezu.pieces)[number]>();
+const lzFor = new Map<string, PackPiece>();
 for (const piece of limezu.pieces) for (const id of piece.replaces) lzFor.set(id, piece);
-export const limezuWanted = () => typeof location === 'undefined' || new URLSearchParams(location.search).get('interiors') !== 'classic';
+export const limezuWanted = () => !!limezuURL && (typeof location === 'undefined' || new URLSearchParams(location.search).get('interiors') !== 'classic');
 export function installLimezuAtlas(source: CanvasImageSource) { lzAtlas = source; }
 
 /** Native pixels, never scaled: bottom-centred in the footprint; a taller or wider piece grows the canvas around it. */
 function limezuObject(id: string, width: number, height: number, rot: number): HTMLCanvasElement | null {
   const piece = lzFor.get(id);
-  if (!lzAtlas || !piece) return null;
+  if (!lzAtlas || !piece?.frames?.length) return null;
+  const frames = piece.frames;
   // a piece drawn in one direction only cannot stand turned sideways: keep the previous art there
-  if (piece.frames.length < 4 && rot % 2 === 1) return null;
-  const frame = piece.frames[((rot % piece.frames.length) + piece.frames.length) % piece.frames.length].atlas;
+  if (frames.length < 4 && rot % 2 === 1) return null;
+  const frame = frames[((rot % frames.length) + frames.length) % frames.length].atlas;
   const w = Math.max(width, frame.w);
   const h = Math.max(height, frame.h);
   const canvas = makeCanvas(w, h);

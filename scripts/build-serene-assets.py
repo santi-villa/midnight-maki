@@ -13,7 +13,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = Path(os.environ.get('SERENE_SRC', ROOT / 'ASSETS DESCARGADOS/NUEVO/Serene Village/SERENE_VILLAGE_REVAMPED'))
-DEST = ROOT / 'src/assets/serene'
+DEST = ROOT / 'src/assets/packs/serene'
 source = SRC / 'Serene_Village_16x16.png'
 sheet = Image.open(source).convert('RGBA')
 

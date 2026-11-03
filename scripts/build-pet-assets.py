@@ -5,7 +5,7 @@ from PIL import Image
 import json
 
 root = Path(__file__).resolve().parents[1]
-lib = root / 'ASSETS DESCARGADOS/ORGANIZADO/biblioteca/05_animales'
+lib = root / 'ASSETS DESCARGADOS/VIEJO/ORGANIZADO/biblioteca/05_animales'
 cats = lib / '03/AllCatsDemo'
 dogs = lib / '02/FreeAnimalPack'
 dest = root / 'src/assets/pets'

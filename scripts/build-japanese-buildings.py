@@ -16,7 +16,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'src/assets/jp-buildings'
+DEST = ROOT / 'src/assets/packs/jp-buildings'
 SRC = Path(os.environ.get('JP_BUILDINGS_SRC', ''))
 SHEET = SRC / 'vectoraith_tileset_buildings_japanese_traditional_ATLAS.png'
 if not SHEET.is_file():

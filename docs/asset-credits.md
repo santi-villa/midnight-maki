@@ -13,7 +13,7 @@ y cercas. Se recorta la lámina nativa de 16 px y se adapta la paleta de verdes 
 tierra, sin escalar los objetos. Se mantienen pinos, cerezos y árbol otoñal propios.
 
 El atlas seleccionado, catálogo de procedencia y atribución están en
-`src/assets/serene/`. Extracción reproducible: `scripts/build-serene-assets.py`.
+`src/assets/packs/serene/`. Extracción reproducible: `scripts/build-serene-assets.py`.
 Los créditos del juego enlazan autor, fuente y licencia y describen las modificaciones.
 Véase [integración de Serene Village](serene-village.md) para zonas, alcance,
 capturas y validación.
@@ -29,7 +29,7 @@ y ofrece una variante de pared de piedra. Atlas y atribución verificable:
 Detalles comerciales de [The Japan Collection: Japanese City (Free Version)](https://guttykreum.itch.io/free-japanese-city-game-assets):
 expendedoras roja/blanca, dos postes eléctricos, dos letreros, un expositor y dos
 puestos compuestos con toldos de la descarga gratuita. Atlas de 256×128 en
-`src/assets/japanese-city/atlas.png`; procedencia y hash en `catalog.json`.
+`src/assets/packs/japanese-city/atlas.png`; procedencia y hash en `catalog.json`.
 `scripts/build-japanese-city-assets.py` reproduce la selección a partir de
 `Free_Version/Tilemap/Tilemap.png`, sin usar previsualizaciones del pack pago.
 
@@ -58,7 +58,7 @@ La demo aporta además una conífera pequeña, buzón rojo, cartel cubierto y ca
 
 Ahora está el pack completo en `ASSETS DESCARGADOS/NUEVO/Traditional Japanese Buildings Tileset/` (ignorado por git; su
 licencia no permite redistribuir el recurso suelto). `scripts/build-japanese-buildings.py` recorta fachadas enteras de
-la hoja `ATLAS` de 16 px, a tamaño nativo, a `src/assets/jp-buildings/atlas.png` (512×257) con su `catalog.json`:
+la hoja `ATLAS` de 16 px, a tamaño nativo, a `src/assets/packs/jp-buildings/atlas.png` (512×257) con su `catalog.json`:
 
 ```
 JP_BUILDINGS_SRC=/ruta/a/Original/16x16 python3 scripts/build-japanese-buildings.py
@@ -114,7 +114,7 @@ Los créditos del menú del juego mencionan a VectoRaith, Bitglow, LimeZu (Moder
 
 Pack comprado (versión completa) de LimeZu: <https://limezu.itch.io/moderninteriors>. Su licencia permite usarlo y editarlo en proyectos comerciales, **prohíbe redistribuirlo** y pide crédito, que figura en la pantalla de créditos del juego.
 
-Por eso el pack **no está en el repositorio** (`ASSETS DESCARGADOS/NUEVO/` está en `.gitignore`); el original vive en el Drive de Santi. En el repo solo queda el atlas chico con los recortes que usa el juego (`src/assets/limezu/atlas.png`, 256×100) y su catálogo (`catalog.json`, con hoja y rectángulo de origen de cada pieza).
+Por eso el pack **no está en el repositorio** (`ASSETS DESCARGADOS/NUEVO/` está en `.gitignore`); el original vive en el Drive de Santi. Fuera del repo, en `src/assets/packs/` (ignorada por git), queda el atlas chico con los recortes que usa el juego (`src/assets/packs/limezu/atlas.png`, 256×100) y su catálogo (`catalog.json`, con hoja y rectángulo de origen de cada pieza).
 
 `scripts/build-limezu-assets.py` arma ese atlas a partir de las hojas por tema. Acepta las hojas nativas de 16×16 o las de RPG Maker MV de 48×48: estas últimas son ampliaciones exactas ×3 del original y se reducen con vecino más cercano, sin inventar ni suavizar píxeles. Uso:
 
@@ -130,7 +130,7 @@ Primera prueba (32 piezas): sillas de izakaya en cuatro direcciones, mesas, chab
 
 Pack comprado de LimeZu: <https://limezu.itch.io/modernexteriors>. Mismas condiciones que Modern Interiors: se puede usar y editar, **no se puede redistribuir** y pide crédito (figura en los créditos del juego). El pack vive fuera del repo, en `ASSETS DESCARGADOS/NUEVO/` (ignorado por git).
 
-En el repo solo queda el atlas chico de recortes (`src/assets/limezu/exteriors.png`) y su catálogo (`exteriors.json`, con hoja y rectángulo de origen). Lo arma `scripts/build-limezu-exteriors.py` a partir de la carpeta `Modern_Exteriors_16x16` del pack:
+Fuera del repo, en `src/assets/packs/` (ignorada por git), queda el atlas chico de recortes (`src/assets/packs/limezu/exteriors.png`) y su catálogo (`exteriors.json`, con hoja y rectángulo de origen). Lo arma `scripts/build-limezu-exteriors.py` a partir de la carpeta `Modern_Exteriors_16x16` del pack:
 
 ```
 LIMEZU_EXT_SRC=/ruta/a/Modern_Exteriors_16x16 python3 scripts/build-limezu-exteriors.py
@@ -199,7 +199,7 @@ Con `?exteriors=classic` vuelven el islote y el faro anteriores.
 ## Interfaz: emotes de Modern Interiors y Sprout Lands UI
 
 - **Burbujas de los personajes** (LimeZu, *Modern Interiors*, `4_User_Interface_Elements`):
-  `scripts/build-ui-assets.py` junta en `src/assets/ui/emotes.png` los emotes animados
+  `scripts/build-ui-assets.py` junta en `src/assets/packs/ui/emotes.png` los emotes animados
   (pensando, enojo, lágrima, carta, flecha) y burbujas quietas de `UI_16x16.png` (corazón,
   exclamación, alarma, zzz, nota, brillo). `Actor.emote` muestra la burbuja del pack para
   `!`, `!!`, `...`, `z`, `*`, `♪`, `ñam`, `té`; cualquier otra frase sigue como globo de texto.
@@ -210,3 +210,10 @@ Con `?exteriors=classic` vuelven el islote y el faro anteriores.
   paneles y pantallas de carga, el botón ancho (y su versión apretada) para botones, pestañas y
   opciones, la caja de diálogo para el diálogo y los consejos, el marco de madera para el retrato,
   las baldosas para casilleros y la X del pack para cerrar.
+
+## Dónde viven los packs (3/11/2026)
+
+El repositorio es público, así que **ningún pack ni recorte de pack está en git**: `ASSETS DESCARGADOS/` y
+`src/assets/packs/` están en `.gitignore`, y se borraron de todo el historial. Los scripts `scripts/build-*.py` arman
+los atlas desde los packs locales y los escriben en `src/assets/packs/`. El juego los carga solo si existen
+(`src/art/packs.ts`); sin ellos (un clon nuevo, el build de GitHub) usa su propio arte dibujado y la interfaz de madera.

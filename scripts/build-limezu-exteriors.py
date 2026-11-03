@@ -18,7 +18,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'src/assets/limezu'
+DEST = ROOT / 'src/assets/packs/limezu'
 SRC = Path(os.environ.get('LIMEZU_EXT_SRC', ''))
 if not (SRC / 'ME_Theme_Sorter_16x16').is_dir():
     sys.exit('LIMEZU_EXT_SRC must point at the Modern_Exteriors_16x16 folder of the pack')

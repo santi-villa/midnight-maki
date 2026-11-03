@@ -1,12 +1,12 @@
 """Pick the Cozy Farm Lite pieces the game uses (crop stages, farm props) into one small atlas.
-Source: ASSETS DESCARGADOS/ORGANIZADO/biblioteca/03_mundo_y_huerta/07/cozy-farm-lite (commercial use allowed, see its LICENSE.txt).
+Source: ASSETS DESCARGADOS/VIEJO/ORGANIZADO/biblioteca/03_mundo_y_huerta/07/cozy-farm-lite (commercial use allowed, see its LICENSE.txt).
 Run: python3 scripts/build-farm-assets.py   (needs Pillow)"""
 from pathlib import Path
 from PIL import Image
 import hashlib, json, shutil
 
 root = Path(__file__).resolve().parents[1]
-src = root / 'ASSETS DESCARGADOS/ORGANIZADO/biblioteca/03_mundo_y_huerta/07/cozy-farm-lite'
+src = root / 'ASSETS DESCARGADOS/VIEJO/ORGANIZADO/biblioteca/03_mundo_y_huerta/07/cozy-farm-lite'
 dest = root / 'src/assets/farm'
 dest.mkdir(parents=True, exist_ok=True)
 

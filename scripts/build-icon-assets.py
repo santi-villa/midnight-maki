@@ -5,7 +5,7 @@ from PIL import Image
 import json, re
 
 root = Path(__file__).resolve().parents[1]
-lib = root / 'ASSETS DESCARGADOS/ORGANIZADO/biblioteca'
+lib = root / 'ASSETS DESCARGADOS/VIEJO/ORGANIZADO/biblioteca'
 dest = root / 'src/assets/icons16'
 dest.mkdir(parents=True, exist_ok=True)
 

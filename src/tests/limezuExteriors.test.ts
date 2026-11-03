@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import catalog from '../assets/limezu/exteriors.json';
+import { packJson, packUrl, type PackPiece } from '../art/packs';
 import { PROPS } from '../data/props';
 import { SEA_EDGES, TILE_INDEX } from '../art/tiles';
 import { seaDepthAt, seaEdge } from '../world/zoneRuntime';
 import { SEA_FRAMES, warmSandPieces } from '../art/exteriors';
 import { ZONES } from '../data/zones';
 
-describe('LimeZu exterior pieces', () => {
+// the pack's atlas is local only (src/art/packs.ts): without it there is nothing to check
+const catalog = packJson('limezu/exteriors.json', { pieces: [] as PackPiece[], tiles: {} as Record<string, unknown> });
+
+describe.skipIf(!packUrl('limezu/exteriors.png'))('LimeZu exterior pieces', () => {
   it('only draw props that exist, each ID once', () => {
     const seen = new Set<string>();
     for (const piece of catalog.pieces) for (const id of piece.replaces) {
@@ -47,8 +50,8 @@ describe('LimeZu exterior pieces', () => {
   });
 
   it('dress the plaza square: no earlier pack draws its props first, and the planters stand where the flat beds were', async () => {
-    const serene = (await import('../assets/serene/catalog.json')).default.pieces.flatMap((p) => p.replaces);
-    const japanese = (await import('../assets/japanese-city/catalog.json')).default.pieces.flatMap((p) => p.replaces);
+    const serene = packJson('serene/catalog.json', { pieces: [] as PackPiece[] }).pieces.flatMap((p) => p.replaces);
+    const japanese = packJson('japanese-city/catalog.json', { pieces: [] as PackPiece[] }).pieces.flatMap((p) => p.replaces);
     for (const id of ['fountain', 'bench', 'street_lamp_l', 'mailbox', 'pot_rose', 'pot_cream']) {
       expect(catalog.pieces.some((p) => p.replaces.includes(id)), id).toBe(true);
       expect([...serene, ...japanese], id).not.toContain(id);

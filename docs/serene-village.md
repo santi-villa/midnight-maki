@@ -54,10 +54,10 @@ python scripts/build-serene-assets.py
 El script encuentra la carpeta local por defecto. También acepta `SERENE_SRC`
 apuntando a `SERENE_VILLAGE_REVAMPED`.
 
-- `src/assets/serene/atlas.png`: únicamente las piezas seleccionadas.
-- `src/assets/serene/catalog.json`: rectángulos de origen, recortes transparentes,
+- `src/assets/packs/serene/atlas.png`: únicamente las piezas seleccionadas.
+- `src/assets/packs/serene/catalog.json`: rectángulos de origen, recortes transparentes,
   hash SHA-256 de la lámina fuente, adaptación de paleta e IDs sustituidos.
-- `src/assets/serene/CREDITS.txt`: atribución, fuente, licencia y modificaciones.
+- `src/assets/packs/serene/CREDITS.txt`: atribución, fuente, licencia y modificaciones.
 - `src/art/serene.ts`: carga y dibujo de los recortes.
 
 BootScene instala el atlas antes de generar terreno y texturas de objetos.

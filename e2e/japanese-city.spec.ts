@@ -8,7 +8,7 @@ test('Japanese City free art loads before props and keeps native pixels visible 
   page.on('pageerror', e => errors.push(e.message));
   await bootExploration(page);
   const pieces = await page.evaluate(async () => {
-    const catalog = await (await fetch('/src/assets/japanese-city/catalog.json')).json();
+    const catalog = await (await fetch('/src/assets/packs/japanese-city/catalog.json')).json();
     const { japaneseCityObject } = await import('/src/art/japaneseCity.ts');
     const { PROPS } = await import('/src/data/props.ts');
     const { propCanvas } = await import('/src/scenes/textures.ts');
@@ -39,7 +39,7 @@ test('Japanese City free art loads before props and keeps native pixels visible 
 for (const mode of ['classic', 'missing']) {
   test(`Japanese City ${mode} keeps drawable fallback props and a usable title`, async ({ page }) => {
     // Vite first imports a URL module; Phaser then fetches the PNG through XHR.
-    if (mode === 'missing') await page.route('**/src/assets/japanese-city/atlas.png*', route => route.request().resourceType() === 'script' ? route.continue() : route.abort());
+    if (mode === 'missing') await page.route('**/src/assets/packs/japanese-city/atlas.png*', route => route.request().resourceType() === 'script' ? route.continue() : route.abort());
     await page.goto('/?debug&st' + (mode === 'classic' ? '&japaneseCity=classic' : ''));
     await page.locator('.tt.ready').waitFor();
     const fallback = await page.evaluate(async () => {

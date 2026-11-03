@@ -14,7 +14,7 @@ from pathlib import Path
 from PIL import Image, ImageSequence
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'src/assets/ui'
+DEST = ROOT / 'src/assets/packs/ui'
 SRC = Path(os.environ.get('UI_SRC', ''))
 EMOTES = {
     'thinking': 'UI_thinking_emote_dots_16x16.gif',

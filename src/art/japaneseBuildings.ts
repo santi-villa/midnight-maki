@@ -4,16 +4,19 @@
  * shop shutter, the lanterns and the night glow follow the new art. Saved prop IDs stay the same; the footprint grows to
  * whole tiles around the facade. `?buildings=classic` keeps the previous art.
  */
-import catalog from '../assets/jp-buildings/catalog.json';
-import atlasURL from '../assets/jp-buildings/atlas.png';
+import { packJson, packUrl, type PackPiece } from './packs';
+
+interface FacadeDef extends PackPiece { rect: number[]; door: number[]; windows: number[][]; sign: number }
+const catalog = packJson('jp-buildings/catalog.json', { facades: [] as FacadeDef[], pieces: [] as PackPiece[] });
+const atlasURL = packUrl('jp-buildings/atlas.png');
 import { ctx2d, makeCanvas, type Ctx } from './pixel';
 import { drawPlaque } from './pixfont';
 
 export const JP_BUILDINGS_ATLAS_KEY = 'jp-buildings';
-export const JP_BUILDINGS_ATLAS_URL = atlasURL;
-export const jpBuildingsWanted = () => typeof location === 'undefined' || new URLSearchParams(location.search).get('buildings') !== 'classic';
+export const JP_BUILDINGS_ATLAS_URL = atlasURL ?? '';
+export const jpBuildingsWanted = () => !!atlasURL && (typeof location === 'undefined' || new URLSearchParams(location.search).get('buildings') !== 'classic');
 
-type Facade = (typeof catalog.facades)[number];
+type Facade = FacadeDef;
 type Rect = { x: number; y: number; w: number; h: number };
 const facadeFor = new Map<string, Facade>();
 for (const f of catalog.facades) for (const id of f.replaces) facadeFor.set(id, f);

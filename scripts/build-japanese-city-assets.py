@@ -13,7 +13,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = Path(os.environ.get('JAPANESE_CITY_SRC', ROOT / 'ASSETS DESCARGADOS/NUEVO/The japanese city game assets/Free_Version'))
-DEST = ROOT / 'src/assets/japanese-city'
+DEST = ROOT / 'src/assets/packs/japanese-city'
 source = SRC / 'Tilemap/Tilemap.png'
 sheet = Image.open(source).convert('RGBA')
 

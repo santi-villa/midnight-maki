@@ -9,7 +9,7 @@ test('Serene renders complete native props and terrain when continuing an existi
   await page.goto('/?debug&st');
   await page.locator('.tt.ready').waitFor();
   const atlas = await page.evaluate(async () => {
-    const catalog = await (await fetch('/src/assets/serene/catalog.json')).json();
+    const catalog = await (await fetch('/src/assets/packs/serene/catalog.json')).json();
     const { sereneObject, drawSereneTile } = await import('/src/art/serene.ts');
     const { propCanvas } = await import('/src/scenes/textures.ts');
     const { PROPS } = await import('/src/data/props.ts');
@@ -61,7 +61,7 @@ test('Serene renders complete native props and terrain when continuing an existi
 
 for (const mode of ['classic', 'missing']) {
   test(`Serene ${mode} leaves terrain and props drawable`, async ({ page }) => {
-    if (mode === 'missing') await page.route('**/src/assets/serene/atlas.png*', route => route.request().resourceType() === 'script' ? route.continue() : route.abort());
+    if (mode === 'missing') await page.route('**/src/assets/packs/serene/atlas.png*', route => route.request().resourceType() === 'script' ? route.continue() : route.abort());
     await page.goto('/?debug&st' + (mode === 'classic' ? '&serene=classic' : ''));
     await page.locator('.tt.ready').waitFor();
     expect(await page.evaluate(async () => {

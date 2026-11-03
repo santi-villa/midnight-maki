@@ -16,7 +16,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'src/assets/limezu'
+DEST = ROOT / 'src/assets/packs/limezu'
 SRC = Path(os.environ.get('LIMEZU_SRC', ''))
 if not SRC.is_dir():
     sys.exit('LIMEZU_SRC must point at the folder with the Modern Interiors theme sheets')

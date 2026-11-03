@@ -9,6 +9,7 @@ playwright-report
 .env
 .env.local
 
-# packs de assets pagos: su licencia prohíbe redistribuirlos, se guardan fuera del repo
-ASSETS DESCARGADOS/NUEVO/
-ASSETS DESCARGADOS/VIEJO/Sprout Lands - UI Pack - Basic pack/
+# Licensed asset packs and everything cut from them: their licenses forbid sharing them, so they never go to the public repo.
+# The packs stay in ASSETS DESCARGADOS/ on Santi's machine; scripts/build-*.py write the game's cuts to src/assets/packs/.
+ASSETS DESCARGADOS/
+src/assets/packs/

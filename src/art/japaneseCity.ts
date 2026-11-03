@@ -1,14 +1,16 @@
 /** Selected free Japanese City props. Native pixels; no terrain or facade replacement. */
-import catalog from '../assets/japanese-city/catalog.json';
-import atlasURL from '../assets/japanese-city/atlas.png';
+import { packJson, packUrl, type PackPiece } from './packs';
+
+const catalog = packJson('japanese-city/catalog.json', { pieces: [] as PackPiece[] });
+const atlasURL = packUrl('japanese-city/atlas.png');
 import { ctx2d, makeCanvas } from './pixel';
 
 export const JAPANESE_CITY_ATLAS_KEY = 'japanese-city';
-export const JAPANESE_CITY_ATLAS_URL = atlasURL;
-export const japaneseCityWanted = () => typeof location === 'undefined' || new URLSearchParams(location.search).get('japaneseCity') !== 'classic';
+export const JAPANESE_CITY_ATLAS_URL = atlasURL ?? '';
+export const japaneseCityWanted = () => !!atlasURL && (typeof location === 'undefined' || new URLSearchParams(location.search).get('japaneseCity') !== 'classic');
 
 let atlas: CanvasImageSource | null = null;
-const pieces = new Map<string, (typeof catalog.pieces)[number]>();
+const pieces = new Map<string, PackPiece>();
 for (const piece of catalog.pieces) for (const id of piece.replaces) pieces.set(id, piece);
 
 export function installJapaneseCityAtlas(source: CanvasImageSource) { atlas = source; }

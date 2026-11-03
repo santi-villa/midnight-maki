@@ -3,17 +3,19 @@
  * the animated sea and its waterline) and props drawn at native size. Saved IDs, footprints and behaviour stay the same;
  * only the drawing changes. `?exteriors=classic` keeps the previous art for comparison.
  */
-import catalog from '../assets/limezu/exteriors.json';
-import atlasURL from '../assets/limezu/exteriors.png';
+import { packJson, packUrl, type PackPiece } from './packs';
+
+const catalog = packJson('limezu/exteriors.json', { tiles: {} as Record<string, { atlas: { x: number; y: number } }>, pieces: [] as PackPiece[], sandPalette: undefined as unknown });
+const atlasURL = packUrl('limezu/exteriors.png');
 import { ctx2d, makeCanvas, type Ctx } from './pixel';
 
 export const EXTERIOR_ATLAS_KEY = 'limezu-exteriors';
-export const EXTERIOR_ATLAS_URL = atlasURL;
-export const exteriorsWanted = () => typeof location === 'undefined' || new URLSearchParams(location.search).get('exteriors') !== 'classic';
+export const EXTERIOR_ATLAS_URL = atlasURL ?? '';
+export const exteriorsWanted = () => !!atlasURL && (typeof location === 'undefined' || new URLSearchParams(location.search).get('exteriors') !== 'classic');
 
 let atlas: CanvasImageSource | null = null;
 const tiles = catalog.tiles as Record<string, { atlas: { x: number; y: number } }>;
-const pieceFor = new Map<string, (typeof catalog.pieces)[number]>();
+const pieceFor = new Map<string, PackPiece>();
 for (const piece of catalog.pieces) for (const id of piece.replaces) pieceFor.set(id, piece);
 
 export function installExteriorAtlas(source: CanvasImageSource) { atlas = source; }

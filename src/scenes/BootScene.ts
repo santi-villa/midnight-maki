@@ -33,7 +33,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(VILLAGE_ATLAS_KEY, VILLAGE_ATLAS_URL);
     this.load.image(FARM_ATLAS_KEY, FARM_ATLAS_URL);
     this.load.image(ICON_ATLAS_KEY, ICON_ATLAS_URL);
-    this.load.image(EMOTE_ATLAS_KEY, EMOTE_ATLAS_URL);
+    if (EMOTE_ATLAS_URL) this.load.image(EMOTE_ATLAS_KEY, EMOTE_ATLAS_URL);
     this.load.image(PETS_ATLAS_KEY, PETS_ATLAS_URL);
   }
   create() {

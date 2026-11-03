@@ -1,10 +1,12 @@
 /** Speech-bubble emotes from LimeZu "Modern Interiors" UI (see scripts/build-ui-assets.py): one strip atlas, one row per emote. */
 import Phaser from 'phaser';
-import catalog from '../assets/ui/emotes.json';
-import atlasURL from '../assets/ui/emotes.png';
+import { packJson, packUrl } from './packs';
+
+const catalog = packJson('ui/emotes.json', { emotes: {} as Record<string, unknown> });
+const atlasURL = packUrl('ui/emotes.png');
 
 export const EMOTE_ATLAS_KEY = 'ui-emotes';
-export const EMOTE_ATLAS_URL = atlasURL;
+export const EMOTE_ATLAS_URL = atlasURL ?? '';
 
 interface Emote { y: number; w: number; h: number; frames: number; durations: number[] }
 const emotes = catalog.emotes as Record<string, Emote>;

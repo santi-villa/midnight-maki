@@ -10,7 +10,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / 'ASSETS DESCARGADOS/ORGANIZADO/biblioteca/02_interiores'
+SOURCE = ROOT / 'ASSETS DESCARGADOS/VIEJO/ORGANIZADO/biblioteca/02_interiores'
 DEST = ROOT / 'src/assets/interiors'
 SHEETS = {
     'beds': '20/beds_BR.png', 'wardrobes': '20/wardrobes_BR.png',
@@ -209,7 +209,7 @@ def main():
     atlas = atlas.crop((0, 0, 1024, height))
     atlas.save(DEST / 'atlas.png', optimize=True)
     catalog = dict(author='Bitglow', packs=[19, 20, 21], width=atlas.width, height=atlas.height, pieces=pieces)
-    (DEST / 'catalog.json').write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + '\n')
+    (DEST / 'catalog.json').write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (DEST / 'Bitglow-license.txt').write_bytes((SOURCE / '20/license.txt').read_bytes())
     print(f'{len(pieces)} items, {sum(len(p["frames"]) for p in pieces)} frames, {atlas.width}x{atlas.height} atlas')
 

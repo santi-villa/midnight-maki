@@ -9,7 +9,7 @@ import re
 
 root = Path(__file__).resolve().parents[1]
 name = 'vectoraith_tileset_16x16_buildings_japanese_traditional_demo.png'
-with ZipFile(root / 'ASSETS DESCARGADOS/vectoraith_tileset_buildings_japanese_traditional_DEMO.zip') as archive:
+with ZipFile(root / 'ASSETS DESCARGADOS/VIEJO/vectoraith_tileset_buildings_japanese_traditional_DEMO.zip') as archive:
     raw = archive.read(name)
 source = Image.open(BytesIO(raw)).convert('RGBA')
 atlas_path = root / 'src/assets/cozy-town/atlas.png'

@@ -8,7 +8,7 @@ root = Path(__file__).resolve().parents[1]
 source = root / 'ASSETS DESCARGADOS/NUEVO/Serene Village/SERENE_VILLAGE_REVAMPED/Serene_Village_16x16.png'
 out = root / 'src/assets/map-study'
 sheet = Image.open(source).convert('RGBA')
-palette = {tuple(p['original']): tuple(p['adapted']) for p in json.loads((root / 'src/assets/serene/catalog.json').read_text(encoding='utf-8'))['palette']}
+palette = {tuple(p['original']): tuple(p['adapted']) for p in json.loads((root / 'src/assets/packs/serene/catalog.json').read_text(encoding='utf-8'))['palette']}
 atlas = Image.new('RGBA', (32, 16))
 for variant in range(2):
     image = sheet.crop((16, 160, 32, 176))

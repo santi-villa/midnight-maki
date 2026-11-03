@@ -54,7 +54,7 @@ python scripts/build-japanese-city-assets.py
 
 El script acepta `JAPANESE_CITY_SRC` apuntando a `Free_Version` y usa exclusivamente
 `Tilemap/Tilemap.png` de la descarga local. El catálogo de
-`src/assets/japanese-city/catalog.json` registra los rectángulos, composición, recorte,
+`src/assets/packs/japanese-city/catalog.json` registra los rectángulos, composición, recorte,
 hash SHA-256 y ubicación de cada pieza. La lámina de previsualización paga no se utiliza.
 
 El atlas se instala en BootScene antes de generar los props. Si falta, se usa el
