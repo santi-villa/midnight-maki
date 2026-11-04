@@ -157,7 +157,15 @@ export class Dogs {
   }
 
   /** `player` in world pixels. */
-  update(dt: number, player: { x: number; y: number }) {
+  company(): { kind: 'dog'; x: number; y: number; calm: boolean }[] {
+    return this.dogs.filter((d) => d.mode !== 'sleep').map((d) => ({ kind: 'dog' as const, x: d.s.x, y: d.s.y, calm: d.path.length === 0 && d.mode === 'idle' }));
+  }
+
+  movers(): { x: number; y: number; moving: boolean }[] {
+    return this.dogs.filter((d) => d.mode !== 'sleep').map((d) => ({ x: d.s.x, y: d.s.y, moving: d.path.length > 0 }));
+  }
+
+  update(dt: number, player: { x: number; y: number }, passers: { x: number; y: number; moving: boolean }[] = []) {
     if (dt <= 0) return;
     const b = this.ball;
     if (b?.state === 'held') {
@@ -237,7 +245,9 @@ export class Dogs {
         if (d.t - d.barked > 3.5 && close < 70) { d.barked = d.t; this.sound?.('woof', d.s.x, d.s.y); }
         continue;
       }
-      if (close < 40) d.s.setFlipX(player.x < d.s.x);
+      const walker = passers.find((q) => q.moving && Math.hypot(q.x - d.s.x, q.y - d.s.y) < 36);
+      if (walker) d.s.setFlipX(walker.x < d.s.x);
+      else if (close < 40) d.s.setFlipX(player.x < d.s.x);
       const busy = energy('dog', this.feel);
       const home = shelters('dog', this.feel);
       // sit, pant, and now and then drop the nose to the ground

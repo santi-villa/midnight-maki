@@ -14,6 +14,7 @@ import { FRAME, fallTexture, wildTexture, type FallKind } from './wildlifeArt';
 import { jumpAt, solidWater } from './fishLife';
 import { dotTexture } from './textures';
 import { energy, presence, scaleCount, shelters, type DayFeel } from '../world/animalMood';
+import { beetleCount, beetleGround, fireflyGround } from '../world/habitats';
 
 export interface Tree { x: number; y: number; top: number; kind: string }
 export interface WildPlace {
@@ -34,7 +35,12 @@ export interface WildPlace {
 }
 /** Who frightens an animal at (x, y): someone within its reach (plus `extra`), or null. */
 export type Threat = (x: number, y: number, extra: number) => { x: number; y: number } | null;
-export interface WildHooks { threat: Threat; sound: (name: string, x: number, y: number) => void }
+export interface WildHooks {
+  threat: Threat;
+  sound: (name: string, x: number, y: number) => void;
+  /** A nearby ambient insect. Looking at it never removes a collectible. */
+  morsel?: (x: number, y: number) => { x: number; y: number } | null;
+}
 interface View { x: number; y: number; right: number; bottom: number }
 
 // ------------------------------------------------------------------ where they live (pure, tested)
@@ -123,7 +129,14 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 abstract class Creature {
   abstract update(dt: number, hooks: WildHooks, view: View): void;
   abstract destroy(): void;
+  /** Where a frog may look. Returning a point does not despawn the insect. */
+  snack(): { x: number; y: number } | null { return null; }
+  /** A bee resting on a flower. Beetles stay out of this: they do not sit on blooms. */
+  perch(): boolean { return false; }
+  company(): { kind: 'frog' | 'duck' | 'crab' | 'squirrel'; x: number; y: number } | null { return null; }
 }
+
+const inView = (x: number, y: number, view: View, pad = 64) => x > view.x - pad && x < view.right + pad && y > view.y - pad && y < view.bottom + pad;
 
 /** Hops a sprite along a small arc, crouching first. */
 function hop(scene: Phaser.Scene, s: Phaser.GameObjects.Sprite, to: { x: number; y: number }, lift: number, ms: number, frames: { crouch: number; air: number; land: number }, done: () => void) {
@@ -162,9 +175,14 @@ class Frog extends Creature {
     super();
     this.s = scene.add.sprite(home.x, home.y + 4, wildTexture(scene, 'frog'), FRAME.frog.sit).setOrigin(0.5, 1).setDepth(home.y + 4).setFlipX(water.x < home.x);
   }
+  company() { return this.state === 'gone' ? null : { kind: 'frog' as const, x: this.s.x, y: this.s.y }; }
   update(dt: number, hooks: WildHooks) {
     const s = this.s;
     if (this.state === 'busy') return;
+    if (this.state === 'sit') {
+      const bug = hooks.morsel?.(s.x, s.y);
+      if (bug) s.setFlipX(bug.x < s.x);
+    }
     if (this.state === 'gone') {
       this.t -= dt;
       if (this.t > 0) return;
@@ -240,6 +258,7 @@ class DuckFamily extends Creature {
     for (let i = 0; i < 60; i++) this.trail.push({ x: start.x + back[0] * (59 - i) * 0.6, y: start.y + back[1] * (59 - i) * 0.6 });
     if (rest) { this.landIn = 80; this.speed = 4; }
   }
+  company() { return { kind: 'duck' as const, x: this.mom.x, y: this.mom.y }; }
   /** A straight way from here to there that stays on water (or, on the bank, on walkable ground). */
   private clear(to: { x: number; y: number }, ok: (x: number, y: number) => boolean) {
     for (let k = 1; k <= 6; k++) if (!ok(this.pos.x + (to.x - this.pos.x) * k / 6, this.pos.y + (to.y - this.pos.y) * k / 6)) return false;
@@ -362,6 +381,7 @@ class Crab extends Creature {
     // the little heap of sand it leaves while dug in
     this.mound = scene.add.ellipse(0, 0, 10, 3, 0xd6bd86).setVisible(false);
   }
+  company() { return this.state === 'hidden' ? null : { kind: 'crab' as const, x: this.s.x, y: this.s.y }; }
   /**
    * Digging in (or out): it wriggles side to side and sinks below the line of the sand (the part under it is cut away), throwing
    * up sand as it goes; dug in, only its eyes and a small heap are left. Coming out is the same, backwards.
@@ -431,6 +451,7 @@ class Squirrel extends Creature {
     super();
     this.s = scene.add.sprite(tree.x + 10, tree.y + 6, wildTexture(scene, 'squirrel'), FRAME.squirrel.sit).setOrigin(0.5, 1).setDepth(tree.y + 6);
   }
+  company() { return this.state === 'up' ? null : { kind: 'squirrel' as const, x: this.s.x, y: this.s.y }; }
   update(dt: number, hooks: WildHooks) {
     const s = this.s;
     if (this.state === 'busy') return;
@@ -483,7 +504,7 @@ class Squirrel extends Creature {
   destroy() { this.s.destroy(); }
 }
 
-/** Dragonflies (over the water) and bees (round the flowers): they hover, then dart to a new spot nearby. */
+/** Dragonflies over fresh water. They hover, rest, and sometimes drift toward a nearby insect. */
 class Flier extends Creature {
   private s: Phaser.GameObjects.Sprite;
   private target: { x: number; y: number };
@@ -511,8 +532,12 @@ class Flier extends Creature {
     const threat = hooks.threat(s.x, s.y, 2);
     if (threat) { const a = Math.atan2(s.y - threat.y, s.x - threat.x); this.target = { x: this.home.x + Math.cos(a) * range * 1.6, y: this.home.y + Math.sin(a) * range }; this.t = 1.2; }
     else if (this.t <= 0) {
-      this.t = this.kind === 'bee' ? rnd(0.2, 0.8) : rnd(0.6, 1.8);
-      if (this.lively < 2 && Math.random() < (this.lively === 0 ? 0.75 : 0.35)) this.rest = rnd(1.4, 3.4);
+      this.t = rnd(0.8, 2.2);
+      const arrived = Math.hypot(this.target.x - s.x, this.target.y - s.y) < 3;
+      const bug = this.kind === 'dragonfly' ? hooks.morsel?.(s.x, s.y) : undefined;
+      if (bug && Math.random() < 0.35) this.target = { x: bug.x + rnd(-8, 8), y: bug.y - rnd(4, 10) };
+      else if (arrived && Math.random() < 0.6) this.rest = rnd(0.7, 1.8);
+      else if (this.lively < 2 && Math.random() < (this.lively === 0 ? 0.75 : 0.35)) this.rest = rnd(1.4, 3.4);
       else this.target = { x: this.home.x + rnd(-range, range), y: this.home.y + rnd(-range * 0.6, range * 0.6) };
     }
     const dx = this.target.x - s.x, dy = this.target.y - s.y, d = Math.hypot(dx, dy);
@@ -526,6 +551,124 @@ class Flier extends Creature {
     s.setDepth(s.y + 40);
   }
   destroy() { this.s.destroy(); }
+}
+
+/** A bee works a handful of real flowers, lands, then leaves. It is not a collectible. */
+class Bee extends Creature {
+  private s: Phaser.GameObjects.Sprite;
+  private i = 0;
+  private t = rnd(0.4, 1.2);
+  private rest = 0;
+  private away = 0;
+  private flap = 0;
+  constructor(scene: Phaser.Scene, private spots: { x: number; y: number }[], private lively: 0 | 1 | 2) {
+    super();
+    const home = spots[0];
+    this.s = scene.add.sprite(home.x, home.y - 10, wildTexture(scene, 'bee'), 0).setDepth(home.y + 30);
+  }
+  snack() { return this.rest > 0 ? { x: this.s.x, y: this.s.y } : null; }
+  perch() { return this.rest > 0; }
+  update(dt: number, _hooks: WildHooks, view: View) {
+    const s = this.s;
+    const seen = inView(s.x, s.y, view);
+    s.setVisible(seen);
+    if (!seen) return;
+    this.flap += dt;
+    if (this.away > 0) {
+      this.away -= dt;
+      s.y -= 10 * dt;
+      s.setAlpha(Math.max(0, this.away / 4));
+      s.setFrame(Math.floor(this.flap * 18) % 2);
+      if (this.away <= 0) {
+        const back = this.spots[this.i % this.spots.length];
+        s.setPosition(back.x, back.y - 10).setAlpha(1);
+      }
+      return;
+    }
+    if (this.rest > 0) {
+      this.rest -= dt;
+      s.setFrame(1);
+      if (this.rest <= 0) {
+        this.i = (this.i + 1) % this.spots.length;
+        if (Math.random() < 0.28) this.away = rnd(3.5, 6.5);
+        else this.t = 0;
+      }
+      return;
+    }
+    const goal = this.spots[this.i % this.spots.length];
+    const dx = goal.x - s.x, dy = (goal.y - 8) - s.y, d = Math.hypot(dx, dy) || 1;
+    const step = Math.min(d, (this.lively === 0 ? 16 : 28) * dt);
+    s.x += (dx / d) * step;
+    s.y += (dy / d) * step + Math.sin(this.flap * 11) * 0.25;
+    s.setFlipX(dx < 0).setFrame(Math.floor(this.flap * 16) % 2).setDepth(s.y + 30);
+    this.t -= dt;
+    if (d < 2.5 || this.t <= 0) {
+      this.rest = this.lively === 2 ? rnd(0.45, 1.1) : rnd(0.9, 2.2);
+      this.t = rnd(0.6, 1.6);
+    }
+  }
+  destroy() { this.s.destroy(); }
+}
+
+/** A beetle on the forest floor. It sits, crawls a step, and sits again. */
+class Beetle extends Creature {
+  private s: Phaser.GameObjects.Sprite;
+  private t = rnd(1.5, 4);
+  private crawl = 0;
+  private goal = { x: 0, y: 0 };
+  constructor(scene: Phaser.Scene, private home: { x: number; y: number }, private ground: (x: number, y: number) => boolean) {
+    super();
+    this.s = scene.add.sprite(home.x, home.y + 2, wildTexture(scene, 'beetle'), FRAME.beetle.sit).setOrigin(0.5, 1).setDepth(home.y);
+    this.goal = { ...home };
+  }
+  snack() { return { x: this.s.x, y: this.s.y }; }
+  update(dt: number, _hooks: WildHooks, view: View) {
+    const s = this.s;
+    const seen = inView(s.x, s.y, view, 48);
+    s.setVisible(seen);
+    if (!seen) return;
+    if (this.crawl > 0) {
+      this.crawl -= dt;
+      const dx = this.goal.x - s.x, dy = this.goal.y - s.y, d = Math.hypot(dx, dy) || 1;
+      s.x += (dx / d) * Math.min(d, 10 * dt);
+      s.y += (dy / d) * Math.min(d, 10 * dt);
+      s.setFlipX(dx < 0).setFrame(FRAME.beetle.step).setDepth(s.y);
+      if (d < 1 || this.crawl <= 0) { s.setFrame(FRAME.beetle.sit); this.t = rnd(2.4, 5.5); this.crawl = 0; }
+      return;
+    }
+    this.t -= dt;
+    if (this.t > 0) return;
+    const nx = this.home.x + rnd(-14, 14), ny = this.home.y + rnd(-8, 8);
+    if (this.ground(nx, ny)) { this.goal = { x: nx, y: ny }; this.crawl = rnd(0.8, 1.6); }
+    else this.t = rnd(2, 4);
+  }
+  destroy() { this.s.destroy(); }
+}
+
+/** A firefly that blinks and pauses in one patch of vegetation. */
+class Firefly extends Creature {
+  private img: Phaser.GameObjects.Image;
+  private t = rnd(0.6, 2);
+  private rest = rnd(0.2, 1.4);
+  constructor(scene: Phaser.Scene, private home: { x: number; y: number }) {
+    super();
+    const key = dotTexture(scene, 'firefly', '#ffe9a0', 2, 2);
+    this.img = scene.add.image(home.x, home.y - 6, key).setDepth(home.y + 20).setAlpha(0.2);
+  }
+  update(dt: number, _hooks: WildHooks, view: View) {
+    const seen = inView(this.img.x, this.img.y, view);
+    this.img.setVisible(seen);
+    if (!seen) return;
+    if (this.rest > 0) { this.rest -= dt; this.img.setAlpha(0.12); return; }
+    this.t -= dt;
+    this.img.setAlpha(Math.sin(this.t * 7) > 0 ? 0.95 : 0.12);
+    if (this.t > 0) return;
+    if (Math.random() < 0.55) this.rest = rnd(0.8, 2.4);
+    this.img.x = this.home.x + rnd(-12, 12);
+    this.img.y = this.home.y - rnd(2, 10);
+    this.t = rnd(1.2, 3.2);
+  }
+  destroy() { this.img.destroy(); }
 }
 
 // ------------------------------------------------------------------ the falling petals and leaves
@@ -633,13 +776,87 @@ export class Wildlife {
       this.creatures.push(new Flier(scene, 'dragonfly', { x: center(b).x, y: center(b).y - 6 }, energy('dragonfly', feel)));
       flown++;
     }
-    for (const f of spread(place.flowers, scaleCount(4 * many, presence('bee', feel)), 40)) {
-      this.creatures.push(new Flier(scene, 'bee', { x: f.x, y: f.y - 10 }, energy('bee', feel)));
+    const beeHomes = spread(place.flowers, scaleCount(4 * many, presence('bee', feel)), 48);
+    for (const h of beeHomes) {
+      const near = place.flowers.filter((f) => Math.hypot(f.x - h.x, f.y - h.y) < 72);
+      this.creatures.push(new Bee(scene, near.length ? near : [h], energy('bee', feel)));
+    }
+    const beetleN = beetleCount(place.season, place.period, place.rain);
+    if (beetleN) {
+      const litter: { x: number; y: number }[] = [];
+      for (let y = 0; y < g.length; y++) for (let x = 0; x < (g[y]?.length ?? 0); x++) {
+        const district = where(x, y);
+        if (district !== 'forest' && place.zone !== 'forest') continue;
+        const nearHard = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => 'pcb'.includes(g[y + dy]?.[x + dx] ?? ''));
+        if (beetleGround(g[y][x], nearHard) && place.walkable(x, y)) litter.push({ x, y });
+      }
+      const step = (px: number, py: number) => {
+        const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE);
+        const ch = g[ty]?.[tx];
+        return (ch === 'g' || ch === 'G') && place.walkable(tx, ty);
+      };
+      for (const h of spread(litter, beetleN, 8)) this.creatures.push(new Beetle(scene, center(h), step));
+    }
+    const glow = scaleCount(10, presence('firefly', feel));
+    if (glow) {
+      const veg: { x: number; y: number }[] = [];
+      for (let y = 0; y < g.length; y++) for (let x = 0; x < (g[y]?.length ?? 0); x++) {
+        const district = where(x, y);
+        const woods = district === 'forest' || district === 'garden' || district === 'shrine' || ['forest', 'garden', 'shrine'].includes(place.zone);
+        if (woods && fireflyGround(g[y][x])) veg.push({ x, y });
+      }
+      for (const h of spread(veg, glow, 36)) this.creatures.push(new Firefly(scene, { x: center(h).x, y: center(h).y - 8 }));
     }
   }
 
+  /** Bees actually sitting on a flower. Frogs may look; nothing is removed. */
+  perches(): { x: number; y: number }[] {
+    const out: { x: number; y: number }[] = [];
+    for (const c of this.creatures) {
+      if (!c.perch()) continue;
+      const s = c.snack();
+      if (s) out.push(s);
+    }
+    return out;
+  }
+
+  landings(): { x: number; y: number }[] {
+    const out: { x: number; y: number }[] = [];
+    for (const c of this.creatures) {
+      const s = c.snack();
+      if (s) out.push(s);
+    }
+    return out;
+  }
+
+  company(): { kind: 'frog' | 'duck' | 'crab' | 'squirrel'; x: number; y: number }[] {
+    const out: { kind: 'frog' | 'duck' | 'crab' | 'squirrel'; x: number; y: number }[] = [];
+    for (const c of this.creatures) {
+      const s = c.company();
+      if (s) out.push(s);
+    }
+    return out;
+  }
+
   update(dt: number, hooks: WildHooks, view: View) {
-    for (const c of this.creatures) c.update(dt, hooks, view);
+    const snacks: { x: number; y: number }[] = [];
+    for (const c of this.creatures) {
+      const s = c.snack();
+      if (s) snacks.push(s);
+    }
+    const morsel = (x: number, y: number) => {
+      let best: { x: number; y: number } | null = null;
+      let near = 22;
+      for (const s of snacks) {
+        const d = Math.hypot(s.x - x, s.y - y);
+        if (d < near) { near = d; best = s; }
+      }
+      const outer = hooks.morsel?.(x, y);
+      if (outer && Math.hypot(outer.x - x, outer.y - y) < near) return outer;
+      return best;
+    };
+    const joined = { ...hooks, morsel };
+    for (const c of this.creatures) c.update(dt, joined, view);
     this.leaves?.update(dt, view);
   }
 

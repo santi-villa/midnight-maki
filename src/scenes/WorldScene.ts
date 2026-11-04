@@ -97,6 +97,8 @@ import { companyScene, openCompany } from '../story/companions';
 import type { CompanyActivity } from '../systems/companionship';
 import { FLOCKS, type BirdSpecies } from '../data/flocks';
 import { energy, presence, scaleCount, type DayFeel } from '../world/animalMood';
+import { beeMayVisit, butterflyGround } from '../world/habitats';
+import { pickGlance, type Companion } from '../world/ecosystem';
 import { VILLAGE_BOUNDS, type VillageZone } from '../data/villageGeography';
 import { districtAt, DISTRICTS, isDistrict, liveZoneOf, originOf, toLive, VILLAGE } from '../world/village';
 import { StreetLife } from '../world/streetLife';
@@ -253,8 +255,14 @@ export class WorldScene extends Phaser.Scene {
   galleyBusy = false;
   private animsFrozen = false;
   private propImgs = new Map<string, Phaser.GameObjects.Image>();
-  /** Flowers, bushes and reeds: they bend when Sofi brushes past. */
+  /** Flowers, bushes and reeds: they bend when someone brushes past, then ease back. */
   private swayProps = new Map<string, { img: Phaser.GameObjects.Image; amp: number; at: number }>();
+  private swayGust = 0;
+  /** Cats and dogs reuse one short list for a few frames, instead of scanning every person. */
+  private watchClock = 0;
+  private watchedBirds: { x: number; y: number }[] = [];
+  private passers: { x: number; y: number; moving: boolean }[] = [];
+  private companyCache: Companion[] | null = null;
   galleyView = new GalleyView({
     scene: this,
     get player() { return world.player; },
@@ -1335,10 +1343,15 @@ export class WorldScene extends Phaser.Scene {
     // somewhere in a district (the drawn map may hold the whole village)
     const add = (kind: 'bird' | 'cat' | 'butterfly', district = this.zoneId) => {
       const o = this.lw(district, 0, 0), dz = ZONES[district] ?? def;
-      for (let k = 0; k < 20; k++) {
+      for (let k = 0; k < 40; k++) {
         const x = o.x + 2 + Math.floor(Math.random() * (dz.w - 4));
         const y = o.y + 2 + Math.floor(Math.random() * (dz.h - 4));
         if (this.zone.grid.isSolid(x, y)) continue;
+        if (kind === 'butterfly') {
+          const ch = this.zone.def.ground[y]?.[x];
+          const planter = this.zone.props.some((p) => p.key.startsWith('planter_') && x >= p.x && x < p.x + p.def.w && y >= p.y && y < p.y + p.def.h);
+          if (!butterflyGround(ch, planter)) continue;
+        }
         const s = this.add.sprite(x * TILE + 8, y * TILE + 12, critterTexture(this, kind, Math.floor(Math.random() * 4)), 0).setOrigin(0.5, 1);
         this.critters.push({ s, kind, vx: 0, vy: 0, t: Math.random() * 2, flying: false, ox: s.x, oy: s.y });
         return;
@@ -1383,7 +1396,11 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.kind === 'tree' || p.def.kind === 'sakura' || p.def.kind === 'pine') {
         const img = this.propImgs.get(`${p.x},${p.y}`);
         trees.push({ x, y, top: y - Math.max(p.def.sh, img?.height ?? 0), kind: p.def.kind });
-      } else if (p.def.kind === 'flowers') flowers.push({ x, y });
+      } else if (beeMayVisit(p.key, def.ground[p.y + p.def.h - 1]?.[p.x] ?? def.ground[p.y]?.[p.x])) flowers.push({ x, y });
+    }
+    for (let y = 0; y < def.ground.length; y++) {
+      const row = def.ground[y];
+      for (let x = 0; x < row.length; x++) if (row[x] === 'r' || row[x] === 'y' || row[x] === 'l') flowers.push({ x: x * TILE + 8, y: (y + 1) * TILE });
     }
     this.wild.spawn({
       zone: this.zoneId, ground: def.ground, walkable: (tx, ty) => this.zone.grid.inside(tx, ty) && !this.zone.grid.isSolid(tx, ty),
@@ -1399,9 +1416,12 @@ export class WorldScene extends Phaser.Scene {
       this.wild.update(dt, {
         threat: (x, y, extra) => this.birdThreat(x, y, extra),
         sound: (name, x, y) => { const d = Math.hypot(x - this.player.x, y - this.player.y); if (d < 150) audio.sfxPlay(name, 0.6 * (1 - d / 150)); },
+        morsel: (x, y) => this.perchedBug(x, y),
       }, { x: vx, y: vy, right: vx + vw, bottom: vy + vh });
     }
     this.updateFlockTakeoffs(dt);
+    let cats: { x: number; y: number }[] | null = null;
+    let bites: { x: number; y: number }[] | null = null;
     for (const c of this.critters) {
       const s = c.s;
       c.t -= dt;
@@ -1467,11 +1487,29 @@ export class WorldScene extends Phaser.Scene {
         if (c.t <= 0) {
           const pace = c.pace ?? 1;
           c.t = pace === 0 ? 2.2 + Math.random() * 4.5 : pace === 2 ? 0.35 + Math.random() * 1.1 : 0.6 + Math.random() * 2;
-          if (pace === 0 && Math.random() < 0.5) continue;
-          // hop
-          const nx = s.x + (Math.random() * 2 - 1) * 8;
-          const ny = s.y + (Math.random() * 2 - 1) * 5;
-          if (!this.zone.grid.isSolid(Math.floor(nx / TILE), Math.floor((ny - 1) / TILE))) {
+          cats ??= this.pets?.cats() ?? [];
+          const cat = cats.find((k) => Math.hypot(k.x - s.x, k.y - s.y) < 22);
+          let nx = s.x;
+          let ny = s.y;
+          if (cat) {
+            // one step aside. The flock does not take off, and the cat is not chased.
+            const dx = s.x - cat.x, dy = s.y - cat.y, len = Math.hypot(dx, dy) || 1;
+            nx = s.x + (dx / len) * 12;
+            ny = s.y + (dy / len) * 7;
+            c.t = Math.max(c.t, 2.4);
+          } else if (pace === 0 && Math.random() < 0.55) continue;
+          else {
+            bites ??= this.wild?.landings() ?? [];
+            const bug = pace === 0 ? undefined : bites.find((b) => Math.hypot(b.x - s.x, b.y - s.y) < 26);
+            if (bug && Math.random() < 0.4) {
+              nx = s.x + Math.max(-8, Math.min(8, bug.x - s.x));
+              ny = s.y + Math.max(-5, Math.min(5, bug.y - s.y));
+            } else {
+              nx = s.x + (Math.random() * 2 - 1) * 8;
+              ny = s.y + (Math.random() * 2 - 1) * 5;
+            }
+          }
+          if ((nx !== s.x || ny !== s.y) && !this.zone.grid.isSolid(Math.floor(nx / TILE), Math.floor((ny - 1) / TILE))) {
             s.setFlipX(nx < s.x);
             this.tweens.add({ targets: s, x: nx, y: ny, duration: 160, ease: 'Sine.out' });
           }
@@ -1570,7 +1608,7 @@ export class WorldScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ ambient neighbours
   private neighborLife = new NeighborLife();
-  private neighborBodies = new Map<string, { actor: Actor; bike: Phaser.GameObjects.Image | null; barkAt: number; pose: Act | null; poseUntil: number; nextPose: number }>();
+  private neighborBodies = new Map<string, { actor: Actor; bike: Phaser.GameObjects.Image | null; barkAt: number; pose: Act | null; poseUntil: number; nextPose: number; glanceDir: Dir | null; glanceUntil: number }>();
   /** Walk speed parked while someone pauses to look at the restaurant. */
   private scentSpeed = new Map<string, number>();
   private npcWait = new Set<string>();
@@ -1585,6 +1623,7 @@ export class WorldScene extends Phaser.Scene {
     if (!game.has('intro_done') || !this.zone || !this.player || this.transitioning || this.decorMode || clock.paused) return;
     this.ensureLiving();
     this.applyScentHold();
+    this.companyCache = null;
     this.neighborLife.tick(dt);
     const here = new Set<string>();
     const now = performance.now();
@@ -1610,7 +1649,7 @@ export class WorldScene extends Phaser.Scene {
         }
         const actor = new Actor(this, 'nb_' + n.id, lookTexture(this, n.look), w.x, w.y);
         actor.manual = true;
-        body = { actor, bike: null, barkAt: now + 8000 + (n.id.length * 1700) % 6000, pose: null, poseUntil: 0, nextPose: now + 2500 + (n.id.length * 400) % 3000 };
+        body = { actor, bike: null, barkAt: now + 8000 + (n.id.length * 1700) % 6000, pose: null, poseUntil: 0, nextPose: now + 2500 + (n.id.length * 400) % 3000, glanceDir: null, glanceUntil: 0 };
         this.neighborBodies.set(n.id, body);
       }
       here.add(n.id);
@@ -1620,25 +1659,46 @@ export class WorldScene extends Phaser.Scene {
       // two tiles over a district border in one step of the simulation: walk it instead of popping
       if (jump > 12 && jump < 48) { const k = Math.min(1, 140 * dt / jump); a.x += (x - a.x) * k; a.y += (y - a.y) * k; } else { a.x = x; a.y = y; }
       a.dir = !trip.moving && st.place.dir ? st.place.dir : trip.dir;
-      const glance = this.breath?.glanceDir(n.id);
-      if (glance && !trip.moving) a.dir = glance;
+      const scent = this.breath?.glanceDir(n.id);
+      if (scent && !trip.moving) a.dir = scent;
+      if (!trip.moving && body.glanceDir && now < body.glanceUntil) a.dir = body.glanceDir;
       a.moving = trip.moving && !riding;
       if (trip.moving && this.snow) this.snow.step(n.id, a.x, a.y, trip.dir, false);
       a.seatLift = trip.settled ? st.place.seatLift ?? 0 : 0;
       a.bed = trip.settled && st.place.act === 'sleep' ? st.place.bed ?? null : null;
       const base: Act = riding ? 'sit' : trip.moving ? 'idle' : trip.settled ? st.place.act ?? 'idle' : 'idle';
-      if (riding || trip.moving || !trip.settled) { body.pose = null; body.poseUntil = 0; }
+      if (riding || trip.moving || !trip.settled) { body.pose = null; body.poseUntil = 0; body.glanceUntil = 0; }
       const posing = !riding && !!body.pose && now < body.poseUntil;
       const act = posing ? body.pose! : base;
       if (a.act !== act) a.setAct(act);
       const quiet = base === 'sleep' || base === 'sit' || base === 'eat' || base === 'read' || base === 'drink' || base === 'fish' || base === 'stars' || base === 'paint' || base === 'cook';
-      if (!posing && !riding && trip.settled && !quiet && now >= body.nextPose) {
-        body.nextPose = now + 6000 + (n.id.charCodeAt(0) % 5) * 700;
-        const g = microFor(n.id, { act: st.place.act, period: clock.period, rain: game.flag('weather') === 'rain', outdoor: !!ZONES[this.zoneId]?.outdoor }, Math.random(), Math.random());
-        if (g) {
-          body.pose = g.act as Act;
-          body.poseUntil = now + g.seconds * 1000;
-          a.setAct(g.act as Act);
+      if (!posing && !riding && trip.settled && now >= body.nextPose) {
+        if (this.speechActor === a) body.nextPose = now + 2500;
+        else {
+          const rain = game.flag('weather') === 'rain';
+          const look = pickGlance(
+            { x: a.x, y: a.y, traits: n.traits, act: st.place.act, moving: trip.moving, settled: trip.settled },
+            this.companyNear(a.x, a.y),
+            Math.random(),
+            seasonOf(game.save.time.day),
+            rain,
+          );
+          if (look) {
+            body.nextPose = now + (look.seconds + 5) * 1000;
+            body.glanceDir = look.dir;
+            body.glanceUntil = now + look.seconds * 1000;
+            if (!trip.moving) a.dir = look.dir;
+            // a fisher only turns; the rod stays while the pose is left alone
+            if (look.pose) { body.pose = look.pose; body.poseUntil = body.glanceUntil; a.setAct(look.pose); }
+          } else if (!quiet) {
+            body.nextPose = now + 6000 + (n.id.charCodeAt(0) % 5) * 700;
+            const g = microFor(n.id, { act: st.place.act, period: clock.period, rain, outdoor: !!ZONES[this.zoneId]?.outdoor }, Math.random(), Math.random());
+            if (g) {
+              body.pose = g.act as Act;
+              body.poseUntil = now + g.seconds * 1000;
+              a.setAct(g.act as Act);
+            }
+          } else body.nextPose = now + 5000 + (n.id.charCodeAt(0) % 4) * 900;
         }
       }
       // a bicycle under whoever is riding
@@ -1665,6 +1725,43 @@ export class WorldScene extends Phaser.Scene {
       if (this.speechActor === body.actor) this.speechActor = null;
       body.actor.destroy(); body.bike?.destroy(); this.neighborBodies.delete(id);
     }
+  }
+
+  /** Animals close enough that a neighbour might notice them. Built once per frame, then filtered. */
+  private companions(): Companion[] {
+    if (this.companyCache) return this.companyCache;
+    const out: Companion[] = [];
+    for (const c of this.pets?.company() ?? []) out.push(c);
+    for (const c of this.dogs?.company() ?? []) out.push(c);
+    for (const c of this.critters) {
+      if (c.kind === 'bird' && !c.flying && c.back === undefined && c.s.visible) out.push({ kind: 'bird', x: c.s.x, y: c.s.y });
+    }
+    for (const c of this.wild?.company() ?? []) {
+      if (c.kind !== 'frog' && c.kind !== 'duck') continue;
+      out.push({ kind: c.kind, x: c.x, y: c.y });
+    }
+    const now = this.time.now;
+    for (const leap of this.fish?.leaps ?? []) if (leap.until > now) out.push({ kind: 'fish', x: leap.x, y: leap.y });
+    this.companyCache = out;
+    return out;
+  }
+
+  private companyNear(x: number, y: number): Companion[] {
+    const out: Companion[] = [];
+    for (const c of this.companions()) if (Math.hypot(c.x - x, c.y - y) < 64) out.push(c);
+    return out;
+  }
+
+  /** A butterfly resting nearby. Ambient only: it is not a jar catch. */
+  private perchedBug(x: number, y: number): { x: number; y: number } | null {
+    let best: { x: number; y: number } | null = null;
+    let near = 22;
+    for (const c of this.critters) {
+      if (c.kind !== 'butterfly' || (c.sit ?? 0) <= 0) continue;
+      const d = Math.hypot(c.s.x - x, c.s.y - y);
+      if (d < near) { near = d; best = { x: c.s.x, y: c.s.y }; }
+    }
+    return best;
   }
 
   // ------------------------------------------------------------------ people in the districts around
@@ -2930,22 +3027,7 @@ export class WorldScene extends Phaser.Scene {
       this.ambient.push(cs);
     }
     const fireflyHere = this.liveId === VILLAGE || ['forest', 'garden', 'plaza', 'market', 'beach'].includes(this.zoneId);
-    const flies = presence('firefly', { period: clock.period, season, rain });
-    if (flies && fireflyHere) {
-      const ff = dotTexture(this, 'firefly', '#ffe9a0', 1, 1);
-      const frequency = flies === 1 ? (clock.period === 2 ? 640 : 480) : (season === 1 ? 160 : 280);
-      const em = this.add.particles(0, 0, ff, {
-        x: { min: 0, max: W },
-        y: { min: 0, max: H },
-        speedX: { min: -8, max: 8 },
-        speedY: { min: -5, max: 5 },
-        lifespan: 5200,
-        frequency,
-        alpha: { start: 0, end: 1, ease: 'Sine.easeInOut', yoyo: true } as any,
-      });
-      em.setDepth(210000);
-      this.ambient.push(em);
-    }
+    // fireflies themselves live in the wildlife, on grass, and they blink and rest
     if (night && !rain && fireflyHere) {
       const mote = dotTexture(this, 'nightmote', '#fff6c8', 2, 2);
       const bits = this.add.particles(0, 0, mote, {
@@ -3509,19 +3591,54 @@ export class WorldScene extends Phaser.Scene {
   private lastHour = -1;
   private fish: FishLife | null = null;
   private fishCovered = new Set<string>();
-  /** Flowers and bushes next to Sofi bend away and spring back as she walks past (once in a while each, so they never buzz). */
-  private updateSway() {
-    const p = this.player;
-    if (!p?.moving || !this.swayProps.size || lowFx() || settings.reduceMotion) return;
+  /** One plant near a pair of feet leans a little, then the tween returns it to upright. */
+  private brushSway(px: number, py: number, scale: number, hold = 0) {
     const now = this.time.now;
+    const tx = Math.floor(px / TILE);
+    const ty = Math.floor((py - 1) / TILE);
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const s = this.swayProps.get(`${p.tx + dx},${p.ty + dy}`);
+      const s = this.swayProps.get(`${tx + dx},${ty + dy}`);
       if (!s || !s.img.active || now - s.at < 700) continue;
-      if (Math.abs(s.img.x - p.x) > 13 || Math.abs(s.img.y - 6 - p.y) > 11) continue;
-      s.at = now;
-      const dir = Math.sign(s.img.x - p.x) || 1;
-      this.tweens.add({ targets: s.img, angle: [dir * s.amp, -dir * s.amp * 0.55, dir * s.amp * 0.25, 0], duration: 560, ease: 'Sine.inOut' });
+      if (Math.abs(s.img.x - px) > 13 || Math.abs(s.img.y - 6 - py) > 11) continue;
+      const amp = s.amp * scale;
+      if (amp < 0.35) continue;
+      s.at = now + hold;
+      const dir = Math.sign(s.img.x - px) || 1;
+      this.tweens.add({ targets: s.img, angle: [dir * amp, -dir * amp * 0.55, dir * amp * 0.25, 0], duration: 560, ease: 'Sine.inOut' });
     }
+  }
+
+  /** Flowers, bushes and reeds lean when someone passes, when a bee sits, or in a slow gust. */
+  private updateSway() {
+    if (!this.swayProps.size || lowFx() || settings.reduceMotion) return;
+    const p = this.player;
+    if (p?.moving) this.brushSway(p.x, p.y, 1);
+    for (const n of this.npcs.values()) if (n.actor.moving && n.actor.sprite?.visible) this.brushSway(n.actor.x, n.actor.y, 0.45);
+    for (const b of this.neighborBodies.values()) if (b.actor.moving && b.actor.sprite?.visible) this.brushSway(b.actor.x, b.actor.y, 0.45);
+    for (const b of this.staffBodies.values()) if (b.actor.moving && b.actor.sprite?.visible) this.brushSway(b.actor.x, b.actor.y, 0.4);
+    for (const e of this.echoes.values()) if (e.actor.moving && e.actor.sprite?.visible) this.brushSway(e.actor.x, e.actor.y, 0.4);
+    for (const m of this.pets?.movers() ?? []) if (m.moving) this.brushSway(m.x, m.y, 0.35);
+    for (const m of this.dogs?.movers() ?? []) if (m.moving) this.brushSway(m.x, m.y, 0.4);
+    for (const spot of this.wild?.perches() ?? []) this.brushSway(spot.x, spot.y, 0.22, 1600);
+    for (const c of this.critters) if (c.kind === 'butterfly' && (c.sit ?? 0) > 0.2) this.brushSway(c.s.x, c.s.y, 0.22, 1600);
+    const now = this.time.now;
+    if (!this.zone?.def.outdoor || now - this.swayGust < 2800) return;
+    this.swayGust = now;
+    const view = this.cameras.main.worldView;
+    let pick: { img: Phaser.GameObjects.Image; amp: number; at: number } | null = null;
+    let seen = 0;
+    for (const s of this.swayProps.values()) {
+      if (!s.img.active || now - s.at < 700) continue;
+      if (s.img.x < view.x || s.img.x > view.right || s.img.y < view.y || s.img.y > view.bottom) continue;
+      seen++;
+      if (Math.random() < 1 / seen) pick = s;
+    }
+    if (!pick) return;
+    const rain = game.flag('weather') === 'rain';
+    const amp = pick.amp * (rain ? 0.45 : 0.18);
+    pick.at = now;
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    this.tweens.add({ targets: pick.img, angle: [dir * amp, -dir * amp * 0.4, 0], duration: rain ? 900 : 1200, ease: 'Sine.inOut' });
   }
 
   /** The sky (shooting stars, the rainbow) and the station clock's hour bell. */
@@ -3672,8 +3789,27 @@ export class WorldScene extends Phaser.Scene {
     for (const g of this.guests.values()) g.actor.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt);
     this.updateCritters(dt);
     this.moths?.update(dt, this.cameras.main.worldView);
-    if (this.pets && this.player) this.pets.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt, this.player, [...this.guests.values()].map(g => g.actor), this.glowActors().filter(a => a !== this.player));
-    if (this.dogs && this.player) this.dogs.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt, this.player);
+    this.watchClock -= dt;
+    if (this.watchClock <= 0) {
+      this.watchClock = 0.45;
+      this.watchedBirds = [];
+      for (const c of this.critters) {
+        if (c.kind !== 'bird' || c.flying || c.back !== undefined || !c.s.visible) continue;
+        this.watchedBirds.push({ x: c.s.x, y: c.s.y });
+        if (this.watchedBirds.length >= 8) break;
+      }
+      this.passers = [];
+      const addPasser = (x: number, y: number, moving: boolean) => {
+        if (!moving || this.passers.length >= 8) return;
+        this.passers.push({ x, y, moving: true });
+      };
+      if (this.player.moving) addPasser(this.player.x, this.player.y, true);
+      for (const n of this.npcs.values()) if (n.actor.sprite?.visible) addPasser(n.actor.x, n.actor.y, n.actor.moving);
+      for (const b of this.neighborBodies.values()) if (b.actor.sprite?.visible) addPasser(b.actor.x, b.actor.y, b.actor.moving);
+    }
+    const held = clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt;
+    if (this.pets && this.player) this.pets.update(held, this.player, [...this.guests.values()].map(g => g.actor), this.glowActors().filter(a => a !== this.player), this.watchedBirds);
+    if (this.dogs && this.player) this.dogs.update(held, this.player, this.passers);
     this.updateFootsteps(dt);
     this.coastTick -= dt;
     if (this.coastTick <= 0) { this.coastTick = 0.45; this.pushCoast(); }

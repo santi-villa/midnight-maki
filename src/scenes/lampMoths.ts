@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 /** The minimum a lamp has to tell us. */
 export interface LampSpot { x: number; y: number; r: number; kind?: string; facade?: boolean }
 
-interface Moth { s: Phaser.GameObjects.Image; lamp: LampSpot; a: number; w: number; base: number; phase: number; flap: number; hop: number }
+interface Moth { s: Phaser.GameObjects.Image; lamp: LampSpot; a: number; w: number; base: number; phase: number; flap: number; hop: number; rest: number }
 
 const KEY = 'lamp_moth';
 const MAX_MOTHS = 160; // every lamp of the town gets company; sprites far from the camera are hidden and cost nothing
@@ -50,7 +50,7 @@ export class LampMoths {
       const n = 1 + Math.floor(rng() * PER_LAMP); // one to three per lamp, never none
       for (let i = 0; i < n && this.moths.length < MAX_MOTHS; i++) {
         const s = scene.add.image(lamp.x, lamp.y, KEY, 0).setDepth(210001).setAlpha(0.92);
-        this.moths.push({ s, lamp, a: rng() * Math.PI * 2, w: (1.4 + rng() * 1.8) * (rng() < 0.5 ? -1 : 1), base: 6 + rng() * 8, phase: rng() * 6, flap: rng() * 1, hop: 1 + rng() * 3 });
+        this.moths.push({ s, lamp, a: rng() * Math.PI * 2, w: (1.4 + rng() * 1.8) * (rng() < 0.5 ? -1 : 1), base: 6 + rng() * 8, phase: rng() * 6, flap: rng() * 1, hop: 1 + rng() * 3, rest: rng() * 2 });
       }
     }
   }
@@ -72,7 +72,13 @@ export class LampMoths {
       if (!near) continue;
       // an irregular loop around the light, now and then turning the other way, as moths do
       m.hop -= dt;
-      if (m.hop <= 0) { m.hop = 1.5 + Math.random() * 3.5; if (Math.random() < 0.4) m.w = -m.w; }
+      m.rest -= dt;
+      if (m.rest > 0) { m.s.setFrame(1); continue; }
+      if (m.hop <= 0) {
+        m.hop = 1.5 + Math.random() * 3.5;
+        if (Math.random() < 0.45) m.rest = 0.7 + Math.random() * 1.6;
+        if (Math.random() < 0.4) m.w = -m.w;
+      }
       m.a += m.w * dt;
       const r = m.base + Math.sin(this.t * 1.3 + m.phase) * 3;
       m.s.x = m.lamp.x + Math.cos(m.a) * r + Math.sin(this.t * 7 + m.phase) * 0.6;

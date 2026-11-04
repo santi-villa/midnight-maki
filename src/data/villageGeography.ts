@@ -4,11 +4,11 @@ export const VILLAGE_BOUNDS = {
   forest: { x: 0, y: 0, w: 31, h: 25, name: 'Bosque de los Susurros', music: 'forest' },
   garden: { x: 0, y: 25, w: 31, h: 23, name: 'Jardín de los Faroles', music: 'garden' },
   beach: { x: 0, y: 48, w: 31, h: 32, name: 'Playa de las Conchas', music: 'beach' },
-  shrine: { x: 31, y: 0, w: 41, h: 23, name: 'Colina del Santuario', music: 'garden' },
-  station: { x: 72, y: 0, w: 48, h: 23, name: 'Estación Abandonada', music: 'mystery' },
+  shrine: { x: 31, y: 0, w: 41, h: 23, name: 'Colina del Santuario', music: 'shrine' },
+  station: { x: 72, y: 0, w: 48, h: 23, name: 'Estación Abandonada', music: 'station' },
   residential: { x: 72, y: 23, w: 48, h: 37, name: 'Barrio residencial y ribera', music: 'town' },
   market: { x: 31, y: 60, w: 43, h: 20, name: 'Mercado del Puerto', music: 'market' },
-  harbor: { x: 74, y: 60, w: 46, h: 20, name: 'Puerto y Faro', music: 'beach' },
+  harbor: { x: 74, y: 60, w: 46, h: 20, name: 'Puerto y Faro', music: 'harbor' },
 } as const;
 export type VillageZone = keyof typeof VILLAGE_BOUNDS;
 export const VILLAGE_REVISION = 2;

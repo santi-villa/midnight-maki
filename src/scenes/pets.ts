@@ -115,7 +115,22 @@ export class Pets {
   }
 
   /** `player` in world pixels. A cat hops when you come close; the golden dog barks while you are near. */
-  update(dt: number, player: { x: number; y: number }, guests: { x: number; y: number }[] = [], occupants: { x: number; y: number }[] = []) {
+  cats(): { x: number; y: number }[] {
+    return this.pets.filter((p) => p.spot.kind.startsWith('cat') && !p.sleeping).map((p) => ({ x: p.s.x, y: p.s.y }));
+  }
+
+  company(): { kind: 'cat' | 'dog'; x: number; y: number; calm: boolean }[] {
+    return this.pets.filter((p) => !p.sleeping && (p.spot.kind.startsWith('cat') || p.spot.kind.startsWith('dog'))).map((p) => ({
+      kind: p.spot.kind.startsWith('cat') ? 'cat' as const : 'dog' as const,
+      x: p.s.x, y: p.s.y, calm: p.path.length === 0,
+    }));
+  }
+
+  movers(): { x: number; y: number; moving: boolean }[] {
+    return this.pets.filter((p) => !p.sleeping).map((p) => ({ x: p.s.x, y: p.s.y, moving: p.path.length > 0 }));
+  }
+
+  update(dt: number, player: { x: number; y: number }, guests: { x: number; y: number }[] = [], occupants: { x: number; y: number }[] = [], watched: { x: number; y: number }[] = []) {
     if (dt <= 0) return;
     this.napClock += dt;
     for (const p of this.pets) {
@@ -154,6 +169,15 @@ export class Pets {
         continue;
       }
       if (sleeping) { this.doze(p, dt); continue; }
+      if (cat && !p.path.length && watched.length) {
+        let best: { x: number; y: number } | null = null;
+        let near = 46;
+        for (const w of watched) {
+          const d = Math.hypot(w.x - p.s.x, w.y - p.s.y);
+          if (d < near) { near = d; best = w; }
+        }
+        if (best) p.s.setFlipX(best.x < p.s.x);
+      }
       p.pause -= dt;
       const lively = energy('cat', this.feel);
       const shelter = shelters('cat', this.feel);

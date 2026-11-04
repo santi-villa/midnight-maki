@@ -134,6 +134,8 @@ export interface FishSource { id: string; ox: number; oy: number; spots: { x: nu
 const MAX_JUMPS = 6;
 
 export class FishLife {
+  /** Recent jumps, so a fisher can look. Drawing only: the catch is untouched. */
+  readonly leaps: { x: number; y: number; until: number }[] = [];
   private schools: School[] = [];
   private jumping = 0;
   private still = false;
@@ -211,6 +213,8 @@ export class FishLife {
   }
 
   private jump(x0: number, y0: number, f: Fish) {
+    this.leaps.push({ x: x0, y: y0, until: this.scene.time.now + 2500 });
+    if (this.leaps.length > 6) this.leaps.shift();
     const scene = this.scene;
     const dir = Math.random() < 0.5 ? -1 : 1;
     const dx = dir * (11 + Math.random() * 7), dy = (Math.random() - 0.5) * 5, lift = 10 + Math.random() * 6;

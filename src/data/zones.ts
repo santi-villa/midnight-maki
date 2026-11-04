@@ -441,7 +441,7 @@ function station(): ZoneDef {
     .prop('tree_dark', 1, 15).prop('tree_dark', 21, 17).prop('pine', 18, 21).prop('pine', 22, 13).prop('tree_dark', 4, 24).prop('tree_dark', 20, 24).prop('bush', 7, 21)
     .prop('bush', 12, 15).prop('rock', 13, 23).prop('bigrock', 2, 21).prop('reeds', 16, 19).prop('mushroom', 5, 20).prop('flowers_lav', 10, 22).prop('stonelantern', 8, 17);
   return zone(b, {
-    id: 'station', name: 'Estación Abandonada', music: 'mystery', outdoor: true,
+    id: 'station', name: 'Estación Abandonada', music: 'station', outdoor: true,
     doors: [
       { x: 23, y: 10, to: 'plaza', tx: 1, ty: 12, dir: 'right', walk: true },
       { x: 23, y: 11, to: 'plaza', tx: 1, ty: 13, dir: 'right', walk: true },

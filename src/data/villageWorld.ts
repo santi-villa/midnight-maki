@@ -7,6 +7,8 @@ import { PROPS } from './props';
 import { PROJECT_AMENITIES, PROJECT_PROPS, PROJECTS, PROJECT_GATHER } from './projects';
 import { RESTAURANT_ENTRY } from './zoneKit';
 import { exteriorsWanted } from '../art/exteriors';
+import { wildFlowerGround } from '../world/habitats';
+import { dampMushroom, keepDressProp, netBeside, reedHere } from '../world/zoneDress';
 
 export const VILLAGE_SQUARE = civicSquare;
 export const VILLAGE_WIDTH = 120, VILLAGE_HEIGHT = 80;
@@ -83,8 +85,9 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
     street([[gx, gy], [gx, roadY]], 1, h.zone === 'harbor' || h.zone === 'market' ? 'b' : 'p');
     if (h.zone === 'garden') street([[gx, roadY], [21, roadY]], 2);
     for (const xx of [x - 1, x + 6]) {
-      prop('flowers', xx, y + 4);
-      if (h.zone === 'residential') prop('bush', xx, y + 5);
+      // A lawn can grow a patch. A wooden quay cannot, so harbor and market houses stay clear.
+      if (wildFlowerGround(terrain[y + 4]?.[xx])) prop('flowers', xx, y + 4);
+      if (h.zone === 'residential' && wildFlowerGround(terrain[y + 5]?.[xx])) prop('bush', xx, y + 5);
     }
     if (h.zone === 'residential') for (let xx = x; xx < x + 6; xx++) if (Math.abs(xx - gx) > 1) prop('fence', xx, roadY - 1);
   }
@@ -263,6 +266,59 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
     for (const p of z.gather) reserved.add(`${b.x + p.x},${b.y + p.y}`);
   }
   const occupied = new Set<string>();
+  const cellFree = (x: number, y: number) => {
+    if (reserved.has(`${x},${y}`)) return false;
+    return !props.some((q) => {
+      const d = PROPS[q.id];
+      return !!d && x >= q.x && x < q.x + d.w && y >= q.y && y < q.y + d.h;
+    });
+  };
+  // Wild flowers authored onto a deck, a street or the water do not get to stay.
+  props = props.filter((p) => {
+    const d = PROPS[p.id];
+    if (!d) return true;
+    return keepDressProp(p.id, terrain[p.y + d.h - 1]?.[p.x]);
+  });
+  const fresh = (x: number, y: number) => terrain[y]?.[x] === 'w';
+  const hard = (x: number, y: number) => 'pcbSRC'.includes(terrain[y]?.[x] ?? '');
+  const beside = (x: number, y: number, test: (x: number, y: number) => boolean, ring = 1) => {
+    for (let dy = -ring; dy <= ring; dy++) for (let dx = -ring; dx <= ring; dx++) if ((dx || dy) && test(x + dx, y + dy)) return true;
+    return false;
+  };
+  // A few mushrooms and reeds on the forest and garden banks. The same bank always picks the same spots.
+  const banks: Point[] = [];
+  for (let y = 1; y < terrain.length - 1; y++) for (let x = 1; x < 31; x++) {
+    if (y >= 48) continue;
+    const nearFresh = beside(x, y, fresh);
+    const nearHard = beside(x, y, hard);
+    if (dampMushroom(terrain[y][x], nearFresh, nearHard) && cellFree(x, y)) banks.push([x, y]);
+  }
+  banks.sort((a, b) => ((a[0] * 17 + a[1] * 31) % 97) - ((b[0] * 17 + b[1] * 31) % 97));
+  let mushrooms = 0;
+  let last: Point | null = null;
+  for (const [x, y] of banks) {
+    if (mushrooms >= 4) break;
+    if (last && Math.hypot(x - last[0], y - last[1]) < 6) continue;
+    prop('mushroom', x, y);
+    mushrooms++;
+    last = [x, y];
+  }
+  let reeds = 0;
+  for (const [x, y] of banks) {
+    if (reeds >= 3) break;
+    if (!reedHere(terrain[y][x], true, false) || !cellFree(x, y)) continue;
+    if ((x * 13 + y) % 3 !== 0) continue;
+    prop('reeds', x, y);
+    reeds++;
+  }
+  // One net on the sand beside a beached line, never on the quay.
+  const rope = props.find((p) => p.id === 'boat_rope' && p.x < 31);
+  if (rope) {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as Point[]) {
+      const x = rope.x + dx, y = rope.y + dy;
+      if (netBeside(terrain[y]?.[x]) && cellFree(x, y)) { prop('village_net', x, y); break; }
+    }
+  }
   const structural = (p: PropPlace) => ['building', 'townhouse', 'sidehouse', 'lighthouse', 'fountain', 'stall', 'torii', 'shrine'].includes(PROPS[p.id].kind);
   props.sort((a, b) => Number(structural(b)) - Number(structural(a)));
   // one kind of tree per district, so a swaying dark tree never stands beside a still light one (cherries stay as accents)

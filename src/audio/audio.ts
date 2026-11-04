@@ -7,14 +7,16 @@ import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
 import { voiceNote, voicePhraseCount, voiceWhen, type VoiceNote } from './voices';
 
-type Track = 'title' | 'town' | 'town_night' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'kitchen_hard' | 'home' | 'forest' | 'beach' | 'garden' | 'market' | 'mystery' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
+type Track = 'title' | 'town' | 'town_night' | 'restaurant' | 'restaurant_night' | 'kitchen' | 'kitchen_hard' | 'home' | 'forest' | 'beach' | 'harbor' | 'garden' | 'shrine' | 'market' | 'mystery' | 'station' | 'stars' | 'festival' | 'emotional' | 'intro' | 'none';
 
 interface TrackDef {
   bpm: number;
   scale: number[];        // semitone offsets from root
   root: number;           // midi
   chords: number[][];     // degrees per bar
-  lead: 'piano' | 'pluck' | 'bell' | 'flute';
+  lead: 'piano' | 'pluck' | 'bell' | 'flute' | 'koto';
+  /** No hat, no improvised fills: the phrase is allowed to rest. */
+  quiet?: boolean;
   density: number;        // 0..1 notes per eighth
   bass: boolean;
   swing: number;
@@ -34,20 +36,23 @@ const MIYAKO = [0, 1, 5, 7, 8]; // in-scale japanese flavour
 
 const TRACKS: Record<Exclude<Track, 'none'>, TrackDef> = {
   title: { bpm: 70, scale: PENTA, root: 57, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'piano', density: 0.35, bass: true, swing: 0.1 },
-  town: { bpm: 84, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [7, 11, 14, 17]], lead: 'pluck', density: 0.5, bass: true, swing: 0.15, beat: true },
-  town_night: { bpm: 60, scale: PENTA, root: 55, chords: [[0, 4, 7, 11], [-5, -1, 2, 7], [5, 9, 12, 16], [0, 4, 7, 11]], lead: 'bell', density: 0.18, bass: true, swing: 0.05 },
-  restaurant: { bpm: 78, scale: PENTA, root: 62, chords: [[0, 4, 7, 11], [5, 9, 12, 16], [-1, 2, 5, 9], [4, 7, 11, 14]], lead: 'piano', density: 0.45, bass: true, swing: 0.2, beat: true },
-  // a cheerful lunchtime kitchen: koto-like pluck theme, marimba answers, wood-block chopping and a walking bass (16 bars: A B A' B')
-  kitchen: { bpm: 96, scale: PENTA, root: 60, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'pluck', density: 0.3, bass: true, swing: 0.1, groove: {}, beat: true },
-  kitchen_hard: { bpm: 122, scale: PENTA, root: 62, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'pluck', density: 0.36, bass: true, swing: 0.05, groove: { tick: true }, beat: true },
-  restaurant_night: { bpm: 66, scale: PENTA, root: 57, chords: [[0, 3, 7, 10], [5, 8, 12, 15], [-2, 2, 5, 9], [3, 7, 10, 14]], lead: 'piano', density: 0.3, bass: true, swing: 0.2 },
-  home: { bpm: 64, scale: PENTA, root: 60, chords: [[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]], lead: 'bell', density: 0.25, bass: false, swing: 0.1 },
-  forest: { bpm: 72, scale: MIYAKO, root: 57, chords: [[0, 7, 12], [1, 8, 13], [-2, 5, 10], [0, 7, 12]], lead: 'flute', density: 0.3, bass: true, swing: 0 },
-  beach: { bpm: 80, scale: PENTA, root: 65, chords: [[0, 4, 7, 9], [5, 9, 12, 14], [2, 5, 9, 12], [7, 11, 14, 16]], lead: 'pluck', density: 0.4, bass: true, swing: 0.25, beat: true },
-  garden: { bpm: 70, scale: PENTA, root: 64, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [0, 4, 7]], lead: 'bell', density: 0.35, bass: false, swing: 0.1 },
-  market: { bpm: 92, scale: MIYAKO, root: 62, chords: [[0, 7, 12], [5, 12, 17], [1, 8, 13], [0, 7, 12]], lead: 'pluck', density: 0.55, bass: true, swing: 0.1, beat: true },
-  mystery: { bpm: 60, scale: MINOR_PENTA, root: 57, chords: [[0, 3, 7], [-4, 0, 3], [1, 5, 8], [-1, 2, 7]], lead: 'bell', density: 0.2, bass: true, swing: 0 },
-  stars: { bpm: 58, scale: PENTA, root: 64, chords: [[0, 4, 7, 11], [9, 12, 16, 19], [5, 9, 12, 16], [7, 11, 14, 18]], lead: 'bell', density: 0.3, bass: false, swing: 0 },
+  town: { bpm: 84, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [7, 11, 14, 17]], lead: 'pluck', density: 0.42, bass: true, swing: 0.12, beat: true },
+  town_night: { bpm: 58, scale: PENTA, root: 55, chords: [[0, 4, 7, 11], [-5, -1, 2, 7], [5, 9, 12, 16], [0, 4, 7, 11]], lead: 'bell', density: 0.16, bass: true, swing: 0.04, quiet: true },
+  restaurant: { bpm: 72, scale: MIYAKO, root: 62, chords: [[0, 7, 12], [5, 12, 17], [1, 8, 13], [0, 7, 12]], lead: 'koto', density: 0.32, bass: true, swing: 0.08, quiet: true },
+  // a cheerful lunchtime kitchen: pluck theme, marimba answers, wood-block chopping and a walking bass (16 bars: A B A' B')
+  kitchen: { bpm: 92, scale: PENTA, root: 60, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'pluck', density: 0.28, bass: true, swing: 0.08, groove: {}, beat: true },
+  kitchen_hard: { bpm: 104, scale: PENTA, root: 62, chords: [[0, 4, 7], [-3, 0, 4], [5, 9, 12], [7, 11, 14]], lead: 'pluck', density: 0.3, bass: true, swing: 0.04, groove: { tick: true }, beat: true },
+  restaurant_night: { bpm: 62, scale: MIYAKO, root: 57, chords: [[0, 7, 12], [1, 8, 13], [-2, 5, 10], [0, 7, 12]], lead: 'koto', density: 0.22, bass: true, swing: 0.06, quiet: true },
+  home: { bpm: 60, scale: PENTA, root: 60, chords: [[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]], lead: 'bell', density: 0.2, bass: false, swing: 0.06, quiet: true },
+  forest: { bpm: 66, scale: MIYAKO, root: 57, chords: [[0, 7, 12], [1, 8, 13], [-2, 5, 10], [0, 7, 12]], lead: 'flute', density: 0.18, bass: true, swing: 0, quiet: true },
+  beach: { bpm: 76, scale: PENTA, root: 67, chords: [[0, 4, 7, 11], [5, 9, 12, 16], [2, 5, 9, 12], [7, 11, 14, 16]], lead: 'pluck', density: 0.32, bass: true, swing: 0.18, beat: true },
+  harbor: { bpm: 64, scale: MINOR_PENTA, root: 53, chords: [[0, 3, 7, 10], [-2, 2, 5, 10], [3, 7, 10, 15], [0, 3, 7, 10]], lead: 'flute', density: 0.22, bass: true, swing: 0.05, quiet: true },
+  garden: { bpm: 68, scale: PENTA, root: 64, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [5, 9, 12, 16], [0, 4, 7, 11]], lead: 'bell', density: 0.24, bass: false, swing: 0.06, quiet: true },
+  shrine: { bpm: 52, scale: MIYAKO, root: 60, chords: [[0, 7, 12], [1, 8, 13], [0, 7, 12], [-2, 5, 10]], lead: 'flute', density: 0.12, bass: false, swing: 0, quiet: true },
+  market: { bpm: 96, scale: MIYAKO, root: 62, chords: [[0, 7, 12], [5, 12, 17], [1, 8, 13], [0, 7, 12]], lead: 'pluck', density: 0.4, bass: true, swing: 0.1, beat: true },
+  mystery: { bpm: 58, scale: MINOR_PENTA, root: 57, chords: [[0, 3, 7], [-4, 0, 3], [1, 5, 8], [-1, 2, 7]], lead: 'bell', density: 0.16, bass: true, swing: 0, quiet: true },
+  station: { bpm: 62, scale: MINOR_PENTA, root: 50, chords: [[0, 3, 7, 10], [-2, 2, 5, 8], [3, 7, 10, 14], [0, 3, 7, 10]], lead: 'bell', density: 0.18, bass: true, swing: 0, quiet: true },
+  stars: { bpm: 56, scale: PENTA, root: 64, chords: [[0, 4, 7, 11], [9, 12, 16, 19], [5, 9, 12, 16], [7, 11, 14, 18]], lead: 'piano', density: 0.2, bass: false, swing: 0, quiet: true },
   festival: { bpm: 100, scale: PENTA, root: 62, chords: [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]], lead: 'flute', density: 0.6, bass: true, swing: 0.15, beat: true },
   intro: { bpm: 60, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [-7, -3, 0, 4], [-5, -1, 2, 7]], lead: 'piano', density: 0.25, bass: true, swing: 0 },
   emotional: { bpm: 60, scale: PENTA, root: 60, chords: [[0, 4, 7, 11], [-3, 0, 4, 7], [-7, -3, 0, 4], [-5, -1, 2, 7]], lead: 'piano', density: 0.25, bass: true, swing: 0 },
@@ -58,32 +63,60 @@ const MELODIES: Partial<Record<Exclude<Track, 'none'>, string>> = {
   title:      '4 - 5 - 7 - 5 4 | 2 - - - . . 2 4 | 5 - 4 2 4 - 2 0 | 2 - - - - - . . ',
   town:       '2 - 4 5 4 - 2 - | 0 - 2 - 4 - . . | 2 - 4 5 7 - 5 - | 4 - 2 - 0 - . . ',
   town_night: '4 - - 2 - - 0 - | 2 - - - . . . . | 0 - - 2 - - 4 - | 2 - - - - - . . ',
-  restaurant: '4 - 5 - 4 2 - 2 | 0 - 2 4 - . . . | 5 - 7 5 4 - 2 4 | 2 - 0 - . . . . ',
-  kitchen:    '0 - 2 - 4 - 3 2 | 1 - 2 - 1 0 . . | 2 - 3 - 4 - 5 4 | 3 - 2 1 0 - . . ',
-  kitchen_hard: '0 2 4 2 0 2 4 5 | 4 2 1 - 0 - . . | 2 3 4 3 2 3 5 4 | 3 - 2 - 0 - . . ',
-  restaurant_night: '4 - - 3 2 - - . | 3 - - 2 1 - . . | 0 - 2 - 3 - 4 - | 2 - - - - - . . ',
-  home:       '0 - 2 - 4 - 2 - | 0 - . - 2 - 4 - | 5 - 4 - 2 - 0 - | 2 - - - . . . . ',
-  forest:     '0 - - 1 2 - - . | 3 - 2 - 1 - . . | 0 - 1 - 2 - 4 - | 3 - - - 2 - . . ',
-  beach:      '2 3 4 - 4 3 2 - | 1 2 3 - . . . . | 4 5 6 - 5 4 3 - | 2 - - - . . . . ',
-  garden:     '4 - 2 - 3 - 1 - | 2 - 0 - . . . . | 1 - 2 - 3 - 4 - | 5 - - - . . . . ',
-  market:     '0 1 2 4 2 1 0 - | 2 3 4 - 3 2 1 - | 0 1 2 4 5 4 2 - | 1 - 0 - . . . . ',
+  restaurant: '0 - 1 - 3 - 2 - | 1 - 0 - . . . . | 3 - 4 - 3 - 1 - | 0 - - - . . . . ',
+  kitchen:    '0 - 2 - 4 - 2 0 | 1 - 2 - 1 0 . . | 2 - 4 - 5 - 4 2 | 0 - - - . . . . ',
+  kitchen_hard: '0 2 4 2 0 2 4 2 | 4 2 1 - 0 - . . | 2 4 5 4 2 4 2 0 | 1 - 0 - . . . . ',
+  restaurant_night: '0 - - 1 - - . . | 3 - 2 - 1 - . . | 0 - 1 - 2 - - . | 1 - 0 - . . . . ',
+  home:       '0 - 2 - 4 - - . | 2 - 0 - . . . . | 4 - 5 - 4 - 2 - | 0 - - - . . . . ',
+  forest:     '0 - - - 1 - - . | 2 - - - . . . . | 3 - 2 - 1 - - . | 0 - - - . . . . ',
+  beach:      '0 - 2 - 4 - 2 - | 4 - 5 - . . 4 - | 2 - 4 - 5 - 4 - | 2 - 0 - . . . . ',
+  harbor:     '0 - - 3 - - 2 - | 1 - - - . . . . | 3 - 2 - 1 - 0 - | 2 - - - 0 - . . ',
+  garden:     '4 - - 2 - - 3 - | 1 - - - . . . . | 2 - 3 - 4 - 5 - | 4 - 2 - 0 - . . ',
+  shrine:     '0 - - - 1 - - . | . . . . 3 - - . | 2 - - - 1 - - . | 0 - - - . . . . ',
+  market:     '0 2 4 - 2 0 - . | 1 2 4 - 2 1 - . | 0 2 4 5 4 2 - . | 1 - 0 - . . . . ',
   mystery:    '0 - - - 2 - 1 - | 0 - - - . . . . | 3 - - 2 1 - 0 - | 1 - - - . . . . ',
-  stars:      '4 - - - 5 - - - | 6 - 5 - 4 - - . | 3 - - - 4 - 2 - | 1 - - - - - - . ',
+  station:    '0 - 2 - 1 - - . | 0 - - - . . 2 - | 3 - 2 - 1 - 0 - | 0 - - - . . . . ',
+  stars:      '0 - - 2 - - 4 - | 5 - 4 - 2 - - . | 4 - - 2 - - 0 - | 2 - - - . . . . ',
   festival:   '0 2 4 2 0 2 4 5 | 4 - 2 - 0 - . . | 1 3 4 3 1 3 4 6 | 5 - 4 - 2 - . . ',
   intro:      '2 - - 3 4 - - . | 3 - 2 - 1 - - . | 0 - - 1 2 - - . | 1 - - - - - - . ',
   emotional:  '2 - - 3 4 - - . | 3 - 2 - 1 - - . | 0 - - 1 2 - - . | 1 - - - - - - . ',
 };
 /** second theme: tracks that have one play A B A' B' (the answering phrase on a marimba) */
 const MELODIES_B: Partial<Record<Exclude<Track, 'none'>, string>> = {
-  town:         '5 - 4 2 4 - 2 0 | 2 - 0 - . . . . | 5 - 7 5 4 - 2 - | 0 - 2 - 4 - . . ',
-  restaurant:   '2 - 4 - 5 - 4 - | 2 - 0 - 2 - . . | 4 - 2 4 5 - 4 2 | 0 - - - . . . . ',
-  kitchen:      '4 - 5 - 4 2 0 - | 1 - 2 - 4 - . . | 5 - 4 - 2 - 4 5 | 4 - 2 - 0 - . . ',
-  kitchen_hard: '4 5 4 2 0 2 4 - | 5 4 2 - 1 - . . | 4 5 6 5 4 2 4 5 | 4 2 1 - 0 - . . ',
+  town:         '4 - 5 - 4 - 2 - | 0 - 2 - . . 0 - | 5 - 4 - 2 - 4 - | 2 - 0 - . . . . ',
+  town_night:   '2 - - - 4 - - . | 0 - - - . . . . | 4 - - 2 - - 0 - | 2 - - - . . . . ',
+  restaurant:   '2 - 3 - 4 - 3 - | 1 - 0 - . . 1 - | 3 - 1 - 0 - - . | 2 - 0 - . . . . ',
+  restaurant_night: '3 - - 2 - - 1 - | 0 - - - . . . . | 1 - 2 - 3 - 1 - | 0 - - - . . . . ',
+  kitchen:      '4 - 2 - 0 - 2 - | 4 - 5 - 4 - . . | 2 - 4 - 2 - 0 - | 1 - 0 - . . . . ',
+  kitchen_hard: '4 2 0 2 4 2 4 - | 5 4 2 - 0 - . . | 4 5 4 2 0 2 4 2 | 1 0 - - . . . . ',
+  home:         '2 - 4 - 5 - 4 - | 2 - 0 - . . 2 - | 4 - 2 - 0 - - . | 2 - - - . . . . ',
+  forest:       '2 - - 3 - - 1 - | 0 - - - . . 1 - | 2 - 1 - 0 - - . | . . . . . . . . ',
+  beach:        '4 - 5 - 4 - 2 - | 0 - 2 - . . 4 - | 5 - 4 - 2 - 0 - | 2 - - - . . . . ',
+  harbor:       '3 - - 4 - 3 - 2 | 1 - 0 - . . . . | 2 - 3 - 4 - 3 - | 1 - 0 - . . . . ',
+  garden:       '5 - - 4 - - 2 - | 3 - 1 - . . . . | 2 - - 4 - 3 - 2 | 0 - - - . . . . ',
+  shrine:       '3 - - - 2 - - . | 1 - - - . . . . | 0 - 1 - 2 - - . | 1 - 0 - . . . . ',
+  market:       '4 - 5 - 4 - 2 - | 1 - 0 - 2 - . . | 4 - 2 - 4 - 5 - | 4 - 2 - 0 - . . ',
+  station:      '2 - - 3 - - 1 - | 0 - - - . . . . | 1 - 2 - 3 - 2 - | 0 - - - . . . . ',
+  stars:        '5 - - 4 - - 2 - | 4 - 2 - 0 - - . | 2 - - 4 - 5 - 4 | 2 - 0 - . . . . ',
 };
-const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { kitchen_hard: true, title: true, town: true, town_night: true, restaurant: true, restaurant_night: true, kitchen: true, home: true, garden: true, stars: true, emotional: true, intro: true, beach: true };
+const ARP: Partial<Record<Exclude<Track, 'none'>, boolean>> = { kitchen_hard: true, title: true, town: true, town_night: true, kitchen: true, garden: true, emotional: true, intro: true, beach: true };
 
 function parseMelody(src: string): (number | null | '-')[] {
   return src.replace(/\|/g, ' ').trim().split(/\s+/).map((t) => (t === '.' ? null : t === '-' ? '-' : Number(t)));
+}
+
+/** Phrase lengths for tests. The synth still owns playback. */
+export function compositionOf(track: Exclude<Track, 'none'>) {
+  const def = TRACKS[track];
+  const a = MELODIES[track];
+  const b = MELODIES_B[track];
+  return {
+    bpm: def.bpm, root: def.root, lead: def.lead, beat: !!def.beat, quiet: !!def.quiet,
+    phrase: a ? parseMelody(a).length : 0,
+    answer: b ? parseMelody(b).length : 0,
+    melody: a ?? '',
+    answerLine: b ?? '',
+  };
 }
 
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
@@ -514,7 +547,7 @@ export class AudioEngine {
           const prime = !!melodyB && pass >= 2 && inBar % 4 === 0; // second time round the lead is doubled by a glockenspiel
           this.note(def.root + deg + lift, t, eighth * len * 0.95, answering ? 'bell' : def.lead, answering ? 0.085 : 0.1);
           if (prime) this.note(def.root + deg + 12, t, eighth * 0.9, 'bell', 0.04);
-        } else if (tok === null && pass % 2 === 1 && !melodyB && this.rng() < def.density * 0.5) {
+        } else if (tok === null && !def.quiet && pass % 2 === 1 && !melodyB && this.rng() < def.density * 0.5) {
           // gentle improvised fill in the rests of the second pass
           const deg = def.scale[Math.floor(this.rng() * def.scale.length)];
           this.note(def.root + deg + 12, t, eighth * 1.4, def.lead, 0.05);
@@ -534,7 +567,7 @@ export class AudioEngine {
         if (inBar === 2 || inBar === 6) this.rim(t, 0.05);
       }
       // brushed hat for lo-fi feel
-      if (def.bass && inBar % 2 === 0 && this.noiseBuf) this.hat(t, inBar === 4 ? 0.025 : 0.012);
+      if (def.bass && !def.quiet && inBar % 2 === 0 && this.noiseBuf) this.hat(t, inBar === 4 ? 0.025 : 0.012);
       this.nextTime += eighth;
       this.step++;
     }
@@ -578,7 +611,14 @@ export class AudioEngine {
       case 'flute':
         mk('sine', f);
         mk('triangle', f * 2, 0.08);
-        attack = 0.06;
+        attack = 0.08;
+        release = dur * 1.15;
+        break;
+      case 'koto':
+        mk('triangle', f);
+        mk('sine', f * 2, 0.1);
+        attack = 0.012;
+        release = dur * 0.85;
         break;
       case 'pad':
         mk('sine', f);

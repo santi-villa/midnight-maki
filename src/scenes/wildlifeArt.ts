@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { ctx2d, makeCanvas, outline } from '../art/pixel';
 
-export type WildKind = 'frog' | 'duck' | 'duckling' | 'crab' | 'squirrel' | 'dragonfly' | 'bee';
+export type WildKind = 'frog' | 'duck' | 'duckling' | 'crab' | 'squirrel' | 'dragonfly' | 'bee' | 'beetle';
 
 const INK = '#2b1d17';
 
@@ -17,6 +17,7 @@ const PALETTE: Record<WildKind, Record<string, string>> = {
   squirrel: { o: '#c47436', O: '#8a4a22', c: '#f2dcb4', n: '#8a5a2a', k: INK },
   dragonfly: { b: '#3a9ad8', B: '#246090', W: '#dff2ff', k: INK },
   bee: { y: '#f2c43a', k: INK, W: '#eef8ff' },
+  beetle: { b: '#6a5344', B: '#3e322c', r: '#8a3a32', k: INK },
 };
 
 /** Frames per animal. The names after the frames say what each is for (see FRAME). */
@@ -74,6 +75,10 @@ const FRAMES: Record<WildKind, string[][]> = {
     ['.W.W.', '.WkW.', 'kykyk', '.yky.'],
     ['.....', 'WWkWW', 'kykyk', '.yky.'],
   ],
+  beetle: [
+    ['..b..', '.bBb.', 'brBkb', '.BBB.'],
+    ['..b..', '.bBb.', 'bBkrb', '.B.B.'],
+  ],
 };
 
 /** Which frame does what, per animal. */
@@ -85,6 +90,7 @@ export const FRAME = {
   squirrel: { runA: 0, runB: 1, sit: 2 },
   dragonfly: { up: 0, down: 1 },
   bee: { up: 0, down: 1 },
+  beetle: { sit: 0, step: 1 },
 } as const;
 
 /** The sprite sheet of one animal (frames side by side), made once. */
