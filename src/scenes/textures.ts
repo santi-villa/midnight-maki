@@ -1,3 +1,4 @@
+import { neighborSheet } from '../art/neighborArt';
 /** Lazily converts generated canvases into Phaser textures (cached by key). */
 import { setPlaqueName } from '../art/izakaya';
 import { cachedSheet, storeSheet, type SheetMeta } from '../art/sheetCache';
@@ -14,7 +15,7 @@ import { game } from '../core/state';
 import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { drawPlaque, pixTextWidth } from '../art/pixfont';
 import type { ShopPhase } from '../systems/schedule';
-import { buildCharacterSheet, FH, FRAME_COUNT, FW } from '../art/characters';
+import { buildCharacterSheet, FW, FH, FRAME_COUNT } from '../art/characters';
 import { buildFolkSheet } from '../art/folk';
 import { heroSheet, isHeroLook } from '../art/heroRender';
 import { buildingLayout } from '../art/nature';
@@ -54,7 +55,7 @@ function addSheet(scene: Phaser.Scene, key: string, canvas: HTMLCanvasElement, m
 
 export function charTexture(scene: Phaser.Scene, id: string): string {
   const look = appearanceKey(id);
-  const key = 'ch_' + hashStr(look);
+  const key = 'ch_v2_' + hashStr(look);
   if (!scene.textures.exists(key)) {
     const hit = cachedSheet(key);
     if (hit) addSheet(scene, key, hit.canvas, hit.meta);
@@ -68,8 +69,10 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
       } else if (build) {
         const sheet = buildRaccoonSheet(appearanceOf(id), build);
         canvas = sheet.canvas; meta = { fw: sheet.fw, fh: sheet.fh };
-      } else {
+      } else if (id === 'player') {
         canvas = buildCharacterSheet(appearanceOf(id), dropOf(id)); meta = { fw: FW, fh: FH };
+      } else {
+        const sheet = neighborSheet(appearanceOf(id)); canvas = sheet.canvas; meta = { fw: sheet.fw, fh: sheet.fh, pad: sheet.pad };
       }
       addSheet(scene, key, canvas, meta);
       storeSheet(key, canvas, meta);
@@ -86,7 +89,7 @@ export function charTexture(scene: Phaser.Scene, id: string): string {
 
 /** True when this look is already a texture, so a zone change does not have to paint the sheet. */
 export function hasCharTexture(scene: Phaser.Scene, id: string): boolean {
-  return scene.textures.exists('ch_' + hashStr(appearanceKey(id)));
+  return scene.textures.exists('ch_v2_' + hashStr(appearanceKey(id)));
 }
 
 /** Texture for an arbitrary appearance (generic customers). */
@@ -94,16 +97,22 @@ export function lookTexture(scene: Phaser.Scene, a: import('../core/types').Appe
   const key = lookKey(a);
   if (!scene.textures.exists(key)) {
     const hit = cachedSheet(key);
-    const canvas = hit?.canvas ?? buildCharacterSheet(a);
-    addSheet(scene, key, canvas, { fw: FW, fh: FH });
-    if (!hit) storeSheet(key, canvas, { fw: FW, fh: FH });
+    const sheet = hit ? { canvas: hit.canvas, ...hit.meta } : neighborSheet(a);
+    const meta = { fw: sheet.fw, fh: sheet.fh, pad: sheet.pad };
+    addSheet(scene, key, sheet.canvas, meta);
+    if (!hit) storeSheet(key, sheet.canvas, meta);
   }
   return key;
 }
 
 /** Any player's look, hero or classic, for the friend who is in the room with us. */
 export function appearanceTexture(scene: Phaser.Scene, a: import('../core/types').Appearance): string {
-  if (!isHeroLook(a)) return lookTexture(scene, a);
+  // Player appearances retain their renderer; the NPC adapter is deliberately separate.
+  if (!isHeroLook(a)) {
+    const key = 'rm_classic_' + hashStr(JSON.stringify(a));
+    if (!scene.textures.exists(key)) addSheet(scene, key, buildCharacterSheet(a), { fw: FW, fh: FH });
+    return key;
+  }
   const key = 'rm_' + hashStr(JSON.stringify(a));
   if (!scene.textures.exists(key)) {
     const { canvas, fw, fh, pad } = heroSheet(a);
@@ -119,7 +128,7 @@ export function hasLookTexture(scene: Phaser.Scene, a: import('../core/types').A
 }
 
 function lookKey(a: import('../core/types').Appearance): string {
-  return 'lk_' + hashStr(JSON.stringify(a));
+  return 'lk_v2_' + hashStr(JSON.stringify(a));
 }
 
 /** Yellow order mark. Its own sprite so it sorts with the guest instead of a shared Graphics batch. */

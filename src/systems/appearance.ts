@@ -1,3 +1,4 @@
+import { neighborSpec } from '../art/neighborArt';
 import { buildPortrait, type Expr } from '../art/characters';
 import { buildFolkPortrait, type FolkCustom } from '../art/folk';
 import { heroPortrait, isHeroLook } from '../art/heroRender';
@@ -56,7 +57,7 @@ export function portraitURL(id: string, expr: Expr = 'neutral'): string {
   let url = portraitCache.get(key);
   if (!url) {
     const a = appearanceOf(id);
-    url = (folk ? buildFolkPortrait(folk, expr, 5, folkCustom(id)) : id === 'player' && isHeroLook(a) ? heroPortrait(a, expr) : buildPortrait(a, expr, dropOf(id))).toDataURL();
+    url = (folk ? buildFolkPortrait(folk, expr, 5, folkCustom(id)) : id === 'player' ? isHeroLook(a) ? heroPortrait(a, expr) : buildPortrait(a, expr, dropOf(id)) : buildFolkPortrait(neighborSpec(a), expr, 5)).toDataURL();
     portraitCache.set(key, url);
   }
   return url;
