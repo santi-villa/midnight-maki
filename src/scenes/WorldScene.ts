@@ -1,3 +1,4 @@
+import { interiorSun, beamReach, lampRoom, type InteriorBlock } from './interiorLight';
 /**
  * The explorable world. Renders the current zone, runs player/NPC movement, lighting,
  * ambient effects and interaction detection. Gameplay decisions are delegated to systems/actions.
@@ -1088,7 +1089,7 @@ export class WorldScene extends Phaser.Scene {
       if (p.def.light) {
         const kind = p.def.kind, beacon = kind === 'lighthouse';
         const r = beacon ? 170 : kind === 'lamppost' ? 104 : kind === 'stall' || kind === 'carpstall' ? 84 : kind === 'vending' ? 48 : 74;
-        this.lamps.push({ x: px, y: beacon ? py - img.height + 34 : tall ? py - img.height + 8 : py - p.def.sh * 0.7, gy: py - 4, r, flicker: kind !== 'lamppost' && kind !== 'vending' && !beacon, color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: kind === 'lamppost' || beacon ? 1.4 : 0.7 });
+        this.lamps.push({ x: px, y: beacon ? py - img.height + 34 : tall ? py - img.height + 8 : py - p.def.sh * 0.7, gy: py - 4, r: def.outdoor ? r : Math.min(r, 38), flicker: kind !== 'lamppost' && kind !== 'vending' && !beacon, color: Phaser.Display.Color.HexStringToColor(p.def.light).color, glow: kind === 'lamppost' || beacon ? 1.4 : 0.7 });
         if (beacon) this.addBeacon(px, py - img.height + 34);
       }
       this.objs.push(img);
@@ -1158,7 +1159,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.placeFurnitureSprites();
     // windows glow at night
-    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 34, flicker: false, color: 0xffe2a8, glow: 0.38, kind: 'window' });
+    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) if (def.ground[y][x] === 'V') this.lamps.push({ x: x * TILE + 8, y: y * TILE + 20, r: 22, flicker: false, color: 0xffe2a8, glow: 0.22, kind: 'window' });
     this.addAtmosphere();
     this.placeGather();
     this.placeCrops();
@@ -1212,7 +1213,7 @@ export class WorldScene extends Phaser.Scene {
     (img as any).furnUid = f.uid;
     this.furnSprites.push(img);
     if (def.light) {
-      const l: any = { x: px, y: py - def.sh * 0.6, r: 44, flicker: def.kind === 'paperlantern' || def.kind === 'candles', color: Phaser.Display.Color.HexStringToColor(def.light).color, glow: 0.55 };
+      const l: any = { x: px, y: py - def.sh * 0.6, r: this.zone.def.outdoor ? 44 : 32, flicker: def.kind === 'paperlantern' || def.kind === 'candles', color: Phaser.Display.Color.HexStringToColor(def.light).color, glow: 0.55 };
       l.furn = true;
       this.lamps.push(l);
     }
@@ -1220,6 +1221,8 @@ export class WorldScene extends Phaser.Scene {
 
   refreshFurniture() {
     if (!this.zoneId) return;
+    this.interiorDayKey = '';
+    this.lightKey = '';
     const night = clock.isNight() || clock.period === 2;
     const fresh = buildZone(this.liveId, night);
     this.zone.grid = fresh.grid;
@@ -4511,13 +4514,17 @@ export class WorldScene extends Phaser.Scene {
     this.tweens.add({ targets: d, scale: 2, alpha: 0, y: d.y - 3, duration: 380, onComplete: () => d.destroy() });
   }
 
-  private sunbeams: Phaser.GameObjects.Image[] = [];
+  private interiorDay: Phaser.GameObjects.Graphics | null = null;
+  private interiorDayKey = '';
+  private interiorDayRedraws = 0;
   private clouds: Phaser.GameObjects.Image[] = [];
 
   /** contact shadows under walls, sunbeams through windows, drifting cloud shadows */
   private addAtmosphere() {
     const def = this.zone.def;
-    this.sunbeams = [];
+    this.interiorDay = null;
+    this.interiorDayKey = '';
+    if (!def.outdoor) { this.interiorDay = this.add.graphics().setDepth(-6); this.objs.push(this.interiorDay); }
     this.clouds = [];
     const glow = glowTexture(this);
     for (let y = 0; y < def.h - 1; y++)
@@ -4528,12 +4535,7 @@ export class WorldScene extends Phaser.Scene {
           const s = this.add.rectangle(x * TILE + 8, (y + 1) * TILE + 2, TILE, 5, 0x1a1428, 0.2).setDepth(-7);
           this.objs.push(s);
         }
-        if (ch === 'V' && !def.outdoor) {
-          // a slanted patch of daylight on the floor below each window
-          const b = this.add.image(x * TILE + 14, (y + 2) * TILE + 4, glow).setScale(0.55, 0.9).setAngle(-18).setTint(0xfff1c8).setAlpha(0.32).setBlendMode(Phaser.BlendModes.ADD).setDepth(-6);
-          this.sunbeams.push(b);
-          this.objs.push(b);
-        }
+
       }
     if (def.outdoor && !lowFx()) {
       for (let i = 0; i < 3; i++) {
@@ -4546,7 +4548,7 @@ export class WorldScene extends Phaser.Scene {
 
   private updateAtmosphere(dt: number) {
     const day = clock.period < 2 && game.flag('weather') !== 'rain';
-    for (const b of this.sunbeams) b.setVisible(day);
+    this.updateInteriorDay();
     const W = this.zone.def.w * TILE;
     for (const c of this.clouds) {
       c.setVisible(day);
@@ -4555,6 +4557,49 @@ export class WorldScene extends Phaser.Scene {
       if (c.x > W + 80) {
         c.x = -80;
         c.y = Math.random() * this.zone.def.h * TILE;
+      }
+    }
+  }
+
+  /** Window-shaped light stays on the floor. Repaint only at a quantized clock/weather/layout change. */
+  private updateInteriorDay() {
+    const gfx = this.interiorDay, def = this.zone.def;
+    if (!gfx || def.outdoor) return;
+    const sun = interiorSun(clock.period, clock.progress(), game.flag('weather') === 'rain');
+    const key = `${clock.period}|${Math.floor(clock.progress() * 240)}|${game.flag('weather')}|${lowFx()}`;
+    if (key === this.interiorDayKey) return;
+    this.interiorDayKey = key;
+    this.interiorDayRedraws++;
+    gfx.clear();
+    if (def.dark || sun.strength < .005) return;
+    const blocks: InteriorBlock[] = this.zone.props.filter(p => p.def.solid && p.def.sh > 27 && !p.def.light && p.y >= 2)
+      .map(p => ({ x: p.x * TILE, y: p.y * TILE, w: p.def.w * TILE, h: p.def.h * TILE }));
+    for (const { f, def: d } of this.zone.furniture) if (['wardrobe', 'shelf', 'screen', 'bookshelf'].includes(d.kind)) {
+      const z = furnSize(d, f.rot); blocks.push({ x: f.x * TILE, y: f.y * TILE, w: z.w * TILE, h: z.h * TILE });
+    }
+    for (let y = 0; y < def.h; y++) for (let x = 0; x < def.w; x++) {
+      if (def.ground[y][x] !== 'V') continue;
+      const cx = x * TILE + TILE / 2, top = (y + 1) * TILE;
+      const length = Math.min(sun.length, (def.h - 1) * TILE - top);
+      const reach = beamReach(cx, top, TILE, length, sun.offset, blocks);
+      const step = lowFx() ? 4 : 2;
+      for (let d = 0; d < reach; d += step) {
+        const shift = sun.offset * d / length;
+        const center = cx + shift;
+        const row = Math.floor((top + d) / TILE), col = Math.floor(center / TILE);
+        if (!'fktm'.includes(def.ground[row]?.[col] ?? '#')) break;
+        const width = 12 + d * .08;
+        const alpha = sun.strength * .19 * (1 - d / (length + 4));
+        gfx.fillStyle(sun.color, alpha);
+        // Two panes with the shadow of the central mullion between them.
+        const left = Math.max(TILE, Math.round(center - width / 2));
+        const right = Math.min((def.w - 1) * TILE, Math.round(center + width / 2));
+        gfx.fillRect(left, top + d, Math.max(0, Math.floor(center - 1 - left)), step);
+        gfx.fillRect(Math.round(center + 1), top + d, Math.max(0, right - Math.round(center + 1)), step);
+      }
+      if (reach < length) {
+        gfx.fillStyle(0x292537, .1 * sun.strength);
+        gfx.fillRect(Math.round(cx + sun.offset * reach / length - 7), top + reach, 14, 3);
       }
     }
   }
@@ -4755,6 +4800,7 @@ export class WorldScene extends Phaser.Scene {
    * Flame animation and occasional failures live exclusively in the additive halos.
    */
   private updateLighting() {
+    this.updateInteriorDay();
     const cam = this.cameras.main;
     // the view straight from the camera: worldView is only refreshed when the frame is drawn, so right after the camera
     // jumps (a border crossed, the follow restarted) it is stale or small and part of the screen went undarkened
@@ -4819,6 +4865,11 @@ export class WorldScene extends Phaser.Scene {
     const pool = (x: number, y: number, r: number, color: number, a: number, squash: number) => {
       if (a <= 0.01 || r <= 0) return;
       g.save();
+      if (!def.outdoor) {
+        const room = lampRoom(def.ground, x, y);
+        if (!room) { g.restore(); return; }
+        g.beginPath(); g.rect(room.x - ox, room.y - oy, room.w, room.h); g.clip();
+      }
       g.translate(x - ox, y - oy);
       g.scale(1, squash);
       const grad = g.createRadialGradient(0, 0, 0, 0, 0, r);
@@ -4830,6 +4881,7 @@ export class WorldScene extends Phaser.Scene {
       g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
       g.restore();
     };
+    if (!def.outdoor) { g.save(); g.beginPath(); g.rect(TILE - ox, 2 * TILE - oy, (def.w - 2) * TILE, (def.h - 3) * TILE); g.clip(); }
     const dim = lampPoolTint(ls.tint, 0xffd27a, 1) != null;
     if (lit.length) {
       if (dim) {
@@ -4863,6 +4915,7 @@ export class WorldScene extends Phaser.Scene {
       g.drawImage(this.textures.get(vignetteTexture(this)).getSourceImage() as CanvasImageSource, 0, 0, W, H);
       g.globalAlpha = 1;
     }
+    if (!def.outdoor) g.restore();
     this.darkTex!.refresh();
   }
   private darkCanvas: HTMLCanvasElement | null = null;
@@ -4916,7 +4969,7 @@ export class WorldScene extends Phaser.Scene {
       const f = this.facadeLevel(true, false);
       return Math.max(ls.lamp * f, f * 0.85);
     }
-    if (l.kind === 'window') return ls.windows;
+    if (l.kind === 'window') return this.zone.def.outdoor ? ls.windows : interiorSun(clock.period, clock.progress(), game.flag('weather') === 'rain').strength;
     return this.zone.def.outdoor && !this.zone.def.dark
       ? lampActivation(ls.lamp, l.seed ?? lightSeed(l.x, l.y)) : ls.lamp;
   }

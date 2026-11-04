@@ -99,12 +99,12 @@ const AFTERNOON = [[0, 0xfffaf0], [1, 0xffdca8]] as [number, number][];
 const DUSK = [[0, 0xffdca8], [0.4, 0xf4b0a8], [0.75, 0x9591bb], [1, 0x444c7e]] as [number, number][];
 const NIGHT = [[0, 0x444c7e], [0.3, 0x29345d], [1, 0x202944]] as [number, number][];
 // ---- indoor: stays warm so interiors read as lit rooms against the cold street
-const IN_DAY = 0xffffff;
+const IN_DAY = 0xf3eee6;
 const IN_DUSK = [[0, 0xffeed8], [1, 0xe6c8c0]] as [number, number][];
-const IN_NIGHT = 0xc7a8b8;
+const IN_NIGHT = 0xa397a8;
 // A lit sushi bar stays honey/cream against the blue street, rather than turning purple.
 const RESTAURANT_DUSK = [[0, IN_DUSK[0][1]], [1, 0xe4cbb0]] as [number, number][];
-const RESTAURANT_NIGHT = 0xd9bfa8;
+const RESTAURANT_NIGHT = 0xc1aa91;
 
 export function lightState(i: LightInput): LightState {
   const per = Math.max(0, Math.min(3, Math.floor(i.period)));
