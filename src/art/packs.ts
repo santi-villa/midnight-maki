@@ -4,8 +4,10 @@
  * them, so they are never in the public repository. The scripts/build-*.py tools write them there from the local packs.
  * When a file is missing (a fresh clone, the CI build) the game simply keeps its own drawn art for those pieces.
  */
-const urls = import.meta.glob<string>('../assets/packs/**/*.png', { eager: true, query: '?url', import: 'default' });
-const jsons = import.meta.glob('../assets/packs/**/*.json', { eager: true, import: 'default' });
+// NUEVO is the full downloaded library in the private packs repo. It is for browsing there.
+// The game only uses the cut atlases (limezu, jp-buildings, japanese-city, serene, ui).
+const urls = import.meta.glob<string>(['../assets/packs/**/*.png', '!../assets/packs/NUEVO/**'], { eager: true, query: '?url', import: 'default' });
+const jsons = import.meta.glob(['../assets/packs/**/*.json', '!../assets/packs/NUEVO/**'], { eager: true, import: 'default' });
 
 /** URL of a pack image, e.g. packUrl('limezu/atlas.png'), or null when the local packs are not there. */
 export function packUrl(path: string): string | null {

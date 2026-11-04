@@ -30,6 +30,13 @@ jobs:
           repository: ${{ vars.PACKS_REPO || 'santi-villa/midnight-maki-packs' }}
           token: ${{ env.PACKS_TOKEN }}
           path: src/assets/packs
+          sparse-checkout-cone-mode: true
+          sparse-checkout: |
+            limezu
+            jp-buildings
+            japanese-city
+            serene
+            ui
       - name: Aviso si no hay packs
         if: ${{ env.PACKS_TOKEN == '' }}
         run: 'echo "::warning::Sin PACKS_TOKEN: la web se publica con el arte propio del juego, sin los packs con licencia."'
