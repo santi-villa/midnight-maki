@@ -49,6 +49,12 @@ encendidos más cercanos al jugador pasan a ser luces reales que solo toman los 
 junto a un farolito o frente a una ventana iluminada se ve con un toque cálido según la distancia, cabeza incluida (antes
 solo se iluminaba el piso). El color es la mitad entre el del farol y el blanco, para que no quede un tinte amarillo.
 
+## Equipos sin placa de video
+Algunos navegadores emulan WebGL en el procesador (SwiftShader, llvmpipe). Ahí cada filtro de pantalla completa es carísimo
+y el juego se volvía muy lento. `softwareGl()` (`src/scenes/gpuProbe.ts`) los detecta por el nombre del renderizador, y en
+ese caso quedan apagados los filtros de cámara, la ondulación del agua, el clima en GPU y las luces sobre personajes: el
+juego se ve como antes. `?fx` en la dirección los fuerza igual (para probarlos).
+
 ## Cómo se verificó
 - **Compilación y tests:** compila sin errores y pasan todos los tests unitarios, salvo `residentSleep` (*resumes a
   returning restaurant visitor*), que ya fallaba antes de este cambio con Phaser 3. Hay tests nuevos en
@@ -60,6 +66,9 @@ solo se iluminaba el piso). El color es la mitad entre el del farol y el blanco,
   - el desenfoque con el celular abierto;
   - el agua ondulando con la arena quieta;
   - el jugador junto a un farol con y sin la luz.
+- **Pruebas de navegador:** se corrieron 38 pruebas (village-map, arrival, water, transitions, resident-life,
+  plaza-experience, immersive-ui, rain, light, hud-clock y boot) contra la versión anterior con Phaser 3. Fallan las
+  mismas 18, con los mismos mensajes de error; ya fallaban antes de este cambio. No aparece ninguna falla nueva.
 - **Límite:** el navegador de pruebas no tiene placa de video. Ahí la capa de suelo en GPU no se ve, la verificación lo
   detecta y usa la clásica. Por eso la versión en GPU del suelo y de su agua animada no se pudo ver funcionando: hay que
   confirmarla en un equipo con placa de video.
