@@ -43,6 +43,8 @@ const FRAMES: Record<WildKind, string[][]> = {
     ['.......hh..', '......hkhy.', '......hhyy.', '.bb...bH...', 'bbbbbbbbb..', 'dbwwwwbbd..', '.ddddddd...', '..y....y...'],
     // pecking at the ground
     ['...........', '...........', '.bb........', 'bbbbbbbbb..', 'dbwwwwbbbh.', '.dddddddhkh', '.........yy', '...y..y....'],
+    // a wingbeat: both wings up, one frame
+    ['..hh.......', '.hh..hh....', '......hkhy.', '......hhyy.', '.bb...bH...', 'bbbbbbbbb..', 'dbwwwwbbd..', '.ddddddd...'],
   ],
   duckling: [
     ['...YY.', '...Yko', 'YY.YY.', 'YYYYY.', '.DDD..', '......'],
@@ -77,7 +79,7 @@ const FRAMES: Record<WildKind, string[][]> = {
 /** Which frame does what, per animal. */
 export const FRAME = {
   frog: { sit: 0, crouch: 1, air: 2, croak: 3 },
-  duck: { swim: 0, bob: 1, dabble: 2, walkA: 3, walkB: 4, peck: 5 },
+  duck: { swim: 0, bob: 1, dabble: 2, walkA: 3, walkB: 4, peck: 5, flap: 6 },
   duckling: { swim: 0, bob: 1, walkA: 2, walkB: 3 },
   crab: { a: 0, b: 1, hidden: 2 },
   squirrel: { runA: 0, runB: 1, sit: 2 },

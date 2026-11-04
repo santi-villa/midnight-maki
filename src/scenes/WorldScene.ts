@@ -16,6 +16,7 @@ import { HOUSES } from '../data/houses';
 import { Footsteps, stepGain, stepSurface } from '../audio/footsteps';
 import { coversLitPane, homeWindowLevel, lampActivation, lampFlicker, lightSeed, lampPoolTint, lightState, type Box, type LightState } from './lightmath';
 import { audio, type Track } from '../audio/audio';
+import { indoorWave, insectAt, musicFade, waveAt } from '../audio/coast';
 import { bus } from '../core/events';
 import { reportError, runTask } from '../core/errors';
 import { settings } from '../core/settings';
@@ -89,12 +90,17 @@ import { restaurantFacadeLayout } from '../art/restaurantFacade';
 import { NEIGHBORS, NEIGHBOR_BY_ID } from '../data/neighbors';
 import { DRINK_BY_ID, drinksUnlocked } from '../restaurant/drinkData';
 import { RECIPES_BY_ID } from '../data/recipes';
-import { gatherSpots, type GatherSpot } from '../systems/gather';
+import { gatherSpots, noteDamp, type GatherSpot } from '../systems/gather';
 import { SEED_INFO } from '../systems/garden';
 import { companyScene, openCompany } from '../story/companions';
 import type { CompanyActivity } from '../systems/companionship';
 import { FLOCKS, type BirdSpecies } from '../data/flocks';
+import { energy, presence, scaleCount, type DayFeel } from '../world/animalMood';
+import { VILLAGE_BOUNDS, type VillageZone } from '../data/villageGeography';
 import { districtAt, DISTRICTS, isDistrict, liveZoneOf, originOf, toLive, VILLAGE } from '../world/village';
+import { StreetLife } from '../world/streetLife';
+import { SnowCover } from '../world/snowCover';
+import { RestaurantBreath } from '../world/restaurantBreath';
 const BIRD_VARIANT: Record<BirdSpecies, number> = { sparrow: 0, pigeon: 1, gull: 2 };
 
 export type { Target };
@@ -209,6 +215,12 @@ export class WorldScene extends Phaser.Scene {
   private wetGround = new WetGround();
   private weatherKey = '';
   private footsteps = new Footsteps();
+  private street: StreetLife | null = null;
+  private snow: SnowCover | null = null;
+  private breath: RestaurantBreath | null = null;
+  private audioOutdoor: boolean | null = null;
+  private audioNight: boolean | null = null;
+  private coastTick = 0;
   private ambient: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
   /** x, y: the spot's tile on the drawn map (the spot itself keeps its district's own tile) */
   private gatherSprites: { spot: GatherSpot; img: Phaser.GameObjects.Image; x: number; y: number }[] = [];
@@ -959,6 +971,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private clearZone() {
+    this.street?.destroy(); this.street = null;
+    this.snow?.destroy(); this.snow = null;
+    this.breath?.destroy(); this.breath = null;
     this.rainFx?.destroy(); this.rainFx = null;
     this.footsteps = new Footsteps();
     this.questPin?.setVisible(false);
@@ -1282,7 +1297,7 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat' | 'butterfly'; vx: number; vy: number; t: number; flying: boolean; ox?: number; oy?: number; flock?: number; /** seconds until it comes back to land where it was */ back?: number; returning?: boolean }[] = [];
+  private critters: { s: Phaser.GameObjects.Sprite; kind: 'bird' | 'cat' | 'butterfly'; vx: number; vy: number; t: number; flying: boolean; ox?: number; oy?: number; flock?: number; /** seconds until it comes back to land where it was */ back?: number; returning?: boolean; /** seconds a butterfly stays landed */ sit?: number; /** 0 resting, 1 calm, 2 busy */ pace?: 0 | 1 | 2 }[] = [];
   /** seconds until each flock takes off by itself */
   private flockTimers = new Map<number, number>();
   /** birds hop around by day and fly off when you get close; a cat strolls through the plaza */
@@ -1298,20 +1313,22 @@ export class WorldScene extends Phaser.Scene {
     for (const c of this.critters) c.s.destroy();
     this.critters = [];
     this.flockTimers.clear();
-    if (this.pets?.zone === this.liveId) this.pets.setNight(clock.isNight(), this.zone.grid);
+    const feel = this.dayFeel();
+    if (this.pets?.zone === this.liveId) this.pets.setNight(clock.isNight(), this.zone.grid, feel);
     else {
       this.pets?.destroy();
       this.pets = this.zone?.def.outdoor || this.zoneId === 'restaurant' ? new Pets(this, this.liveId, clock.isNight(), (x, y) => this.petFootstep(x, y), this.zone.grid) : null;
+      this.pets?.setNight(clock.isNight(), this.zone.grid, feel);
     }
-    if (this.dogs?.zone === this.liveId) this.dogs.setNight(clock.isNight(), this.zone.grid);
+    if (this.dogs?.zone === this.liveId) this.dogs.setNight(clock.isNight(), this.zone.grid, feel);
     else {
       this.dogs?.destroy();
       this.dogs = this.zone?.def.outdoor ? new Dogs(this, this.liveId, clock.isNight(), this.zone.grid, (n, x, y) => this.nearSound(n, x, y)) : null;
       if (!this.dogs?.count) { this.dogs?.destroy(); this.dogs = null; }
+      else this.dogs.setNight(clock.isNight(), this.zone.grid, feel);
     }
     const def = this.zone.def;
-    if (!def.outdoor || game.flag('weather') === 'rain' || (this.liveId !== VILLAGE && this.zoneId === 'station')) return;
-    const night = clock.isNight();
+    if (!def.outdoor || (this.liveId !== VILLAGE && this.zoneId === 'station')) return;
     // somewhere in a district (the drawn map may hold the whole village)
     const add = (kind: 'bird' | 'cat' | 'butterfly', district = this.zoneId) => {
       const o = this.lw(district, 0, 0), dz = ZONES[district] ?? def;
@@ -1324,22 +1341,31 @@ export class WorldScene extends Phaser.Scene {
         return;
       }
     };
-    // flocks gather where they make sense (data/flocks.ts) and leave together
-    if (!night) FLOCKS.forEach((f, n) => {
+    // flocks gather where they make sense (data/flocks.ts) and leave together. Gulls stay, fewer, at night and in the rain.
+    FLOCKS.forEach((f, n) => {
+      const how = presence(f.species, feel);
+      if (!how) return;
+      const count = scaleCount(f.n, how);
+      const pace = energy(f.species, feel);
       const home = this.lw(f.zone, f.x, f.y);
       if (home.zone !== this.liveId) return;
-      for (let i = 0, tries = 0; i < f.n && tries < f.n * 6; tries++) {
+      for (let i = 0, tries = 0; i < count && tries < count * 6; tries++) {
         const x = home.x + Math.floor(Math.random() * 4) - 2, y = home.y + Math.floor(Math.random() * 3) - 1;
         if (x < 0 || y < 0 || x >= def.w || y >= def.h || this.zone.grid.isSolid(x, y)) continue;
         const s = this.add.sprite(x * TILE + 4 + Math.random() * 8, y * TILE + 10 + Math.random() * 4, critterTexture(this, 'bird', BIRD_VARIANT[f.species]), 0).setOrigin(0.5, 1).setFlipX(Math.random() < 0.5);
-        this.critters.push({ s, kind: 'bird', vx: 0, vy: 0, t: Math.random() * 2, flying: false, ox: s.x, oy: s.y, flock: n });
+        this.critters.push({ s, kind: 'bird', vx: 0, vy: 0, t: Math.random() * 2, flying: false, ox: s.x, oy: s.y, flock: n, pace });
         i++;
       }
     });
-    if (!night && seasonOf(game.save.time.day) < 2) for (const d of ['plaza', 'garden', 'forest']) {
+    const butterflies = presence('butterfly', feel);
+    if (butterflies) for (const d of ['plaza', 'garden', 'forest']) {
       if (this.lw(d, 0, 0).zone !== this.liveId && d !== this.zoneId) continue;
-      for (let i = 0; i < (d === 'garden' ? 5 : 3); i++) add('butterfly', d);
+      for (let i = 0; i < scaleCount(d === 'garden' ? 5 : 3, butterflies); i++) add('butterfly', d);
     }
+  }
+
+  private dayFeel(): DayFeel {
+    return { period: clock.period, season: seasonOf(game.save.time.day), rain: game.flag('weather') === 'rain' };
   }
 
   /** Frogs, ducks, crabs, squirrels, dragonflies, bees and the falling petals and leaves of this district (scenes/wildlife.ts). */
@@ -1377,12 +1403,33 @@ export class WorldScene extends Phaser.Scene {
       const s = c.s;
       c.t -= dt;
       if (c.kind === 'butterfly') {
-        // lazy fluttering loops around a home spot, a little above the ground
+        const p = this.player;
+        if (p && Math.hypot(s.x - p.x, s.y - p.y) < 16) {
+          const hx = c.ox ?? s.x, hy = c.oy ?? s.y;
+          const dx = hx - p.x, dy = hy - p.y, len = Math.hypot(dx, dy) || 1;
+          const w = this.zone.def.w * TILE, h = this.zone.def.h * TILE;
+          c.ox = Math.max(16, Math.min(w - 16, hx + (dx / len) * 26));
+          c.oy = Math.max(16, Math.min(h - 16, hy + (dy / len) * 16));
+          c.sit = 0;
+        }
+        if ((c.sit ?? 0) > 0) {
+          c.sit = (c.sit ?? 0) - dt;
+          s.setPosition(c.ox ?? s.x, (c.oy ?? s.y) - 6);
+          s.setFrame(c.sit > 0.35 ? 0 : 1);
+          s.setDepth(200000);
+          continue;
+        }
+        // lazy fluttering loops around a home spot, a little above the ground, then a short perch
         const tt = performance.now() / 1000 + (c.ox ?? 0);
         s.x = (c.ox ?? s.x) + Math.sin(tt * 0.7) * 22 + Math.sin(tt * 1.9) * 6;
         s.y = (c.oy ?? s.y) - 10 + Math.cos(tt * 0.9) * 10 + Math.sin(tt * 3.1) * 3;
         s.setFrame(Math.floor(tt * 8) % 2);
         s.setDepth(200000);
+        c.t -= dt;
+        if (c.t <= 0) {
+          c.t = 3 + Math.random() * 5;
+          if (Math.random() < 0.4) c.sit = 0.9 + Math.random() * 2.4;
+        }
         continue;
       }
       if (c.kind === 'bird') {
@@ -1415,7 +1462,9 @@ export class WorldScene extends Phaser.Scene {
           continue;
         }
         if (c.t <= 0) {
-          c.t = 0.6 + Math.random() * 2;
+          const pace = c.pace ?? 1;
+          c.t = pace === 0 ? 2.2 + Math.random() * 4.5 : pace === 2 ? 0.35 + Math.random() * 1.1 : 0.6 + Math.random() * 2;
+          if (pace === 0 && Math.random() < 0.5) continue;
           // hop
           const nx = s.x + (Math.random() * 2 - 1) * 8;
           const ny = s.y + (Math.random() * 2 - 1) * 5;
@@ -1484,11 +1533,12 @@ export class WorldScene extends Phaser.Scene {
       if (c.kind !== 'bird' || c.flock === undefined || seen.has(c.flock)) continue;
       seen.add(c.flock);
       if (c.flying || c.back !== undefined) continue;
-      const left = (this.flockTimers.get(c.flock) ?? 45 + Math.random() * 80) - dt;
+      const rest = c.pace === 0;
+      const left = (this.flockTimers.get(c.flock) ?? (rest ? 100 : 45) + Math.random() * (rest ? 100 : 80)) - dt;
       if (left > 0) { this.flockTimers.set(c.flock, left); continue; }
       const inView = c.s.x > vx - 24 && c.s.x < vx + vw + 24 && c.s.y > vy - 24 && c.s.y < vy + vh + 24;
-      this.flockTimers.set(c.flock, inView ? 70 + Math.random() * 90 : 8);
-      if (inView) this.scareFlock(c, c.s.x + (Math.random() - 0.5) * 30);
+      this.flockTimers.set(c.flock, inView ? (rest ? 130 : 70) + Math.random() * (rest ? 120 : 90) : 8);
+      if (inView && !(rest && Math.random() < 0.7)) this.scareFlock(c, c.s.x + (Math.random() - 0.5) * 30);
     }
   }
 
@@ -1518,6 +1568,8 @@ export class WorldScene extends Phaser.Scene {
   // ------------------------------------------------------------------ ambient neighbours
   private neighborLife = new NeighborLife();
   private neighborBodies = new Map<string, { actor: Actor; bike: Phaser.GameObjects.Image | null; barkAt: number; pose: Act | null; poseUntil: number; nextPose: number }>();
+  /** Walk speed parked while someone pauses to look at the restaurant. */
+  private scentSpeed = new Map<string, number>();
   private npcWait = new Set<string>();
   private orderMarks = new Map<string, Phaser.GameObjects.Image>();
 
@@ -1528,6 +1580,8 @@ export class WorldScene extends Phaser.Scene {
 
   private updateNeighbors(dt: number) {
     if (!game.has('intro_done') || !this.zone || !this.player || this.transitioning || this.decorMode || clock.paused) return;
+    this.ensureLiving();
+    this.applyScentHold();
     this.neighborLife.tick(dt);
     const here = new Set<string>();
     const now = performance.now();
@@ -1563,7 +1617,10 @@ export class WorldScene extends Phaser.Scene {
       // two tiles over a district border in one step of the simulation: walk it instead of popping
       if (jump > 12 && jump < 48) { const k = Math.min(1, 140 * dt / jump); a.x += (x - a.x) * k; a.y += (y - a.y) * k; } else { a.x = x; a.y = y; }
       a.dir = !trip.moving && st.place.dir ? st.place.dir : trip.dir;
+      const glance = this.breath?.glanceDir(n.id);
+      if (glance && !trip.moving) a.dir = glance;
       a.moving = trip.moving && !riding;
+      if (trip.moving && this.snow) this.snow.step(n.id, a.x, a.y, trip.dir, false);
       a.seatLift = trip.settled ? st.place.seatLift ?? 0 : 0;
       a.bed = trip.settled && st.place.act === 'sleep' ? st.place.bed ?? null : null;
       const base: Act = riding ? 'sit' : trip.moving ? 'idle' : trip.settled ? st.place.act ?? 'idle' : 'idle';
@@ -2729,14 +2786,94 @@ export class WorldScene extends Phaser.Scene {
 
   playZoneAudio() {
     let track = (this.zone.def.music || 'town') as Track;
+    // The composed village is one map filed as 'town'. Each district still has its own tune.
+    if (this.liveId === VILLAGE) {
+      const district = VILLAGE_BOUNDS[this.zoneId as VillageZone];
+      if (district) track = district.music as Track;
+    }
     if (this.zoneId === 'market' && !game.has('market_open')) track = 'town';
     if (track === 'restaurant' && clock.period >= 2) track = 'restaurant_night';
     if (game.flag('festival_today') && this.zone.def.outdoor && this.zoneId === 'plaza') track = 'festival';
     // outdoors at night the crickets (and the sea) are the music: nothing on top, so the night feels like night
     if (this.zone.def.outdoor && clock.isNight() && track !== 'festival' && this.zoneId !== 'market') track = (this.zoneId === 'plaza' ? 'town_night' : 'none') as Track;
-    audio.play(track);
+    const outdoor = !!this.zone.def.outdoor;
+    const night = clock.isNight();
+    audio.crossfade(track, musicFade(outdoor, this.audioOutdoor, night, this.audioNight));
+    this.audioOutdoor = outdoor;
+    this.audioNight = night;
+    this.pushCoast();
+  }
+
+  /** Street games, snow and the restaurant's steam live outside WorldScene's loop. */
+  private ensureLiving() {
+    if (!this.zone) return;
+    const outdoor = !!this.zone.def.outdoor;
+    const village = this.liveId === VILLAGE && outdoor;
+    if (village) {
+      if (!this.street) this.street = new StreetLife(this, this.zone.grid, this.zone.def.ground, this.zone.def.doors);
+      if (!this.breath) this.breath = new RestaurantBreath(this);
+    } else {
+      this.street?.destroy(); this.street = null;
+      this.breath?.destroy(); this.breath = null;
+    }
+    if (outdoor) {
+      if (!this.snow) this.snow = new SnowCover(this, this.zone.def.ground, this.zone.def.doors);
+    } else {
+      this.snow?.destroy(); this.snow = null;
+    }
+  }
+
+  private applyScentHold() {
+    if (!this.breath) {
+      for (const [id, speed] of this.scentSpeed) this.neighborLife.state.get(id) && (this.neighborLife.state.get(id)!.trip.speed = speed);
+      this.scentSpeed.clear();
+      return;
+    }
+    for (const id of this.scentSpeed.keys()) if (!this.neighborLife.state.has(id)) this.scentSpeed.delete(id);
+    for (const [id, st] of this.neighborLife.state) {
+      const hold = this.breath.holding(id);
+      if (hold && !this.scentSpeed.has(id)) { this.scentSpeed.set(id, st.trip.speed || 2.2); st.trip.speed = 0; }
+      else if (!hold && this.scentSpeed.has(id)) { st.trip.speed = this.scentSpeed.get(id) || 2.2; this.scentSpeed.delete(id); }
+    }
+  }
+
+  private syncLiving(dt: number) {
+    if (!this.player || !this.zone) return;
+    this.ensureLiving();
+    this.street?.update(dt, this.player);
     const rain = game.flag('weather') === 'rain';
-    audio.ambience(rain ? (this.zone.def.outdoor ? 'rain' : 'rain_inside') : this.zoneId === 'beach' ? (clock.isNight() ? 'waves_night' : 'waves') : clock.isNight() && this.zone.def.outdoor ? 'night' : 'none');
+    const low = lowFx() || settings.reduceMotion;
+    this.snow?.update(dt, game.save.time.day, rain, low);
+    if (this.player.moving) this.snow?.step('sofi', this.player.x, this.player.y, this.player.dir, true);
+    if (!this.breath) return;
+    const door = this.zone.def.doors.find((d) => d.to === 'restaurant') ?? null;
+    const prop = this.zone.props.find((p) => p.key.startsWith('bld_restaurant')) ?? null;
+    const people = [...this.neighborBodies.entries()].filter(([, b]) => b.actor.sprite.visible).map(([id, b]) => ({ id, x: b.actor.x, y: b.actor.y, moving: b.actor.moving }));
+    this.breath.update(dt, { prop, door, people, low, quiet: !this.roomForAmbient('scent') });
+    const line = this.breath.takeLine();
+    if (line && !this.sayLine('nb:' + line.id, line.line, 3.2, undefined, true)) this.breath.cancel(line.id);
+  }
+
+  /** Music is chosen in playZoneAudio. This only moves the sea, the insects and the rain bed. */
+  private pushCoast() {
+    if (!this.zone) return;
+    const rain = game.flag('weather') === 'rain';
+    const outdoor = !!this.zone.def.outdoor;
+    const period = clock.period;
+    audio.ambience(rain ? (outdoor ? 'rain' : 'rain_inside') : outdoor && period >= 2 ? 'night' : 'none');
+    let waves = indoorWave(this.zoneId);
+    if (outdoor && this.player) {
+      const ox = this.liveId === VILLAGE ? 0 : (this.zone.def.world?.x ?? 0);
+      const oy = this.liveId === VILLAGE ? 0 : (this.zone.def.world?.y ?? 0);
+      waves = waveAt(ox + this.player.tx, oy + this.player.ty);
+      if (rain) waves *= 0.55;
+    }
+    audio.setWaveLevel(waves);
+    const bugs = lowFx() || settings.reduceMotion
+      ? { cicadas: 0, crickets: 0 }
+      : insectAt(outdoor ? this.zoneId : '', seasonOf(game.save.time.day), period, rain, outdoor);
+    audio.setInsects(bugs.cicadas, bugs.crickets);
+    if (rain) noteDamp(game.save.time.day, true);
   }
 
   // ------------------------------------------------------------------ ambient fx
@@ -2772,6 +2909,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     const night = clock.isNight();
+    const season = seasonOf(game.save.time.day);
     // smoke curling from the chimneys of homes and cabins
     const smoke = dotTexture(this, 'smoke', '#e8e4ee', 3, 3);
     for (const p of this.zone.props) {
@@ -2788,19 +2926,24 @@ export class WorldScene extends Phaser.Scene {
       cs.setDepth(149000);
       this.ambient.push(cs);
     }
-    if (night && !rain && (this.liveId === VILLAGE || ['forest', 'garden', 'plaza', 'market', 'beach'].includes(this.zoneId))) {
+    const fireflyHere = this.liveId === VILLAGE || ['forest', 'garden', 'plaza', 'market', 'beach'].includes(this.zoneId);
+    const flies = presence('firefly', { period: clock.period, season, rain });
+    if (flies && fireflyHere) {
       const ff = dotTexture(this, 'firefly', '#ffe9a0', 1, 1);
+      const frequency = flies === 1 ? (clock.period === 2 ? 640 : 480) : (season === 1 ? 160 : 280);
       const em = this.add.particles(0, 0, ff, {
         x: { min: 0, max: W },
         y: { min: 0, max: H },
         speedX: { min: -8, max: 8 },
         speedY: { min: -5, max: 5 },
         lifespan: 5200,
-        frequency: 260,
+        frequency,
         alpha: { start: 0, end: 1, ease: 'Sine.easeInOut', yoyo: true } as any,
       });
       em.setDepth(210000);
       this.ambient.push(em);
+    }
+    if (night && !rain && fireflyHere) {
       const mote = dotTexture(this, 'nightmote', '#fff6c8', 2, 2);
       const bits = this.add.particles(0, 0, mote, {
         x: { min: 0, max: W },
@@ -2815,7 +2958,6 @@ export class WorldScene extends Phaser.Scene {
       bits.setDepth(210000);
       this.ambient.push(bits);
     }
-    const season = seasonOf(game.save.time.day);
     if (season === 3 && !rain) {
       const flake = dotTexture(this, 'snow', '#ffffff', 2, 2);
       const em = this.add.particles(0, -4, flake, { x: { min: 0, max: W }, speedY: { min: 14, max: 28 }, speedX: { min: -8, max: 8 }, lifespan: (H / 20) * 1000, frequency: 70, alpha: { start: 0.95, end: 0.7 } });
@@ -3530,6 +3672,9 @@ export class WorldScene extends Phaser.Scene {
     if (this.pets && this.player) this.pets.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt, this.player, [...this.guests.values()].map(g => g.actor), this.glowActors().filter(a => a !== this.player));
     if (this.dogs && this.player) this.dogs.update(clock.paused || this.inputLocked || this.transitioning || this.decorMode ? 0 : dt, this.player);
     this.updateFootsteps(dt);
+    this.coastTick -= dt;
+    if (this.coastTick <= 0) { this.coastTick = 0.45; this.pushCoast(); }
+    this.syncLiving(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
     this.updateSky(dt);

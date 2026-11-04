@@ -127,6 +127,23 @@ export function songURLs(track: Track): string[] {
 
 interface AmbienceBed { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; gain: GainNode; filter: BiquadFilterNode; rain: boolean; waves: boolean }
 
+interface CustomBed { el: HTMLAudioElement; node: MediaElementAudioSourceNode; starting: boolean; fallback: (err?: unknown) => void }
+
+/** One tune. A crossfade keeps the outgoing voice until its gain reaches silence, then releases it. */
+interface MusicVoice {
+  track: Track;
+  gain: GainNode;
+  /** 0..1 mix. The audible gain also follows the music slider. */
+  level: number;
+  usesCustom: boolean;
+  custom: CustomBed | null;
+  timer: number | null;
+  death: number | null;
+  dying: boolean;
+  step: number;
+  nextTime: number;
+}
+
 function holdParam(param: AudioParam, time: number) {
   if (typeof param.cancelAndHoldAtTime === 'function') param.cancelAndHoldAtTime(time);
   else { const value = param.value; param.cancelScheduledValues(time); param.setValueAtTime(value, time); }
@@ -139,7 +156,6 @@ export class AudioEngine {
   private amb!: GainNode;
   private master!: GainNode;
   private current: Track = 'none';
-  private timer: number | null = null;
   private nextTime = 0;
   private step = 0;
   private rng = Math.random;
@@ -154,21 +170,49 @@ export class AudioEngine {
   private rainKind: 'inside' | 'outside' | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private pendingTrack: Track = 'none';
+  private pendingFade = 0;
   private lastSfx: Record<string, number> = {};
+  /** Destination for the voice whose notes are being scheduled. Two voices can overlap during a crossfade. */
+  private bus: GainNode | null = null;
+  private voices: MusicVoice[] = [];
+  private waveMix: GainNode | null = null;
+  private waveFile: { el: HTMLAudioElement; node: MediaElementAudioSourceNode } | null = null;
+  private waveBed: AmbienceBed | null = null;
+  private waveLevel = -1;
+  private waveStop: number | null = null;
+  private bugs: { cicada: GainNode; cricket: GainNode; nodes: AudioNode[]; sources: AudioScheduledSourceNode[] } | null = null;
+  private bugStop: number | null = null;
+  private nightFade: number | null = null;
+  private nightLevel = 0;
 
   private badSongs = new Set<Track>();
-  private custom: { track: Track; el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode; starting: boolean; fallback: (err?: unknown) => void } | null = null;
 
-  /** Streams the custom song for a track (no big decode in memory). Returns false when there is none. */
-  private startCustom(track: Track): boolean {
-    const urls = songURLs(track);
-    if (!this.ctx || !urls.length || this.badSongs.has(track)) return false;
-    this.playCustom(track, urls, 0);
+  /** Audible level of one voice. Synth voices sit under the music bus; a file goes straight to the master. */
+  private voiceTarget(v: MusicVoice): number {
+    return v.usesCustom ? Math.max(0, settings.music * 0.5 * v.level) : v.level;
+  }
+
+  private setVoiceGain(v: MusicVoice, seconds: number) {
+    const c = this.ctx;
+    if (!c) return;
+    const t = c.currentTime;
+    const g = v.gain.gain;
+    holdParam(g, t);
+    const target = this.voiceTarget(v);
+    if (seconds <= 0.02) g.setValueAtTime(target, t);
+    else g.linearRampToValueAtTime(target, t + seconds);
+  }
+
+  /** Streams the custom song for a voice (no big decode in memory). Returns false when there is none. */
+  private startCustom(voice: MusicVoice): boolean {
+    const urls = songURLs(voice.track);
+    if (!this.ctx || !urls.length || this.badSongs.has(voice.track)) return false;
+    this.playCustom(voice, urls, 0);
     return true;
   }
 
-  /** Tries each file for the track. A format this browser cannot decode is skipped before the generated tune. */
-  private playCustom(track: Track, urls: string[], index: number) {
+  /** Tries each file for the voice. A format this browser cannot decode falls back to the generated tune. */
+  private playCustom(voice: MusicVoice, urls: string[], index: number) {
     const c = this.ctx;
     const url = urls[index];
     if (!c || !url) return;
@@ -177,62 +221,61 @@ export class AudioEngine {
     el.loop = true;
     el.preload = 'auto';
     const node = c.createMediaElementSource(el);
-    const gain = c.createGain();
-    const t = c.currentTime;
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(settings.music * 0.5, t + 1.5);
-    node.connect(gain).connect(this.master); // straight to the master: no lo-fi filter on a finished song
-    const me = { track, el, node, gain, starting: false, fallback: (_err?: unknown) => {} };
-    this.custom = me;
+    node.connect(voice.gain);
+    const me: CustomBed = { el, node, starting: false, fallback: (_err?: unknown) => {} };
+    voice.custom = me;
     const fallback = (err?: unknown) => {
-      if (this.custom !== me) return;
-      this.stopCustom(true);
+      if (voice.custom !== me) return;
+      this.dropCustom(voice);
       if (index + 1 < urls.length) {
-        this.playCustom(track, urls, index + 1);
+        this.playCustom(voice, urls, index + 1);
         return;
       }
-      reportError('audio:custom:' + track, err ?? new Error('Unavailable music file'), false);
-      this.badSongs.add(track);
-      this.current = 'none'; // unreadable file: bring the generated tune back
-      this.play(track);
+      reportError('audio:custom:' + voice.track, err ?? new Error('Unavailable music file'), false);
+      this.badSongs.add(voice.track);
+      this.useSynth(voice);
     };
     me.fallback = fallback;
     el.addEventListener('error', () => fallback(), { once: true });
-    this.tryCustom();
+    this.tryCustom(voice);
+  }
+
+  /** The file could not play: keep the same voice and start the generated tune under it. */
+  private useSynth(voice: MusicVoice) {
+    if (voice.dying || !this.ctx) return;
+    voice.usesCustom = false;
+    try { voice.gain.disconnect(); } catch { /* already free */ }
+    voice.gain.connect(this.music);
+    if (voice.timer === null) voice.timer = window.setInterval(() => this.scheduleVoice(voice), 100);
+    this.setVoiceGain(voice, 0.4);
+  }
+
+  private dropCustom(voice: MusicVoice) {
+    const cur = voice.custom;
+    voice.custom = null;
+    if (!cur) return;
+    cur.el.pause();
+    cur.el.removeAttribute('src');
+    try { cur.node.disconnect(); } catch { /* already free */ }
   }
 
   /** Autoplay denial is temporary: retry the same element on the next gesture, without seeking. */
-  private tryCustom() {
-    const cur = this.custom;
-    if (!cur || cur.starting || !cur.el.paused || document.hidden) return;
-    cur.starting = true;
-    const failed = (err: unknown) => {
-      cur.starting = false;
-      if (this.custom !== cur) return;
-      if (err instanceof DOMException && (err.name === 'NotAllowedError' || (err.name === 'AbortError' && document.hidden))) return;
-      cur.fallback(err);
-    };
-    try {
-      void cur.el.play().then(() => { cur.starting = false; }, failed);
-    } catch (err) { failed(err); }
-  }
-
-  private stopCustom(now = false) {
-    const c = this.ctx;
-    const cur = this.custom;
-    if (!cur || !c) return;
-    this.custom = null;
-    const done = () => {
-      cur.el.pause();
-      cur.el.removeAttribute('src');
-      cur.node.disconnect();
-      cur.gain.disconnect();
-    };
-    if (now) return done();
-    cur.gain.gain.cancelScheduledValues(c.currentTime);
-    cur.gain.gain.setValueAtTime(Math.max(0, cur.gain.gain.value), c.currentTime);
-    cur.gain.gain.linearRampToValueAtTime(0, c.currentTime + 0.5);
-    window.setTimeout(done, 600);
+  private tryCustom(voice?: MusicVoice) {
+    const list = voice ? [voice] : this.voices;
+    for (const v of list) {
+      const cur = v.custom;
+      if (!cur || cur.starting || !cur.el.paused || document.hidden) continue;
+      cur.starting = true;
+      const failed = (err: unknown) => {
+        cur.starting = false;
+        if (v.custom !== cur) return;
+        if (err instanceof DOMException && (err.name === 'NotAllowedError' || (err.name === 'AbortError' && document.hidden))) return;
+        cur.fallback(err);
+      };
+      try {
+        void cur.el.play().then(() => { cur.starting = false; }, failed);
+      } catch (err) { failed(err); }
+    }
   }
 
   /** must be called from a user gesture */
@@ -241,6 +284,7 @@ export class AudioEngine {
       if (this.ctx.state === 'suspended') void runTask('audio:resume', () => this.ctx!.resume(), false);
       this.tryCustom();
       this.tryNightBed();
+      if (this.waveFile?.el.paused && !document.hidden) void this.waveFile.el.play().catch(() => { /* the next gesture retries */ });
       if (this.rainKind) void this.rainBeds[this.rainKind]?.el.play().catch(() => { /* the next gesture retries */ });
       return;
     }
@@ -287,23 +331,32 @@ export class AudioEngine {
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
       if (document.hidden) {
-        this.custom?.el.pause();
+        for (const v of this.voices) v.custom?.el.pause();
+        this.waveFile?.el.pause();
         this.nightBed?.el.pause();
         for (const bed of Object.values(this.rainBeds)) bed?.el.pause();
         void runTask('audio:suspend', () => this.ctx!.suspend(), false);
       } else this.unlock();
     });
-    if (this.pendingTrack !== 'none') this.play(this.pendingTrack);
+    if (this.pendingTrack !== 'none') {
+      const fade = this.pendingFade;
+      this.pendingFade = 0;
+      if (fade > 0) this.crossfade(this.pendingTrack, fade);
+      else this.play(this.pendingTrack);
+    }
     this.ambience(this.requestedAmbience);
+    if (this.waveLevel >= 0) this.setWaveLevel(this.waveLevel);
   }
 
   applyVolumes() {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.music.gain.cancelScheduledValues(t);
-    this.music.gain.setTargetAtTime(this.custom ? 0 : settings.music * 0.35, t, 0.1);
-    this.custom?.gain.gain.cancelScheduledValues(t);
-    this.custom?.gain.gain.setTargetAtTime(settings.music * 0.5, t, 0.1);
+    this.music.gain.setTargetAtTime(settings.music * 0.35, t, 0.1);
+    for (const v of this.voices) if (v.usesCustom) {
+      holdParam(v.gain.gain, t);
+      v.gain.gain.setTargetAtTime(this.voiceTarget(v), t, 0.12);
+    }
     this.sfx.gain.setTargetAtTime(settings.sfx * 0.5, t, 0.05);
     this.amb.gain.setTargetAtTime(settings.ambience * 0.35, t, 0.2);
   }
@@ -312,41 +365,114 @@ export class AudioEngine {
     return this.current === 'none' ? this.pendingTrack : this.current;
   }
 
+  /** Hard change used by menus and story stings. Zone walks use crossfade(). */
   play(track: Track) {
     this.pendingTrack = track;
-    if (this.custom && this.custom.track !== track) this.stopCustom();
-    if (!this.ctx || track === this.current) return;
+    this.pendingFade = 0;
+    if (!this.ctx || !this.music) return;
+    const kept = this.voices.find((v) => !v.dying && v.track === track);
+    for (const v of [...this.voices]) if (v !== kept) this.retireVoice(v, 0.18);
+    if (kept) { this.current = track; return; }
     this.current = track;
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
     if (track === 'none') return;
-    if (this.startCustom(track)) {
-      this.music.gain.cancelScheduledValues(this.ctx.currentTime);
-      this.music.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
-      return;
-    }
-    this.music.gain.cancelScheduledValues(this.ctx.currentTime);
-    this.music.gain.setTargetAtTime(settings.music * 0.35, this.ctx.currentTime, 0.1);
-    this.step = 0;
-    this.nextTime = this.ctx.currentTime + 0.3;
-    this.timer = window.setInterval(() => this.schedule(), 100);
+    this.beginVoice(track, 1, 0.12);
   }
 
-  /** Dip the music and bring the next tune in. Volumes still follow the player settings. */
-  crossfade(track: Track) {
-    if (!this.ctx || !this.music) {
-      this.play(track);
+  /**
+   * The current tune fades out while the next one fades in. A third request drops the oldest voice
+   * so two melodies never stack into three. `seconds` is the overlap.
+   */
+  crossfade(track: Track, seconds = 1.2) {
+    const span = Math.max(0.35, Math.min(3.2, seconds));
+    this.pendingTrack = track;
+    this.pendingFade = span;
+    if (!this.ctx || !this.music) return;
+    const back = this.voices.find((v) => v.track === track);
+    if (back && !back.dying && this.voices.every((v) => v === back || v.dying)) {
+      this.current = track;
       return;
     }
-    if (track === this.current) return;
-    const t = this.ctx.currentTime;
-    const now = Math.max(0, this.music.gain.value);
-    this.play(track);
-    const target = this.custom ? 0 : settings.music * 0.35;
-    this.music.gain.cancelScheduledValues(t);
-    this.music.gain.setValueAtTime(now, t);
-    this.music.gain.linearRampToValueAtTime(0, t + 0.28);
-    this.music.gain.linearRampToValueAtTime(target, t + 0.9);
+    if (back) {
+      if (back.death !== null) { window.clearTimeout(back.death); back.death = null; }
+      back.dying = false;
+      back.level = 1;
+      this.setVoiceGain(back, Math.min(span, 1.4));
+      for (const v of [...this.voices]) if (v !== back) this.retireVoice(v, span);
+      while (this.voices.length > 2) {
+        const extra = this.voices.find((v) => v !== back && v.dying) ?? this.voices.find((v) => v !== back);
+        if (!extra) break;
+        this.releaseVoice(extra);
+      }
+      this.current = track;
+      return;
+    }
+    while (this.voices.length > 1) {
+      const extra = this.voices.find((v) => v.dying) ?? this.voices[0];
+      this.releaseVoice(extra);
+    }
+    for (const v of [...this.voices]) this.retireVoice(v, span);
+    this.current = track;
+    if (track !== 'none') this.beginVoice(track, 1, span);
+  }
+
+  private beginVoice(track: Track, level: number, seconds: number) {
+    const c = this.ctx;
+    if (!c || track === 'none') return;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0, c.currentTime);
+    const voice: MusicVoice = {
+      track, gain, level: 0, usesCustom: false, custom: null, timer: null, death: null, dying: false,
+      step: 0, nextTime: c.currentTime + 0.05,
+    };
+    this.voices.push(voice);
+    gain.connect(this.music);
+    if (this.startCustom(voice)) {
+      voice.usesCustom = true;
+      try { gain.disconnect(); } catch { /* rewired below */ }
+      gain.connect(this.master);
+    } else {
+      voice.timer = window.setInterval(() => this.scheduleVoice(voice), 100);
+    }
+    voice.level = level;
+    this.setVoiceGain(voice, Math.max(0.05, seconds));
+  }
+
+  private retireVoice(voice: MusicVoice, seconds: number) {
+    if (voice.dying) return;
+    voice.dying = true;
+    voice.level = 0;
+    this.setVoiceGain(voice, seconds);
+    if (voice.death !== null) window.clearTimeout(voice.death);
+    voice.death = window.setTimeout(() => {
+      voice.death = null;
+      if (voice.dying) this.releaseVoice(voice);
+    }, seconds * 1000 + 80);
+  }
+
+  private releaseVoice(voice: MusicVoice) {
+    if (voice.timer !== null) { window.clearInterval(voice.timer); voice.timer = null; }
+    if (voice.death !== null) { window.clearTimeout(voice.death); voice.death = null; }
+    this.dropCustom(voice);
+    try { voice.gain.disconnect(); } catch { /* already free */ }
+    this.voices = this.voices.filter((v) => v !== voice);
+  }
+
+  private scheduleVoice(voice: MusicVoice) {
+    if (!this.ctx || voice.usesCustom || voice.track === 'none') return;
+    const savedTrack = this.current;
+    const savedStep = this.step;
+    const savedNext = this.nextTime;
+    this.bus = voice.gain;
+    this.current = voice.track;
+    this.step = voice.step;
+    this.nextTime = voice.nextTime;
+    this.schedule();
+    voice.step = this.step;
+    voice.nextTime = this.nextTime;
+    this.current = savedTrack;
+    this.step = savedStep;
+    this.nextTime = savedNext;
+    this.bus = null;
   }
 
   private schedule() {
@@ -417,7 +543,7 @@ export class AudioEngine {
   private note(midi: number, t: number, dur: number, kind: string, vol: number) {
     const c = this.ctx!;
     const g = c.createGain();
-    g.connect(this.music);
+    g.connect(this.bus ?? this.music);
     const f = mtof(midi);
     const oscs: OscillatorNode[] = [];
     const mk = (type: OscillatorType, freq: number, gain = 1) => {
@@ -517,7 +643,7 @@ export class AudioEngine {
     o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-    o.connect(g).connect(this.music);
+    o.connect(g).connect(this.bus ?? this.music);
     o.start(t); o.stop(t + 0.2);
   }
 
@@ -528,7 +654,7 @@ export class AudioEngine {
       const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
       s.buffer = this.noiseBuf; f.type = 'bandpass'; f.frequency.value = 2200;
       g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
-      s.connect(f).connect(g).connect(this.music); s.start(t, Math.random()); s.stop(t + 0.07);
+      s.connect(f).connect(g).connect(this.bus ?? this.music); s.start(t, Math.random()); s.stop(t + 0.07);
     }
     this.note(84, t, 0.04, 'pluck', vol * 0.5);
   }
@@ -543,7 +669,7 @@ export class AudioEngine {
     const g = c.createGain();
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
-    s.connect(hp).connect(g).connect(this.music);
+    s.connect(hp).connect(g).connect(this.bus ?? this.music);
     s.start(t, Math.random());
     s.stop(t + 0.08);
   }
@@ -553,8 +679,16 @@ export class AudioEngine {
     const url = file ?? Object.values(NIGHT_FILES)[0];
     const c = this.ctx;
     if (!c || !url || typeof Audio === 'undefined') return false;
-    if (this.nightBed && this.nightBedUrl === url) { this.tryNightBed(); return true; }
-    if (this.nightBed) this.stopNightBed();
+    if (this.nightBed && this.nightBedUrl === url) {
+      const t = c.currentTime;
+      holdParam(this.nightBed.gain.gain, t);
+      this.nightBed.gain.gain.linearRampToValueAtTime(volume, t + 0.9);
+      this.nightLevel = volume;
+      if (this.nightFade !== null) { window.clearTimeout(this.nightFade); this.nightFade = null; }
+      this.tryNightBed();
+      return true;
+    }
+    if (this.nightBed) this.releaseNightBed();
     this.nightBedUrl = url;
     const el = new Audio();
     el.src = url;
@@ -562,9 +696,12 @@ export class AudioEngine {
     el.preload = 'auto';
     const node = c.createMediaElementSource(el);
     const gain = c.createGain();
-    gain.gain.value = volume;
+    const t = c.currentTime;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(volume, t + 0.9);
     node.connect(gain).connect(this.amb);
     this.nightBed = { el, node, gain };
+    this.nightLevel = volume;
     this.tryNightBed();
     return true;
   }
@@ -625,12 +762,28 @@ export class AudioEngine {
 
   private stopNightBed() {
     const bed = this.nightBed;
-    if (!bed) return;
+    if (!bed || !this.ctx) { this.releaseNightBed(); return; }
+    this.nightLevel = 0;
+    const t = this.ctx.currentTime;
+    holdParam(bed.gain.gain, t);
+    bed.gain.gain.linearRampToValueAtTime(0, t + 0.9);
+    if (this.nightFade !== null) window.clearTimeout(this.nightFade);
+    this.nightFade = window.setTimeout(() => {
+      this.nightFade = null;
+      if (this.nightLevel <= 0) this.releaseNightBed();
+    }, 1000);
+  }
+
+  private releaseNightBed() {
+    if (this.nightFade !== null) { window.clearTimeout(this.nightFade); this.nightFade = null; }
+    const bed = this.nightBed;
     this.nightBed = null;
+    this.nightBedUrl = '';
+    this.nightLevel = 0;
+    if (!bed) return;
     bed.el.pause();
     bed.el.removeAttribute('src');
-    bed.node.disconnect();
-    bed.gain.disconnect();
+    try { bed.node.disconnect(); bed.gain.disconnect(); } catch { /* already free */ }
   }
 
   /** Looping ambience. Rain keeps the same sources when crossing a doorway: only filtering/gain fade. */
@@ -648,6 +801,7 @@ export class AudioEngine {
     const waves = kind === 'waves' || kind === 'waves_night';
     if (rain && this.playRainFile(inside)) {
       if (this.ambBed) this.retireAmbience();
+      this.stopNightBed();
       if (inside) this.queueWindowDrop();
       return;
     }
@@ -721,7 +875,10 @@ export class AudioEngine {
   private queueGull() {
     this.gullTimer = window.setTimeout(() => {
       this.gullTimer = null;
-      if (this.ambKind !== 'waves' || !this.ctx) return;
+      if (!this.ctx) return;
+      const sea = this.ambKind === 'waves' || this.waveLevel > 0.55;
+      const quiet = this.ambKind === 'night' || this.ambKind === 'waves_night' || this.ambKind === 'rain' || this.ambKind === 'rain_inside';
+      if (!sea || quiet) return;
       if (!document.hidden && this.ctx.state === 'running') this.seagull();
       this.queueGull();
     }, 35_000 + this.rng() * 55_000);
@@ -971,6 +1128,185 @@ export class AudioEngine {
       s.start(t, Math.random());
       s.stop(t + end);
     }
+  }
+
+  /** Sea loudness by distance. The bed keeps playing; only its gain moves, so a walk along the shore does not restart it. */
+  setWaveLevel(level: number) {
+    const want = Math.max(0, Math.min(1, level));
+    if (!this.ctx || !this.amb) { this.waveLevel = want; return; }
+    if (this.waveLevel >= 0 && Math.abs(want - this.waveLevel) < 0.02 && (want < 0.03 || this.waveMix)) return;
+    this.waveLevel = want;
+    if (want >= 0.03) {
+      if (this.waveStop !== null) { window.clearTimeout(this.waveStop); this.waveStop = null; }
+      if (!this.waveMix) this.startWaves();
+      this.rampWave(want);
+      const quiet = this.ambKind === 'night' || this.ambKind === 'waves_night' || this.ambKind === 'rain' || this.ambKind === 'rain_inside';
+      if (want > 0.55 && !quiet && this.gullTimer === null) this.queueGull();
+    } else if (this.waveMix) {
+      this.rampWave(0);
+      if (this.waveStop !== null) window.clearTimeout(this.waveStop);
+      this.waveStop = window.setTimeout(() => {
+        this.waveStop = null;
+        if (this.waveLevel < 0.03) this.stopWaves();
+      }, 3200);
+    }
+  }
+
+  private rampWave(level: number) {
+    if (!this.ctx || !this.waveMix) return;
+    const base = this.waveFile ? 0.4 : 0.09;
+    const t = this.ctx.currentTime;
+    holdParam(this.waveMix.gain, t);
+    this.waveMix.gain.linearRampToValueAtTime(level * base, t + 1.15);
+  }
+
+  private startWaves() {
+    const c = this.ctx;
+    if (!c) return;
+    const mix = c.createGain();
+    mix.gain.setValueAtTime(0, c.currentTime);
+    mix.connect(this.amb);
+    this.waveMix = mix;
+    const beach = Object.values(BEACH_FILES)[0];
+    if (beach && typeof Audio !== 'undefined') {
+      const el = new Audio();
+      el.src = beach;
+      el.loop = true;
+      el.preload = 'auto';
+      const node = c.createMediaElementSource(el);
+      node.connect(mix);
+      this.waveFile = { el, node };
+      if (!document.hidden) void el.play().catch(() => { /* the next gesture retries */ });
+      return;
+    }
+    const f = c.createBiquadFilter();
+    const g = c.createGain();
+    const bed: AmbienceBed = { sources: [], nodes: [f, g], gain: g, filter: f, rain: false, waves: true };
+    this.waveBed = bed;
+    f.type = 'lowpass';
+    f.frequency.value = 1800;
+    g.gain.value = 1;
+    f.connect(g).connect(mix);
+    const s = c.createBufferSource();
+    s.buffer = this.noise();
+    s.loop = true;
+    s.playbackRate.value = 0.55;
+    const low = c.createBiquadFilter();
+    low.type = 'lowpass';
+    low.frequency.value = 180;
+    const body = c.createGain();
+    body.gain.value = 0.38;
+    s.connect(low).connect(body).connect(f);
+    bed.sources.push(s);
+    bed.nodes.push(s, low, body);
+    s.start(0, 0.7);
+    this.addSeaFoam(bed);
+  }
+
+  private stopWaves() {
+    const mix = this.waveMix;
+    const file = this.waveFile;
+    const bed = this.waveBed;
+    this.waveMix = null;
+    this.waveFile = null;
+    this.waveBed = null;
+    if (file) {
+      file.el.pause();
+      file.el.removeAttribute('src');
+      try { file.node.disconnect(); } catch { /* already free */ }
+    }
+    if (bed) {
+      const t = this.ctx?.currentTime ?? 0;
+      for (const source of bed.sources) { try { source.stop(t + 0.05); } catch { /* already stopped */ } }
+      for (const node of bed.nodes) { try { node.disconnect(); } catch { /* already free */ } }
+    }
+    try { mix?.disconnect(); } catch { /* already free */ }
+  }
+
+  /** Cicadas and crickets. Levels ramp; the sources stay up so a zone change does not restart them. */
+  setInsects(cicadas: number, crickets: number) {
+    const cyc = Math.max(0, Math.min(1, cicadas));
+    const kri = Math.max(0, Math.min(1, crickets));
+    if (!this.ctx || !this.amb) return;
+    if (cyc < 0.02 && kri < 0.02) {
+      if (!this.bugs) return;
+      this.rampBug(this.bugs.cicada, 0, 1.2);
+      this.rampBug(this.bugs.cricket, 0, 1.4);
+      if (this.bugStop !== null) window.clearTimeout(this.bugStop);
+      this.bugStop = window.setTimeout(() => { this.bugStop = null; this.stopInsects(); }, 3600);
+      return;
+    }
+    if (this.bugStop !== null) { window.clearTimeout(this.bugStop); this.bugStop = null; }
+    if (!this.bugs) this.startInsects();
+    const nightFile = this.nightBed ? 0.45 : 1;
+    this.rampBug(this.bugs!.cicada, cyc * 0.05, 1.5);
+    this.rampBug(this.bugs!.cricket, kri * 0.035 * nightFile, 1.6);
+  }
+
+  private rampBug(node: GainNode, value: number, seconds: number) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    holdParam(node.gain, t);
+    node.gain.linearRampToValueAtTime(value, t + seconds);
+  }
+
+  private startInsects() {
+    const c = this.ctx;
+    if (!c) return;
+    const cicada = c.createGain();
+    cicada.gain.value = 0;
+    cicada.connect(this.amb);
+    const cricket = c.createGain();
+    cricket.gain.value = 0;
+    cricket.connect(this.amb);
+    const nodes: AudioNode[] = [cicada, cricket];
+    const sources: AudioScheduledSourceNode[] = [];
+    const noise = c.createBufferSource();
+    noise.buffer = this.noise();
+    noise.loop = true;
+    const band = c.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 5200;
+    band.Q.value = 0.8;
+    noise.connect(band).connect(cicada);
+    noise.start();
+    nodes.push(band, noise);
+    sources.push(noise);
+    const tone = c.createOscillator();
+    tone.type = 'sine';
+    tone.frequency.value = 4680;
+    const chirp = c.createGain();
+    chirp.gain.value = 0;
+    tone.connect(chirp).connect(cricket);
+    const rate = 40;
+    const seconds = 2.6;
+    const length = Math.floor(seconds * rate);
+    const env = c.createBuffer(1, length, 8000);
+    const data = env.getChannelData(0);
+    const pulse = (from: number, to: number) => {
+      for (let i = from; i < to && i < length; i++) data[i] = Math.sin(((i - from) / (to - from)) * Math.PI);
+    };
+    pulse(2, 6);
+    pulse(8, 12);
+    const ctrl = c.createBufferSource();
+    ctrl.buffer = env;
+    ctrl.loop = true;
+    ctrl.playbackRate.value = rate / 8000;
+    ctrl.connect(chirp.gain);
+    tone.start();
+    ctrl.start();
+    nodes.push(tone, chirp, ctrl);
+    sources.push(tone, ctrl);
+    this.bugs = { cicada, cricket, nodes, sources };
+  }
+
+  private stopInsects() {
+    const bugs = this.bugs;
+    if (!bugs) return;
+    this.bugs = null;
+    const t = this.ctx?.currentTime ?? 0;
+    for (const source of bugs.sources) { try { source.stop(t + 0.05); } catch { /* already stopped */ } }
+    for (const node of bugs.nodes) { try { node.disconnect(); } catch { /* already free */ } }
   }
 }
 

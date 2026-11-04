@@ -267,7 +267,55 @@ export function planVillage(ctx: PlanContext, roster: readonly Neighbor[] = NEIG
     const act = byPeriod[ctx.period];
     const p = out.get(id);
     if (!act || !p || p.kind === 'home' || p.kind === 'shop' || p.kind === 'chat' || p.act === 'sleep' || p.act === 'talk') continue;
+    if (id === 'tomo' && act === 'fish') {
+      if (ctx.rain) continue;
+      const shores = SHORE.filter((s) => ctx.open.has(s.zone));
+      if (!shores.length) continue;
+      used.delete(`${p.zone}:${p.x}:${p.y}`);
+      const start = Math.floor(rng(hash('tomo-fish') + ctx.day * 19 + slot)() * shores.length);
+      let placed = false;
+      for (let i = 0; i < shores.length; i++) {
+        const spot = shores[(start + i) % shores.length];
+        const exact = claimExact({ ...spot, act: 'fish', kind: 'sea' });
+        if (!exact) continue;
+        out.set(id, exact);
+        placed = true;
+        break;
+      }
+      if (!placed) used.add(`${p.zone}:${p.x}:${p.y}`);
+      continue;
+    }
     out.set(id, { ...p, act });
+  }
+  // Benches stay seats. The person on them reads, rests, watches the fountain or the sea.
+  for (const n of roster) {
+    const p = out.get(n.id);
+    if (!p || (p.kind !== 'bench' && p.kind !== 'read') || p.act === 'talk' || p.act === 'sleep') continue;
+    const roll = rng(hash(n.id + ':bench') + ctx.day * 11 + slot)();
+    const shy = n.traits.includes('shy');
+    const social = n.traits.includes('sociable');
+    const night = n.traits.includes('nocturnal');
+    if (shy || n.likes.includes('read')) {
+      if (roll < 0.8) out.set(n.id, { ...p, act: 'read' });
+      continue;
+    }
+    if (night && ctx.period >= 2) {
+      const dir = p.zone === 'beach' || p.zone === 'harbor' ? 'down' : 'up';
+      out.set(n.id, { ...p, act: 'look', dir });
+      continue;
+    }
+    if ((n.id === 'goro' || n.id === 'fuyu') && ctx.period >= 1) {
+      out.set(n.id, { ...p, act: 'sit' });
+      continue;
+    }
+    if (p.zone === 'plaza' && roll < 0.45) {
+      out.set(n.id, { ...p, act: 'look', dir: 'up' });
+      continue;
+    }
+    if (social) {
+      const friend = n.friends.map((fid) => out.get(fid)).find((q) => q && q.zone === p.zone && Math.abs(q.x - p.x) + Math.abs(q.y - p.y) <= 3 && (q.kind === 'bench' || q.kind === 'read' || q.kind === 'chat'));
+      if (friend && roll < 0.7) out.set(n.id, { ...p, act: 'talk', dir: faceToward(p, friend) });
+    }
   }
   return out;
 }

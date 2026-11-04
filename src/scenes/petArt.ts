@@ -23,7 +23,12 @@ const FRAMES: string[][] = [
   // belly up, paws in the air, the head upside down (ears at the bottom)
   ['......................', '......................', '....l.l....l.l........', '....b.b....b.b........', '...bbbbbbbbbbbbb......', '..bblllllllllllbbbb...', '.bbllllllllllllblllb..', 'pbbllllllllllllbkbkb..', 'pbbblllllllllbbbbbbb..', '.pbbbbbbbbbbbbbebbeb..', '..ssssssssssssspssp...'],
   ['......................', '....l.l....l.l........', '....b.b....b.b........', '...bbbbbbbbbbbb.......', '..bbllllllllllbbb.....', '..bblllllllllllbbbb...', '.bbllllllllllllblllb..', 'pbbllllllllllllbkbkb..', 'pbbblllllllllbbbbbbb..', '.pbbbbbbbbbbbbbebbeb..', '..ssssssssssssspssp...'],
+  // waking stretch: the body goes long and low, front paws out. One frame, held for a moment.
+  ['......................', '......................', '......................', '......................', '.....p..........p.....', '...bbbbbbbbbbbbbbbb...', '..bbbbbbbkkbbbbbbbbp..', '.bbbbbbbbbbbbllllbbp..', 'bbbbssssssssssbbbbbb..', '.sssssssssssssspppp...', '......................'],
 ];
+
+/** The stretch a cat holds just after it wakes. */
+export const STRETCH_FRAME = 4;
 
 /** Frame index for a pose and a breath (0 out, 1 in). */
 export function sleepFrame(pose: SleepPose, breath: 0 | 1): number {
@@ -68,9 +73,11 @@ const DOG_FRAMES: string[][] = [
   ['....................', '....................', '....................', '....................', '....................', '...........O...O....', '..........ooooooo...', '..........ooOooOcc..', '..ooooooooooooocccn.', '.ooooooooooooooccc..', 'oooooooooooooocccc..', 'occcccccccccccccc...', '....................'],
   // lieB
   ['....................', '....................', '....................', '....................', '....................', '...........O...O....', '..........ooooooo...', '..ooooo...ooOooOcc..', '.ooooooooooooocccn..', '.ooooooooooooooccc..', 'oooooooooooooocccc..', 'occcccccccccccccc...', '....................'],
+  // sniff: the same sit, with the head dropped and the nose a step forward
+  ['....................', '............O...O...', '............OO.OO...', '...........ooooooo..', '...........ookoocc..', '...........oooocccn.', '.o..........rrrcc...', '.oo........oooocc...', '..oo......ooooocc...', '...o.....oooooocc...', '...ooooooooooooc....', '...ccoooooooo.c.c...', '...cc.......cc.cc...'],
 ];
-/** sit and pant alternate when it waits; run A/B; bow is the play bow ("throw it!"); lie and lieB are a sleeping breath. */
-export const DOG_FRAME = { sit: 0, pant: 1, runA: 2, runB: 3, bow: 4, lie: 5, lieB: 6 } as const;
+/** sit and pant alternate when it waits; sniff is the lowered head; run A/B; bow is the play bow; lie and lieB are a sleeping breath. */
+export const DOG_FRAME = { sit: 0, pant: 1, runA: 2, runB: 3, bow: 4, lie: 5, lieB: 6, sniff: 7 } as const;
 
 function sheet(scene: Phaser.Scene, key: string, frames: string[][], pal: Record<string, string>) {
   const w = frames[0][0].length, h = frames[0].length;

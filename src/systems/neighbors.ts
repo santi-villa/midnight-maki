@@ -21,6 +21,9 @@ export interface NeighborState {
   beat: number;
   /** short walks already made inside this part of the day */
   hops: number;
+  /** The next spot, held until this person's own pause has passed. */
+  pending: (Place & { ride?: boolean; withFriend?: string }) | null;
+  leaveIn: number;
 }
 
 const onDoor = (zone: string, x: number, y: number) => !!ZONES[zone]?.doors.some((d) => d.x === x && d.y === y);
@@ -92,11 +95,13 @@ export class NeighborLife {
       if (!cur) {
         const trip = new Journey({ zone: place.zone, x: place.x, y: place.y }, this.grid, WALK_TILES);
         trip.destination = { ...stop };
-        this.state.set(n.id, { n, trip, place, anchor: place, key, ride: !!place.ride, beat: 0, hops: 0 });
+        this.state.set(n.id, { n, trip, place, anchor: place, key, ride: !!place.ride, beat: 0, hops: 0, pending: null, leaveIn: 0 });
       } else if (cur.key !== key) {
-        cur.key = key; cur.place = place; cur.anchor = place; cur.ride = !!place.ride; cur.beat = 0; cur.hops = 0;
-        cur.trip.speed = (cur.ride ? BIKE_TILES : WALK_TILES) * (0.92 + (n.id.length % 5) / 25);
-        cur.trip.go(stop);
+        cur.key = key;
+        cur.pending = place;
+        cur.leaveIn = 1.2 + (hash(n.id + key) % 60) / 10;
+        cur.beat = 0;
+        cur.hops = 0;
       }
     }
   }
@@ -109,9 +114,21 @@ export class NeighborLife {
     this.syncIn -= dt;
     if (this.syncIn <= 0) { this.syncIn = 1; this.sync(); }
     for (const s of this.state.values()) {
+      if (s.pending) {
+        s.leaveIn -= dt;
+        if (s.leaveIn > 0) { s.trip.tick(dt); continue; }
+        const place = s.pending;
+        s.pending = null;
+        s.place = place;
+        s.anchor = place;
+        s.ride = !!place.ride;
+        s.trip.speed = (s.ride ? BIKE_TILES : WALK_TILES) * (0.92 + (s.n.id.length % 5) / 25);
+        s.trip.go(this.asStop(place));
+      }
       s.trip.tick(dt);
       // between plan changes they do not stand still: strollers, fountain watchers and shore walkers move on to
       // another spot of the same kind, a few tiles away, after a while
+      if (s.anchor.act === 'fish') continue;
       const pool = HOP_POOL[s.anchor.kind]?.();
       if (!pool) continue;
       if (!s.trip.settled) { s.beat = 0; continue; }

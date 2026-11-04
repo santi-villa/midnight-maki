@@ -31,10 +31,18 @@ export function bugsFor(zone: string): string[] {
   if (p === 3) pool.push('b_firefly', 'b_moth');
   if (seasonOf(day) === 1 && zone === 'garden') pool.push('b_dragonfly');
   if (game.has('star_butterfly') && zone === 'garden' && p === 3) pool.push('b_star');
-  const n = pool.length ? 1 + Math.floor(r() * 2) : 0;
+  const kept = seasonBugs(pool, seasonOf(day));
+  const n = kept.length ? 1 + Math.floor(r() * 2) : 0;
   const out: string[] = [];
-  for (let i = 0; i < n; i++) out.push(pool[Math.floor(r() * pool.length)]);
+  for (let i = 0; i < n; i++) out.push(kept[Math.floor(r() * kept.length)]);
   return out;
+}
+
+/** Winter keeps the night insects. Autumn drops the dragonflies. The rest of the year is unchanged. */
+export function seasonBugs(pool: string[], season: number): string[] {
+  if (season === 3) return pool.filter((id) => id === 'b_moth' || id === 'b_beetle' || id === 'b_firefly' || id === 'b_star');
+  if (season === 2) return pool.filter((id) => id !== 'b_dragonfly');
+  return pool;
 }
 
 export interface FishRoll { id: string; difficulty: number; }

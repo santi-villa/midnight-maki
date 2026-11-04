@@ -8,6 +8,7 @@ import type { Dir } from '../core/types';
 import type { Grid } from '../world/grid';
 import { liveZoneOf, toLive } from '../world/village';
 import { ballTexture, breathAt, DOG_FRAME, dogTexture, zzzAt, type DogCoat } from './petArt';
+import { energy, shelters, type DayFeel } from '../world/animalMood';
 
 export interface DogSpot { zone: string; coat: DogCoat; name: string; tx: number; ty: number; roam: number }
 
@@ -49,6 +50,8 @@ interface Dog {
   laps: number;
   home: [number, number];
   barked: number;
+  /** seconds on the dog's own clock when a night nap may break for a short sit */
+  upAt: number;
 }
 
 interface Ball {
@@ -63,6 +66,7 @@ export class Dogs {
   private dogs: Dog[] = [];
   private ball: Ball | null = null;
   private flight: Phaser.Tweens.Tween | null = null;
+  private feel: DayFeel = { period: 1, season: 0, rain: false };
   constructor(private scene: Phaser.Scene, readonly zone: string, private night: boolean, private grid: Grid, private sound?: (name: string, x: number, y: number) => void) {
     for (const authored of DOG_SPOTS.filter((d) => liveZoneOf(d.zone) === zone)) {
       const at = toLive(authored.zone, authored.tx, authored.ty);
@@ -71,7 +75,7 @@ export class Dogs {
       const x = home[0] * TILE + 8, y = home[1] * TILE + 14;
       const s = scene.add.sprite(x, y, dogTexture(scene, spot.coat), DOG_FRAME.sit).setOrigin(0.5, 1).setDepth(y + 1);
       const z = [6, 7, 9].map((size) => scene.add.text(x, y, 'z', { fontFamily: 'Pixelify Sans', fontSize: `${size}px`, color: '#e7dcc2', stroke: '#362e36', strokeThickness: 1 }).setOrigin(0.5, 1).setVisible(false));
-      this.dogs.push({ spot, s, z, mode: 'idle', path: [], pause: 2 + this.dogs.length * 3, t: this.dogs.length, laps: 0, home, barked: 0 });
+      this.dogs.push({ spot, s, z, mode: 'idle', path: [], pause: 2 + this.dogs.length * 3, t: this.dogs.length, laps: 0, home, barked: 0, upAt: 22 + this.dogs.length * 9 });
     }
     if (!this.dogs.length) return;
     // the ball waits a tile beside the first dog
@@ -84,7 +88,11 @@ export class Dogs {
 
   get count() { return this.dogs.length; }
 
-  setNight(night: boolean, grid = this.grid) { this.night = night; this.grid = grid; }
+  setNight(night: boolean, grid = this.grid, feel?: DayFeel) {
+    this.night = night;
+    this.grid = grid;
+    if (feel) this.feel = feel;
+  }
 
   /** What the contextual actions need: where the ball is and whether the player has it. */
   ballSense(): { x: number; y: number; held: boolean; dog: string } | null {
@@ -157,10 +165,21 @@ export class Dogs {
     }
     for (const d of this.dogs) {
       d.t += dt;
-      const asleep = this.night && d.mode !== 'fetch' && d.mode !== 'bring';
-      if (asleep && d.mode !== 'sleep') { d.mode = 'sleep'; d.path = []; }
-      if (!asleep && d.mode === 'sleep') { d.mode = 'idle'; d.pause = 3; }
-      if (d.mode === 'sleep') { this.doze(d); continue; }
+      const playing = d.mode === 'fetch' || d.mode === 'bring';
+      if (this.night && !playing) {
+        if (d.mode === 'sleep') {
+          this.doze(d);
+          if (d.t > d.upAt) { d.mode = 'idle'; d.path = []; d.pause = 3.5; d.upAt = d.t + 26 + Math.random() * 22; }
+          continue;
+        }
+        if (d.mode !== 'idle') { d.mode = 'sleep'; d.path = []; continue; }
+        this.frame(d, Math.floor(d.t) % 2 ? 'sniff' : 'sit');
+        for (const z of d.z) z.setVisible(false);
+        d.pause -= dt;
+        if (d.pause <= 0) d.mode = 'sleep';
+        continue;
+      }
+      if (!this.night && d.mode === 'sleep') { d.mode = 'idle'; d.pause = 3; }
       for (const z of d.z) z.setVisible(false);
 
       if (d.mode === 'fetch' && b) {
@@ -219,16 +238,19 @@ export class Dogs {
         continue;
       }
       if (close < 40) d.s.setFlipX(player.x < d.s.x);
-      // sit, pant a while, sit again
-      this.frame(d, Math.floor(d.t / 1.6) % 3 === 1 ? 'pant' : 'sit');
+      const busy = energy('dog', this.feel);
+      const home = shelters('dog', this.feel);
+      // sit, pant, and now and then drop the nose to the ground
+      const beat = Math.floor(d.t / 1.6) % 4;
+      this.frame(d, beat === 1 ? 'pant' : beat === 2 && busy >= 1 ? 'sniff' : 'sit');
       d.pause -= dt;
       if (d.pause > 0) continue;
-      d.pause = 5 + Math.random() * 6;
-      if (Math.random() < 0.3) {
+      d.pause = (busy === 0 ? 8 : 5) + Math.random() * 6;
+      if (!home && busy === 2 && Math.random() < 0.28) {
         d.mode = 'zoom'; d.laps = 4 + Math.floor(Math.random() * 3);
         this.sound?.('woof', d.s.x, d.s.y);
       } else {
-        const r = d.spot.roam;
+        const r = d.spot.roam * (home ? 0.4 : 1);
         this.route(d, d.home[0] + Math.round(Math.random() * r * 2 - r), d.home[1] + Math.round(Math.random() * r - r / 2));
         if (d.path.length > r * 3) d.path.length = r * 3;
       }

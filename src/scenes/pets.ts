@@ -8,7 +8,8 @@ import atlasURL from '../assets/pets/pets.png';
 import type { Grid } from '../world/grid';
 import { Footsteps } from '../audio/footsteps';
 import { liveZoneOf, toLive } from '../world/village';
-import { breathAt, sleepCatTexture, sleepFrame, zzzAt, type CatColor, type SleepPose } from './petArt';
+import { breathAt, sleepCatTexture, sleepFrame, STRETCH_FRAME, zzzAt, type CatColor, type SleepPose } from './petArt';
+import { energy, shelters, type DayFeel } from '../world/animalMood';
 
 export const PETS_ATLAS_KEY = 'pets-source';
 export const PETS_ATLAS_URL = atlasURL;
@@ -51,13 +52,16 @@ function ensureAnims(scene: Phaser.Scene) {
   }
 }
 
-interface Pet { spot: PetSpot; s: Phaser.GameObjects.Sprite; hopping: boolean; cool: number; barking: boolean; path: [number, number][]; pause: number; point: number; home: [number, number]; sleeping: boolean; z: Phaser.GameObjects.Text[]; bed: Phaser.GameObjects.Sprite | null; pose: SleepPose; nap: number; turn: number }
+interface Pet { spot: PetSpot; s: Phaser.GameObjects.Sprite; hopping: boolean; cool: number; barking: boolean; path: [number, number][]; pause: number; point: number; home: [number, number]; sleeping: boolean; z: Phaser.GameObjects.Text[]; bed: Phaser.GameObjects.Sprite | null; pose: SleepPose; nap: number; turn: number; i: number; awake: number; stretch: number }
 
 export class Pets {
   private pets: Pet[] = [];
   private feet = new Footsteps();
   private heart: Phaser.GameObjects.Text | null = null;
   private petAgain = 0;
+  private feel: DayFeel = { period: 1, season: 0, rain: false };
+  /** shared night clock so the cats swap naps even while one of them is awake */
+  private napClock = 0;
   constructor(private scene: Phaser.Scene, readonly zone: string, private night: boolean, private onStep?: (x: number, y: number) => void, private grid?: Grid) {
     if (!scene.textures.exists(PETS_ATLAS_KEY)) return;
     ensureAnims(scene);
@@ -75,13 +79,17 @@ export class Pets {
       const cat = spot.kind.startsWith('cat_');
       const bed = cat ? scene.add.sprite(x, y, sleepCatTexture(scene, spot.kind as CatColor), 0).setOrigin(0.5, 1).setScale(SCALE[spot.kind]).setVisible(false) : null;
       const n = this.pets.length;
-      this.pets.push({ spot, s, hopping: false, cool: 0, barking: false, path: [], pause: 3 + n * 2, point: 0, home, sleeping: false, z, bed, pose: n % 2 ? 'back' : 'curl', nap: n * 0.9, turn: 40 + n * 13 });
+      this.pets.push({ spot, s, hopping: false, cool: 0, barking: false, path: [], pause: 3 + n * 2, point: 0, home, sleeping: false, z, bed, pose: n % 2 ? 'back' : 'curl', nap: n * 0.9, turn: 40 + n * 13, i: n, awake: 0, stretch: 0 });
     }
   }
 
   get count() { return this.pets.length; }
 
-  setNight(night: boolean, grid = this.grid) { this.night = night; this.grid = grid; }
+  setNight(night: boolean, grid = this.grid, feel?: DayFeel) {
+    this.night = night;
+    this.grid = grid;
+    if (feel) this.feel = feel;
+  }
 
   private safe(at: [number, number]): [number, number] {
     return this.grid?.isSolid(...at) ? this.grid.nearestWalkable(...at) ?? at : at;
@@ -98,7 +106,7 @@ export class Pets {
     const p = this.pets.find(p => p.spot.name === id);
     if (!p || Math.hypot(p.s.x - player.x, p.s.y - player.y) > 30 || this.scene.time.now < this.petAgain) return false;
     this.petAgain = this.scene.time.now + 1200;
-    p.path = []; p.pause = 18; p.cool = 7;
+    p.path = []; p.pause = 18; p.cool = 7; p.awake = 12; p.sleeping = false;
     this.heart?.destroy();
     const heart = this.scene.add.text(p.s.x, p.s.y - 22, '♥', { fontFamily: 'Pixelify Sans', fontSize: '9px', color: '#edb5af', stroke: '#4b3440', strokeThickness: 1 }).setOrigin(0.5).setDepth(250001);
     this.heart = heart;
@@ -109,15 +117,29 @@ export class Pets {
   /** `player` in world pixels. A cat hops when you come close; the golden dog barks while you are near. */
   update(dt: number, player: { x: number; y: number }, guests: { x: number; y: number }[] = [], occupants: { x: number; y: number }[] = []) {
     if (dt <= 0) return;
+    this.napClock += dt;
     for (const p of this.pets) {
       p.cool -= dt;
       const d = Math.hypot(p.s.x - player.x, p.s.y - player.y);
       const k = p.spot.kind;
-      const sleeping = this.night && k !== 'frog';
+      p.awake = Math.max(0, p.awake - dt);
+      const cat = k.startsWith('cat');
+      // at night the cats take turns: one naps, the next keeps a slow walk, then they swap
+      const nap = ((p.i + Math.floor(this.napClock / 48)) % 2) === 0;
+      const sleeping = cat ? this.night && nap && p.awake <= 0 : this.night && k !== 'frog';
       if (sleeping !== p.sleeping) {
+        const woke = !sleeping && p.sleeping;
         p.sleeping = sleeping; p.path = []; p.hopping = false; p.s.removeAllListeners('animationcomplete');
         if (sleeping && p.spot.route) this.walk(p, p.home);
-        if (!sleeping) { p.s.setScale(SCALE[k]).setVisible(true); p.s.play(`pet_${k}_idle`); p.pause = 12; this.wake(p); }
+        if (woke && cat) p.stretch = 0.7;
+        else if (!sleeping) { p.s.setScale(SCALE[k]).setVisible(true); p.s.play(`pet_${k}_idle`); p.pause = 12; this.wake(p); }
+      }
+      if (p.stretch > 0) {
+        p.stretch -= dt;
+        if (p.bed) p.s.setVisible(false), p.bed.setVisible(true).setPosition(p.s.x, p.s.y).setFlipX(p.s.flipX).setDepth(p.s.y + 1).setFrame(STRETCH_FRAME);
+        if (p.stretch > 0) continue;
+        this.wake(p);
+        p.s.setScale(SCALE[k]).setVisible(true).play(`pet_${k}_idle`);
       }
       if (p.path.length) {
         const [tx, ty] = p.path[0], x = tx * 16 + 8, y = ty * 16 + 14;
@@ -133,16 +155,19 @@ export class Pets {
       }
       if (sleeping) { this.doze(p, dt); continue; }
       p.pause -= dt;
+      const lively = energy('cat', this.feel);
+      const shelter = shelters('cat', this.feel);
       if (p.spot.route && p.pause <= 0 && !p.hopping) {
         p.point = (p.point + 1) % p.spot.route.length;
         let at = p.spot.route[p.point];
-        // half the time they wander a few tiles around the spot instead of repeating the same corners
-        if (!p.spot.name && Math.random() < 0.5) at = [at[0] + Math.round(Math.random() * 8 - 4), at[1] + Math.round(Math.random() * 6 - 3)];
-        // the plaza cats are village cats: they walk to a far corner of the whole town now and then
-        if (p.spot.roam && this.grid && Math.random() < 0.7) at = [1 + Math.floor(Math.random() * (this.grid.w - 2)), 1 + Math.floor(Math.random() * (this.grid.h - 2))];
-        const guest = p.spot.name && guests.length ? guests[p.point % guests.length] : null;
+        // rain: they stay by their spot. A quiet afternoon too, instead of crossing the town.
+        if (shelter) at = p.home;
+        else if (!p.spot.name && Math.random() < 0.5) at = [at[0] + Math.round(Math.random() * 8 - 4), at[1] + Math.round(Math.random() * 6 - 3)];
+        if (!shelter && lively === 2 && p.spot.roam && this.grid && Math.random() < 0.7) at = [1 + Math.floor(Math.random() * (this.grid.w - 2)), 1 + Math.floor(Math.random() * (this.grid.h - 2))];
+        const guest = p.spot.name && guests.length && !shelter ? guests[p.point % guests.length] : null;
         if (guest) at = [Math.floor(guest.x / 16) + 1, Math.floor(guest.y / 16)];
-        this.walk(p, at); p.pause = 6 + Math.random() * 6;
+        this.walk(p, at);
+        p.pause = (lively === 0 ? 14 : lively === 2 ? 4 : 8) + Math.random() * 6;
         if (p.spot.roam && p.path.length > 90) p.path.length = 90; // long trips happen in a few legs
         if (p.path.length) continue;
       }

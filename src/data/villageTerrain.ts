@@ -253,7 +253,8 @@ export function createVillageTerrain() {
   if (exteriorsWanted()) {
     // Modern Exteriors: carts between the market stalls, cargo and benches against the south rail.
     // The aisle, the stall counters, both pier mouths and the house doors stay open.
-    prop('wharf_flower_cart', 65, 60); prop('wharf_candy_cart', 41, 60);
+    // Carts sit on the south rail, beside the cargo, so the market aisle and the quay mouths stay a clear two-tile walk.
+    prop('wharf_flower_cart', 62, 68); prop('wharf_candy_cart', 38, 68);
     prop('wharf_flower_box', 44, 68); prop('wharf_barrel', 52, 68); prop('wharf_barrel', 53, 68);
     prop('wharf_flower_box', 60, 68); prop('wharf_bench', 64, 68);
     prop('wharf_boxes', 75, 68); prop('wharf_box', 77, 68); prop('wharf_barrel', 78, 68);
@@ -261,12 +262,14 @@ export function createVillageTerrain() {
     // the fishermen's quay: fish drying in front of the fish houses, crates of the day's catch beside them
     prop('wharf_fish_rack', 80, 66); prop('wharf_fish_crate_b', 84, 66); prop('wharf_fish_crate_r', 45, 67);
     // the coast is rocky here too: rocks round the lighthouse islet and out between the piers, clear of boats and fishing spots
-    prop('sea_rock_big', 98, 77); prop('sea_rock', 93, 72); prop('sea_rock_small', 103, 69); prop('sea_rock_small', 91, 74);
+    // The big rock stays east of the lighthouse threshold so it does not cover the door.
+    prop('sea_rock_big', 106, 76); prop('sea_rock', 93, 72); prop('sea_rock_small', 103, 69); prop('sea_rock_small', 91, 74);
     prop('sea_rock_arch', 63, 77); prop('sea_rock_small', 78, 76); prop('sea_rock_tall', 48, 75); prop('sea_rock_small', 45, 71);
     prop('buoy_red', 91, 76); prop('buoy_orange', 66, 72);
   }
   // lanterns stand at the rail on both sides of each pier's mouth and by the lighthouse door, never mid-deck
-  for (const [x, y] of [[54, 68], [58, 68], [68, 68], [72, 68], [82, 68], [97, 75]]) prop('pier_lantern', x, y);
+  // The lighthouse lantern stands on the islet grass just east of the door, not on the boardwalk that leads to it.
+  for (const [x, y] of [[54, 68], [58, 68], [68, 68], [72, 68], [82, 68], [103, 75]]) prop('pier_lantern', x, y);
   // River walk remains on the residential bank, with a bridge to the wharf.
   path([[90, 49], [100, 49], [100, 52]], 2);
   rect(94, 52, 3, 13, 'b'); path([[94, 64], [90, 65]], 2, 'b');

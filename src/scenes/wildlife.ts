@@ -13,6 +13,7 @@ import { TILE } from '../entities/Actor';
 import { FRAME, fallTexture, wildTexture, type FallKind } from './wildlifeArt';
 import { jumpAt, solidWater } from './fishLife';
 import { dotTexture } from './textures';
+import { energy, presence, scaleCount, shelters, type DayFeel } from '../world/animalMood';
 
 export interface Tree { x: number; y: number; top: number; kind: string }
 export interface WildPlace {
@@ -157,7 +158,7 @@ class Frog extends Creature {
   private s: Phaser.GameObjects.Sprite;
   private state: 'sit' | 'busy' | 'gone' = 'sit';
   private t = rnd(1, 4);
-  constructor(private scene: Phaser.Scene, private home: { x: number; y: number }, private water: { x: number; y: number }, private banks: { x: number; y: number }[], private chatty: boolean) {
+  constructor(private scene: Phaser.Scene, private home: { x: number; y: number }, private water: { x: number; y: number }, private banks: { x: number; y: number }[], private chatty: boolean, private lively: 0 | 1 | 2 = 1) {
     super();
     this.s = scene.add.sprite(home.x, home.y + 4, wildTexture(scene, 'frog'), FRAME.frog.sit).setOrigin(0.5, 1).setDepth(home.y + 4).setFlipX(water.x < home.x);
   }
@@ -189,7 +190,9 @@ class Frog extends Creature {
     this.t -= dt;
     if (this.t > 0) return;
     const r = Math.random();
-    if (r < (this.chatty ? 0.55 : 0.35)) {
+    const croakAt = this.lively === 0 ? 0.18 : this.chatty || this.lively === 2 ? 0.55 : 0.35;
+    const hopAt = this.lively === 0 ? 0.32 : 0.8;
+    if (r < croakAt) {
       // a croak: the throat puffs twice
       this.state = 'busy';
       s.setFrame(FRAME.frog.croak);
@@ -197,13 +200,13 @@ class Frog extends Creature {
       this.scene.time.delayedCall(220, () => s.active && s.setFrame(FRAME.frog.sit));
       this.scene.time.delayedCall(380, () => s.active && s.setFrame(FRAME.frog.croak));
       this.scene.time.delayedCall(600, () => { if (s.active) s.setFrame(FRAME.frog.sit); this.state = 'sit'; });
-    } else if (r < 0.8 && this.banks.length) {
+    } else if (r < hopAt && this.banks.length) {
       // a hop along the bank
       const to = this.banks[Math.floor(Math.random() * this.banks.length)];
       this.state = 'busy';
       hop(this.scene, s, { x: to.x, y: to.y + 4 }, 7, 300, { crouch: FRAME.frog.crouch, air: FRAME.frog.air, land: FRAME.frog.sit }, () => { this.home = to; this.state = 'sit'; });
     }
-    this.t = rnd(2.5, 6);
+    this.t = this.lively === 0 ? rnd(5, 10) : rnd(2.5, 6);
   }
   destroy() { this.s.destroy(); }
 }
@@ -224,9 +227,10 @@ class DuckFamily extends Creature {
   private mode: 'water' | 'out' | 'land' | 'in' = 'water';
   private landIn = rnd(15, 35);
   private landT = 0;
+  private flap = 0;
   private exit: { bank: { x: number; y: number }; water: { x: number; y: number } } | null = null;
   constructor(private scene: Phaser.Scene, private tiles: { x: number; y: number }[], private wet: (x: number, y: number) => boolean, start: { x: number; y: number }, kids: number,
-    private banks: { x: number; y: number }[] = [], private ground: (x: number, y: number) => boolean = () => false) {
+    private banks: { x: number; y: number }[] = [], private ground: (x: number, y: number) => boolean = () => false, private rest = false) {
     super();
     this.pos = { ...start }; this.target = { ...start };
     this.mom = scene.add.sprite(start.x, start.y, wildTexture(scene, 'duck'), FRAME.duck.swim).setOrigin(0.5, 0.85);
@@ -234,6 +238,7 @@ class DuckFamily extends Creature {
     // the ducklings start strung out behind her (on the water side), not on top of her
     const back = [[-1, 0], [1, 0], [0, -1], [0, 1]].find(([dx, dy]) => wet(start.x + dx * 30, start.y + dy * 30)) ?? [0, 0];
     for (let i = 0; i < 60; i++) this.trail.push({ x: start.x + back[0] * (59 - i) * 0.6, y: start.y + back[1] * (59 - i) * 0.6 });
+    if (rest) { this.landIn = 80; this.speed = 4; }
   }
   /** A straight way from here to there that stays on water (or, on the bank, on walkable ground). */
   private clear(to: { x: number; y: number }, ok: (x: number, y: number) => boolean) {
@@ -309,13 +314,15 @@ class DuckFamily extends Creature {
       this.speed = 9;
       this.wait -= dt; this.landIn -= dt;
       if (this.dabble > 0) { this.dabble -= dt; if (this.dabble <= 0) this.mom.setFrame(FRAME.duck.swim); }
-      else if (this.landIn <= 0) {
+      else if (!this.rest && this.landIn <= 0) {
         this.exit = this.pickExit();
         if (this.exit && !hooks.threat(this.exit.bank.x, this.exit.bank.y, 30)) { this.mode = 'out'; this.target = { ...this.exit.water }; }
         else this.landIn = 10;
       } else if (this.wait <= 0) {
-        this.wait = rnd(2, 6);
-        if (Math.random() < 0.35) { this.dabble = rnd(1, 2); this.mom.setFrame(FRAME.duck.dabble); }
+        this.wait = this.rest ? rnd(4, 9) : rnd(2, 6);
+        this.speed = this.rest ? 4 : 9;
+        if (Math.random() < (this.rest ? 0.12 : 0.35)) { this.dabble = rnd(1, 2); this.mom.setFrame(FRAME.duck.dabble); }
+        else if (!this.rest && Math.random() < 0.22) this.flap = 0.4;
         else { const p = this.pick(); if (p) this.target = p; }
       }
     }
@@ -328,7 +335,8 @@ class DuckFamily extends Creature {
       this.mom.setOrigin(0.5, 1).setFrame(this.peck > 0 ? FRAME.duck.peck : moving && Math.floor(this.bobT * 6) % 2 ? FRAME.duck.walkB : FRAME.duck.walkA);
     } else {
       this.mom.setOrigin(0.5, 0.85);
-      if (this.dabble <= 0) this.mom.setFrame(Math.floor(this.bobT * 2.2) % 2 ? FRAME.duck.bob : FRAME.duck.swim);
+      if (this.flap > 0) { this.flap -= dt; this.mom.setFrame(FRAME.duck.flap); }
+      else if (this.dabble <= 0) this.mom.setFrame(Math.floor(this.bobT * (this.rest ? 1.1 : 2.2)) % 2 ? FRAME.duck.bob : FRAME.duck.swim);
     }
     this.mom.setPosition(this.pos.x, this.pos.y).setDepth(this.pos.y);
     this.kids.forEach((k, i) => {
@@ -348,7 +356,7 @@ class Crab extends Creature {
   private t = rnd(0.5, 3);
   private vx = 0;
   private stepT = 0;
-  constructor(private scene: Phaser.Scene, private home: { x: number; y: number }, private sand: (x: number, y: number) => boolean) {
+  constructor(private scene: Phaser.Scene, private home: { x: number; y: number }, private sand: (x: number, y: number) => boolean, private lively: 0 | 1 | 2 = 1) {
     super();
     this.s = scene.add.sprite(home.x, home.y + 4, wildTexture(scene, 'crab'), FRAME.crab.a).setOrigin(0.5, 1).setDepth(home.y + 4);
     // the little heap of sand it leaves while dug in
@@ -397,11 +405,17 @@ class Crab extends Creature {
       this.stepT -= dt;
       if (this.stepT <= 0) { this.stepT = 0.1; s.setFrame(s.frame.name === String(FRAME.crab.a) ? FRAME.crab.b : FRAME.crab.a); }
       this.t -= dt;
-      if (this.t <= 0) { this.state = 'idle'; this.t = rnd(1, 4); s.setFrame(FRAME.crab.a); }
+      if (this.t <= 0) { this.state = 'idle'; this.t = this.lively === 0 ? rnd(2.5, 6) : rnd(1, 4); s.setFrame(FRAME.crab.a); }
       return;
     }
     this.t -= dt;
-    if (this.t <= 0) { this.state = 'walk'; this.vx = (Math.random() < 0.5 ? -1 : 1) * rnd(12, 20); this.t = rnd(0.4, 1.1); }
+    if (this.t <= 0) {
+      // a hot quiet afternoon: dig in for a while even though nobody is close
+      if (this.lively === 0 && Math.random() < 0.45) { this.dig(true); return; }
+      this.state = 'walk';
+      this.vx = (Math.random() < 0.5 ? -1 : 1) * rnd(this.lively === 2 ? 16 : 12, this.lively === 2 ? 26 : 20);
+      this.t = this.lively === 2 ? rnd(0.6, 1.6) : rnd(0.4, 1.1);
+    }
   }
   destroy() { this.s.destroy(); this.mound.destroy(); }
 }
@@ -413,7 +427,7 @@ class Squirrel extends Creature {
   private target = { x: 0, y: 0 };
   private speed = 34;
   private runT = 0;
-  constructor(private scene: Phaser.Scene, private tree: Tree, private ground: (x: number, y: number) => boolean) {
+  constructor(private scene: Phaser.Scene, private tree: Tree, private ground: (x: number, y: number) => boolean, private hide = false) {
     super();
     this.s = scene.add.sprite(tree.x + 10, tree.y + 6, wildTexture(scene, 'squirrel'), FRAME.squirrel.sit).setOrigin(0.5, 1).setDepth(tree.y + 6);
   }
@@ -422,27 +436,14 @@ class Squirrel extends Creature {
     if (this.state === 'busy') return;
     if (this.state === 'up') {
       this.t -= dt;
-      if (this.t > 0 || hooks.threat(this.tree.x, this.tree.y, 30)) { if (this.t <= 0) this.t = 3; return; }
+      if (this.hide || this.t > 0 || hooks.threat(this.tree.x, this.tree.y, 30)) { if (this.t <= 0) this.t = 3; return; }
       // back down the trunk
       this.state = 'busy';
       s.setPosition(this.tree.x + 2, this.tree.y - 22).setVisible(true).setAlpha(0).setFlipX(false).setAngle(90).setFrame(FRAME.squirrel.runA);
       this.scene.tweens.add({ targets: s, y: this.tree.y + 2, alpha: 1, duration: 700, onComplete: () => { s.setAngle(0).setFrame(FRAME.squirrel.sit); this.state = 'sit'; this.t = rnd(1, 3); } });
       return;
     }
-    if (hooks.threat(s.x, s.y, 10)) {
-      // a dash to the tree and up it, out of sight
-      this.state = 'busy';
-      const d = Math.hypot(this.tree.x - s.x, this.tree.y - s.y);
-      s.setFlipX(this.tree.x < s.x).setFrame(FRAME.squirrel.runA);
-      this.scene.tweens.add({
-        targets: s, x: this.tree.x + 2, y: this.tree.y + 2, duration: Math.max(120, d / 0.09),
-        onComplete: () => {
-          s.setAngle(-90).setFlipX(false);
-          this.scene.tweens.add({ targets: s, y: this.tree.y - 24, alpha: 0, duration: 520, onComplete: () => { s.setVisible(false).setAngle(0).setAlpha(1); this.state = 'up'; this.t = rnd(10, 18); } });
-        },
-      });
-      return;
-    }
+    if (hooks.threat(s.x, s.y, 10)) { this.goUp(); return; }
     if (this.state === 'run') {
       const dx = this.target.x - s.x, dy = this.target.y - s.y, d = Math.hypot(dx, dy);
       if (d < 1.5) { this.state = 'sit'; this.t = rnd(1.5, 3.5); s.setFrame(FRAME.squirrel.sit); s.y = this.target.y; return; }
@@ -455,6 +456,7 @@ class Squirrel extends Creature {
     }
     this.t -= dt;
     if (this.t > 0) return;
+    if (this.hide) { this.goUp(); return; }
     // somewhere to forage, near its tree
     for (let i = 0; i < 8; i++) {
       const x = this.tree.x + rnd(-36, 36), y = this.tree.y + rnd(-6, 26);
@@ -463,6 +465,20 @@ class Squirrel extends Creature {
       return;
     }
     this.t = 2;
+  }
+  /** A dash to the tree and up it, out of sight. Rain, dusk and winter afternoons send them up without a fright. */
+  private goUp() {
+    const s = this.s;
+    this.state = 'busy';
+    const d = Math.hypot(this.tree.x - s.x, this.tree.y - s.y);
+    s.setFlipX(this.tree.x < s.x).setFrame(FRAME.squirrel.runA);
+    this.scene.tweens.add({
+      targets: s, x: this.tree.x + 2, y: this.tree.y + 2, duration: Math.max(120, d / 0.09),
+      onComplete: () => {
+        s.setAngle(-90).setFlipX(false);
+        this.scene.tweens.add({ targets: s, y: this.tree.y - 24, alpha: 0, duration: 520, onComplete: () => { s.setVisible(false).setAngle(0).setAlpha(1); this.state = 'up'; this.t = this.hide ? rnd(24, 40) : rnd(10, 18); } });
+      },
+    });
   }
   destroy() { this.s.destroy(); }
 }
@@ -473,7 +489,8 @@ class Flier extends Creature {
   private target: { x: number; y: number };
   private t = rnd(0.3, 1.2);
   private flap = 0;
-  constructor(scene: Phaser.Scene, private kind: 'dragonfly' | 'bee', private home: { x: number; y: number }) {
+  private rest = 0;
+  constructor(scene: Phaser.Scene, private kind: 'dragonfly' | 'bee', private home: { x: number; y: number }, private lively: 0 | 1 | 2 = 2) {
     super();
     this.target = { ...home };
     this.s = scene.add.sprite(home.x, home.y, wildTexture(scene, kind), 0).setDepth(home.y + 40);
@@ -481,11 +498,23 @@ class Flier extends Creature {
   update(dt: number, hooks: WildHooks) {
     const s = this.s, range = this.kind === 'bee' ? 12 : 26, speed = this.kind === 'bee' ? 34 : 90;
     this.flap += dt;
+    if (this.rest > 0) {
+      this.rest -= dt;
+      s.setFrame(1);
+      if (this.kind === 'dragonfly') s.setRotation(0);
+      s.setDepth(s.y + 40);
+      if (hooks.threat(s.x, s.y, 2)) this.rest = 0;
+      return;
+    }
     s.setFrame(Math.floor(this.flap * (this.kind === 'bee' ? 24 : 18)) % 2);
     this.t -= dt;
     const threat = hooks.threat(s.x, s.y, 2);
     if (threat) { const a = Math.atan2(s.y - threat.y, s.x - threat.x); this.target = { x: this.home.x + Math.cos(a) * range * 1.6, y: this.home.y + Math.sin(a) * range }; this.t = 1.2; }
-    else if (this.t <= 0) { this.t = this.kind === 'bee' ? rnd(0.2, 0.8) : rnd(0.6, 1.8); this.target = { x: this.home.x + rnd(-range, range), y: this.home.y + rnd(-range * 0.6, range * 0.6) }; }
+    else if (this.t <= 0) {
+      this.t = this.kind === 'bee' ? rnd(0.2, 0.8) : rnd(0.6, 1.8);
+      if (this.lively < 2 && Math.random() < (this.lively === 0 ? 0.75 : 0.35)) this.rest = rnd(1.4, 3.4);
+      else this.target = { x: this.home.x + rnd(-range, range), y: this.home.y + rnd(-range * 0.6, range * 0.6) };
+    }
     const dx = this.target.x - s.x, dy = this.target.y - s.y, d = Math.hypot(dx, dy);
     const jitter = this.kind === 'bee' ? Math.sin(this.flap * 13) * 0.4 : Math.sin(this.flap * 5) * 0.2;
     if (d > 0.5) {
@@ -558,7 +587,7 @@ export class Wildlife {
     const g = place.ground, scene = this.scene;
     this.leaves = new FallingLeaves(scene, place.trees, place.season, still);
     if (still) return;
-    const winter = place.season === 3, warm = place.season <= 1, day = place.period <= 1;
+    const feel: DayFeel = { period: place.period, season: place.season, rain: place.rain };
     const sand = (x: number, y: number) => g[Math.floor(y / TILE)]?.[Math.floor(x / TILE)] === 's' && place.walkable(Math.floor(x / TILE), Math.floor(y / TILE));
     const walk = (x: number, y: number) => place.walkable(Math.floor(x / TILE), Math.floor(y / TILE)) && !isWater(g, Math.floor(x / TILE), Math.floor(y / TILE));
     const wet = (x: number, y: number) => isWater(g, Math.floor(x / TILE), Math.floor(y / TILE));
@@ -572,32 +601,40 @@ export class Wildlife {
       const set = new Set(body.map((t) => `${t.x},${t.y}`));
       const room = body.filter((t) => solidWater(g, t.x, t.y));
       const life = pondLife(body[0], room.length);
-      if (!winter && life.frogs) {
-        // frogs on the banks (they sing more in the rain and at dusk)
+      const frogs = scaleCount(life.frogs, presence('frog', feel));
+      if (frogs) {
+        // frogs on the banks (they sing more in the rain and at dusk, and sit out a hot afternoon)
         const banks = frogHomes(g, place.walkable, 40, set).map(center);
-        for (const h of frogHomes(g, place.walkable, life.frogs, set)) {
+        for (const h of frogHomes(g, place.walkable, frogs, set)) {
           const w = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: h.x + dx, y: h.y + dy })).find((t) => set.has(`${t.x},${t.y}`))!;
           const mine = banks.filter((b) => Math.hypot(b.x - center(h).x, b.y - center(h).y) < 40);
-          this.creatures.push(new Frog(scene, center(h), center(w), mine.length ? mine : [center(h)], place.rain || place.period >= 2));
+          this.creatures.push(new Frog(scene, center(h), center(w), mine.length ? mine : [center(h)], place.rain || place.period >= 2, energy('frog', feel)));
         }
       }
-      if (life.ducks && place.period <= 2) {
-        // a duck and her ducklings: they paddle about, and now and then climb out onto the bank for a walk
+      if (life.ducks && presence('duck', feel)) {
+        // a duck and her ducklings: they paddle, feed, and at night they stay on the water
         const start = spread(room, 1, 1)[0];
         const banks = frogHomes(g, place.walkable, 60, set);
-        this.creatures.push(new DuckFamily(scene, room, wet, center(start), 2 + (hash(body[0].x, body[0].y) % 3), banks.map(center), walk));
+        this.creatures.push(new DuckFamily(scene, room, wet, center(start), 2 + (hash(body[0].x, body[0].y) % 3), banks.map(center), walk, shelters('duck', feel)));
       }
     }
     const beach = (x: number, y: number) => where(x, y) === 'beach' && place.walkable(x, y);
-    for (const h of crabHomes(g, beach, 4)) this.creatures.push(new Crab(scene, center(h), sand));
-    if (!winter && day) for (const d of ['forest', 'deepforest', 'garden', 'shrine']) {
-      // a couple of squirrels in each wooded district
+    const crabMood = energy('crab', feel);
+    for (const h of crabHomes(g, beach, scaleCount(4, presence('crab', feel)))) this.creatures.push(new Crab(scene, center(h), sand, crabMood));
+    const squirrels = presence('squirrel', feel);
+    if (squirrels) for (const d of ['forest', 'deepforest', 'garden', 'shrine']) {
       const mine = place.trees.filter((t) => (t.kind === 'tree' || t.kind === 'pine') && where(Math.floor(t.x / TILE), Math.floor((t.y - 1) / TILE)) === d);
-      for (const t of spread(mine, 2, 80)) this.creatures.push(new Squirrel(scene, t, walk));
+      for (const t of spread(mine, scaleCount(2, squirrels), 80)) this.creatures.push(new Squirrel(scene, t, walk, shelters('squirrel', feel)));
     }
-    if (warm && day && !place.rain) {
-      for (const b of bankWater(g, 3 * many).filter((b) => !salt(b.x, b.y))) this.creatures.push(new Flier(scene, 'dragonfly', { x: center(b).x, y: center(b).y - 6 }));
-      for (const f of spread(place.flowers, 4 * many, 40)) this.creatures.push(new Flier(scene, 'bee', { x: f.x, y: f.y - 10 }));
+    const flies = scaleCount(3 * many, presence('dragonfly', feel));
+    let flown = 0;
+    for (const b of bankWater(g, 3 * many).filter((b) => !salt(b.x, b.y))) {
+      if (flown >= flies) break;
+      this.creatures.push(new Flier(scene, 'dragonfly', { x: center(b).x, y: center(b).y - 6 }, energy('dragonfly', feel)));
+      flown++;
+    }
+    for (const f of spread(place.flowers, scaleCount(4 * many, presence('bee', feel)), 40)) {
+      this.creatures.push(new Flier(scene, 'bee', { x: f.x, y: f.y - 10 }, energy('bee', feel)));
     }
   }
 

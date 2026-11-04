@@ -55,6 +55,7 @@ export class Actor {
   private phase = Math.random() * 2;
   /** pixel offset for small bob animations */
   private bob = 0;
+  private rod: Phaser.GameObjects.Image | null = null;
 
   constructor(scene: Phaser.Scene, id: string, texture: string, tx: number, ty: number) {
     this.scene = scene;
@@ -248,9 +249,12 @@ export class Actor {
         case 'cook':
         case 'work':
         case 'clean':
-        case 'fish':
         case 'paint':
           frame = this.dir === 'up' ? FRAMES.up[Math.floor(this.actT * 3) % 2 ? 0 : 1] : FRAMES.cook[Math.floor(this.actT * 3) % 2];
+          break;
+        case 'fish':
+          frame = WALK_FRAMES[this.dir][0];
+          this.bob = Math.sin(this.actT * 1.5) > 0.92 ? 1 : 0;
           break;
         case 'read':
           frame = this.dir === 'up' ? FRAMES.up[0] : FRAMES.read;
@@ -343,6 +347,7 @@ export class Actor {
         this.cast.setOrigin(0.5, 0).setPosition(rx, feet - 1).setDepth(ry - 0.6).setVisible(true).setAlpha(0.34 * sun.alpha);
       } else this.cast.setVisible(false);
     }
+    this.syncRod(rx, ry);
     if (this.bubble) {
       const view = this.scene.cameras.main.worldView;
       const half = this.bubble.displayWidth / 2;
@@ -357,12 +362,51 @@ export class Actor {
     this.shadow.setVisible(v);
     this.cast.setVisible(v);
     if (this.bubble) this.bubble.setVisible(v);
+    if (!v) this.rod?.setVisible(false);
   }
 
   destroy() {
     this.sprite.destroy();
     this.shadow.destroy();
     this.cast.destroy();
+    this.rod?.destroy();
     this.clearEmote();
   }
+
+  /** A short rod and a wobbling line, only while the character is actually fishing. */
+  private syncRod(rx: number, ry: number) {
+    const show = this.act === 'fish' && !this.moving && this.sprite.visible;
+    if (!show) { this.rod?.setVisible(false); return; }
+    if (!this.rod) {
+      ensureRod(this.scene);
+      this.rod = this.scene.add.image(rx, ry, 'mm-rod').setOrigin(0.15, 0.15);
+    }
+    const reel = Math.floor(this.actT / 6) % 2 === 0 && this.actT % 6 < 0.35;
+    const wobble = Math.sin(this.actT * 2.4) * (reel ? 2.2 : 0.8);
+    const off: Record<Dir, [number, number, boolean]> = {
+      down: [5, -14, false],
+      up: [-8, -18, false],
+      left: [-12, -14, true],
+      right: [2, -14, false],
+    };
+    const [ox, oy, flip] = off[this.dir];
+    this.rod.setVisible(true).setFlipX(flip).setPosition(rx + ox, ry + oy + wobble);
+    this.rod.setDepth(this.sprite.depth + (this.dir === 'up' ? -1 : 2));
+    this.rod.setAngle(wobble * 3);
+  }
+}
+
+function ensureRod(scene: Phaser.Scene) {
+  if (scene.textures.exists('mm-rod')) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = 16;
+  canvas.height = 16;
+  const g = canvas.getContext('2d');
+  if (!g) return;
+  const px = (x: number, y: number, color: string) => { g.fillStyle = color; g.fillRect(x, y, 1, 1); };
+  px(1, 1, '#6b4428'); px(2, 2, '#8a5a32'); px(3, 3, '#8a5a32'); px(4, 4, '#a56b3c');
+  px(5, 5, '#a56b3c'); px(6, 6, '#c9c2b4');
+  px(6, 8, '#b7d4e2'); px(7, 10, '#b7d4e2'); px(7, 12, '#b7d4e2');
+  px(6, 13, '#d64545'); px(7, 13, '#f2f2f2');
+  scene.textures.addCanvas('mm-rod', canvas);
 }

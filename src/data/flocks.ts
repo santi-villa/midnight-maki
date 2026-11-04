@@ -1,8 +1,8 @@
 /**
  * Flocks of birds: where they gather by day, in village world coordinates. They hop about together and all fly off when
  * you walk up to one of them. Only where a flock makes sense: pigeons on the square, gulls on the sand and the quay,
- * sparrows on lawns and in clearings. None at night, in the rain, at the station, in the residential streets or at
- * the shrine.
+ * sparrows on lawns and in clearings. Sparrows and pigeons leave at night and in the rain. Gulls stay, fewer,
+ * at dusk, at night and in the rain. None at the station, in the residential streets or at the shrine.
  */
 import { villageSpot } from './villageGeography';
 

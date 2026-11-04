@@ -151,9 +151,11 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
   rect(95, 63, 9, 10, 'd');
   for (let y = 60; y < 80; y++) for (let x = 92; x < 110; x++) if (((x + .5 - islet.cx) / islet.r) ** 2 + ((y + .5 - islet.cy) / islet.r) ** 2 < 1) set(x, y, 'g');
   if (tallLighthouse) {
-    street([[90, 67], [96, 67], [96, 72]], 2, 'b');
+    // The painted door faces south, so the jetty runs down the west side and stops on a two-tile threshold in front of it.
+    street([[90, 67], [96, 67], [96, 76], [100, 76]], 2, 'b');
     props = props.filter(p => p.id !== 'lighthouse');
     prop('lighthouse_tall', 98, 72);
+    prop('sign_lighthouse', 103, 73);
   } else street([[90, 67], [99, 67], [99, 69]], 2, 'b');
   props = props.filter(p => p.id !== 'bld_restaurant_s2');
   // every stage keeps its doorway on the same street tile, whatever its width (the inn is wider than the houses)
