@@ -32,7 +32,7 @@ jobs:
           path: src/assets/packs
       - name: Aviso si no hay packs
         if: ${{ env.PACKS_TOKEN == '' }}
-        run: echo "::warning::Sin PACKS_TOKEN: la web se publica con el arte propio del juego, sin los packs con licencia."
+        run: 'echo "::warning::Sin PACKS_TOKEN: la web se publica con el arte propio del juego, sin los packs con licencia."'
       - uses: actions/setup-node@v4
         with:
           node-version: 20
