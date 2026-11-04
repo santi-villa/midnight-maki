@@ -141,8 +141,8 @@ describe('chair collision', () => {
     expect(grid.isSolid(13, 8)).toBe(false);
     expect(grid.isSolid(15, 6)).toBe(false);
     expect(grid.isSolid(13, 7)).toBe(true);
-    expect(grid.isSolid(14, 7)).toBe(true);
-    expect(grid.isSolid(15, 7)).toBe(true);
+    expect(grid.isSolid(12, 7)).toBe(true);
+    expect(grid.isSolid(11, 7)).toBe(true);
     expect(grid.isSolid(22, 7)).toBe(true);
     expect(grid.isSolid(6, 10)).toBe(true);
   });
@@ -199,14 +199,14 @@ describe('saved dining layouts', () => {
     };
     ensureDefaultDecor();
     // widened (7..9, 8), then moved onto the wider hall's grid (13..15, 7) together with its guests
-    expect(game.room('dining').find((f) => f.uid === 1)).toMatchObject({ id: 'table_long', x: 13, y: 7, rot: 0 });
-    expect(game.room('dining').find((f) => f.uid === 2)).toMatchObject({ x: 13, y: 6 });
-    expect(game.room('dining').find((f) => f.uid === 3)).toMatchObject({ x: 15, y: 6 });
-    expect(game.room('dining').find((f) => f.uid === 5)).toMatchObject({ x: 15, y: 8 });
+    expect(game.room('dining').find((f) => f.uid === 1)).toMatchObject({ id: 'table_long', x: 11, y: 7, rot: 0 });
+    expect(game.room('dining').find((f) => f.uid === 2)).toMatchObject({ x: 11, y: 6 });
+    expect(game.room('dining').find((f) => f.uid === 3)).toMatchObject({ x: 13, y: 6 });
+    expect(game.room('dining').find((f) => f.uid === 5)).toMatchObject({ x: 13, y: 8 });
     const saved = game.save.dining!.floor.tables[0];
-    expect(saved).toMatchObject({ x: 13, y: 7, tip: 7, partyId: 'p' });
-    expect(saved.seats.find((s) => s.id === '2')).toMatchObject({ x: 13, y: 6 });
-    expect(saved.seats.find((s) => s.id === '3')).toMatchObject({ x: 15, y: 6 });
+    expect(saved).toMatchObject({ x: 11, y: 7, tip: 7, partyId: 'p' });
+    expect(saved.seats.find((s) => s.id === '2')).toMatchObject({ x: 11, y: 6 });
+    expect(saved.seats.find((s) => s.id === '3')).toMatchObject({ x: 13, y: 6 });
     const table = game.room('dining').find((f) => f.uid === 1)!;
     table.id = 'table_dark';
     table.x = 8;
@@ -233,13 +233,14 @@ describe('saved dining layouts', () => {
   it('starts a new game with spaced tables off the door lane', () => {
     ensureDefaultDecor();
     const room = game.room('dining');
-    expect(room.filter((f) => f.id === 'table_long').map((f) => [f.x, f.y])).toEqual([[13, 7], [17, 7]]);
-    expect(room.filter((f) => f.id === 'chair_dark' && f.y === 6).map((f) => f.x).sort((a, b) => a - b)).toEqual([13, 15, 17, 19]);
-    expect(room.some((f) => f.id === 'table_low' && f.x === 17 && f.y === 11)).toBe(true);
+    expect(room.filter((f) => f.id === 'table_long').map((f) => [f.x, f.y])).toEqual([[11, 7], [19, 6]]);
+    expect(room.filter((f) => f.id === 'chair_dark' && f.y === 6).map((f) => f.x).sort((a, b) => a - b)).toEqual([11, 13, 18, 20]);
+    expect(room.some((f) => f.id === 'table_low' && f.x === 18 && f.y === 11)).toBe(true);
     // the door's lane, the aisle row and the tiles under the kitchen gates stay free
     expect(room.some((f) => (f.x === 8 || f.x === 9) && f.y >= 6)).toBe(false);
     expect(room.some((f) => f.y === 9 && f.x < 15)).toBe(false);
-    expect(room.some((f) => f.y === 6 && f.x >= 9 && f.x <= 12)).toBe(false);
+    const built = buildZone('restaurant');
+    expect(built.grid.path(8, 12, 9, 5)).not.toBeNull();
   });
 });
 

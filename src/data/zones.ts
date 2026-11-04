@@ -55,7 +55,7 @@ function restaurant(): ZoneDef {
   b.room(0, 0, 24, 14, [11, 14, 19, 21]);
   b.rect(1, 0, 22, 1, 'U');
   b.rect(KITCHEN.x, KITCHEN.y, KITCHEN.w, KITCHEN.h, 'k');
-  b.rect(15, 9, 7, 4, 't');
+  b.rect(16, 9, 6, 4, 't');
   b.set(8, 13, 'm').set(9, 13, 'm');
   // the kitchen is a station table (galley/layout.ts): a spot that needs an upgrade is a plain work counter until then
   for (const s of STATIONS) {
@@ -78,15 +78,11 @@ function restaurant(): ZoneDef {
     .prop('wallshelf', 21, 1)
     .prop('bamboo', 22, 2)
     .prop('sake_barrel', 18, 3)
-    .prop('sake_barrel', 19, 3)
-    .prop('sake_barrel', 1, 9)
-    .prop('sake_barrel', 1, 10)
     .prop('bamboo', 1, 12)
     // the look of the restaurant grows with its level (restaurant/stages.ts): clutter goes away, comfort arrives
     .prop('crate', 1, 7, 'stage<1')
     .prop('sack', 1, 8, 'stage<1')
-    .prop('barrel', 3, 12, 'stage<1')
-    .prop('andon', 14, 3, 'stage>=1')
+    .prop('andon', 21, 3, 'stage>=1')
     .prop('wall_lantern_cream', 8, 1, 'stage>=1')
     .prop('wallshelf', 10, 1, 'stage>=2')
     .prop('wall_lantern_red', 9, 1, 'stage>=3');

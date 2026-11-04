@@ -1,3 +1,4 @@
+import { DINING_DEFAULTS, restyleDining } from '../restaurant/interiorLayout';
 /** Turns a ZoneDef + current save into tiles, collision grid and placed objects. DOM-free. */
 import { game } from '../core/state';
 import type { PlacedFurniture } from '../core/types';
@@ -168,13 +169,7 @@ export function tileFor(def: ZoneDef, ch: string, x: number, y: number, night = 
 
 /** Default furniture for each decor room the first time it's visited. */
 const DEFAULT_DECOR: Record<string, [string, number, number, number?][]> = {
-  dining: [
-    // three tiles wide, with a gap between the chairs on each side, on the hall's grid (restaurant/stages.ts)
-    ['table_long', 13, 7], ['chair_dark', 13, 8, 2], ['chair_dark', 15, 8, 2], ['chair_dark', 13, 6, 0], ['chair_dark', 15, 6, 0],
-    ['table_long', 17, 7], ['chair_dark', 17, 8, 2], ['chair_dark', 19, 8, 2], ['chair_dark', 17, 6, 0], ['chair_dark', 19, 6, 0],
-    ['table_low', 17, 11], ['cushion_indigo', 17, 10], ['cushion_rose', 18, 10], ['cushion_rose', 17, 12], ['cushion_indigo', 18, 12],
-    ['bamboo_pot', 22, 7], ['andon', 14, 12], ['bamboo_pot', 7, 12],
-  ],
+  dining: DINING_DEFAULTS,
   room_player: [['bed_rose', 1, 2], ['lamp_table', 2, 2], ['rug_cream', 3, 4], ['wardrobe_wood', 5, 2]],
   room_pip: [['futon_rose', 9, 3], ['plush_bear', 12, 2], ['lantern_cream', 13, 2]],
   room_spicy: [['bed_sage', 15, 2], ['shelf_kitchen', 18, 2], ['plant_herbs', 20, 2]],
@@ -214,6 +209,7 @@ export function ensureDefaultDecor() {
   }
   widenSavedTables();
   spreadSavedTables();
+  restyleDining();
   applyStageGrants(); // after the defaults (and the moves of older halls), so the new tables never land on them
   settleStoredGifts();
 }
