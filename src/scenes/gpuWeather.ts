@@ -5,6 +5,7 @@
  * per frame: denser weather at no cost. Battery mode and reduced motion keep the old, lighter effects instead.
  */
 import Phaser from 'phaser';
+import { richFx } from './gpuProbe';
 import { fallMs, particleCount, type GpuWeatherKind } from './fxMath';
 
 export type { GpuWeatherKind };
@@ -39,7 +40,7 @@ function texture(scene: Phaser.Scene): string {
 
 /** Fills a SpriteGPULayer over a w×h area (world pixels from 0,0) with falling particles. Returns null without WebGL. */
 export function gpuWeather(scene: Phaser.Scene, kind: GpuWeatherKind, w: number, h: number, depth: number, rand = Math.random): Phaser.GameObjects.SpriteGPULayer | null {
-  if (!(scene.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer)) return null;
+  if (!richFx(scene.renderer)) return null;
   const n = particleCount(kind, w, h);
   if (!n) return null;
   const layer = scene.add.spriteGPULayer(texture(scene), n).setDepth(depth);

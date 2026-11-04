@@ -6,7 +6,7 @@ import { interiorSun, beamReach, lampRoom, type InteriorBlock } from './interior
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, waterFrames } from '../art/tiles';
 import { tileAnimations, waterCycles } from './groundAnim';
-import { gpuTilemapWorks } from './gpuProbe';
+import { gpuTilemapWorks, richFx } from './gpuProbe';
 import { gpuWeather, type GpuWeatherKind } from './gpuWeather';
 import { CameraFx } from './cameraFx';
 import { WaterRipple } from './waterRipple';
@@ -196,7 +196,7 @@ export class WorldScene extends Phaser.Scene {
   private waterMap: Phaser.Tilemaps.Tilemap | null = null;
   private setupRipple(def: ZoneDef) {
     if (!def.outdoor || !(this.waterTiles.length + this.shoreTiles.length) || lowFx() || settings.reduceMotion) return;
-    if (!(this.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer)) return;
+    if (!richFx(this.renderer)) return;
     const data = this.zone.tiles.map((row) => row.map(() => -1));
     for (const t of [...this.waterTiles, ...this.shoreTiles]) data[t.y][t.x] = this.zone.tiles[t.y][t.x];
     this.waterMap = this.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE });
@@ -343,7 +343,7 @@ export class WorldScene extends Phaser.Scene {
     // the colour of the hour, the night glow and the blur behind menus (scenes/cameraFx.ts)
     this.camFx = CameraFx.attach(this);
     // 2D lights for people (Phaser 4): white ambient, so by day nothing changes; at night the lamps nearby light them
-    if (this.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer) this.lights.enable().setAmbientColor(0xffffff);
+    if (richFx(this.renderer)) this.lights.enable().setAmbientColor(0xffffff);
     void import('../coop').then((m) => { this.coopLink = m.coopLink; });
     this.releaseBus();
     this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT') as any;

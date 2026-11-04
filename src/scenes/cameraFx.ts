@@ -8,6 +8,7 @@
  */
 import Phaser from 'phaser';
 import { gradeAt, gradeKey, gradeMatrix, NEUTRAL } from './grade';
+import { richFx } from './gpuProbe';
 
 export interface CameraFxState {
   period: number;
@@ -49,7 +50,7 @@ export class CameraFx {
   /** Null without WebGL (the canvas renderer has no filters). */
   static attach(scene: Phaser.Scene): CameraFx | null {
     const cam = scene.cameras.main;
-    if (!(scene.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer) || !cam.filters) return null;
+    if (!richFx(scene.renderer) || !cam.filters) return null;
     try { return new CameraFx(cam); } catch { return null; }
   }
 

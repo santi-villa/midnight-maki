@@ -52,3 +52,26 @@ export function probeGpuTilemap(scene: Phaser.Scene, tile: number, gpu = true, t
     }
   });
 }
+
+let software: boolean | null = null;
+/**
+ * WebGL emulated on the CPU (SwiftShader, llvmpipe, Microsoft Basic Render: a browser without a usable graphics card).
+ * There every full-screen filter costs a lot, so the Phaser 4 extras (camera filters, rippling water, GPU weather) stay
+ * off and the game keeps its lighter effects. `?fx` in the address turns them on anyway (to test them).
+ */
+export function softwareGl(renderer: Phaser.Renderer.Canvas.CanvasRenderer | Phaser.Renderer.WebGL.WebGLRenderer | null | undefined): boolean {
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('fx')) return false;
+  if (software !== null) return software;
+  if (!(renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer)) return (software = true);
+  try {
+    const gl = renderer.gl, info = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    software = /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
+  } catch { software = false; }
+  return software;
+}
+
+/** The Phaser 4 extras run here: WebGL on a real graphics card (or forced with `?fx`). */
+export function richFx(renderer: Phaser.Renderer.Canvas.CanvasRenderer | Phaser.Renderer.WebGL.WebGLRenderer | null | undefined): boolean {
+  return renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer && !softwareGl(renderer);
+}
