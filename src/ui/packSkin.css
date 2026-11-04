@@ -1,0 +1,41 @@
+/* Higher specificity than the generated/unified skin, independent of lazy CSS order.
+   Only active when the licensed processed images are available. */
+html.pack-ui body #boot .boot-card,
+html.pack-ui body .panel,
+html.pack-ui body .pause-board,
+html.pack-ui body .pause-card,
+html.pack-ui body .load-card,
+html.pack-ui body .start-load-card {
+  background: none; border: 15px solid transparent;
+  border-image: var(--pack-sl_panel) 15 fill / 15px stretch;
+  border-radius: 0; box-shadow: 0 14px 30px #140c0866;
+}
+html.pack-ui body #boot .tip,
+html.pack-ui body .start-load-tip,
+html.pack-ui body .dlg {
+  background: none; border: 15px solid transparent;
+  border-image: var(--pack-sl_dialog) 15 15 18 15 fill / 15px 15px 18px 15px stretch;
+  border-radius: 0; box-shadow: none;
+}
+html.pack-ui body .btn,
+html.pack-ui body .dlg .choices button {
+  background: none; border: 12px solid transparent;
+  border-image: var(--pack-sl_btn) 12 fill / 12px stretch;
+  border-radius: 0; box-shadow: none;
+}
+html.pack-ui body .btn:active,
+html.pack-ui body .dlg .choices button:active {
+  background: none; border-image-source: var(--pack-sl_btn_down); box-shadow: none;
+}
+html.pack-ui body #boot .boot-bar,
+html.pack-ui body .start-load-bar {
+  box-sizing: border-box; height: 24px; background: none;
+  border: 6px solid transparent; border-image: var(--pack-sl_btn_down) 12 fill / 6px stretch;
+  border-radius: 0;
+}
+html.pack-ui body #boot .boot-bar i,
+html.pack-ui body .start-load-bar i {
+  background: linear-gradient(#bfe08a 0 35%,#8fbf5a 35% 80%,#6f9e45 80%);
+}
+html.pack-ui body #boot .boot-card { box-sizing: border-box; }
+html.pack-ui body .panel-head { background: transparent; border-radius: 0; }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installPackSkin } from './ui/packSkin';
 import './ui/styles.css';
 import { applySettings } from './core/settings';
 import { installSkin } from './ui/skin';
@@ -15,6 +16,7 @@ import './ui/uiScale.css';
 // the Sprout Lands skin, only where the local packs are present (src/art/packs.ts)
 import.meta.glob('./assets/packs/ui/*.css', { eager: true });
 
+installPackSkin();
 installErrorGuard();
 installAppShell();
 installPcControls();
