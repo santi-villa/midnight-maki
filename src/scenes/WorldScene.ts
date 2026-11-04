@@ -5,6 +5,11 @@ import { interiorSun, beamReach, lampRoom, type InteriorBlock } from './interior
  */
 import Phaser from 'phaser';
 import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, waterFrames } from '../art/tiles';
+import { tileAnimations, waterCycles } from './groundAnim';
+import { gpuTilemapWorks } from './gpuProbe';
+import { gpuWeather, type GpuWeatherKind } from './gpuWeather';
+import { CameraFx } from './cameraFx';
+import { WaterRipple } from './waterRipple';
 import { WaterFx } from './waterFx';
 import { FishLife, deepWater, waterBeside, type FishSource } from './fishLife';
 import { SkyLife } from './skyLife';
@@ -116,13 +121,17 @@ interface CastShadow { s: Phaser.GameObjects.Image; src: Phaser.GameObjects.Imag
 interface WindowGlow { ghost?: boolean; img: Phaser.GameObjects.Image; src: Phaser.GameObjects.Image; rect: GlowRect; facade: boolean; door: boolean; phase: number; shop?: string; home?: boolean; homeId?: string; seed: number }
 const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: 'yuki', 23: 'library' };
 interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean; shutter: Phaser.GameObjects.Image; level: number; target: number; tween?: Phaser.Tweens.Tween }
-interface WaterSet { fish: FishSource; ox: number; oy: number; layer: Phaser.Tilemaps.TilemapLayer; over: Phaser.Tilemaps.TilemapLayer | null; sea: boolean; water: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
+/** A ground layer: the plain one, or the GPU one the village uses (both take putTileAt). */
+type Ground = Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
+interface WaterSet { fish: FishSource; ox: number; oy: number; layer: Ground; over: Ground | null; sea: boolean; water: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
 export let world: WorldScene;
 
 /** guests in these phases are sitting at their table */
+/** `?nogpu` in the address draws the village ground the old way (to compare, or if a device misbehaves). */
+const gpuGroundOff = () => typeof location !== 'undefined' && new URLSearchParams(location.search).has('nogpu');
 /** The districts on the sea: their water is salt (no frogs or ducks). */
 const COAST = ['beach', 'harbor', 'market'];
 const SEATED_PHASES: PartyPhase[] = ['seated', 'waiting_order', 'waiting_food', 'eating', 'paying'];
@@ -166,9 +175,37 @@ export class WorldScene extends Phaser.Scene {
     return this.enterZone(h.zone, h.x, h.y, h.dir, withFade, true);
   }
   private map: Phaser.Tilemaps.Tilemap | null = null;
-  private layer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private layer: Ground | null = null;
   private overMap: Phaser.Tilemaps.Tilemap | null = null;
-  private overLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private overLayer: Ground | null = null;
+  camFx: CameraFx | null = null;
+  /** The ground is a TilemapGPULayer (the village on WebGL): tiles written into it need its data texture redone. */
+  private gpuGround = false;
+  /** ...and its water moves by itself (the tileset's animation table), so nothing repaints it frame by frame. */
+  private waterByGpu = false;
+  private groundDirty = false;
+  /** After writing tiles into a GPU layer: rebuild its tile texture once, at the end of the frame's updates. */
+  private touchGround() { if (this.gpuGround) this.groundDirty = true; }
+  private flushGround() {
+    if (!this.groundDirty) return;
+    this.groundDirty = false;
+    for (const l of [this.layer, this.overLayer, this.ripple?.layer]) if (l instanceof Phaser.Tilemaps.TilemapGPULayer) l.generateLayerDataTexture();
+  }
+  /** The water drawn once more on top of the ground, rippling (scenes/waterRipple.ts). */
+  private ripple: WaterRipple | null = null;
+  private waterMap: Phaser.Tilemaps.Tilemap | null = null;
+  private setupRipple(def: ZoneDef) {
+    if (!def.outdoor || !(this.waterTiles.length + this.shoreTiles.length) || lowFx() || settings.reduceMotion) return;
+    if (!(this.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer)) return;
+    const data = this.zone.tiles.map((row) => row.map(() => -1));
+    for (const t of [...this.waterTiles, ...this.shoreTiles]) data[t.y][t.x] = this.zone.tiles[t.y][t.x];
+    this.waterMap = this.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE });
+    const wts = this.waterMap.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0)!;
+    if (this.waterByGpu) Object.assign(wts.tileData, tileAnimations(waterCycles(TILE_INDEX), wts.firstgid));
+    const layer = this.waterMap.createLayer(0, wts, 0, 0, this.gpuGround) as Ground;
+    layer.setDepth(-9.8);
+    this.ripple = new WaterRipple(this, layer);
+  }
   private objs: Phaser.GameObjects.GameObject[] = [];
   private furnSprites: Phaser.GameObjects.Image[] = [];
   private occluders: Occluder[] = [];
@@ -224,7 +261,7 @@ export class WorldScene extends Phaser.Scene {
   private audioOutdoor: boolean | null = null;
   private audioNight: boolean | null = null;
   private coastTick = 0;
-  private ambient: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
+  private ambient: (Phaser.GameObjects.Particles.ParticleEmitter | Phaser.GameObjects.SpriteGPULayer)[] = [];
   /** x, y: the spot's tile on the drawn map (the spot itself keeps its district's own tile) */
   private gatherSprites: { spot: GatherSpot; img: Phaser.GameObjects.Image; x: number; y: number }[] = [];
   private bugs: Bug[] = [];
@@ -303,6 +340,10 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
+    // the colour of the hour, the night glow and the blur behind menus (scenes/cameraFx.ts)
+    this.camFx = CameraFx.attach(this);
+    // 2D lights for people (Phaser 4): white ambient, so by day nothing changes; at night the lamps nearby light them
+    if (this.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer) this.lights.enable().setAmbientColor(0xffffff);
     void import('../coop').then((m) => { this.coopLink = m.coopLink; });
     this.releaseBus();
     this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT') as any;
@@ -1023,6 +1064,8 @@ export class WorldScene extends Phaser.Scene {
     this.map = null;
     this.overLayer = null;
     this.overMap = null;
+    this.ripple?.destroy(); this.ripple = null;
+    this.waterMap?.destroy(); this.waterMap = null;
   }
 
   buildZoneObjects(id: string, prepared?: BuiltZone) {
@@ -1037,11 +1080,17 @@ export class WorldScene extends Phaser.Scene {
     this.map = this.make.tilemap({ data: this.zone.tiles, tileWidth: TILE, tileHeight: TILE });
     const ts = this.map.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0)!;
     void TILESET_COLS;
-    this.layer = this.map.createLayer(0, ts, 0, 0)!;
+    // the village's ground is drawn by the GPU in one go (Phaser 4's TilemapGPULayer), its water animated by the shader
+    // from the tileset's own animation table (scenes/groundAnim.ts); interiors are small and keep the plain layer
+    this.gpuGround = this.liveId === VILLAGE && gpuTilemapWorks() && !gpuGroundOff();
+    this.waterByGpu = this.gpuGround && !lowFx() && !settings.reduceMotion;
+    if (this.waterByGpu) Object.assign(ts.tileData, tileAnimations(waterCycles(TILE_INDEX), ts.firstgid));
+    this.layer = this.map.createLayer(0, ts, 0, 0, this.gpuGround) as Ground;
     this.layer.setDepth(-10);
     this.overMap = this.make.tilemap({ data: this.zone.overlay, tileWidth: TILE, tileHeight: TILE });
     const ots = this.overMap.addTilesetImage('tiles', 'tiles', TILE, TILE, 0, 0)!;
-    this.overLayer = this.overMap.createLayer(0, ots, 0, 0)!;
+    if (this.waterByGpu) Object.assign(ots.tileData, tileAnimations(waterCycles(TILE_INDEX), ots.firstgid));
+    this.overLayer = this.overMap.createLayer(0, ots, 0, 0, this.gpuGround) as Ground;
     this.overLayer.setDepth(-9.5);
     this.waterTiles = [];
     this.shoreTiles = [];
@@ -1060,6 +1109,7 @@ export class WorldScene extends Phaser.Scene {
         const m = bankIdx.get(this.zone.overlay[y][x]);
         if (m) this.bankTiles.push({ x, y, mask: m });
       }
+    this.setupRipple(def);
     this.lamps = [];
     this.occluders = [];
     // props
@@ -1238,6 +1288,7 @@ export class WorldScene extends Phaser.Scene {
     this.zone.tiles = fresh.tiles;
     // floors/walls may have changed (room styles)
     for (let y = 0; y < fresh.def.h; y++) for (let x = 0; x < fresh.def.w; x++) this.layer?.putTileAt(fresh.tiles[y][x], x, y);
+    this.touchGround();
     this.placeFurnitureSprites();
     this.syncGuests();
   }
@@ -1295,6 +1346,7 @@ export class WorldScene extends Phaser.Scene {
       if (!position) return;
       const { x, y } = this.lw('garden', position[0], position[1]);
       this.layer!.putTileAt(p.seed && p.watered ? TILE_INDEX.soilwet : TILE_INDEX.soil, x, y);
+      this.touchGround();
       if (i >= 6) this.cropSprites.push(this.add.image(x * TILE + 8, y * TILE + 16, propTexture(this, 'project_plot')).setOrigin(0.5, 1).setDepth(y * TILE + 1));
       if (!p.seed) return;
       const info = SEED_INFO[p.seed];
@@ -2872,6 +2924,7 @@ export class WorldScene extends Phaser.Scene {
     const night = clock.isNight() || clock.period === 2;
     const fresh = buildZone(this.liveId, night);
     for (let y = 0; y < fresh.def.h; y++) for (let x = 0; x < fresh.def.w; x++) if (fresh.def.ground[y][x] === 'V') this.layer?.putTileAt(fresh.tiles[y][x], x, y);
+    this.touchGround();
     this.spawnNpcs(true);
     this.npcKey = this.npcStamp();
     this.shopKey = this.shopStamp();
@@ -3043,7 +3096,13 @@ export class WorldScene extends Phaser.Scene {
       bits.setDepth(210000);
       this.ambient.push(bits);
     }
-    if (season === 3 && !rain) {
+    // dense weather drawn by the GPU over the whole map (scenes/gpuWeather.ts); without WebGL the lighter emitters below
+    const gpuSky = (kind: GpuWeatherKind) => { if (settings.reduceMotion) return false; const l = gpuWeather(this, kind, W, H, kind === 'rain' ? 150002 : 150000); if (l) this.ambient.push(l); return !!l; };
+    if (rain) gpuSky('rain');
+    else if (season === 0 && !night) gpuSky('petals');
+    if (season === 3 && !rain && gpuSky('snow')) { /* drawn by the GPU */ }
+    else if (season === 2 && !rain && !night && gpuSky('leaves')) { /* drawn by the GPU */ }
+    else if (season === 3 && !rain) {
       const flake = dotTexture(this, 'snow', '#ffffff', 2, 2);
       const em = this.add.particles(0, -4, flake, { x: { min: 0, max: W }, speedY: { min: 14, max: 28 }, speedX: { min: -8, max: 8 }, lifespan: (H / 20) * 1000, frequency: 70, alpha: { start: 0.95, end: 0.7 } });
       em.setDepth(150000);
@@ -3761,6 +3820,10 @@ export class WorldScene extends Phaser.Scene {
     }
     const dt = frozen ? 0 : Math.min(0.05, dms / 1000);
     if (!this.player || !this.zone) return;
+    this.camFx?.update(Math.min(0.1, dms / 1000), {
+      period: clock.period, prog: clock.progress(), rain: game.flag('weather') === 'rain', outdoor: !!this.zone.def.outdoor,
+      lamp: this.ls?.lamp ?? 0, blurred: frozen, low: lowFx(),
+    });
     const raining = game.flag('weather') === 'rain';
     if (this.weatherKey !== String(raining)) {
       this.sky ??= new SkyLife(this);
@@ -3816,6 +3879,7 @@ export class WorldScene extends Phaser.Scene {
     this.syncLiving(dt);
     this.updateBugs(dt);
     this.updateWater(dt);
+    this.ripple?.update(dt);
     this.updateSky(dt);
     this.updateSway();
     if (this.fish) {
@@ -3843,6 +3907,7 @@ export class WorldScene extends Phaser.Scene {
     this.refreshContext();
     this.pumpSpeech(dt);
     this.layoutBubbles();
+    this.flushGround();
   }
 
   private stepSound(x: number, y: number): string {
@@ -4571,6 +4636,8 @@ export class WorldScene extends Phaser.Scene {
 
   /** Writes the current animation frame into every water, shoreline and bank tile (only a few hundred putTileAt calls). */
   private applyWater(frame: number, rain: boolean, all = true) {
+    this.touchGround();
+    if (this.ripple) this.paintWater({ fish: { id: '', ox: 0, oy: 0, spots: [], deep: [] }, ox: 0, oy: 0, layer: this.ripple.layer as Ground, over: null, sea: this.sea, water: this.waterTiles, shore: this.shoreTiles, banks: [] }, frame, rain, all);
     if (this.layer) this.paintWater({ fish: { id: '', ox: 0, oy: 0, spots: [], deep: [] }, ox: 0, oy: 0, layer: this.layer, over: this.overLayer, sea: this.sea, water: this.waterTiles, shore: this.shoreTiles, banks: this.bankTiles }, frame, rain, all);
     for (const w of this.neighborWater) this.paintWater(w, frame, rain, all);
   }
@@ -4605,7 +4672,8 @@ export class WorldScene extends Phaser.Scene {
     const live = !!this.layer && (this.waterTiles.length > 0 || this.shoreTiles.length > 0);
     if (!live && !this.neighborWater.length) return;
     const rain = this.zone.def.outdoor && game.flag('weather') === 'rain';
-    if (lowFx()) {
+    // the GPU animates the water itself: only the rain (another set of tiles) needs them written again
+    if (lowFx() || this.waterByGpu) {
       if (this.waterRain !== rain) {
         this.waterRain = rain;
         this.applyWater(0, rain, true);
@@ -4969,6 +5037,7 @@ export class WorldScene extends Phaser.Scene {
     const visible = this.lamps.filter((l) => l.x > view.x - margin && l.x < view.right + margin && l.y > view.y - margin && l.y < view.bottom + margin);
     const lit = visible.map((l) => ({ l, k: Math.round(this.lampLevel(l, ls) * 100) / 100 })).filter((e) => e.k > 0.02);
     this.updateLightHalos(lit, ls, time, lo, actors);
+    this.updateActorLights(lit, ls);
     // the lighthouse beam turns only once the lamps are on
     this.beams = this.beams.filter((b) => b.active);
     for (const b of this.beams) b.setAlpha(Math.min(0.8, ls.lamp * 0.8));
@@ -5053,6 +5122,31 @@ export class WorldScene extends Phaser.Scene {
     }
     if (!def.outdoor) g.restore();
     this.darkTex!.refresh();
+  }
+  /**
+   * The lamps that light people up: the closest lit ones to the player become real 2D lights (Phaser 4) that only the
+   * characters take (their sprites have lighting on), warm on whoever walks under a street lamp, by a lantern or a lit
+   * window, and nothing by day. The ground keeps its own pools of light (the darkness layer).
+   */
+  private actorLights: Phaser.GameObjects.Light[] = [];
+  private updateActorLights(lit: { l: Light; k: number }[], ls: LightState) {
+    if (!this.lights.active) return;
+    const max = Math.min(10, this.lights.getMaxVisibleLights?.() ?? 10);
+    while (this.actorLights.length < max) this.actorLights.push(this.lights.addLight(0, 0, 60, 0xffd27a, 0));
+    const px = this.player.x, py = this.player.y;
+    const near = ls.lamp > 0.05 && !lowFx() ? [...lit].sort((a, b) => Math.hypot(a.l.x - px, a.l.y - py) - Math.hypot(b.l.x - px, b.l.y - py)).slice(0, max) : [];
+    this.actorLights.forEach((light, i) => {
+      const e = near[i];
+      if (!e) { light.setIntensity(0); return; }
+      const { l, k } = e;
+      // windows and stalls are softer than a street lamp; the light sits at the lamp's head, a little above the people
+      const soft = l.kind === 'spill' || l.kind === 'window';
+      light.x = l.x; light.y = l.gy ?? l.y;
+      // halfway between the lamp's colour and white: a warm touch, not a yellow cast (the ground pool already lights them)
+      const c = l.color ?? 0xffd27a, half = (v: number) => Math.round(v + (255 - v) * 0.5);
+      const warm = (half((c >> 16) & 255) << 16) | (half((c >> 8) & 255) << 8) | half(c & 255);
+      light.setRadius(l.r * (soft ? 1.1 : 1.3)).setZ(30).setColor(warm).setIntensity((soft ? 0.14 : 0.3) * k * Math.min(1, ls.lamp));
+    });
   }
   private darkCanvas: HTMLCanvasElement | null = null;
   private darkTex: Phaser.Textures.CanvasTexture | null = null;

@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { FRAMES } from '../art/characters';
 import { TILE_INDEX } from '../art/tiles';
+import { probeGpuTilemap } from './gpuProbe';
 import { settings } from '../core/settings';
 import type { ZoneDef } from '../data/zones';
 import { buildOverlay } from '../world/zoneRuntime';
@@ -50,6 +51,8 @@ export class TitleScene extends Phaser.Scene {
 
   create() {
     ensureTileset(this);
+    // can this device draw the village ground on the GPU? (answered while the title is up; see scenes/gpuProbe.ts)
+    void probeGpuTilemap(this, TILE_INDEX.grass0 ?? 0);
     const calm = settings.reduceMotion;
     const rows = groundRows();
     const data = rows.map((r, y) => [...r].map((ch, x) => tileOf(ch, x, y)));

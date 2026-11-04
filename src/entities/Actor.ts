@@ -67,6 +67,8 @@ export class Actor {
     this.sideSit = !!(scene.textures.get(texture).customData as { sideSit?: boolean } | undefined)?.sideSit;
     this.shadow = scene.add.ellipse(this.x, this.y, Math.max(11, Math.round(fw * 0.62)), fw > 30 ? 6 : 4, 0x2a2230, 0.25);
     this.sprite = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 1);
+    // where the scene has 2D lights on (the world, Phaser 4), people are lit by the street lamps they walk past
+    if (scene.lights?.active) this.sprite.setLighting(true);
     // silhouette cast shadow that follows the current animation frame
     this.cast = scene.add.sprite(this.x, this.y, texture, 0).setOrigin(0.5, 0).setAlpha(0.34).setVisible(false);
     this.sync();
