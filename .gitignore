@@ -13,3 +13,6 @@ playwright-report
 # The packs stay in ASSETS DESCARGADOS/ on Santi's machine; scripts/build-*.py write the game's cuts to src/assets/packs/.
 ASSETS DESCARGADOS/
 src/assets/packs/
+
+# art tests and before/after captures (CLAUDE.md): local, not part of the game
+.claude/skill-tests/
