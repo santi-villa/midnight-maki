@@ -49,6 +49,9 @@ export function installVillageWorld(zones: Record<string, ZoneDef>, gardenPlots:
   const prop = (id: string, x: number, y: number, cond?: string) => props.push({ id, x, y, cond });
   // The extra residential row sits on mainland, with its front street above the coastal edge.
   for (let y = 53; y < 60; y++) for (let x = 97; x < VILLAGE_WIDTH; x++) if (terrain[y][x] === 'd') set(x, y, 'g');
+  // The station's line does not stop at the trees: past the platform it runs on east, out of the village (the study map
+  // ends at x 104). Walkable like the rest of the track, and nothing is placed on it.
+  for (let x = 104; x < VILLAGE_WIDTH; x++) if (terrain[15][x] === 'g') set(x, 15, 'R');
   // Regular two-tile public lanes, wide bridge landings and a separate garden gate.
   street([[18, 21], [21, 21], [21, 38]], 2);
   street([[21, 38], [29, 38]], 3);

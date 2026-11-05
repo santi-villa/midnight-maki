@@ -6,7 +6,8 @@ import { RECIPES_BY_ID } from '../data/recipes';
 import { TILE } from '../entities/Actor';
 import { favouriteOf } from '../restaurant/townClients';
 import { clients } from '../restaurant/townVisits';
-import { dotTexture } from '../scenes/textures';
+import { restaurantFacadeLayout } from '../art/restaurantFacade';
+import { puffEmitter } from '../scenes/textures';
 import { clock } from '../systems/time';
 import { restaurantPhase } from '../systems/schedule';
 import { scentLine } from './townAmbience';
@@ -14,7 +15,7 @@ import { scentLine } from './townAmbience';
 interface Roof {
   x: number;
   y: number;
-  def: { w: number; h: number; sw: number; sh: number };
+  def: { w: number; h: number; sw: number; sh: number; stage?: number };
 }
 
 export interface Passer {
@@ -109,17 +110,22 @@ export class RestaurantBreath {
     if (!on || !prop) return;
     const foot = (prop.y + prop.def.h) * TILE;
     const top = foot - prop.def.sh;
-    const x = prop.x * TILE + (prop.def.w * TILE) / 2 + Math.min(18, prop.def.sw / 2 - 8);
-    const tex = dotTexture(this.scene, 'steam', '#f7f1e4', 4, 4);
+    // the steam leaves the roof itself: the facade's drawn top (classic or VectoRaith), not the sprite's empty margin
+    const face = restaurantFacadeLayout(prop.def.sw, prop.def.sh, prop.def.stage ?? 0);
+    const left = prop.x * TILE + (prop.def.w * TILE) / 2 - prop.def.sw / 2;
+    const x = Math.min(left + face.x + face.w - 10, prop.x * TILE + (prop.def.w * TILE) / 2 + Math.min(18, prop.def.sw / 2 - 8));
+    const roof = top + face.y + 4;
+    // puffs that billow and come apart (art/puff.ts); the growth is drawn, not scaled, so the pixels stay on the grid
+    const puff = puffEmitter(this.scene, 'steam', 1600);
     const rain = game.flag('weather') === 'rain';
-    this.steam = this.scene.add.particles(x, top + 16, tex, {
+    this.steam = this.scene.add.particles(x, roof, puff.texture, {
+      anim: puff.anim,
       speedY: { min: -10, max: -4 },
       speedX: rain ? { min: -2, max: 2 } : { min: 1, max: 4 },
       lifespan: 1600,
       frequency: phase === 'open' ? 140 : 480,
       quantity: 1,
       alpha: { start: 0.9, end: 0 },
-      scale: { start: 1, end: 1.8 },
       advance: 700,
     });
     // The facade is drawn at its feet. A roof-pixel depth sits behind that sprite and never shows.

@@ -66,7 +66,7 @@ import { castKey, trimCasts } from './shadowTex';
 import { benchSpots, clearings, fountainSpots, shoreSpots, type Place } from '../systems/neighborSpots';
 import { arrange, idleOffer, isPlayerRoom, needsMore, offerKey, resolveContext, type ContextAction, type ContextOffer, type Target } from '../world/contextActions';
 import { buildZone, condOk, roomAt, seaDepthAt, seaEdge, seaParity, usesSea, waterDepthAt, waterVariant, type BuiltZone, type FurnInstance } from '../world/zoneRuntime';
-import { propCanvas, cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
+import { propCanvas, cropTexture, charTexture, critterTexture, dotTexture, furnTexture, iconTexture, propTexture, vignetteTexture, glowTexture, guideTexture, cloudShadowTexture, puffEmitter, questMarkerTexture, windowGlowTexture, customerTexture, lookTexture, shopSignTexture, hasCharTexture, hasLookTexture, orderMarkTexture, appearanceTexture } from './textures';
 import { ambientExchange, type AmbientLine } from '../dialogue/ambient';
 import { Journey, type Position } from '../systems/journeys';
 import { TownLife, type TownResident } from '../systems/townLife';
@@ -3054,8 +3054,9 @@ export class WorldScene extends Phaser.Scene {
     const rain = game.flag('weather') === 'rain';
     if (!def.outdoor) {
       if (this.zoneId === 'restaurant') {
-        const steam = dotTexture(this, 'steam', '#f6ecd6', 2, 2);
-        const em = this.add.particles(2 * TILE + 8, 2 * TILE - 2, steam, { speedY: { min: -12, max: -6 }, speedX: { min: -3, max: 3 }, lifespan: 1600, frequency: 300, alpha: { start: 0.5, end: 0 }, scale: { start: 1, end: 2 } });
+        // steam off the stove: puffs that billow and come apart (art/puff.ts), never scaled off the pixel grid
+        const steam = puffEmitter(this, 'steam', 1600);
+        const em = this.add.particles(2 * TILE + 8, 2 * TILE - 2, steam.texture, { anim: steam.anim, speedY: { min: -12, max: -6 }, speedX: { min: -3, max: 3 }, lifespan: 1600, frequency: 300, alpha: { start: 0.75, end: 0 } });
         em.setDepth(3 * TILE + 20);
         this.ambient.push(em);
       }
@@ -3064,12 +3065,12 @@ export class WorldScene extends Phaser.Scene {
     const night = clock.isNight();
     const season = seasonOf(game.save.time.day);
     // smoke curling from the chimneys of homes and cabins
-    const smoke = dotTexture(this, 'smoke', '#e8e4ee', 3, 3);
+    const smoke = puffEmitter(this, 'smoke', 3200);
     for (const p of this.zone.props) {
       if (p.def.kind !== 'building' || (p.def.variant !== 2 && p.def.variant !== 3)) continue;
       const bx = p.x * TILE + (p.def.w * TILE) / 2 - p.def.sw / 2;
       const by = (p.y + p.def.h) * TILE - p.def.sh;
-      const em = this.add.particles(bx + p.def.sw - 18, by + 2, smoke, { speedY: { min: -10, max: -6 }, speedX: { min: 2, max: 6 }, lifespan: 3200, frequency: 520, alpha: { start: 0.5, end: 0 }, scale: { start: 0.7, end: 2.2 } });
+      const em = this.add.particles(bx + p.def.sw - 18, by + 2, smoke.texture, { anim: smoke.anim, speedY: { min: -10, max: -6 }, speedX: { min: 2, max: 6 }, lifespan: 3200, frequency: 520, alpha: { start: 0.85, end: 0.1 } });
       em.setDepth(160000);
       this.ambient.push(em);
     }

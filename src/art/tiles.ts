@@ -162,12 +162,28 @@ function cliffTile(part: 0 | 1 | 2): TileDraw {
   };
 }
 
+/**
+ * Railway track for the 'R' rows, which always run left to right: two rails along the row (lit top edge, dark side),
+ * four sleepers across it on the ballast, and the rust and weeds of a line nobody uses. Repeats seamlessly along the
+ * row. Designed in Pixel Art Studio (.claude/skill-tests/stage1/rail/build.py). Walkable, like before.
+ */
 function rail(): TileDraw {
   return (c, x, y, r) => {
     dirt()(c, x, y, r);
-    for (let j = 1; j < 16; j += 5) px(c, x + 1, y + j, PAL.woodD, 14, 2);
-    px(c, x + 3, y, '#6f6a72', 2, 16);
-    px(c, x + 11, y, '#6f6a72', 2, 16);
+    for (const ry of [4, 10]) px(c, x, y + ry + 2, '#b99c74', 16, 1); // the rails' shadow on the ballast
+    for (const sx of [1, 5, 9, 13]) {
+      px(c, x + sx, y + 2, PAL.wood, 2, 12);
+      px(c, x + sx, y + 2, PAL.woodL, 1, 1);
+      px(c, x + sx + 1, y + 3, PAL.woodD, 1, 11);
+      px(c, x + sx, y + 13, PAL.woodD, 1, 1);
+      px(c, x + sx, y + 14, '#b99c74', 2, 1);
+    }
+    for (const ry of [4, 10]) {
+      px(c, x, y + ry, '#b9b4bc', 16, 1);
+      px(c, x, y + ry + 1, '#5a5560', 16, 1);
+    }
+    px(c, x + 6, y + 5, PAL.woodL, 2, 1); px(c, x + 12, y + 11, PAL.woodL, 1, 1); // rust
+    px(c, x + 3, y + 7, '#8fa77f', 1, 1); px(c, x + 4, y + 8, '#8fa77f', 1, 1); px(c, x + 11, y + 13, '#8fa77f', 1, 1); // weeds
   };
 }
 

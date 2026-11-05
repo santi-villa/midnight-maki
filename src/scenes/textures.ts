@@ -27,6 +27,7 @@ import type { CustomerId } from '../art/customers';
 import { FOLK_SPECS } from '../data/folkSpecs';
 import { drawObject } from '../art/objects';
 import { ctx2d, makeCanvas, outline, px, shade } from '../art/pixel';
+import { paintPuffStrip, PUFF_FRAMES, PUFF_H, PUFF_W, type PuffKind } from '../art/puff';
 import { buildTileset } from '../art/tiles';
 import { buildRaccoonSheet, type RaccoonBuild } from '../art/raccoon';
 import { iconCanvas, type IconSpec } from '../art/icons';
@@ -326,6 +327,32 @@ export function vignetteTexture(scene: Phaser.Scene): string {
     scene.textures.addCanvas('vignette', c);
   }
   return 'vignette';
+}
+
+/**
+ * Puffs of smoke or steam for particle emitters (art/puff.ts). Returns the texture and an animation that plays the puff
+ * once over `lifespanMs`, so a particle is born small, billows and comes apart as it fades; pass both to the emitter:
+ * `{ ...puffEmitter(scene, 'smoke', 3200), lifespan: 3200, … }`.
+ */
+export function puffEmitter(scene: Phaser.Scene, kind: PuffKind, lifespanMs: number): { texture: string; anim: string } {
+  const texture = 'puff_' + kind;
+  if (!scene.textures.exists(texture)) {
+    const c = makeCanvas(PUFF_W * PUFF_FRAMES.length, PUFF_H);
+    paintPuffStrip(ctx2d(c), kind);
+    const tex = scene.textures.addCanvas(texture, c)!;
+    PUFF_FRAMES.forEach((_, i) => tex.add(i, 0, i * PUFF_W, 0, PUFF_W, PUFF_H));
+    tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
+  }
+  const anim = `${texture}_${lifespanMs}`;
+  if (!scene.anims.exists(anim)) {
+    scene.anims.create({
+      key: anim,
+      frames: PUFF_FRAMES.map((_, i) => ({ key: texture, frame: i })),
+      frameRate: PUFF_FRAMES.length / (lifespanMs / 1000),
+      repeat: 0,
+    });
+  }
+  return { texture, anim };
 }
 
 export function dotTexture(scene: Phaser.Scene, key: string, color: string, w = 2, h = 2): string {
