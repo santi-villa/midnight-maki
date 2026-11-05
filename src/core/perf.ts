@@ -19,6 +19,12 @@ export function lowFx(): boolean {
   return mode === 'low' || (mode === 'auto' && autoLow);
 }
 
+/** Battery mode chosen or switched on by the auto mode (not reduced motion): the canvas also drops resolution. */
+export function lowPower(): boolean {
+  const mode = settings.perf ?? 'auto';
+  return mode === 'low' || (mode === 'auto' && autoLow);
+}
+
 let acc = 0;
 let frames = 0;
 let slow = 0;

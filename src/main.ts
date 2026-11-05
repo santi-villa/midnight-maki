@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { installPackSkin } from './ui/packSkin';
 import './ui/styles.css';
 import { applySettings } from './core/settings';
+import { backingScale, LOW_SCALE_CAP, onRefitViewport, SCALE_CAP, setGamePx, viewportFor } from './core/pixelRatio';
+import { lowPower } from './core/perf';
 import { installSkin } from './ui/skin';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
@@ -55,7 +57,16 @@ function whenSized(cb: () => void) {
 
 whenSized(boot);
 
+/** The canvas size for the #game box: `gamePx()` canvas pixels per CSS pixel (core/pixelRatio.ts). */
+function viewport() {
+  const r = document.getElementById('game')!.getBoundingClientRect();
+  const scale = backingScale(window.devicePixelRatio || 1, lowPower() ? LOW_SCALE_CAP : SCALE_CAP);
+  return { ...viewportFor(Math.max(1, r.width), Math.max(1, r.height), scale), scale };
+}
+
 function boot() {
+const first = viewport();
+setGamePx(first.scale);
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
@@ -63,7 +74,8 @@ const game = new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   antialias: false,
-  scale: { mode: Phaser.Scale.RESIZE, width: Math.max(320, window.innerWidth), height: Math.max(320, window.innerHeight) },
+  // The canvas is sized here, not by Phaser: whole device pixels per game pixel on any screen (core/pixelRatio.ts).
+  scale: { mode: Phaser.Scale.NONE, width: first.width, height: first.height, zoom: first.zoom },
   // ?st forces a setTimeout loop (useful for automated tests in background tabs)
   fps: { target: 60, min: 30, forceSetTimeOut: new URLSearchParams(location.search).has('st') },
   input: { activePointers: 2 },
@@ -81,11 +93,15 @@ const resizeViewport = () => {
   viewportFrame = requestAnimationFrame(() => {
     const bounds = host.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return;
-    if (Math.abs(game.scale.width - bounds.width) < 1 && Math.abs(game.scale.height - bounds.height) < 1) return;
-    game.scale.getParentBounds();
-    game.scale.refresh();
+    const v = viewport();
+    if (v.width === game.scale.width && v.height === game.scale.height && v.zoom === game.scale.zoom) return;
+    setGamePx(v.scale);
+    game.scale.zoom = v.zoom;
+    game.scale.resize(v.width, v.height);
   });
 };
+// battery mode lowers the canvas resolution (and raises it back): same path as a resize
+onRefitViewport(resizeViewport);
 const viewportObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resizeViewport);
 viewportObserver?.observe(host);
 window.addEventListener('resize', resizeViewport);

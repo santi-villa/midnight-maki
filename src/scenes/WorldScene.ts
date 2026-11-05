@@ -73,6 +73,7 @@ import { TownLife, type TownResident } from '../systems/townLife';
 import { safeArrival, zoneTransitionKind } from '../world/zoneTransition';
 import { clampFrameZoom, walkingZoom } from '../ui/frameMath';
 import { kitchenCameraFrame } from '../ui/kitchenFrame';
+import { gamePx, refitViewport } from '../core/pixelRatio';
 import { layoutSpeech } from '../ui/speechLayout';
 import { SpeechTurns } from '../world/speechTurns';
 import { customerLook } from '../restaurant/customers';
@@ -442,7 +443,7 @@ export class WorldScene extends Phaser.Scene {
     const key = `${this.scale.width}:${this.scale.height}`;
     if (!force && this.kitchenFramed && this.kitchenFrameKey === key) return;
     this.kitchenFramed = true; this.kitchenFrameKey = key;
-    const frame = kitchenCameraFrame(this.scale.width, this.scale.height);
+    const frame = kitchenCameraFrame(this.scale.width, this.scale.height, TILE, gamePx());
     cam.stopFollow(); cam.removeBounds();
     if (glide) {
       this.sizeDark(Math.min(cam.zoom, frame.zoom));
@@ -500,12 +501,13 @@ export class WorldScene extends Phaser.Scene {
   private roomFrame: { room: { x: number; y: number; w: number; h: number }; inset: number } | null = null;
   private roomSaved: { zoom: number } | null = null;
 
-  /** Fits a room in the part of the screen the decoration sheet leaves free (`inset` px at the bottom). */
-  frameRoom(room: { x: number; y: number; w: number; h: number }, inset: number, ms = 350) {
+  /** Fits a room in the part of the screen the decoration sheet leaves free (`insetCss`: its height in CSS px). */
+  frameRoom(room: { x: number; y: number; w: number; h: number }, insetCss: number, ms = 350) {
     const cam = this.cameras.main;
+    const inset = insetCss * gamePx();
     if (!this.roomFrame) { this.roomSaved = { zoom: cam.zoom }; cam.stopFollow(); cam.removeBounds(); }
-    this.roomFrame = { room, inset };
-    const w = this.scale.width, h = Math.max(120, this.scale.height - inset);
+    this.roomFrame = { room, inset: insetCss };
+    const w = this.scale.width, h = Math.max(120 * gamePx(), this.scale.height - inset);
     const fit = Math.min(w / ((room.w + 1) * TILE), h / ((room.h + 1) * TILE));
     const zoom = fit >= 2 ? Math.floor(fit) : Math.max(1, Math.floor(fit * 4) / 4);
     const cx = (room.x + room.w / 2) * TILE, cy = (room.y + room.h / 2) * TILE + inset / 2 / zoom;
@@ -5212,6 +5214,7 @@ export class WorldScene extends Phaser.Scene {
     loop.fpsLimit = low ? 30 : 0;
     loop._limitRate = low ? 1000 / 30 : 0;
     loop.hasFpsLimit = low;
+    refitViewport(); // battery mode also renders fewer (still whole) pixels: core/pixelRatio.ts
     this.setupAmbient();
     if (announce) void runTask('world:battery-tip', () => import('../ui/dom').then(({ toast }) => toast('Activé el modo batería para que el juego vaya más fluido.')), false);
   }

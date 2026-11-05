@@ -340,8 +340,9 @@ export function puffEmitter(scene: Phaser.Scene, kind: PuffKind, lifespanMs: num
     const c = makeCanvas(PUFF_W * PUFF_FRAMES.length, PUFF_H);
     paintPuffStrip(ctx2d(c), kind);
     const tex = scene.textures.addCanvas(texture, c)!;
+    // nearest filtering comes from the game's `pixelArt: true`; no Phaser value is read here, so this module stays
+    // importable from the node tests (esbuild drops the type-only Phaser import)
     PUFF_FRAMES.forEach((_, i) => tex.add(i, 0, i * PUFF_W, 0, PUFF_W, PUFF_H));
-    tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
   const anim = `${texture}_${lifespanMs}`;
   if (!scene.anims.exists(anim)) {

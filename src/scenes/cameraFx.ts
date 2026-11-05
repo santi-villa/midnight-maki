@@ -9,6 +9,7 @@
 import Phaser from 'phaser';
 import { gradeAt, gradeKey, gradeMatrix, NEUTRAL } from './grade';
 import { richFx } from './gpuProbe';
+import { gamePx } from '../core/pixelRatio';
 
 export interface CameraFxState {
   period: number;
@@ -27,7 +28,9 @@ export interface CameraFxState {
 export class CameraFx {
   private cm: Phaser.Filters.ColorMatrix;
   private bloom: Phaser.Filters.ParallelFilters;
+  private bloomBlur: Phaser.Filters.Blur;
   private blur: Phaser.Filters.Blur;
+  private px = 0;
   private key = '';
   private blurK = 0;
   private glow = 0;
@@ -38,7 +41,7 @@ export class CameraFx {
     this.bloom = f.addParallelFilters();
     // only what is bright gets through, softened, then added back warm
     this.bloom.top.addThreshold(0.72, 0.98);
-    this.bloom.top.addBlur(1, 2, 2, 1.6);
+    this.bloomBlur = this.bloom.top.addBlur(1, 2, 2, 1.6);
     this.bloom.blend.blendMode = Phaser.BlendModes.ADD;
     this.bloom.blend.amount = 0;
     this.bloom.blend.color = [1, 0.93, 0.8, 1];
@@ -56,6 +59,13 @@ export class CameraFx {
 
   /** `dt` in real seconds (it keeps easing while the game is paused behind a menu). */
   update(dt: number, s: CameraFxState) {
+    // the blurs reach a set distance in CSS pixels, whatever the canvas resolution (core/pixelRatio.ts)
+    const px = gamePx();
+    if (px !== this.px) {
+      this.px = px;
+      this.bloomBlur.x = this.bloomBlur.y = 2 * px;
+      this.blur.x = this.blur.y = 2 * px;
+    }
     const g = s.low ? NEUTRAL : gradeAt(s.period, s.prog, s.rain, s.outdoor);
     const key = gradeKey(g);
     if (key !== this.key) {
