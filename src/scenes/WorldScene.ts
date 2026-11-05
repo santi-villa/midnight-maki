@@ -182,6 +182,8 @@ export class WorldScene extends Phaser.Scene {
   camFx: CameraFx | null = null;
   /** The ground is a TilemapGPULayer (the village on WebGL): tiles written into it need its data texture redone. */
   private gpuGround = false;
+  /** For the `?gpuinfo` badge (ui/gpuInfo.ts): the village ground is drawn by the TilemapGPULayer right now. */
+  get groundOnGpu() { return this.gpuGround; }
   /** ...and its water moves by itself (the tileset's animation table), so nothing repaints it frame by frame. */
   private waterByGpu = false;
   private groundDirty = false;

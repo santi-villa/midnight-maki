@@ -34,7 +34,7 @@ Rumbos del tipo `Dir`: `down`, `up`, `left`, `right`. El cliente del salón mira
 ## Cómo entra una imagen
 
 1. **Pintada en código.** Tiles: `ensureTileset` → textura `tiles` (`src/scenes/textures.ts`, `src/art/tiles.ts`). Personajes: `buildCharacterSheet`. Props y muebles: `src/art/*`. Se cachean con `src/art/sheetCache.ts`.
-2. **Atlas del repo**, cargados en `BootScene.preload`: `src/assets/cozy-town`, `interiors`, `village`, `farm`, `icons16`, `bridges`, `pets`, `clientes`, `portraits`.
+2. **Atlas del repo**, cargados en `BootScene.preload`: `src/assets/cozy-town`, `interiors`, `village`, `farm`, `icons16`, `bridges`, `pets`. Los retratos (`portraits/`) entran por `import` en `src/systems/appearance.ts`. `src/assets/clientes/` **no se carga**: son exportaciones (PNG 28×40 y `animations.json`) de los mismos clientes que dibuja `src/art/customers.ts`; sirven de referencia, no son arte nuevo sin usar.
 3. **Packs locales**, opcionales. `src/art/packs.ts` hace glob de `src/assets/packs/**/*.png` y excluye `NUEVO`. Si el archivo no está, queda el arte dibujado. Flags de prueba: `?interiors=classic`, `?exteriors=classic`, `?buildings=classic`, `?japaneseCity=classic`, `?serene=classic`.
 4. **`public/`** es estático de Vite (`base: './'`). Título, intro, logo, mapa. No es el lugar de un sprite de juego nuevo.
 

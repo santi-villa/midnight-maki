@@ -72,3 +72,17 @@ juego se ve como antes. `?fx` en la dirección los fuerza igual (para probarlos)
 - **Límite:** el navegador de pruebas no tiene placa de video. Ahí la capa de suelo en GPU no se ve, la verificación lo
   detecta y usa la clásica. Por eso la versión en GPU del suelo y de su agua animada no se pudo ver funcionando: hay que
   confirmarla en un equipo con placa de video.
+
+## Cómo confirmarlo en un teléfono o una PC reales (`?gpuinfo`)
+Agregá `?gpuinfo` a la dirección del juego (por ejemplo `.../midnight-maki/?gpuinfo`). Abajo a la izquierda aparece un cartelito
+con:
+- **Placa:** el nombre de la placa de video. Si dice "(por software)", el equipo emula WebGL y el juego usa el camino liviano.
+- **Suelo en GPU:** `sí` si el piso del pueblo se dibuja con `TilemapGPULayer`, que es lo que faltaba confirmar. `no` si la
+  sonda del título vio que esa placa no lo dibuja.
+- **Efectos:** si corren los filtros, el clima en GPU y las luces, o si el equipo quedó en el camino liviano. También avisa
+  si está en modo batería.
+- **Canvas:** el tamaño del canvas, cuántos píxeles tiene por píxel CSS (`docs/pixeles-nitidos.md`) y los fps.
+
+Sin `?gpuinfo` no aparece nunca. En el navegador de pruebas (sin placa de video) dice: SwiftShader (por software),
+suelo en GPU no, efectos no. Con `?fx` dice efectos sí y suelo no, porque la sonda detecta que esa placa no dibuja la
+capa en GPU.

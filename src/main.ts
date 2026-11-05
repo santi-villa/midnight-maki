@@ -115,6 +115,7 @@ game.events.once('destroy', () => {
 if (import.meta.env.DEV) void import('./kitchen/board').then((m) => { (window as any).__cook = m.cook; });
 if (import.meta.env.DEV) void import('./data/recipes').then((m) => { (window as any).__recipes = m.RECIPES_BY_ID; });
 installMoveScrollGuard(game);
+void import('./ui/gpuInfo').then((m) => m.installGpuInfo(game)); // only with ?gpuinfo
 
 game.events.once('booted', () => void runTask('boot:title', () => showTitle(game)));
 }
