@@ -2,7 +2,7 @@ import { DINING_DEFAULTS, restyleDining } from '../restaurant/interiorLayout';
 /** Turns a ZoneDef + current save into tiles, collision grid and placed objects. DOM-free. */
 import { game } from '../core/state';
 import type { PlacedFurniture } from '../core/types';
-import { TILE_INDEX, TILE_SOLID } from '../art/tiles';
+import { TILE_INDEX, TILE_SOLID, type SeaDepth } from '../art/tiles';
 import { hasExteriors } from '../art/exteriors';
 import { FURN_BY_ID, furnSize, type FurnitureDef } from '../data/furniture';
 import { PROPS, type PropDef } from '../data/props';
@@ -96,11 +96,11 @@ export const seaParity = (x: number, y: number) => (x % 2) + 2 * (y % 2);
 
 const seaWater = (ch: string | undefined) => ch === undefined || 'wdhb'.includes(ch);
 /** Sea depth by distance to land (piers count as water): a light band along the coast, deep water further out. */
-export function seaDepthAt(ground: string[], x: number, y: number): 's' | 'm' | 'd' {
-  let near = 25;
+export function seaDepthAt(ground: string[], x: number, y: number): SeaDepth {
+  let near = 26;
   for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) if (!seaWater(ground[y + dy]?.[x + dx])) near = Math.min(near, dx * dx + dy * dy);
-  // round distances keep the bands as soft curves instead of square steps
-  return near <= 4 ? 's' : near <= 16 ? 'm' : 'd';
+  // round distances keep the bands as soft curves instead of square steps; five bands, about a tile each (art/tiles.ts)
+  return near <= 4 ? 's' : near <= 9 ? 'sm' : near <= 16 ? 'm' : near <= 25 ? 'md' : 'd';
 }
 /** The waterline tile family of a sea cell that touches sand (its base key without the frame), or null for open water. */
 export function seaEdge(ground: string[], x: number, y: number): string | null {

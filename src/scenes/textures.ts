@@ -414,20 +414,38 @@ export function critterTexture(scene: Phaser.Scene, kind: 'bird' | 'cat' | 'butt
 }
 
 /** Soft cloud shadow that drifts over outdoor zones. */
+/**
+ * The shadow of a passing cloud, drawn at the game's own pixel size (never scaled, so it stays on the grid). Inside the
+ * cloud's shape: one flat, light shade; towards the edge it thins out in two dithered bands (half, then a quarter of the
+ * pixels), so the edge is soft without a gradient. Overlapping smooth gradients used to add up to a dark, dirty smudge
+ * that read as a stain on roofs and streets. Two frames: a small cloud and a big one.
+ */
 export function cloudShadowTexture(scene: Phaser.Scene): string {
-  if (!scene.textures.exists('cloudshadow')) {
-    const c = makeCanvas(96, 48);
+  const KEY = 'cloudshadow3';
+  if (!scene.textures.exists(KEY)) {
+    const sizes = [[192, 96], [288, 144]] as const;
+    const c = makeCanvas(192 + 288, 144);
     const g = c.getContext('2d')!;
-    for (const [x, y, r] of [[30, 26, 20], [52, 20, 24], [72, 28, 18], [46, 32, 18]] as const) {
-      const grad = g.createRadialGradient(x, y, 0, x, y, r);
-      grad.addColorStop(0, 'rgba(20,30,60,0.22)');
-      grad.addColorStop(1, 'rgba(20,30,60,0)');
-      g.fillStyle = grad;
-      g.fillRect(0, 0, 96, 48);
+    const puffs = [[0.31, 0.54, 0.19], [0.54, 0.42, 0.23], [0.75, 0.58, 0.17], [0.48, 0.67, 0.19]] as const;
+    let ox = 0;
+    for (const [W, H] of sizes) {
+      const k = W / 48, rim = 4 * k / 2;
+      const inside = (x: number, y: number) => Math.max(...puffs.map(([cx, cy, r]) => r * 48 * k - Math.hypot(x + 0.5 - cx * W, y + 0.5 - cy * H)));
+      g.fillStyle = 'rgba(24,34,70,0.12)';
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const d = inside(x, y);
+        if (d < 0) continue;
+        if (d < rim && (x + 2 * y) % 4) continue; // outer band: a quarter of the pixels
+        if (d >= rim && d < 2 * rim && (x + y) % 2) continue; // inner band: half of them
+        g.fillRect(ox + x, y, 1, 1);
+      }
+      ox += W;
     }
-    scene.textures.addCanvas('cloudshadow', c);
+    const tex = scene.textures.addCanvas(KEY, c)!;
+    tex.add('small', 0, 0, 0, 192, 96);
+    tex.add('big', 0, 192, 0, 288, 144);
   }
-  return 'cloudshadow';
+  return KEY;
 }
 
 export function hashStr(s: string): number {

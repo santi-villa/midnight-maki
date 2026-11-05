@@ -247,11 +247,19 @@ for (const rain of [false, true])
     for (let v = 0; v < 3; v++) for (let f = 0; f < 4; f++) add(`wt${rain ? 'r' : 'c'}${depth[0]}${v}_${f}`, true, waterTile(v, f, depth, rain));
 // the open sea (beach): sea<calm|rain><s|m|d><parity>_<frame>, the pack's 2x2 water pattern with its 8 frames;
 // deeper water and rain are a tint over the same pixels. Without the atlas it falls back to the drawn water.
-const SEA_TINT = { s: '', m: 'rgba(18,58,112,0.16)', d: 'rgba(14,40,92,0.32)' } as const;
+/**
+ * Depth bands of the sea: a darker tint over the same pack pixels the further from land. Five bands in even steps
+ * (0, 8, 16, 24, 32 %) rather than three (0, 16, 32 %): each step is under what reads as an edge, so open water darkens
+ * gradually instead of in tile-sized stairs. 'sm' and 'md' are the in-between bands.
+ */
+export type SeaDepth = 's' | 'sm' | 'm' | 'md' | 'd';
+export const SEA_DEPTHS: readonly SeaDepth[] = ['s', 'sm', 'm', 'md', 'd'];
+const SEA_TINT: Record<SeaDepth, string> = { s: '', sm: 'rgba(18,58,112,0.08)', m: 'rgba(18,58,112,0.16)', md: 'rgba(16,49,102,0.24)', d: 'rgba(14,40,92,0.32)' };
+const DRAWN_DEPTH: Record<SeaDepth, 'shallow' | 'mid' | 'deep'> = { s: 'shallow', sm: 'shallow', m: 'mid', md: 'mid', d: 'deep' };
 for (const rain of [false, true])
-  for (const depth of ['s', 'm', 'd'] as const)
+  for (const depth of SEA_DEPTHS)
     for (let p = 0; p < 4; p++) for (let f = 0; f < SEA_FRAMES; f++) add(`sea${rain ? 'r' : 'c'}${depth}${p}_${f}`, true, (c, x, y, r) => {
-      if (!drawExteriorTile(c, x, y, `sea${p}_${f}`)) return waterTile(p % 3, f % 4, depth === 's' ? 'shallow' : depth === 'm' ? 'mid' : 'deep', rain)(c, x, y, r);
+      if (!drawExteriorTile(c, x, y, `sea${p}_${f}`)) return waterTile(p % 3, f % 4, DRAWN_DEPTH[depth], rain)(c, x, y, r);
       for (const tint of [SEA_TINT[depth], rain ? 'rgba(96,104,120,0.28)' : '']) if (tint) { c.fillStyle = tint; c.fillRect(x, y, 16, 16); }
     });
 // the sea's waterline under dry sand (a two-tile pattern)
@@ -323,7 +331,7 @@ export function waterFrames(depth: 's' | 'm' | 'd', variant: number, rain: boole
 /** Beach waterline frames (frame 0 is the plain 'shore' tile). */
 export const SHORE_FRAMES = [TILE_INDEX.shore, TILE_INDEX.shore1, TILE_INDEX.shore2, TILE_INDEX.shore3];
 /** The animation frames of a sea tile (parity = x % 2 + 2 * (y % 2)) and of the sea's waterline (parity = x % 2). */
-export function seaFrames(depth: 's' | 'm' | 'd', parity: number, rain: boolean): number[] {
+export function seaFrames(depth: SeaDepth, parity: number, rain: boolean): number[] {
   return Array.from({ length: SEA_FRAMES }, (_, f) => TILE_INDEX[`sea${rain ? 'r' : 'c'}${depth}${parity}_${f}`]);
 }
 export function seaShoreFrames(edge: string): number[] {

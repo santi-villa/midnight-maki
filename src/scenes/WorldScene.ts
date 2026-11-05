@@ -4,7 +4,7 @@ import { interiorSun, beamReach, lampRoom, type InteriorBlock } from './interior
  * ambient effects and interaction detection. Gameplay decisions are delegated to systems/actions.
  */
 import Phaser from 'phaser';
-import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, waterFrames } from '../art/tiles';
+import { SHORE_FRAMES, TILESET_COLS, TILE_INDEX, seaFrames, seaShoreFrames, waterFrames, type SeaDepth } from '../art/tiles';
 import { tileAnimations, waterCycles } from './groundAnim';
 import { gpuTilemapWorks, richFx } from './gpuProbe';
 import { gpuWeather, type GpuWeatherKind } from './gpuWeather';
@@ -124,7 +124,7 @@ const SHOP_OF_VARIANT: Record<number, string> = { 20: 'taro', 21: 'bento', 22: '
 interface ShopFacade { img: Phaser.GameObjects.Image; propId: string; shop: string; closed: boolean; shutter: Phaser.GameObjects.Image; level: number; target: number; tween?: Phaser.Tweens.Tween }
 /** A ground layer: the plain one, or the GPU one the village uses (both take putTileAt). */
 type Ground = Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer;
-interface WaterSet { fish: FishSource; ox: number; oy: number; layer: Ground; over: Ground | null; sea: boolean; water: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
+interface WaterSet { fish: FishSource; ox: number; oy: number; layer: Ground; over: Ground | null; sea: boolean; water: { x: number; y: number; depth: SeaDepth; v: number }[]; shore: { x: number; y: number; edge?: string }[]; banks: { x: number; y: number; mask: number }[] }
 interface Bug { sprite: Phaser.GameObjects.Image; item: string; vx: number; vy: number; t: number; }
 interface Occluder { sprite: Phaser.GameObjects.Image; baseY: number; bounds: { left: number; right: number; top: number; bottom: number }; }
 
@@ -233,7 +233,7 @@ export class WorldScene extends Phaser.Scene {
   /** A ground click keeps its path until the movement keys and the stick are released. */
   private pointerSteer = false;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
-  private waterTiles: { x: number; y: number; depth: 's' | 'm' | 'd'; v: number }[] = [];
+  private waterTiles: { x: number; y: number; depth: SeaDepth; v: number }[] = [];
   /** the beach's sea: the pack's water, twice as many frames as the drawn ponds */
   private sea = false;
   private shoreTiles: { x: number; y: number; edge?: string }[] = [];
@@ -3078,7 +3078,8 @@ export class WorldScene extends Phaser.Scene {
     }
     // big soft cloud shadows drifting by on sunny days
     if (!rain && !night && clock.period < 2 && (this.liveId === VILLAGE || ['plaza', 'garden', 'forest', 'beach', 'station'].includes(this.zoneId))) {
-      const cs = this.add.particles(-120, 0, cloudShadowTexture(this), { y: { min: 0, max: H }, speedX: { min: 7, max: 11 }, lifespan: ((W + 260) / 8) * 1000, frequency: 9000, scale: { min: 2, max: 3.2 }, advance: ((W + 260) / 8) * 1000 } as any);
+      // drawn at the game's pixel size, small or big, never scaled: the dithered edge stays fine (textures.ts)
+      const cs = this.add.particles(-160, 0, cloudShadowTexture(this), { frame: ['small', 'big'], y: { min: 0, max: H }, speedX: { min: 7, max: 11 }, lifespan: ((W + 320) / 8) * 1000, frequency: 9000, advance: ((W + 320) / 8) * 1000 } as any);
       cs.setDepth(149000);
       this.ambient.push(cs);
     }
@@ -4664,7 +4665,8 @@ export class WorldScene extends Phaser.Scene {
       for (const t of w.shore) if (inView(t)) L.putTileAt(seaShoreFrames(t.edge ?? `seashore${t.x % 2}`)[frame], t.x, t.y);
     } else {
       const f = frame >> 1;
-      for (const t of w.water) if (inView(t)) L.putTileAt(waterFrames(t.depth, t.v, rain)[(f + t.v) % 4], t.x, t.y);
+      // drawn ponds only ever get waterDepthAt's three bands
+      for (const t of w.water) if (inView(t)) L.putTileAt(waterFrames(t.depth as 's' | 'm' | 'd', t.v, rain)[(f + t.v) % 4], t.x, t.y);
       for (const t of w.shore) if (inView(t)) L.putTileAt(SHORE_FRAMES[(f + t.x) % 4], t.x, t.y);
     }
     if (w.over) for (const b of w.banks) if (inView(b)) w.over.putTileAt(TILE_INDEX[((frame >> 2) + b.x + b.y) % 2 ? 'bkb' + b.mask : 'bk' + b.mask], b.x, b.y);

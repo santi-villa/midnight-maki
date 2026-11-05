@@ -134,7 +134,7 @@ function details(c: Ctx, W: number, H: number, L: HomeLayout) {
 /** the whole house, front view (door on one side, two windows) or gable-end view (entrance on the end wall) */
 export function drawHome(c: Ctx, W: number, H: number, walls: string, roof: string, variant: number, side: boolean) {
   const L = homeLayout(W, H, variant, side);
-  if (drawDemoHome(c, W, H, L)) return;
+  if (drawDemoHome(c, W, H, L, roof)) return;
   const { eave, trade, right } = L;
   const base = H - 5;
   // --- walls: plaster with timber frame and a stone footing
